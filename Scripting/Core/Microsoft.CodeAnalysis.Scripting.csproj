@@ -8,8 +8,6 @@
     <TargetFrameworks>net6.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);SCRIPTING</DefineConstants>
     <LangVersion>latest</LangVersion>
-    <AssemblyOriginatorKeyFile>Key.snk</AssemblyOriginatorKeyFile>
-    <SignAssembly>true</SignAssembly>
     <!-- NuGet -->
     <IsPackable>true</IsPackable>
     <PackageId>Microsoft.CodeAnalysis.Scripting.Common</PackageId>
@@ -41,12 +39,17 @@
     <Compile Include="..\..\Compilers\Shared\GlobalAssemblyCacheHelpers\MonoGlobalAssemblyCache.cs">
       <Link>Hosting\Resolvers\MonoGlobalAssemblyCache.cs</Link>
     </Compile>
-    <Compile Update="ScriptingResources.Designer.cs" GenerateSource="true" />
+    <Compile Update="ScriptingResources.Designer.cs" GenerateSource="true">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>ScriptingResources.resx</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="IgnoresAccessChecksToGenerator" Version="0.6.0" />
+    <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
     <!--<InternalsAssemblyName Include="Microsoft.CodeAnalysis" />-->
-    <PackageReference Include="Microsoft.CodeAnalysis" Version="4.7.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.7.0" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting" />
     <InternalsVisibleTo Include="csi" />
@@ -66,7 +69,10 @@
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.EditorFeatures.Test.Utilities" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Update="ScriptingResources.resx" GenerateSource="true" />
+    <EmbeddedResource Update="ScriptingResources.resx" GenerateSource="true">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>ScriptingResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <PublicAPI Include="PublicAPI.Shipped.txt" />

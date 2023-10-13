@@ -20,7 +20,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Dim buildPaths = New BuildPaths(
                     clientDir:=vbiDirectory,
                     workingDir:=Directory.GetCurrentDirectory(),
-                    sdkDir:=RuntimeMetadataReferenceResolver.GetDesktopFrameworkDirectory(),
+                    sdkDir:=Path.GetDirectoryName(GetType(Object).Assembly.Location),
                     tempDir:=Path.GetTempPath())
 
                 Dim compiler = New VisualBasicInteractiveCompiler(

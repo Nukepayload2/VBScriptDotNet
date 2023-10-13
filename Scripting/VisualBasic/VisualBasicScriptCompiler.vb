@@ -34,17 +34,25 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         End Property
 
         Public Overrides Function IsCompleteSubmission(tree As SyntaxTree) As Boolean
-            Return SyntaxFactory.IsCompleteSubmission(tree)
+            Try
+                Return SyntaxFactory.IsCompleteSubmission(tree)
+            Catch ex As Exception
+                ' Syntax error?
+                Return True
+            End Try
         End Function
 
         Public Overrides Function ParseSubmission(text As SourceText, parseOptions As ParseOptions, cancellationToken As CancellationToken) As SyntaxTree
             Return SyntaxFactory.ParseSyntaxTree(text, If(parseOptions, s_defaultOptions), cancellationToken:=cancellationToken)
         End Function
 
+        Private Shared s_cachedGlobalImports As IEnumerable(Of GlobalImport)
         Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
-            ' TODO: remember these per options instance so we don't need to reparse each submission
+            ' Remember these per options instance so we don't need to reparse each submission
+            If s_cachedGlobalImports IsNot Nothing Then Return s_cachedGlobalImports
             ' TODO: get imports out of compilation??? https://github.com/dotnet/roslyn/issues/5854
-            Return script.Options.Imports.Select(Function(n) GlobalImport.Parse(n))
+            s_cachedGlobalImports = script.Options.Imports.Select(Function(n) GlobalImport.Parse(n))
+            Return s_cachedGlobalImports
         End Function
 
         Public Overrides Function CreateSubmission(script As Script) As Compilation
