@@ -80,7 +80,7 @@ I've added a workaround for this issue on branch `use-modified-roslyn`
 `Imports` doesn't work in interactive mode. It always resets to the list specified in `vbi.rsp`.
 
 ### `#Load` is completely not implemented
-It doesn't even exist in keywords list.
+It doesn't even exist in the keywords list.
 
 ### Top-level `Await` doesn't compile
 Use anonymous delegate as workaround. For example, the following code reads `vbi.rsp` asynchronously and prints the result in VB format.
@@ -93,12 +93,8 @@ End Function).Invoke.GetAwaiter.GetResult
 ### `Yield` statement doesn't throw error in top-level code
 Don't use `Yield` statement in top-level code. 
 
-### Windows Desktop VB APIs are unavailable
+### Windows Desktop VB APIs are unavailable in debug mode
 Windows desktop VB APIs, such as the `MsgBox` function, throws error `System.PlatformNotSupportedException: Method requires System.Windows.Forms`.
 Because assemblies of the `Microsoft.WindowsDesktop.App` SDK couldn't be resolved.
 
-The following code still doesn't help. I don't know why.
-```vbnet
-#R "C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\6.0.22\Microsoft.VisualBasic.Forms.dll"
-#R "C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\6.0.22\System.Windows.Forms.dll"
-```
+This is not an issue if `vbi` is published as self-contained app. Because the Windows desktop assemblies are in the same directory as core assemblies.
