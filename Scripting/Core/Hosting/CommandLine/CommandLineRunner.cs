@@ -200,12 +200,14 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             {
                 return (script.RunAsync(globals, cancellationToken).GetAwaiter().GetResult().ReturnValue as int?).GetValueOrDefault();
             }
+
             // Original code
             //var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
             //try
             //{
             //    return script.RunAsync(globals, cancellationToken).GetAwaiter().GetResult().ReturnValue;
             //}
+
             catch (CompilationErrorException e)
             {
                 _compiler.ReportDiagnostics(e.Diagnostics, _console.Error, errorLogger, compilation: null);
