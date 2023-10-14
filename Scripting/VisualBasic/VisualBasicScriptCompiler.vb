@@ -48,8 +48,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
         Private Shared s_cachedGlobalImports As IEnumerable(Of GlobalImport)
         Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
-            ' Remember these per options instance so we don't need to reparse each submission
+            ' TODO: Import semantics is missing. But at least we can preserve the initial imports defined in rsp.
+            ' Remove or rewrite this cache when import semantics are supported.
+            ' See https://github.com/dotnet/roslyn/issues/6554
             If s_cachedGlobalImports IsNot Nothing Then Return s_cachedGlobalImports
+
             ' TODO: get imports out of compilation??? https://github.com/dotnet/roslyn/issues/5854
             s_cachedGlobalImports = script.Options.Imports.Select(Function(n) GlobalImport.Parse(n))
             Return s_cachedGlobalImports
