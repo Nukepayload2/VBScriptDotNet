@@ -2,4 +2,4 @@ Dim n = 0
 For i = 1 To 10
     n+=i
 Next
-? n
+Console.WriteLine(n)

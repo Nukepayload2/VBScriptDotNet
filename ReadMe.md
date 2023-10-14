@@ -61,7 +61,7 @@ PrintFibonacci(count)
 ```
 
 ## Known issues
-### It throws exception when running a `.vbx` file
+### Unable to run a `.vbx` file with the official `Microsoft.CodeAnalysis.Scripting.Common` package
 ```console
 System.ArgumentException: Cannot bind to the target method because its signature is not compatible with that of the delegate type.
   + System.Reflection.RuntimeMethodInfo.CreateDelegateInternal(System.Type, Object, System.DelegateBindingFlags)
@@ -76,7 +76,7 @@ Exception thrown by `ScriptBuilder.Build` in `roslyn\src\Scripting\Core\ScriptBu
 return runtimeEntryPoint.CreateDelegate<Func<object[], Task<T>>>();
 ```
 
-`T` is `Int32`
+`T` is `Int32`, but VB compiler generates a method that `T` is `Object`. `VisualBasicCompilation.CreateScriptCompilation` should use `script.ReturnType` as return type instead of hard-coded `Object`.
 
 ### `Imports` doesn't work in interactive mode
 `Imports` doesn't work in interactive mode. It always resets to the list specified in `vbi.rsp`.
