@@ -44,3 +44,4 @@
 /imports:System.Linq.Expressions
 /imports:System.Text
 /imports:System.Threading.Tasks
+/imports:Microsoft.VisualBasic
