@@ -91,7 +91,7 @@ Namespace My.Resources
         End Property
         
         '''<summary>
-        '''  查找类似 Microsoft (R) Visual Basic Interactive Compiler version {0} 的本地化字符串。
+        '''  查找类似 Nukepayload2&apos;s fork of Visual Basic Interactive Compiler version {0} 的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property LogoLine1() As String
             Get
@@ -100,7 +100,7 @@ Namespace My.Resources
         End Property
         
         '''<summary>
-        '''  查找类似 Copyright (C) Microsoft Corporation. All rights reserved. 的本地化字符串。
+        '''  查找类似 Based on Roslyn {0} 的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property LogoLine2() As String
             Get

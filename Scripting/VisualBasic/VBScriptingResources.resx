@@ -118,26 +118,26 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="LogoLine1" xml:space="preserve">
-    <value>Microsoft (R) Visual Basic Interactive Compiler version {0}</value>
+    <value>Nukepayload2's fork of Visual Basic Interactive Compiler version {0}</value>
   </data>
   <data name="LogoLine2" xml:space="preserve">
-    <value>Copyright (C) Microsoft Corporation. All rights reserved.</value>
+    <value>Based on Roslyn {0}</value>
   </data>
   <data name="InteractiveHelp" xml:space="preserve">
-    <value><![CDATA[Usage: vbi [options] [script-file.vbx] [-- script-arguments]
+    <value>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:<alias>=<file>      Reference metadata from the specified assembly file using the given alias (Short form: /r)
-  /reference:<file list>         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:<path list>     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:<namespace>             Define global namespace using (Short form: /u)
-  /define:<name>=<value>,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @<file>                        Read response file for more options
-]]></value>  
+  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
+  /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
+  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
+  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
+  @&lt;file&gt;                        Read response file for more options
+</value>
   </data>
   <data name="ExceptionEscapeWithoutQuote" xml:space="preserve">
     <value>Cannot escape non-printable characters in Visual Basic notation unless quotes are used.</value>

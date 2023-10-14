@@ -29,10 +29,22 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Property
 
         Public Overrides Sub PrintLogo(consoleOutput As TextWriter)
-            consoleOutput.WriteLine(VBScriptingResources.LogoLine1, GetCompilerVersion())
-            consoleOutput.WriteLine(VBScriptingResources.LogoLine2)
+            consoleOutput.WriteLine(VBScriptingResources.LogoLine1, GetSelfVersion())
+            consoleOutput.WriteLine(VBScriptingResources.LogoLine2, GetRoslynVersion())
             consoleOutput.WriteLine()
         End Sub
+
+        Private Function GetSelfVersion() As String
+            Return FormatVersionWithoutRevision(GetType(VisualBasicInteractiveCompiler).Assembly.GetName.Version)
+        End Function
+
+        Private Function FormatVersionWithoutRevision(version As Version) As String
+            Return New Version(version.Major, version.Minor, version.Build).ToString
+        End Function
+
+        Private Function GetRoslynVersion() As String
+            Return FormatVersionWithoutRevision(GetType(VisualBasicCompiler).Assembly.GetName.Version)
+        End Function
 
         Public Overrides Sub PrintHelp(consoleOutput As TextWriter)
             consoleOutput.Write(VBScriptingResources.InteractiveHelp)
