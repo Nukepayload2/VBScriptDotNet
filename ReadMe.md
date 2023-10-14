@@ -5,13 +5,16 @@ A patched VB interactive that runs with stable releases of Roslyn.
 ### Run with Visual Studio
 - Ensure that you've installed the latest Visual Studio 2022, .NET desktop workload and .NET 6 SDK.
 - Open `VBInteractive.sln`
-- Set [vbi](Interactive\vbi\vbi.vbproj) as start project
+- Set [vbi](Interactive\vbi\vbi.vbproj) as start project.
+- Change target framework to `net6.0-windows`.
 - Run
 
 ### Run with .NET 6 SDK
 - cd `Interactive\vbi`
-- Run interactively with `dotnet run`
-- Run in script mode with `dotnet run -- <path-to-vbx-file>`
+- Run interactively with `dotnet run --framework net6.0`
+- Run interactively on Windows with `dotnet run --framework net6.0-windows`
+- Run in script mode with `dotnet run --framework net6.0 -- <path-to-vbx-file>`
+- Run in script mode on Windows with `dotnet run --framework net6.0-windows -- <path-to-vbx-file>`
 
 ## Available features
 
@@ -92,9 +95,3 @@ End Function).Invoke.GetAwaiter.GetResult
 
 ### `Yield` statement doesn't throw error in top-level code
 Don't use `Yield` statement in top-level code. 
-
-### Windows Desktop VB APIs are unavailable in debug mode
-Windows desktop VB APIs, such as the `MsgBox` function, throws error `System.PlatformNotSupportedException: Method requires System.Windows.Forms`.
-Because assemblies of the `Microsoft.WindowsDesktop.App` SDK couldn't be resolved.
-
-This is not an issue if `vbi` is published as self-contained app. Because the Windows desktop assemblies are in the same directory as core assemblies.
