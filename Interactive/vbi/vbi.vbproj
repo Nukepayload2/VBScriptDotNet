@@ -13,7 +13,6 @@
     <None Remove="My Project\**" />
   </ItemGroup>
   <ItemGroup Label="Project References">
-    <ProjectReference Include="..\..\Scripting\Core\Microsoft.CodeAnalysis.Scripting.csproj" />
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
   </ItemGroup>
   <ItemGroup>
@@ -21,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
+    <InternalsAssemblyName Include="Microsoft.CodeAnalysis.Scripting" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
