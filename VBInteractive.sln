@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		ReadMe.md = ReadMe.md
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.CodeAnalysis.Scripting", "Scripting\Core\Microsoft.CodeAnalysis.Scripting.csproj", "{51F4DAE8-8E3E-4068-AB8F-50794FBC4C30}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{D7158271-2E8C-4AB8-86DF-21D6D99F5D0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D7158271-2E8C-4AB8-86DF-21D6D99F5D0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D7158271-2E8C-4AB8-86DF-21D6D99F5D0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51F4DAE8-8E3E-4068-AB8F-50794FBC4C30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51F4DAE8-8E3E-4068-AB8F-50794FBC4C30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51F4DAE8-8E3E-4068-AB8F-50794FBC4C30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51F4DAE8-8E3E-4068-AB8F-50794FBC4C30}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

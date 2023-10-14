@@ -13,7 +13,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting.Desktop.UnitTests" />
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis.Scripting" />
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis.VisualBasic" />
   </ItemGroup>
   <ItemGroup>
