@@ -13,11 +13,7 @@ A patched VB interactive that runs with stable releases of Roslyn.
 - Run interactively with `dotnet run`
 - Run in script mode with `dotnet run -- <path-to-vbx-file>`
 
-### Run with 
-
 ## Available features
-### Run `*.vbx` files
-
 
 ### Configure script compilation with `vbi.rsp`
 - Use `/r:` to reference assemblies.
@@ -77,6 +73,8 @@ return runtimeEntryPoint.CreateDelegate<Func<object[], Task<T>>>();
 ```
 
 `T` is `Int32`, but VB compiler generates a method that `T` is `Object`. `VisualBasicCompilation.CreateScriptCompilation` should use `script.ReturnType` as return type instead of hard-coded `Object`.
+
+I've added a workaround for this issue on branch `use-modified-roslyn`
 
 ### `Imports` doesn't work in interactive mode
 `Imports` doesn't work in interactive mode. It always resets to the list specified in `vbi.rsp`.
