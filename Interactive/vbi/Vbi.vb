@@ -1,10 +1,15 @@
 ﻿' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
+Option Compare Text
 
 Imports System.IO
 Imports System.Reflection
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
+
+#If WINDOWS10_0_17763_0_OR_GREATER Then
+Imports Windows.ApplicationModel
+#End If
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
@@ -13,6 +18,31 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Public Shared Function Main(args As String()) As Integer
 #If WINDOWS7_0_OR_GREATER Then
+
+#If WINDOWS10_0_17763_0_OR_GREATER Then
+            Dim winRTArgs = AppInstance.GetActivatedEventArgs
+            If winRTArgs.Kind = Activation.ActivationKind.File Then
+                Console.WriteLine("Running scripts can potentially harm your computer.")
+                Console.WriteLine("Do not run it if you obtained it from an untrusted source.")
+                Do
+                    Console.WriteLine("Input 'y', 'yes', 'r' or 'run' and press Enter to run the script.")
+                    Console.WriteLine("Input 'n' or 'no' and press Enter to abort.")
+                    Dim response = Console.ReadLine.Trim
+                    If response = "y" OrElse response = "yes" OrElse response = "r" OrElse response = "run" Then
+                        Exit Do
+                    ElseIf response = "n" OrElse response = "no" Then
+                        Console.WriteLine("Aborted.")
+                        Const ERROR_CANCELLED = &H4C7
+                        Return ERROR_CANCELLED
+                    ElseIf response.Length = 0 Then
+                        ' Do nothing
+                    Else
+                        Console.WriteLine("The response can't be recognized.")
+                    End If
+                Loop
+            End If
+#End If
+
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
             System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2)
             System.Windows.Forms.Application.EnableVisualStyles()
