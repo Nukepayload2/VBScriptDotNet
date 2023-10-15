@@ -22,6 +22,7 @@ A patched VB interactive that runs with stable releases of Roslyn.
 - Use `/r:` to reference assemblies.
 - Use `/imports:` to import namespaces and XML namespaces.
 - For default settings, see [vbi.rsp](Interactive\vbi\vbi.coreclr.rsp).
+- For more descriptions, run `vbi` with `/?` option.
 
 ### #R Directive
 The following code calls `Newtonsoft.Json 13.0.3` stored in Windows NuGet package cache to serialize a number to JSON and prints the value in VB format.
