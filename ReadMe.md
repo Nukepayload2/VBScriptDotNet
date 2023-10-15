@@ -60,45 +60,4 @@ PrintFibonacci(count)
 ```
 
 ## Known issues
-### Unable to run a `.vbx` file with the official `Microsoft.CodeAnalysis.Scripting.Common` package
-```console
-System.ArgumentException: Cannot bind to the target method because its signature is not compatible with that of the delegate type.
-  + System.Reflection.RuntimeMethodInfo.CreateDelegateInternal(System.Type, Object, System.DelegateBindingFlags)
-  + System.Reflection.RuntimeMethodInfo.CreateDelegate(System.Type)
-  + System.Reflection.MethodInfo.CreateDelegate(Of T)()
-  + Microsoft.CodeAnalysis.Scripting.ScriptBuilder.Build(Of T)(Microsoft.CodeAnalysis.Compilation, Microsoft.CodeAnalysis.DiagnosticBag, Boolean, System.Threading.CancellationToken)
-  + Microsoft.CodeAnalysis.Scripting.ScriptBuilder.CreateExecutor(Of T)(Microsoft.CodeAnalysis.Scripting.ScriptCompiler, Microsoft.CodeAnalysis.Compilation, Boolean, System.Threading.CancellationToken)
-```
-
-Exception thrown by `ScriptBuilder.Build` in `roslyn\src\Scripting\Core\ScriptBuilder.cs`
-```csharp
-return runtimeEntryPoint.CreateDelegate<Func<object[], Task<T>>>();
-```
-
-`T` is `Int32`, but VB compiler generates a method that `T` is `Object`. `VisualBasicCompilation.CreateScriptCompilation` should use `script.ReturnType` as return type instead of hard-coded `Object`.
-
-I've added a workaround for this issue on branch `use-modified-roslyn`
-
-### `Imports` doesn't work in interactive mode
-`Imports` doesn't work in interactive mode. It always resets to the list specified in `vbi.rsp`.
-
-### `#Load` is completely not implemented
-It doesn't even exist in the keywords list.
-
-### Top-level `Await` doesn't compile
-Use anonymous delegate as workaround. For example, the following code reads `vbi.rsp` asynchronously and prints the result in VB format.
-```vbnet
-(Async Function()
-Return Await File.ReadAllTextAsync("vbi.rsp")
-End Function).Invoke.GetAwaiter.GetResult
-```
-
-### `Yield` statement doesn't throw error in top-level code
-Don't use `Yield` statement in top-level code. 
-
-### No security warning before executing `*.vbx` scripts
-Running `*.vbx` scripts can potentially harm your computer. Do not run a script if you obtained it from an untrusted source.
-
-### Incorrect help messages
-- `*.xlf` files are not converted to managed resources.
-- Usages are targeting `csi` instead of `vbi`.
+See https://github.com/Nukepayload2/VBScriptDotNet/issues
