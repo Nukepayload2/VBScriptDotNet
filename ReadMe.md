@@ -95,3 +95,10 @@ End Function).Invoke.GetAwaiter.GetResult
 
 ### `Yield` statement doesn't throw error in top-level code
 Don't use `Yield` statement in top-level code. 
+
+### No security warning before executing `*.vbx` scripts
+Running `*.vbx` scripts can potentially harm your computer. Do not run a script if you obtained it from an untrusted source.
+
+### Incorrect help messages
+- `*.xlf` files are not converted to managed resources.
+- Usages are targeting `csi` instead of `vbi`.
