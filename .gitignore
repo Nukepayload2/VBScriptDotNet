@@ -7,3 +7,5 @@ bin
 obj
 launchSettings.json
 *.user
+/Installer/VBInteractive.WindowsDesktop.Installer/AppPackages
+/Installer/VBInteractive.WindowsDesktop.Installer/BundleArtifacts
