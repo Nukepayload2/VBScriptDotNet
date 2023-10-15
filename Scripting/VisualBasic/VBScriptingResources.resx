@@ -118,10 +118,10 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="LogoLine1" xml:space="preserve">
-    <value>Nukepayload2's fork of Visual Basic Interactive Compiler version {0}</value>
+    <value>Nukepayload2's fork of Visual Basic Interactive Compiler [Version {0}]</value>
   </data>
   <data name="LogoLine2" xml:space="preserve">
-    <value>Based on Roslyn {0}</value>
+    <value>Based on Roslyn [Version {0}]. </value>
   </data>
   <data name="InteractiveHelp" xml:space="preserve">
     <value>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
@@ -141,5 +141,8 @@ Options:
   </data>
   <data name="ExceptionEscapeWithoutQuote" xml:space="preserve">
     <value>Cannot escape non-printable characters in Visual Basic notation unless quotes are used.</value>
+  </data>
+  <data name="LogoLine3" xml:space="preserve">
+    <value>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</value>
   </data>
 </root>

@@ -91,7 +91,7 @@ Namespace My.Resources
         End Property
         
         '''<summary>
-        '''  查找类似 Nukepayload2&apos;s fork of Visual Basic Interactive Compiler version {0} 的本地化字符串。
+        '''  查找类似 Nukepayload2&apos;s fork of Visual Basic Interactive Compiler [Version {0}] 的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property LogoLine1() As String
             Get
@@ -100,11 +100,20 @@ Namespace My.Resources
         End Property
         
         '''<summary>
-        '''  查找类似 Based on Roslyn {0} 的本地化字符串。
+        '''  查找类似 Based on Roslyn [Version {0}].  的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property LogoLine2() As String
             Get
                 Return ResourceManager.GetString("LogoLine2", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  查找类似 This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property LogoLine3() As String
+            Get
+                Return ResourceManager.GetString("LogoLine3", resourceCulture)
             End Get
         End Property
     End Class
