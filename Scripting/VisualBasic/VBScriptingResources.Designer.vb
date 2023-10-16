@@ -116,5 +116,14 @@ Namespace My.Resources
                 Return ResourceManager.GetString("LogoLine3", resourceCulture)
             End Get
         End Property
+        
+        '''<summary>
+        '''  查找类似 Privacy statement: This software doesn&apos;t collect your data unless it&apos;s running a script or a command that is designed to collect your data. 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property LogoLine4() As String
+            Get
+                Return ResourceManager.GetString("LogoLine4", resourceCulture)
+            End Get
+        End Property
     End Class
 End Namespace

@@ -154,4 +154,7 @@ Options:
   <data name="LogoLine3" xml:space="preserve">
     <value>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</value>
   </data>
+  <data name="LogoLine4" xml:space="preserve">
+    <value>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</value>
+  </data>
 </root>

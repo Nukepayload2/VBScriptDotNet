@@ -9,7 +9,7 @@
   <Identity
     Name="f682d88d-a29f-4368-94f0-2c524a4ad791"
     Publisher="CN=Nukepayload2, O=Nukepayload2, C=CN"
-    Version="1.0.13.0" />
+    Version="1.0.14.0" />
 
   <Properties>
     <DisplayName>N2Fork VB Interactive (Preview)</DisplayName>

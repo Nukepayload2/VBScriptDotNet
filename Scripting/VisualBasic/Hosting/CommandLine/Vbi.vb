@@ -32,6 +32,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             consoleOutput.WriteLine(VBScriptingResources.LogoLine1, GetSelfVersion())
             consoleOutput.WriteLine(VBScriptingResources.LogoLine2, GetRoslynVersion())
             consoleOutput.WriteLine(VBScriptingResources.LogoLine3)
+            consoleOutput.WriteLine(VBScriptingResources.LogoLine4)
             consoleOutput.WriteLine()
         End Sub
 
