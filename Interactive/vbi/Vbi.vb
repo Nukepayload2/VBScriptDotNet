@@ -26,12 +26,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Console.WriteLine("==== Security Warning ====")
                 Console.WriteLine("Running scripts can potentially harm your computer.")
                 Console.WriteLine("Do not run it if you obtained it from an untrusted source.")
+                Console.WriteLine()
                 Do
                     Console.WriteLine("Press Enter to run the script.")
                     Console.WriteLine("Press ESC to abort.")
                     Dim response = Console.ReadKey
                     Select Case response.Key
                         Case ConsoleKey.Enter
+                            Console.WriteLine("Running...")
                             Exit Do
                         Case ConsoleKey.Escape
                             Console.WriteLine("Aborted.")
