@@ -9,10 +9,10 @@
   <Identity
     Name="f682d88d-a29f-4368-94f0-2c524a4ad791"
     Publisher="CN=Nukepayload2, O=Nukepayload2, C=CN"
-    Version="1.0.7.0" />
+    Version="1.0.13.0" />
 
   <Properties>
-    <DisplayName>Nukepayload2.VBInteractiveFork.Preview</DisplayName>
+    <DisplayName>N2Fork VB Interactive (Preview)</DisplayName>
     <PublisherDisplayName>Nukepayload2</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
   </Properties>
@@ -48,6 +48,7 @@
             <uap:DisplayName>Visual Basic .NET Script File</uap:DisplayName>
             <uap:InfoTip>Visual Basic .NET Script File</uap:InfoTip>
             <uap:EditFlags AlwaysUnsafe="true"/>
+            <uap:Logo>Images\File88x88Logo.png</uap:Logo>
           </uap:FileTypeAssociation>
         </uap:Extension>
       </Extensions>
