@@ -17,28 +17,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Friend Const InteractiveResponseFileName As String = "vbi.rsp"
 
         Public Shared Function Main(args As String()) As Integer
+            Console.Title = "VB Interactive"
 #If WINDOWS7_0_OR_GREATER Then
 
 #If WINDOWS10_0_17763_0_OR_GREATER Then
             Dim winRTArgs = AppInstance.GetActivatedEventArgs
             If winRTArgs.Kind = Activation.ActivationKind.File Then
+                Console.WriteLine("==== Security Warning ====")
                 Console.WriteLine("Running scripts can potentially harm your computer.")
                 Console.WriteLine("Do not run it if you obtained it from an untrusted source.")
                 Do
-                    Console.WriteLine("Input 'y', 'yes', 'r' or 'run' and press Enter to run the script.")
-                    Console.WriteLine("Input 'n' or 'no' and press Enter to abort.")
-                    Dim response = Console.ReadLine.Trim
-                    If response = "y" OrElse response = "yes" OrElse response = "r" OrElse response = "run" Then
-                        Exit Do
-                    ElseIf response = "n" OrElse response = "no" Then
-                        Console.WriteLine("Aborted.")
-                        Const ERROR_CANCELLED = &H4C7
-                        Return ERROR_CANCELLED
-                    ElseIf response.Length = 0 Then
-                        ' Do nothing
-                    Else
-                        Console.WriteLine("The response can't be recognized.")
-                    End If
+                    Console.WriteLine("Press Enter to run the script.")
+                    Console.WriteLine("Press ESC to abort.")
+                    Dim response = Console.ReadKey
+                    Select Case response.Key
+                        Case ConsoleKey.Enter
+                            Exit Do
+                        Case ConsoleKey.Escape
+                            Console.WriteLine("Aborted.")
+                            Const ERROR_CANCELLED = &H4C7
+                            Return ERROR_CANCELLED
+                    End Select
                 Loop
             End If
 #End If
