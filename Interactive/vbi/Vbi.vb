@@ -72,12 +72,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                     VisualBasicScriptCompiler.Instance,
                     VisualBasicObjectFormatter.Instance)
 
-                Return runner.RunInteractive()
+                Dim retVal = runner.RunInteractive()
+                If retVal <> 0 Then
+                    PromptScriptError()
+                End If
+                Return retVal
             Catch ex As Exception
                 Console.WriteLine(ex.ToString())
+                PromptScriptError()
                 Return 1
             End Try
         End Function
+
+        Private Shared Sub PromptScriptError()
+            MsgBox("The script has error. See the output window for more information.", vbExclamation, "Script Error")
+        End Sub
     End Class
 
 End Namespace
