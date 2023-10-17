@@ -61,4 +61,9 @@ PrintFibonacci(count)
 ```
 
 ## Known issues
-See https://github.com/Nukepayload2/VBScriptDotNet/issues
+Significant problems:
+- `Imports` doesn't work in interactive mode.
+- `Await` can't be used in top-level code.
+- `.vbx` files can't be run with the original version of Roslyn.
+
+For more information, see https://github.com/Nukepayload2/VBScriptDotNet/issues
