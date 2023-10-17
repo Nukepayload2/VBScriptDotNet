@@ -9,6 +9,8 @@ Imports Microsoft.CodeAnalysis.Scripting.Hosting
 
 #If WINDOWS10_0_17763_0_OR_GREATER Then
 Imports Windows.ApplicationModel
+Imports Windows.ApplicationModel.Activation
+
 #End If
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
@@ -21,7 +23,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #If WINDOWS7_0_OR_GREATER Then
 
 #If WINDOWS10_0_17763_0_OR_GREATER Then
-            Dim winRTArgs = AppInstance.GetActivatedEventArgs
+            Dim winRTArgs As IActivatedEventArgs
+            Try
+                winRTArgs = AppInstance.GetActivatedEventArgs
+            Catch ex As Exception
+                Console.Error.WriteLine("This program can only be run as MSIX packed app. If you're running it from source, set the MSIX packaging project as startup project or target Windows 7 and try again.")
+                Return ex.HResult
+            End Try
             If winRTArgs.Kind = Activation.ActivationKind.File Then
                 Console.WriteLine("==== Security Warning ====")
                 Console.WriteLine("Running scripts can potentially harm your computer.")
@@ -78,7 +86,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 End If
                 Return retVal
             Catch ex As Exception
-                Console.WriteLine(ex.ToString())
+                Console.Error.WriteLine(ex.ToString())
                 PromptScriptError()
                 Return 1
             End Try
