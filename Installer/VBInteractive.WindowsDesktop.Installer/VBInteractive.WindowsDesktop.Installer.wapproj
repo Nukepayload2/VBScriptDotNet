@@ -103,16 +103,7 @@
     </AppxManifest>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Images\File88x88Logo.png" />
-    <Content Include="Images\SplashScreen.scale-200.png" />
-    <Content Include="Images\LockScreenLogo.scale-200.png" />
-    <Content Include="Images\Square150x150Logo.scale-200.png" />
-    <Content Include="Images\Square44x44Logo.scale-200.png" />
-    <Content Include="Images\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Images\StoreLogo.scale-100.png" />
-    <Content Include="Images\StoreLogo.scale-200.png" />
-    <Content Include="Images\StoreLogo.scale-400.png" />
-    <Content Include="Images\Wide310x150Logo.scale-200.png" />
+    <Content Include="Images\*.png" />
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
   <ItemGroup>
@@ -120,5 +111,13 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Interactive\vbi\vbi.vbproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="vbi\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\License.txt">
+      <Link>vbi\License.txt</Link>
+    </Content>
   </ItemGroup>
 </Project>
