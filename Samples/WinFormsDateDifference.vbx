@@ -1,0 +1,139 @@
+Imports System.Drawing
+Imports System.Windows.Forms
+
+Application.Run(New Form1)
+
+Public Class Form1
+    Private Sub MonthCalendar_DateChanged() Handles MonthCalendar1.DateChanged, MonthCalendar2.DateChanged
+        LblDiffResult.Text = GetDateDifferenceString(MonthCalendar2.SelectionStart, MonthCalendar1.SelectionStart)
+    End Sub
+
+    Private Sub Form1_Load() Handles Me.Load
+        LblDiffResult.Text = GetDateDifferenceString(Nothing, Nothing)
+    End Sub
+
+    Private Function GetDateDifferenceString(left As Date, right As Date) As String
+        Return (left - right).TotalDays
+    End Function
+End Class
+
+<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
+Partial Class Form1
+    Inherits System.Windows.Forms.Form
+
+    'Form overrides dispose to clean up the component list.
+    <System.Diagnostics.DebuggerNonUserCode()>
+    Protected Overrides Sub Dispose(ByVal disposing As Boolean)
+        Try
+            If disposing AndAlso components IsNot Nothing Then
+                components.Dispose()
+            End If
+        Finally
+            MyBase.Dispose(disposing)
+        End Try
+    End Sub
+
+    'Required by the Windows Form Designer
+    Private components As System.ComponentModel.IContainer
+
+    'NOTE: The following procedure is required by the Windows Form Designer
+    'It can be modified using the Windows Form Designer.  
+    'Do not modify it using the code editor.
+    <System.Diagnostics.DebuggerStepThrough()>
+    Private Sub InitializeComponent()
+        MonthCalendar1 = New MonthCalendar()
+        MonthCalendar2 = New MonthCalendar()
+        TableLayoutPanel1 = New TableLayoutPanel()
+        Panel1 = New Panel()
+        LblDiffResult = New Label()
+        Label1 = New Label()
+        TableLayoutPanel1.SuspendLayout()
+        Panel1.SuspendLayout()
+        SuspendLayout()
+        ' 
+        ' MonthCalendar1
+        ' 
+        MonthCalendar1.Dock = DockStyle.Fill
+        MonthCalendar1.Location = New Point(13, 13)
+        MonthCalendar1.MaxSelectionCount = 1
+        MonthCalendar1.Name = "MonthCalendar1"
+        MonthCalendar1.TabIndex = 0
+        ' 
+        ' MonthCalendar2
+        ' 
+        MonthCalendar2.Dock = DockStyle.Fill
+        MonthCalendar2.Location = New Point(322, 13)
+        MonthCalendar2.MaxSelectionCount = 1
+        MonthCalendar2.Name = "MonthCalendar2"
+        MonthCalendar2.TabIndex = 1
+        ' 
+        ' TableLayoutPanel1
+        ' 
+        TableLayoutPanel1.ColumnCount = 2
+        TableLayoutPanel1.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50F))
+        TableLayoutPanel1.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50F))
+        TableLayoutPanel1.Controls.Add(MonthCalendar2, 1, 0)
+        TableLayoutPanel1.Controls.Add(MonthCalendar1, 0, 0)
+        TableLayoutPanel1.Controls.Add(Panel1, 0, 1)
+        TableLayoutPanel1.Dock = DockStyle.Fill
+        TableLayoutPanel1.Location = New Point(0, 0)
+        TableLayoutPanel1.Name = "TableLayoutPanel1"
+        TableLayoutPanel1.Padding = New Padding(4)
+        TableLayoutPanel1.RowCount = 2
+        TableLayoutPanel1.RowStyles.Add(New RowStyle(SizeType.Percent, 85.96112F))
+        TableLayoutPanel1.RowStyles.Add(New RowStyle(SizeType.Percent, 14.0388765F))
+        TableLayoutPanel1.Size = New Size(627, 325)
+        TableLayoutPanel1.TabIndex = 2
+        ' 
+        ' Panel1
+        ' 
+        TableLayoutPanel1.SetColumnSpan(Panel1, 2)
+        Panel1.Controls.Add(LblDiffResult)
+        Panel1.Controls.Add(Label1)
+        Panel1.Dock = DockStyle.Fill
+        Panel1.Location = New Point(7, 279)
+        Panel1.Name = "Panel1"
+        Panel1.Size = New Size(613, 39)
+        Panel1.TabIndex = 2
+        ' 
+        ' LblDiffResult
+        ' 
+        LblDiffResult.AutoSize = True
+        LblDiffResult.Dock = DockStyle.Fill
+        LblDiffResult.Location = New Point(38, 0)
+        LblDiffResult.Name = "LblDiffResult"
+        LblDiffResult.Size = New Size(18, 20)
+        LblDiffResult.TabIndex = 1
+        LblDiffResult.Text = "0"
+        ' 
+        ' Label1
+        ' 
+        Label1.AutoSize = True
+        Label1.Dock = DockStyle.Left
+        Label1.Location = New Point(0, 0)
+        Label1.Name = "Label1"
+        Label1.Size = New Size(38, 20)
+        Label1.TabIndex = 0
+        Label1.Text = "Diff:"
+        ' 
+        ' Form1
+        ' 
+        AutoScaleDimensions = New SizeF(9F, 20F)
+        AutoScaleMode = AutoScaleMode.Font
+        ClientSize = New Size(627, 325)
+        Controls.Add(TableLayoutPanel1)
+        Name = "Form1"
+        Text = "Date diff with VBX"
+        TableLayoutPanel1.ResumeLayout(False)
+        Panel1.ResumeLayout(False)
+        Panel1.PerformLayout()
+        ResumeLayout(False)
+    End Sub
+
+    Friend WithEvents MonthCalendar1 As MonthCalendar
+    Friend WithEvents MonthCalendar2 As MonthCalendar
+    Friend WithEvents TableLayoutPanel1 As TableLayoutPanel
+    Friend WithEvents Panel1 As Panel
+    Friend WithEvents Label1 As Label
+    Friend WithEvents LblDiffResult As Label
+End Class
