@@ -1,4 +1,4 @@
-#R "PresentationCore.dll"
+ï»¿#R "PresentationCore.dll"
 #R "PresentationFramework.dll"
 #R "WindowsBase.dll"
 
@@ -177,7 +177,7 @@ Class MainViewModel
 
     Public Function Load() As Boolean
         If Not OperatingSystem.IsWindowsVersionAtLeast(10, 0, 10240) Then
-            MsgBox("×îµÍÏµÍ³ÒªÇóÎª Windows 10 µÄµÚÒ»¸ö RTM", vbExclamation, "²»Ö§³ÖµÄ²Ù×÷ÏµÍ³")
+            MsgBox("Minimum system requirement is the first RTM of Windows 10", vbExclamation, "Unsupported operating system")
             Return False
         End If
 
@@ -185,8 +185,8 @@ Class MainViewModel
         Dim bufLen As UInteger
         Dim success = GetSystemCpuSetInformation(Nothing, 0, bufLen, curProc.Handle, 0)
         If Not success AndAlso bufLen < 1 Then
-            MsgBox($"GetSystemCpuSetInformation µÚÒ»´Îµ÷ÓÃÊ§°Ü: {New Win32Exception(Marshal.GetLastWin32Error)}",
-                   vbExclamation, "ÕÒ²»µ½ CpuSet")
+            MsgBox($"GetSystemCpuSetInformation failed on first call: {New Win32Exception(Marshal.GetLastWin32Error)}",
+                   vbExclamation, "CpuSet not found")
             Return False
         End If
 
@@ -194,8 +194,8 @@ Class MainViewModel
         Dim cpuSetInfo(bufLen \ sizeOfElement - 1UI) As SYSTEM_CPU_SET_INFORMATION
         success = GetSystemCpuSetInformation(cpuSetInfo, bufLen, bufLen, curProc.Handle, 0)
         If Not success Then
-            MsgBox($"GetSystemCpuSetInformation µÚ¶þ´Îµ÷ÓÃÊ§°Ü: {New Win32Exception(Marshal.GetLastWin32Error)}",
-                   vbExclamation, "¼ì²â CpuSet Ê§°Ü")
+            MsgBox($"GetSystemCpuSetInformation failed on second call: {New Win32Exception(Marshal.GetLastWin32Error)}",
+                   vbExclamation, "Failure to detect CpuSet")
             Return False
         End If
 
