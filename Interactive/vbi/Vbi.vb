@@ -94,22 +94,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Private Shared Sub PromptScriptError()
             MsgBox("The script has error. See the output window for more information.", vbExclamation, "Script Error")
-            Dim page =
-<html>
-    <head>
-        <meta charset="utf-8"/>
-        <title>Welcome to VB Interactive!</title>
-    </head>
-    <body>
-        <div id="layoutRoot">
-            <%= From word In {"Core", "VB Runtime", "Windows Forms", "WPF", ".NET 6"}
-                Select <p>We support <%= word %> APIs.</p>
-            %>
-        </div>
-    </body>
-</html>
         End Sub
     End Class
 
 End Namespace
-

@@ -1,0 +1,4 @@
+Dim newId = Guid.NewGuid.ToString
+If MsgBox(newId, vbInformation Or vbYesNo, "Copy to your clipboard?") = vbYes Then
+    System.Windows.Forms.Clipboard.SetText(newId)
+End If

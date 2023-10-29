@@ -1,0 +1,221 @@
+#R "PresentationCore.dll"
+#R "PresentationFramework.dll"
+#R "WindowsBase.dll"
+
+Imports System.ComponentModel
+Imports System.Windows
+Imports System.Windows.Controls
+Imports System.Runtime.CompilerServices
+Imports System.Runtime.InteropServices
+Imports System.Runtime.Versioning
+
+Const Win10 = "Windows10.0"
+
+<SupportedOSPlatform(Win10)>
+Declare Function GetSystemCpuSetInformation Lib "kernel32.dll" (
+    <Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex:=1)> Information As SYSTEM_CPU_SET_INFORMATION(),
+    BufferLength As UInteger,
+    ByRef ReturnedLength As UInteger,
+    Process As IntPtr,
+    Flags As UInteger
+) As <MarshalAs(UnmanagedType.Bool)> Boolean
+
+Structure SYSTEM_CPU_SET_INFORMATION
+    Dim Size As Integer
+    Dim Type As CPU_SET_INFORMATION_TYPE
+    Dim CpuSet As CpuSet
+End Structure
+
+Structure CpuSet
+    Dim _Id As Integer
+    Dim _Group As Short
+    Dim _LogicalProcessorIndex, _CoreIndex, _LastLevelCacheIndex, _NumaNodeIndex, _EfficiencyClass As Byte
+    Dim _Flags As CpuSetFlags
+    Dim _Reserved1 As CpuSetReserved1
+    Dim _AllocationTag As Long
+
+    Public ReadOnly Property Id As Integer
+        Get
+            Return _Id
+        End Get
+    End Property
+    Public ReadOnly Property Group As Short
+        Get
+            Return _Group
+        End Get
+    End Property
+    Public ReadOnly Property LogicalProcessorIndex As Short
+        Get
+            Return _LogicalProcessorIndex
+        End Get
+    End Property
+    Public ReadOnly Property CoreIndex As Short
+        Get
+            Return _CoreIndex
+        End Get
+    End Property
+    Public ReadOnly Property LastLevelCacheIndex As Short
+        Get
+            Return _LastLevelCacheIndex
+        End Get
+    End Property
+    Public ReadOnly Property NumaNodeIndex As Short
+        Get
+            Return _NumaNodeIndex
+        End Get
+    End Property
+    Public ReadOnly Property EfficiencyClass As Short
+        Get
+            Return _EfficiencyClass
+        End Get
+    End Property
+    Public ReadOnly Property Parked As Byte
+        Get
+            Return _Flags.Parked
+        End Get
+    End Property
+    Public ReadOnly Property Allocated As Byte
+        Get
+            Return _Flags.Allocated
+        End Get
+    End Property
+    Public ReadOnly Property AllocatedToTargetProcess As Byte
+        Get
+            Return _Flags.AllocatedToTargetProcess
+        End Get
+    End Property
+    Public ReadOnly Property RealTime As Byte
+        Get
+            Return _Flags.RealTime
+        End Get
+    End Property
+End Structure
+
+<StructLayout(LayoutKind.Sequential, Size:=1)>
+Structure CpuSetFlags
+    Dim AllFlags As Byte
+
+    Private Const Byte1 As Byte = 1
+    Private Const Byte15 As Byte = 15
+
+    Public Property Parked As Byte
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Get
+            Return AllFlags And Byte1
+        End Get
+
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Set(value As Byte)
+            AllFlags = (AllFlags And Not Byte1) Or value And Byte1
+        End Set
+    End Property
+
+    Public Property Allocated As Byte
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Get
+            Return ((AllFlags) >> 1) And Byte1
+        End Get
+
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Set(value As Byte)
+            AllFlags = (AllFlags And Not Byte1 << 1) Or ((value And Byte1) << 1)
+        End Set
+    End Property
+
+    Public Property AllocatedToTargetProcess As Byte
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Get
+            Return ((AllFlags) >> 2) And Byte1
+        End Get
+
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Set(value As Byte)
+            AllFlags = (AllFlags And Not Byte1 << 2) Or ((value And Byte1) << 2)
+        End Set
+    End Property
+
+    Public Property RealTime As Byte
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Get
+            Return ((AllFlags) >> 3) And Byte1
+        End Get
+
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Set(value As Byte)
+            AllFlags = (AllFlags And Not Byte1 << 3) Or ((value And Byte1) << 3)
+        End Set
+    End Property
+
+    Public Property ReservedFlags As Byte
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Get
+            Return ((AllFlags) >> 4) And Byte15
+        End Get
+
+        <MethodImpl(MethodImplOptions.AggressiveInlining)>
+        Set(value As Byte)
+            AllFlags = (AllFlags And Not Byte15 << 4) Or ((value And Byte15) << 4)
+        End Set
+    End Property
+
+End Structure
+
+<StructLayout(LayoutKind.Explicit)>
+Structure CpuSetReserved1
+    <FieldOffset(0)>
+    Dim Reserved As Integer
+    <FieldOffset(0)>
+    Dim SchedulingClass As Byte
+End Structure
+
+Enum CPU_SET_INFORMATION_TYPE
+    CpuSetInformation
+End Enum
+
+Class MainViewModel
+    Public ReadOnly Property CpuSetInformation As CpuSet()
+
+    Public Function Load() As Boolean
+        If Not OperatingSystem.IsWindowsVersionAtLeast(10, 0, 10240) Then
+            MsgBox("最低系统要求为 Windows 10 的第一个 RTM", vbExclamation, "不支持的操作系统")
+            Return False
+        End If
+
+        Dim curProc = Process.GetCurrentProcess
+        Dim bufLen As UInteger
+        Dim success = GetSystemCpuSetInformation(Nothing, 0, bufLen, curProc.Handle, 0)
+        If Not success AndAlso bufLen < 1 Then
+            MsgBox($"GetSystemCpuSetInformation 第一次调用失败: {New Win32Exception(Marshal.GetLastWin32Error)}",
+                   vbExclamation, "找不到 CpuSet")
+            Return False
+        End If
+
+        Dim sizeOfElement = Marshal.SizeOf(Of SYSTEM_CPU_SET_INFORMATION)
+        Dim cpuSetInfo(bufLen \ sizeOfElement - 1UI) As SYSTEM_CPU_SET_INFORMATION
+        success = GetSystemCpuSetInformation(cpuSetInfo, bufLen, bufLen, curProc.Handle, 0)
+        If Not success Then
+            MsgBox($"GetSystemCpuSetInformation 第二次调用失败: {New Win32Exception(Marshal.GetLastWin32Error)}",
+                   vbExclamation, "检测 CpuSet 失败")
+            Return False
+        End If
+
+        _CpuSetInformation = Aggregate cpuSet In cpuSetInfo
+                             Where cpuSet.Type = CPU_SET_INFORMATION_TYPE.CpuSetInformation
+                             Select cpuSet.CpuSet Into ToArray
+
+        Return True
+    End Function
+End Class
+
+Dim vm As New MainViewModel
+If Not vm.Load Then Environment.Exit(1)
+
+Dim wnd As New System.Windows.Window With {
+    .Content = New DataGrid With {
+        .ItemsSource = vm.CpuSetInformation,
+        .AutoGenerateColumns = True
+    },
+    .Title = "CPU Core Information"
+}
+
+wnd.ShowDialog
