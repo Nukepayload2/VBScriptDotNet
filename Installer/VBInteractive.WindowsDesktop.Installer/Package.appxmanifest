@@ -7,9 +7,9 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="f682d88d-a29f-4368-94f0-2c524a4ad791"
-    Publisher="CN=Nukepayload2, O=Nukepayload2, C=CN"
-    Version="1.0.25.0" />
+    Name="54213Nukepayload2.N2ForkVBInteractivePreview"
+    Publisher="CN=B08FCF9B-E5FD-4D44-8B58-F84FB3CC7751"
+    Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>N2Fork VB Interactive (Preview)</DisplayName>
