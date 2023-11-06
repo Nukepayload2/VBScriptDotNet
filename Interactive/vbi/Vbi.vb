@@ -5,7 +5,6 @@ Option Compare Text
 
 Imports System.IO
 Imports System.Reflection
-Imports Microsoft.CodeAnalysis.Scripting.Hosting
 
 #If WINDOWS10_0_17763_0_OR_GREATER Then
 Imports Windows.ApplicationModel
@@ -61,26 +60,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 ' Note that AppContext.BaseDirectory isn't necessarily the directory containing vbi.exe.
                 ' For example, when executed via corerun it's the directory containing corerun.
                 Dim vbiDirectory = Path.GetDirectoryName(GetType(Vbi).GetTypeInfo().Assembly.ManifestModule.FullyQualifiedName)
+                Dim retVal = VisualBasicScript.RunInteractive(args, vbiDirectory, InteractiveResponseFileName)
 
-                Dim buildPaths = New BuildPaths(
-                    clientDir:=vbiDirectory,
-                    workingDir:=Directory.GetCurrentDirectory(),
-                    sdkDir:=Path.GetDirectoryName(GetType(Object).Assembly.Location),
-                    tempDir:=Path.GetTempPath())
-
-                Dim compiler = New VisualBasicInteractiveCompiler(
-                    responseFile:=Path.Combine(vbiDirectory, InteractiveResponseFileName),
-                    buildPaths:=buildPaths,
-                    args:=args,
-                    analyzerLoader:=New NotImplementedAnalyzerLoader())
-
-                Dim runner = New CommandLineRunner(
-                    ConsoleIO.Default,
-                    compiler,
-                    VisualBasicScriptCompiler.Instance,
-                    VisualBasicObjectFormatter.Instance)
-
-                Dim retVal = runner.RunInteractive()
                 If retVal <> 0 Then
                     PromptScriptError()
                 End If

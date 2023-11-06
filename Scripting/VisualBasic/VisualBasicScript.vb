@@ -2,11 +2,13 @@
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
+Imports System.IO
 Imports System.Threading
 Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
 Imports Microsoft.CodeAnalysis.Text
+Imports Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
@@ -76,6 +78,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                                              Optional cancellationToken As CancellationToken = Nothing) As Task(Of Object)
             Return EvaluateAsync(Of Object)(code, Nothing, globals, cancellationToken)
         End Function
+
+        Public Shared Function RunInteractive(args() As String, vbiDirectory As String, interactiveResponseFileName As String) As Integer
+            Dim buildPaths = New BuildPaths(
+                clientDir:=vbiDirectory,
+                workingDir:=Directory.GetCurrentDirectory(),
+                sdkDir:=Path.GetDirectoryName(GetType(Object).Assembly.Location),
+                tempDir:=Path.GetTempPath())
+
+            Dim compiler = New VisualBasicInteractiveCompiler(
+                responseFile:=Path.Combine(vbiDirectory, interactiveResponseFileName),
+                buildPaths:=buildPaths,
+                args:=args,
+                analyzerLoader:=New NotImplementedAnalyzerLoader())
+
+            Dim runner = New CommandLineRunner(
+                ConsoleIO.Default,
+                compiler,
+                VisualBasicScriptCompiler.Instance,
+                VisualBasicObjectFormatter.Instance)
+
+            Dim retVal = runner.RunInteractive()
+            Return retVal
+        End Function
+
     End Class
 
 End Namespace
