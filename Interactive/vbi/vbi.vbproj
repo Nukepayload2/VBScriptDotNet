@@ -17,11 +17,6 @@
   <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
     <Compile Remove="**\*.NetFw.vb" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="My Project\**" />
-    <EmbeddedResource Remove="My Project\**" />
-    <None Remove="My Project\**" />
-  </ItemGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
   </ItemGroup>

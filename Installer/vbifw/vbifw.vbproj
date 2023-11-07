@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <RootNamespace></RootNamespace>
+    <AssemblyName>vbi</AssemblyName>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Include="..\..\Interactive\vbi\*.vb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\Interactive\vbi\App.config" />
+    <None Include="..\..\Interactive\vbi\vbi.desktop.rsp">
+      <Link>vbi.rsp</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
+  </ItemGroup>
+</Project>

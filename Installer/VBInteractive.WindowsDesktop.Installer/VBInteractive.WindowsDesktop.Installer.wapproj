@@ -56,7 +56,6 @@
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <NoWarn>$(NoWarn);NU1702</NoWarn>
-    <EntryPointProjectUniqueName>..\..\Interactive\vbi\vbi.vbproj</EntryPointProjectUniqueName>
     <TargetFramework>net6.0-windows</TargetFramework>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
@@ -67,6 +66,7 @@
     <AppxPackageSigningTimestampServerUrl>http://timestamp.digicert.com</AppxPackageSigningTimestampServerUrl>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA384</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <EntryPointProjectUniqueName>..\vbichooser\vbichooser.vbproj</EntryPointProjectUniqueName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <AppxBundle>Always</AppxBundle>
@@ -112,14 +112,16 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Interactive\vbi\vbi.vbproj" />
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="vbi\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\License.txt">
       <Link>vbi\License.txt</Link>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\vbichooser\vbichooser.vbproj" />
+    <ProjectReference Include="..\vbicore\vbicore.vbproj" />
+    <ProjectReference Include="..\vbifw\vbifw.vbproj" />
   </ItemGroup>
 </Project>

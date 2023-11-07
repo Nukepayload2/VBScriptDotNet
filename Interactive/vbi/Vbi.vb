@@ -6,12 +6,6 @@ Option Compare Text
 Imports System.IO
 Imports System.Reflection
 
-#If WINDOWS10_0_17763_0_OR_GREATER Then
-Imports Windows.ApplicationModel
-Imports Windows.ApplicationModel.Activation
-
-#End If
-
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     Friend NotInheritable Class Vbi
@@ -19,36 +13,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Public Shared Function Main(args As String()) As Integer
             Console.Title = "VB Interactive"
-
-#If WINDOWS10_0_17763_0_OR_GREATER Then
-            Dim winRTArgs As IActivatedEventArgs
-            Try
-                winRTArgs = AppInstance.GetActivatedEventArgs
-            Catch ex As Exception
-                Console.Error.WriteLine("This program can only be run as MSIX packed app. If you're running it from source, set the MSIX packaging project as startup project or target Windows 7 and try again.")
-                Return ex.HResult
-            End Try
-            If winRTArgs.Kind = Activation.ActivationKind.File Then
-                Console.WriteLine("==== Security Warning ====")
-                Console.WriteLine("Running scripts can potentially harm your computer.")
-                Console.WriteLine("Do not run it if you obtained it from an untrusted source.")
-                Console.WriteLine()
-                Do
-                    Console.WriteLine("Press Enter to run the script.")
-                    Console.WriteLine("Press ESC to abort.")
-                    Dim response = Console.ReadKey
-                    Select Case response.Key
-                        Case ConsoleKey.Enter
-                            Console.WriteLine("Running...")
-                            Exit Do
-                        Case ConsoleKey.Escape
-                            Console.WriteLine("Aborted.")
-                            Const ERROR_CANCELLED = &H4C7
-                            Return ERROR_CANCELLED
-                    End Select
-                Loop
-            End If
-#End If
 
 #If WINDOWS7_0_OR_GREATER Then
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)

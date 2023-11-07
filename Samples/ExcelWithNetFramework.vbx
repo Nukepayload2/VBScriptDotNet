@@ -1,0 +1,5 @@
+'Attribute TargetFramework = "net48"
+Dim excel = CreateObject("Excel.Application")
+excel.Visible = True
+excel.Workbooks.Add
+excel.ActiveCell.Value = "Value from VB Interactive"
