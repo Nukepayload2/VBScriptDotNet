@@ -14,6 +14,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+    <Compile Remove="**\*.NetFw.vb"/>
+  </ItemGroup>
   <ItemGroup>
     <Compile Remove="My Project\**" />
     <EmbeddedResource Remove="My Project\**" />

@@ -19,7 +19,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Public Shared Function Main(args As String()) As Integer
             Console.Title = "VB Interactive"
-#If WINDOWS7_0_OR_GREATER Then
 
 #If WINDOWS10_0_17763_0_OR_GREATER Then
             Dim winRTArgs As IActivatedEventArgs
@@ -51,8 +50,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End If
 #End If
 
+#If WINDOWS7_0_OR_GREATER Then
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
             System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2)
+            System.Windows.Forms.Application.EnableVisualStyles()
+#End If
+
+#If NETFRAMEWORK Then
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
+            DpiAwareness.UsePerMonitorV2()
             System.Windows.Forms.Application.EnableVisualStyles()
 #End If
 
