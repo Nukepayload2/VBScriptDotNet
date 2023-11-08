@@ -19,7 +19,7 @@ Module Program
         Try
             winRTArgs = AppInstance.GetActivatedEventArgs
         Catch ex As Exception
-            MsgBox("This program can only be run as MSIX packed app. If you're running it from source, set the MSIX packaging project as startup project or target Windows 7 and try again.", vbExclamation, "Failed to start")
+            MsgBox("This program can only be run as MSIX packed app. If you're running it from source, call vbi.exe directly.", vbExclamation, "Unintended usage")
             Environment.ExitCode = ex.HResult
             Return
         End Try
@@ -28,13 +28,13 @@ Module Program
                 Return
             End If
             If IsNetFrameworkScriptArgs(args) Then
-                LaunchNetFrameworkApp()
+                LaunchNetFrameworkApp(args)
             Else
-                LaunchNetCoreApp()
+                LaunchNetCoreApp(args)
             End If
         Else
             ' Start menu activation
-            LaunchNetCoreApp()
+            LaunchNetCoreApp(args)
         End If
     End Sub
 
@@ -94,11 +94,22 @@ Module Program
         Return attributeValue.StartsWith("net4", StringComparison.OrdinalIgnoreCase)
     End Function
 
-    Private Sub LaunchNetFrameworkApp()
-        MsgBox("TODO: Start .NET Framework version of vbi.exe")
+    Private Sub LaunchNetFrameworkApp(args As String())
+        LaunchApp("vbifw\vbi.exe", args)
     End Sub
 
-    Private Sub LaunchNetCoreApp()
-        MsgBox("TODO: Start .NET version of vbi.exe")
+    Private Sub LaunchNetCoreApp(args As String())
+        LaunchApp("vbicore\vbi.exe", args)
     End Sub
+
+    Private Sub LaunchApp(absolutePath As String, args As String())
+        Try
+            Dim packageRoot = Package.Current.InstalledLocation.Path
+            Dim exePath = Path.Combine(packageRoot, absolutePath)
+            Process.Start(exePath, args)
+        Catch ex As Exception
+            MsgBox("Failed to run the vbx script, because script runner couldn't be located", vbExclamation, "Launch failed")
+        End Try
+    End Sub
+
 End Module
