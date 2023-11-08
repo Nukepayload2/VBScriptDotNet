@@ -7,11 +7,12 @@
     <UseWPF>true</UseWPF>
     <RootNamespace></RootNamespace>
     <AssemblyName>vbi</AssemblyName>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\Interactive\vbi\*.vb"/>
-    <Compile Remove="**\*.NetFw.vb"/>
+    <Compile Include="..\..\Interactive\vbi\*.vb" />
+    <Compile Remove="**\*.NetFw.vb" />
   </ItemGroup>
 
   <ItemGroup>

@@ -9,7 +9,7 @@
   <Identity
     Name="54213Nukepayload2.N2ForkVBInteractivePreview"
     Publisher="CN=B08FCF9B-E5FD-4D44-8B58-F84FB3CC7751"
-    Version="1.0.0.0" />
+    Version="1.0.2.0" />
 
   <Properties>
     <DisplayName>N2Fork VB Interactive (Preview)</DisplayName>
@@ -27,12 +27,12 @@
   </Resources>
 
   <Applications>
-    <Application Id="VbiFw"
-      Executable="vbifw\vbi.exe"
+    <Application Id="VbiCore"
+      Executable="vbicore\vbi.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="N2Fork VB Interactive (net48)"
-        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET Framework"
+        DisplayName="N2Fork VB Interactive (net6.0)"
+        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET 6.0"
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
@@ -46,12 +46,12 @@
         <uap:SplashScreen Image="Images\SplashScreen.png"  BackgroundColor="transparent"/>
       </uap:VisualElements>
     </Application>
-    <Application Id="VbiCore"
-      Executable="vbicore\vbi.exe"
+    <Application Id="VbiFw"
+      Executable="vbifw\vbi.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="N2Fork VB Interactive (net6.0)"
-        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET 6.0"
+        DisplayName="N2Fork VB Interactive (net48)"
+        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET Framework"
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">

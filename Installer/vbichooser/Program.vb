@@ -33,8 +33,7 @@ Module Program
                 LaunchNetCoreApp(args)
             End If
         Else
-            ' Start menu activation
-            LaunchNetCoreApp(args)
+            MsgBox("This program can only be started by file association.", vbExclamation, "Unintended usage")
         End If
     End Sub
 
