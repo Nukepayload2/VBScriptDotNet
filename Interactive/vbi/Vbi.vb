@@ -23,7 +23,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
 #If NETFRAMEWORK Then
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
-            DpiAwareness.UsePerMonitorV2()
             System.Windows.Forms.Application.EnableVisualStyles()
             Console.Title += " (net48)"
 #End If
