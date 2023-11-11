@@ -1,7 +1,12 @@
 # VBScriptDotNet
-A patched VB interactive that runs with stable releases of Roslyn.
+A patched VB interactive that runs with modified Roslyn.
 
 ## How to run VB interactive
+### Install binaries
+<a href="ms-windows-store://pdp/?ProductId=9N210C9TDZ95&mode=mini">
+   <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Download VB Interactive" />
+</a>
+
 ### Run with Visual Studio
 - Ensure that you've installed the latest Visual Studio 2022, .NET desktop workload and .NET 6 SDK.
 - Open `VBInteractive.sln`
