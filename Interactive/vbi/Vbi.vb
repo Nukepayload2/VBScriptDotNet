@@ -4,7 +4,6 @@
 
 Imports System.IO
 Imports System.Reflection
-Imports Microsoft.CodeAnalysis.Scripting.Hosting
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
