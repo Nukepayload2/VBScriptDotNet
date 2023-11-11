@@ -3,10 +3,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace></RootNamespace>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>beta01</VersionSuffix>
+    <VersionSuffix>beta02</VersionSuffix>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Update="VBScriptingResources.resx" GenerateSource="true" Namespace="Microsoft.CodeAnalysis.VisualBasic.Scripting">

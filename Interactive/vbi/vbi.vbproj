@@ -4,10 +4,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <StartupObject>Sub Main</StartupObject>
-    <TargetFrameworks>net6.0;net6.0-windows</TargetFrameworks>
+    <TargetFrameworks>net6.0;net6.0-windows;net48</TargetFrameworks>
     <RootNamespace></RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0-windows'">
+  <PropertyGroup Condition="'$(TargetFramework)'!='net6.0'">
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
@@ -18,13 +19,6 @@
   </ItemGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Nukepayload2.SourceGenerators.IgnoresAccessChecksTo" Version="1.0.0" PrivateAssets="all" />
-  </ItemGroup>
-  <ItemGroup>
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis.Scripting" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

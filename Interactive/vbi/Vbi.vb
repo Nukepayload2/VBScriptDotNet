@@ -18,35 +18,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             System.Windows.Forms.Application.EnableVisualStyles()
 #End If
 
+#If NETFRAMEWORK Then
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
+            System.Windows.Forms.Application.EnableVisualStyles()
+            Console.Title = "VB Interactive (net48)"
+#Else
+            Console.Title = "VB Interactive (net6.0)"
+#End If
+
             Try
                 ' Note that AppContext.BaseDirectory isn't necessarily the directory containing vbi.exe.
                 ' For example, when executed via corerun it's the directory containing corerun.
                 Dim vbiDirectory = Path.GetDirectoryName(GetType(Vbi).GetTypeInfo().Assembly.ManifestModule.FullyQualifiedName)
+                Dim retVal = VisualBasicScript.RunInteractive(args, vbiDirectory, InteractiveResponseFileName)
 
-                Dim buildPaths = New BuildPaths(
-                    clientDir:=vbiDirectory,
-                    workingDir:=Directory.GetCurrentDirectory(),
-                    sdkDir:=Path.GetDirectoryName(GetType(Object).Assembly.Location),
-                    tempDir:=Path.GetTempPath())
-
-                Dim compiler = New VisualBasicInteractiveCompiler(
-                    responseFile:=Path.Combine(vbiDirectory, InteractiveResponseFileName),
-                    buildPaths:=buildPaths,
-                    args:=args,
-                    analyzerLoader:=New NotImplementedAnalyzerLoader())
-
-                Dim runner = New CommandLineRunner(
-                    ConsoleIO.Default,
-                    compiler,
-                    VisualBasicScriptCompiler.Instance,
-                    VisualBasicObjectFormatter.Instance)
-
-                Return runner.RunInteractive()
+                If retVal <> 0 Then
+                    Console.Error.WriteLine("Unexpected exit code " & retVal)
+                End If
+                Return VisualBasicScript.RunInteractive(args, vbiDirectory, InteractiveResponseFileName)
             Catch ex As Exception
-                Console.WriteLine(ex.ToString())
+                Console.Error.WriteLine(ex.ToString())
                 Return 1
             End Try
         End Function
+
     End Class
 
 End Namespace
