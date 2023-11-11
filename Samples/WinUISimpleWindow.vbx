@@ -1,0 +1,28 @@
+#R "Microsoft.WinUI"
+Imports Microsoft.UI.Xaml
+Imports Microsoft.UI.Xaml.Controls
+Dim wnd As New Window
+Dim closed = False
+Dim stack As New StackPanel
+Dim margin As New Thickness(4)
+stack.Children.Add(New TextBlock With {.Text="WinUI3 Window from vbx script",.Margin = margin})
+stack.Children.Add(New CheckBox With {.Content="We support WinUI 3!",.Margin = margin,.IsChecked=True})
+Dim btn As New Button With {.Content = "Click me",.Margin = margin}
+' AddHandler and WithEvents can't be used in top-level code.
+Dim initEvents = 
+Sub() 
+	AddHandler wnd.Closed, Sub() closed = True
+	AddHandler btn.Click, Sub() btn.Content = $"Clicked at {Now}"
+End Sub
+initEvents.Invoke()
+stack.Children.Add(btn)
+wnd.Content = stack
+wnd.Activate
+' WinUI doesn't have Window.ShowDialog. So, we need to run dialog loop manually.
+Do Until closed
+	System.Windows.Forms.Application.DoEvents
+Loop
+
+' Sometimes ABI.Microsoft.UI.Xaml.IApplicationStaticsMethods.Start(WinRT.IObjectReference, Microsoft.UI.Xaml.ApplicationInitializationCallback) throws AccessViolationException.
+' So, we exit immediately when the script is ended.
+Environment.Exit(0)
