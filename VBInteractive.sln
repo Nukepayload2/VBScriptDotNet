@@ -26,6 +26,14 @@ Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "vbifw", "Installer\vbifw\vb
 EndProject
 Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "vbichooser", "Installer\vbichooser\vbichooser.vbproj", "{7516B056-CA65-4000-A675-A645CFCBA60E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{CFF10723-B9A2-432F-8B9E-78DADBC5CC7D}"
+	ProjectSection(SolutionItems) = preProject
+		Samples\ExcelWithNetFramework.vbx = Samples\ExcelWithNetFramework.vbx
+		Samples\GuidGenerator.vbx = Samples\GuidGenerator.vbx
+		Samples\WinFormsDateDifference.vbx = Samples\WinFormsDateDifference.vbx
+		Samples\WpfCpuCoreInformation.vbx = Samples\WpfCpuCoreInformation.vbx
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

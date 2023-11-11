@@ -60,6 +60,23 @@ Dim count = 10
 PrintFibonacci(count)
 ```
 
+## Special features that the original `vbi` doesn't have
+### Attribute comments
+Specify project properties with special comments at the top of your `vbx` script files.
+#### Syntax
+```vbnet
+' Attribute <property-name> = <value-constant-expression>
+```
+#### TargetFramework attribute comment
+This attribute is used to select the script runner of `vbx` files when you run scripts by file association. 
+The script runner uses the latest LTS .NET runtime by default. 
+You can use this feature to choose the .NET Framework script runner with the following comment:
+```vbnet
+' Attribute TargetFramework = "net48"
+```
+
+Example: [Excel With Net Framework](Samples/ExcelWithNetFramework.vbx)
+
 ## Known issues
 Significant problems:
 - `Imports` doesn't work in interactive mode.
