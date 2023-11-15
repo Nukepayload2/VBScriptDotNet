@@ -9,6 +9,7 @@
     <AssemblyName>vbi</AssemblyName>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
     <ApplicationManifest>..\..\Interactive\vbi\app.manifest</ApplicationManifest>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
