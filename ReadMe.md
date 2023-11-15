@@ -11,15 +11,15 @@ A patched VB interactive that runs with modified Roslyn.
 - Ensure that you've installed the latest Visual Studio 2022, .NET desktop workload and .NET 6 SDK.
 - Open `VBInteractive.sln`
 - Set [vbi](Interactive\vbi\vbi.vbproj) as start project.
-- Change target framework to `net6.0-windows`.
+- Change target framework to `net8.0-windows`.
 - Run
 
-### Run with .NET 6 SDK
+### Run with .NET 8 SDK
 - cd `Interactive\vbi`
-- Run interactively with `dotnet run --framework net6.0`
-- Run interactively on Windows with `dotnet run --framework net6.0-windows`
-- Run in script mode with `dotnet run --framework net6.0 -- <path-to-vbx-file>`
-- Run in script mode on Windows with `dotnet run --framework net6.0-windows -- <path-to-vbx-file>`
+- Run interactively with `dotnet run --framework net8.0`
+- Run interactively on Windows with `dotnet run --framework net8.0-windows`
+- Run in script mode with `dotnet run --framework net8.0 -- <path-to-vbx-file>`
+- Run in script mode on Windows with `dotnet run --framework net8.0-windows -- <path-to-vbx-file>`
 
 ## Available features
 
@@ -32,7 +32,7 @@ A patched VB interactive that runs with modified Roslyn.
 ### #R Directive
 The following code calls `Newtonsoft.Json 13.0.3` stored in Windows NuGet package cache to serialize a number to JSON and prints the value in VB format.
 ```vbnet
-#R "C:\Users\<your user name>\.nuget\packages\newtonsoft.json\13.0.3\lib\net6.0\Newtonsoft.Json.dll"
+#R "C:\Users\<your user name>\.nuget\packages\newtonsoft.json\13.0.3\lib\net8.0\Newtonsoft.Json.dll"
 Newtonsoft.Json.JsonConvert.SerializeObject(1)
 ```
 

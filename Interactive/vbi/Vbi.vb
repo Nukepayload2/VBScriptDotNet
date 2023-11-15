@@ -29,7 +29,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(False)
             System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2)
             System.Windows.Forms.Application.EnableVisualStyles()
-            Console.Title += " (net6.0)"
+            Console.Title += " (net8.0)"
 #End If
 
 #If NETFRAMEWORK Then
