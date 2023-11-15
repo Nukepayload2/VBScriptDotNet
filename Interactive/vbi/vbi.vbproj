@@ -4,11 +4,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <StartupObject>Sub Main</StartupObject>
-    <TargetFrameworks>net6.0;net6.0-windows;net48</TargetFrameworks>
+    <TargetFrameworks>net8.0;net8.0-windows;net48</TargetFrameworks>
     <RootNamespace></RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'!='net6.0'">
+  <PropertyGroup Condition="'$(TargetFramework)'!='net8.0'">
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
@@ -22,11 +22,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="vbi.coreclr.rsp" Condition="'$(TargetFramework)' == 'net6.0'">
+    <None Include="vbi.coreclr.rsp" Condition="'$(TargetFramework)' == 'net8.0'">
       <Link>vbi.rsp</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="vbi.desktop.rsp" Condition="'$(TargetFramework)' != 'net6.0'">
+    <None Include="vbi.desktop.rsp" Condition="'$(TargetFramework)' != 'net8.0'">
       <Link>vbi.rsp</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

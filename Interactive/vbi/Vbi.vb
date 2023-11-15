@@ -22,7 +22,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             System.Windows.Forms.Application.EnableVisualStyles()
             Console.Title = "VB Interactive (net48)"
 #Else
-            Console.Title = "VB Interactive (net6.0)"
+            Console.Title = "VB Interactive (net8.0)"
 #End If
 
             Try
