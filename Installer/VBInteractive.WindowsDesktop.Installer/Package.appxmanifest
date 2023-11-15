@@ -9,7 +9,7 @@
   <Identity
     Name="54213Nukepayload2.N2ForkVBInteractivePreview"
     Publisher="CN=B08FCF9B-E5FD-4D44-8B58-F84FB3CC7751"
-    Version="1.0.7.0" />
+    Version="1.1.0.0" />
 
   <Properties>
     <DisplayName>N2Fork VB Interactive (Preview)</DisplayName>
@@ -66,7 +66,7 @@
       </uap:VisualElements>
     </Application>
     <Application Id="VbiChooser"
-      Executable="vbichooser\vbichooser.exe"
+      Executable="vbicore\vbichooser.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="N2Fork VB Interactive (Script mode)"

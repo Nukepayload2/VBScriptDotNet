@@ -58,9 +58,9 @@
     <NoWarn>$(NoWarn);NU1702</NoWarn>
     <TargetFramework>net8.0-windows</TargetFramework>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <AppxBundlePlatforms>x64|arm64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <PackageCertificateThumbprint>A2241BDB71C819F28991D5C24FCC4F70B2FFCB92</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA384</AppxPackageSigningTimestampDigestAlgorithm>
@@ -114,7 +114,7 @@
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
   <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.2428" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="vbi\" />
@@ -125,7 +125,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\vbichooser\vbichooser.vbproj" />
     <ProjectReference Include="..\vbicore\vbicore.vbproj" />
     <ProjectReference Include="..\vbifw\vbifw.vbproj" />
   </ItemGroup>
