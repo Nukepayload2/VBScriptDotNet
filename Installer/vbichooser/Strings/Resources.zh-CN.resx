@@ -123,6 +123,18 @@
   <data name="Error.RuntimeError" xml:space="preserve">
     <value>运行时错误</value>
   </data>
+  <data name="RuntimeSelectionDialog.Content" xml:space="preserve">
+    <value>使用哪个运行时框架？</value>
+  </data>
+  <data name="RuntimeSelectionDialog.Net" xml:space="preserve">
+    <value>.NET 8 (Windows 桌面版)</value>
+  </data>
+  <data name="RuntimeSelectionDialog.NetFw" xml:space="preserve">
+    <value>.NET Framework 4.8</value>
+  </data>
+  <data name="RuntimeSelectionDialog.Title" xml:space="preserve">
+    <value>选择运行时框架</value>
+  </data>
   <data name="SecurityDialog.Block" xml:space="preserve">
     <value>不运行</value>
   </data>

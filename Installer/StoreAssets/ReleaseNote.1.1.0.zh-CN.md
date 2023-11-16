@@ -1,0 +1,6 @@
+- 从 .NET 6 升级到 .NET 8。
+- 支持 .NET Framework 4.8。启动时将询问使用哪个运行时框架。对于 ARM64 设备而言，为了确保运行效率，建议先安装 .NET Framework 4.8.1 再运行 .NET Framework 4.8 版的本程序。
+- .NET 8 版支持调用一部分 WinUI 的 API。
+- vbx 脚本能够通过 ' Attribute TargetFramework="net48" 指定运行环境为 .NET Framework 4.8 而不是 .NET 8。
+- 更新安全警告 UI。现在支持通过鼠标和触摸操作处理安全警告，以及显示是否试图在管理员模式下启动脚本。
+- 略微提升程序的启动速度。

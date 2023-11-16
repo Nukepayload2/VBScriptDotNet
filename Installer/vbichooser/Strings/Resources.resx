@@ -123,6 +123,18 @@
   <data name="Error.RuntimeError" xml:space="preserve">
     <value>Runtime Error</value>
   </data>
+  <data name="RuntimeSelectionDialog.Content" xml:space="preserve">
+    <value>Which runtime framework would you like to use?</value>
+  </data>
+  <data name="RuntimeSelectionDialog.Net" xml:space="preserve">
+    <value>.NET 8 (Windows Desktop)</value>
+  </data>
+  <data name="RuntimeSelectionDialog.NetFw" xml:space="preserve">
+    <value>.NET Framework 4.8</value>
+  </data>
+  <data name="RuntimeSelectionDialog.Title" xml:space="preserve">
+    <value>Select Runtime Framework</value>
+  </data>
   <data name="SecurityDialog.Block" xml:space="preserve">
     <value>Don't run</value>
   </data>

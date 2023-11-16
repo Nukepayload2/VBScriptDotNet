@@ -33,9 +33,33 @@ Module Program
                 LaunchNetCoreApp(args)
             End If
         Else
-            MsgBox("This program can only be started by file association.", vbExclamation, "Unintended usage")
+            If AskTargetFrameworkIsNet() Then
+                LaunchNetCoreApp(Array.Empty(Of String))
+            Else
+                LaunchNetFrameworkApp(Array.Empty(Of String))
+            End If
         End If
     End Sub
+
+    Private Function AskTargetFrameworkIsNet() As Boolean
+        Dim netButton As New TaskDialogButton With {
+            .Text = My.Resources.Resources.RuntimeSelectionDialog_Net
+        }
+        Dim netfwButton As New TaskDialogButton With {
+            .Text = My.Resources.Resources.RuntimeSelectionDialog_NetFw
+        }
+        Dim dlgPage As New TaskDialogPage With {
+            .Caption = My.Resources.Resources.RuntimeSelectionDialog_Title,
+            .Buttons = New TaskDialogButtonCollection From {
+                netButton, netfwButton
+            },
+            .DefaultButton = netButton,
+            .Text = My.Resources.Resources.RuntimeSelectionDialog_Content
+        }
+
+        Dim buttonChoice = TaskDialog.ShowDialog(dlgPage)
+        Return buttonChoice Is netButton
+    End Function
 
     Private Function AskCanRunCode() As Boolean
         Dim isElevated = New WindowsPrincipal(WindowsIdentity.GetCurrent()).
@@ -98,7 +122,7 @@ Module Program
     End Sub
 
     Private Sub LaunchNetCoreApp(args As String())
-        LaunchApp("vbicore\vbi.exe", args)
+        LaunchApp("vbichooser\vbi.exe", args)
     End Sub
 
     Private Sub LaunchApp(absolutePath As String, args As String())

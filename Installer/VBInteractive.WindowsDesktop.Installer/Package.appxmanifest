@@ -27,51 +27,13 @@
   </Resources>
 
   <Applications>
-    <Application Id="VbiCore"
-      Executable="vbicore\vbi.exe"
-      EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements
-        DisplayName="N2Fork VB Interactive (net8.0)"
-        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET 6.0"
-        BackgroundColor="transparent"
-        Square150x150Logo="Images\Square150x150Logo.png"
-        Square44x44Logo="Images\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  Square71x71Logo="Images\SmallTile.png" Square310x310Logo="Images\LargeTile.png" ShortName="VB Interactive">
-          <uap:ShowNameOnTiles>
-            <uap:ShowOn Tile="square150x150Logo"/>
-            <uap:ShowOn Tile="wide310x150Logo"/>
-            <uap:ShowOn Tile="square310x310Logo"/>
-          </uap:ShowNameOnTiles>
-        </uap:DefaultTile >
-        <uap:SplashScreen Image="Images\SplashScreen.png"  BackgroundColor="transparent"/>
-      </uap:VisualElements>
-    </Application>
-    <Application Id="VbiFw"
-      Executable="vbifw\vbi.exe"
-      EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements
-        DisplayName="N2Fork VB Interactive (net48)"
-        Description="Nukepayload2&apos;s fork of VB interactive (preview) on .NET Framework"
-        BackgroundColor="transparent"
-        Square150x150Logo="Images\Square150x150Logo.png"
-        Square44x44Logo="Images\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  Square71x71Logo="Images\SmallTile.png" Square310x310Logo="Images\LargeTile.png" ShortName="VB Interactive">
-          <uap:ShowNameOnTiles>
-            <uap:ShowOn Tile="square150x150Logo"/>
-            <uap:ShowOn Tile="wide310x150Logo"/>
-            <uap:ShowOn Tile="square310x310Logo"/>
-          </uap:ShowNameOnTiles>
-        </uap:DefaultTile >
-        <uap:SplashScreen Image="Images\SplashScreen.png"  BackgroundColor="transparent"/>
-      </uap:VisualElements>
-    </Application>
     <Application Id="VbiChooser"
       Executable="vbicore\vbichooser.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="N2Fork VB Interactive (Script mode)"
-        Description="Nukepayload2&apos;s fork of VB interactive (preview) script runtime selector"
-        BackgroundColor="transparent" AppListEntry="none"
+        DisplayName="N2Fork VB Interactive (preview)"
+        Description="Nukepayload2&apos;s fork of VB interactive (preview)"
+        BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"  Square71x71Logo="Images\SmallTile.png" Square310x310Logo="Images\LargeTile.png" ShortName="VB Interactive">

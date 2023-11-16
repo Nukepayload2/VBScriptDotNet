@@ -55,6 +55,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
-    <ProjectReference Include="..\vbichooser\vbichooser.vbproj" />
   </ItemGroup>
 </Project>

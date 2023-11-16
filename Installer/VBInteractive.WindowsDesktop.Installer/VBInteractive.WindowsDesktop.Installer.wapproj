@@ -65,7 +65,7 @@
     <PackageCertificateThumbprint>A2241BDB71C819F28991D5C24FCC4F70B2FFCB92</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA384</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
-    <EntryPointProjectUniqueName>..\vbicore\vbicore.vbproj</EntryPointProjectUniqueName>
+    <EntryPointProjectUniqueName>..\vbichooser\vbichooser.vbproj</EntryPointProjectUniqueName>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
@@ -107,10 +107,10 @@
     <Content Include="Images\*.png" />
     <None Include="Package.StoreAssociation.xml" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'=='Release'">
     <!--Bug: App.xbf disappeared in msix-->
     <!--Workaround: Build with Release configuration and copy manually-->
-    <Content Include="vbicore\App.xbf" />
+    <Content Include="vbichooser\App.xbf" />
   </ItemGroup>
   <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
   <ItemGroup>
@@ -125,7 +125,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\vbicore\vbicore.vbproj" />
+    <ProjectReference Include="..\vbichooser\vbichooser.vbproj" />
     <ProjectReference Include="..\vbifw\vbifw.vbproj" />
   </ItemGroup>
 </Project>

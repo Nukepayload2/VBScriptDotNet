@@ -83,6 +83,42 @@ Namespace My.Resources
         End Property
         
         '''<summary>
+        '''  查找类似 Which runtime framework would you like to use? 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property RuntimeSelectionDialog_Content() As String
+            Get
+                Return ResourceManager.GetString("RuntimeSelectionDialog.Content", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  查找类似 .NET 8 (Windows Desktop) 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property RuntimeSelectionDialog_Net() As String
+            Get
+                Return ResourceManager.GetString("RuntimeSelectionDialog.Net", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  查找类似 .NET Framework 4.8 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property RuntimeSelectionDialog_NetFw() As String
+            Get
+                Return ResourceManager.GetString("RuntimeSelectionDialog.NetFw", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  查找类似 Select Runtime Framework 的本地化字符串。
+        '''</summary>
+        Friend Shared ReadOnly Property RuntimeSelectionDialog_Title() As String
+            Get
+                Return ResourceManager.GetString("RuntimeSelectionDialog.Title", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
         '''  查找类似 Don&apos;t run 的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property SecurityDialog_Block() As String
