@@ -8,4 +8,4 @@
 - Visual Basic 版本：16.9
 - Visual Basic 编译器： Roslyn 4.7.0，带有一些用于运行脚本的补丁
 - 嵌入的 .NET 运行时：.NETCore.App 8.0.0 和 WindowsDesktop.App 8.0.0
-- 脚本宿主的目标框架：net8.0-windows10.0.17763.0
+- 脚本宿主的目标框架：net8.0-windows10.0.17763.0 或者 .NET Framework 4.8

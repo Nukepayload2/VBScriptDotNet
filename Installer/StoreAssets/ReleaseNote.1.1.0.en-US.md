@@ -1,0 +1,6 @@
+- Upgraded from .NET 6 to .NET 8. 
+- Added .NET Framework 4.8 support. At startup, you will be asked which runtime framework to use. For ARM64 devices, it is recommended to install the .NET Framework 4.8.1 before running the .NET Framework 4.8 version of this program to ensure best performance.
+- The .NET 8 app supports consuming some WinUI APIs.
+- By writing ' Attribute TargetFramework="net48" at top of a vbx file, the script will be executed in .NET Framework 4.8 mode.
+- Updated security warning UI. It now supports handling security warnings via mouse and touch actions, as well as showing if the script will be run in administrator mode.
+- Slightly improved program startup speed.
