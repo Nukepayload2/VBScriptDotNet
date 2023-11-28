@@ -42,11 +42,14 @@ Module Program
     End Sub
 
     Private Function AskTargetFrameworkIsNet() As Boolean
+        Dim isElevated = Environment.IsPrivilegedProcess
         Dim netButton As New TaskDialogButton With {
-            .Text = My.Resources.Resources.RuntimeSelectionDialog_Net
+            .Text = My.Resources.Resources.RuntimeSelectionDialog_Net,
+            .ShowShieldIcon = isElevated
         }
         Dim netfwButton As New TaskDialogButton With {
-            .Text = My.Resources.Resources.RuntimeSelectionDialog_NetFw
+            .Text = My.Resources.Resources.RuntimeSelectionDialog_NetFw,
+            .ShowShieldIcon = isElevated
         }
         Dim dlgPage As New TaskDialogPage With {
             .Caption = My.Resources.Resources.RuntimeSelectionDialog_Title,
@@ -62,8 +65,7 @@ Module Program
     End Function
 
     Private Function AskCanRunCode() As Boolean
-        Dim isElevated = New WindowsPrincipal(WindowsIdentity.GetCurrent()).
-            IsInRole(WindowsBuiltInRole.Administrator)
+        Dim isElevated = Environment.IsPrivilegedProcess
         Dim yesButton As New TaskDialogButton With {
             .Text = My.Resources.Resources.SecurityDialog_Run,
             .ShowShieldIcon = isElevated
