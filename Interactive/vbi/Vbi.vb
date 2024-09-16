@@ -16,12 +16,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     Friend NotInheritable Class Vbi
         Friend Const InteractiveResponseFileName As String = "vbi.rsp"
 
-#If USE_WINUI Then
-
-        Private Declare Sub XamlCheckProcessRequirements Lib "Microsoft.ui.xaml.dll" ()
-
-#End If
-
         Public Shared Function Main(args As String()) As Integer
             Console.Title = "VB Interactive"
 
@@ -39,7 +33,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #End If
 
 #If USE_WINUI Then
-            XamlCheckProcessRequirements
             WinRT.ComWrappersSupport.InitializeComWrappers()
             App.VbiArgs = args
             Application.Start(AddressOf OnAppInit)
