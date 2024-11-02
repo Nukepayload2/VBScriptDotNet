@@ -7,6 +7,8 @@ A patched VB interactive that runs with stable releases of Roslyn.
    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Download VB Interactive" />
 </a>
 
+Store page: https://www.microsoft.com/store/productId/9N210C9TDZ95?ocid=pdpshare
+
 ### Run with Visual Studio
 - Ensure that you've installed the latest Visual Studio 2022, .NET desktop workload and .NET 6 SDK.
 - Open `VBInteractive.sln`
