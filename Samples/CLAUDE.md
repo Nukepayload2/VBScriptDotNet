@@ -7,10 +7,10 @@ VBScript.NET (.vbx) scripts are powerful lightweight scripts that combine the si
 ### File Structure
 - .vbx files contain Visual Basic.NET code that can be executed directly
 - No project files or compilation required - scripts are executed on the fly
-- Full access to .NET Framework libraries and COM objects
+- Full access to .NET runtime libraries and COM objects
 
 ### Target Framework Specification
-Use comments to specify target framework when needed:
+Use comments to specify target framework when needed. The default target framework is .NET 8. The following code sets target framework to .NET Framework:
 ```vb
 'Attribute TargetFramework = "net48"
 ```
@@ -83,6 +83,7 @@ console.readkey
 ### 7. File System Operations
 Work with file paths and directories:
 ```vb
+' Set curdir to the script's directory
 Environment.CurrentDirectory = Path.GetDirectoryName(Environment.GetCommandLineArgs(1))
 msgbox(curdir)
 ```
@@ -208,7 +209,7 @@ Environment.Exit(0)
 
 VBScript.NET scripts support multiple .NET frameworks:
 - .NET Framework 4.8
-- .NET 8 (when targeting appropriate runtime)
+- .NET 8
 - Windows-specific features require Windows runtime
 
 ## Development Workflow
