@@ -1,0 +1,2 @@
+Environment.CurrentDirectory = Path.GetDirectoryName(Environment.GetCommandLineArgs(1))
+msgbox(curdir)

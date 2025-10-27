@@ -1,0 +1,2 @@
+console.writeline(string.join(",",Environment.GetCommandLineArgs))
+console.readkey
