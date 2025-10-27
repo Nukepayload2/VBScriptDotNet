@@ -1,0 +1,13 @@
+Dim asyncTask As Func(Of Task(Of Integer)) = 
+Async Function()
+    for i=1 to 4
+        console.writeline(i)
+        await task.delay(1000)
+    next
+    Return 5
+End Function
+
+Dim result = Task.Run(asyncTask).GetAwaiter().GetResult()
+Console.WriteLine(result)
+Console.WriteLine("DONE!")
+Console.ReadKey
