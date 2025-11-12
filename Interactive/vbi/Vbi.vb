@@ -5,6 +5,8 @@ Option Compare Text
 
 Imports System.IO
 Imports System.Reflection
+Imports System.Runtime.CompilerServices
+
 
 #If USE_WINUI Then
 Imports Microsoft.UI.Dispatching
@@ -33,6 +35,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #End If
 
 #If USE_WINUI Then
+            RuntimeHelpers.RunClassConstructor(GetType(Program).TypeHandle)
             WinRT.ComWrappersSupport.InitializeComWrappers()
             App.VbiArgs = args
             Application.Start(AddressOf OnAppInit)
