@@ -4,12 +4,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <StartupObject>Sub Main</StartupObject>
-    <TargetFrameworks>net8.0-windows;net8.0;net48</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows;net10.0;net48</TargetFrameworks>
     <RootNamespace></RootNamespace>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'!='net8.0'">
+  <PropertyGroup Condition="'$(TargetFramework)'!='net10.0'">
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
   </PropertyGroup>

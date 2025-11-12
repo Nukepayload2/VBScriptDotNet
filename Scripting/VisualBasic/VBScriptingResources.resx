@@ -128,6 +128,8 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Code examples: https://github.com/Nukepayload2/VBScriptDotNet/tree/use-modified-roslyn/Samples
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit

@@ -22,7 +22,7 @@ Namespace My.Resources
     '''<summary>
     '''  一个强类型的资源类，用于查找本地化的字符串等。
     '''</summary>
-    <Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0"),  _
+    <Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0"),  _
      Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
      Global.System.Runtime.CompilerServices.CompilerGeneratedAttribute()>  _
     Friend Class VBScriptingResources
@@ -78,11 +78,12 @@ Namespace My.Resources
         '''
         '''If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
         '''
+        '''Code examples: https://github.com/Nukepayload2/VBScriptDotNet/tree/use-modified-roslyn/Samples
+        '''
         '''Options:
         '''  /help                          Display this usage message (Short form: /?)
         '''  /version                       Display the version and exit
-        '''  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
-        '''  /reference:&lt;file list&gt;         Reference metadata from  [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        '''  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file [字符串的其余部分被截断]&quot;; 的本地化字符串。
         '''</summary>
         Friend Shared ReadOnly Property InteractiveHelp() As String
             Get
