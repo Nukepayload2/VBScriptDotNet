@@ -1,4 +1,3 @@
-Imports System.IO
 Imports System.Text
 Imports Microsoft.UI.Xaml
 
@@ -16,15 +15,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Public Shared Property VbiArgs As String()
 
         Protected Overrides Sub OnLaunched(args As LaunchActivatedEventArgs)
-            SetCurDirToAsmDir()
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
             Environment.ExitCode = Vbi.OnStartup(VbiArgs)
             [Exit]()
-        End Sub
-
-        Private Sub SetCurDirToAsmDir()
-            Dim appDir = Path.GetDirectoryName(GetType(App).Assembly.Location)
-            Directory.SetCurrentDirectory(appDir)
         End Sub
 
         Private Sub Application_UnhandledException(

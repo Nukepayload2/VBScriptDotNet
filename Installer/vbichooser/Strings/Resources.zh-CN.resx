@@ -127,7 +127,7 @@
     <value>使用哪个运行时框架？</value>
   </data>
   <data name="RuntimeSelectionDialog.Net" xml:space="preserve">
-    <value>.NET 8 (Windows 桌面版)</value>
+    <value>.NET 10 (Windows 桌面版)</value>
   </data>
   <data name="RuntimeSelectionDialog.NetFw" xml:space="preserve">
     <value>.NET Framework 4.8</value>

@@ -131,7 +131,10 @@ Module Program
         Try
             Dim packageRoot = Package.Current.InstalledLocation.Path
             Dim exePath = Path.Combine(packageRoot, absolutePath)
-            Process.Start(exePath, args)
+            Dim startArgs As New ProcessStartInfo(exePath, args) With {
+                .WorkingDirectory = Path.GetDirectoryName(exePath)
+            }
+            Process.Start(startArgs)
         Catch ex As Exception
             MsgBox("Failed to run the vbx script, because script runner couldn't be located", vbExclamation, "Launch failed")
         End Try
