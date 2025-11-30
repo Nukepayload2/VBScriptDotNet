@@ -209,7 +209,7 @@ Environment.Exit(0)
 
 VBScript.NET scripts support multiple .NET frameworks:
 - .NET Framework 4.8
-- .NET 8
+- .NET 10
 - Windows-specific features require Windows runtime
 
 ## Development Workflow
