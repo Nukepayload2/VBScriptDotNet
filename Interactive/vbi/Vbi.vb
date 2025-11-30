@@ -35,7 +35,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #End If
 
 #If USE_WINUI Then
-            RuntimeHelpers.RunClassConstructor(GetType(Program).TypeHandle)
             WinRT.ComWrappersSupport.InitializeComWrappers()
             App.VbiArgs = args
             Application.Start(AddressOf OnAppInit)
