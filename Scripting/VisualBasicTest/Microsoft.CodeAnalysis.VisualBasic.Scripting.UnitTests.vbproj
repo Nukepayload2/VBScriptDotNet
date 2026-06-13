@@ -2,7 +2,7 @@
 <!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests</RootNamespace>
     <SkipTests Condition="'$(TestRuntime)' == 'Mono'">true</SkipTests>
@@ -16,8 +16,8 @@
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis.VisualBasic" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="Nukepayload2.SourceGenerators.IgnoresAccessChecksTo" Version="1.1.0" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

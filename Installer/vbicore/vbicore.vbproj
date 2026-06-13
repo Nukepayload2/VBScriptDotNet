@@ -21,15 +21,15 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF"></FrameworkReference>
   </ItemGroup>
-  
+
   <!--Region Windows app sdk-->
   <PropertyGroup>
     <UseWinUI>true</UseWinUI>
     <DefineConstants>$(DefineConstants),USE_WINUI</DefineConstants>
   </PropertyGroup>
-  
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
     <PackageReference Include="Nukepayload2.UI.VBWinUI3" Version="0.9.4-beta">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

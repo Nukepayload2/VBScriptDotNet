@@ -53,7 +53,7 @@
     </PackageReference>
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
     <!--<InternalsAssemblyName Include="Microsoft.CodeAnalysis" />-->
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting" />
