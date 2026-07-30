@@ -53,7 +53,6 @@
     </PackageReference>
     <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
     <!--<InternalsAssemblyName Include="Microsoft.CodeAnalysis" />-->
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.3.0" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting" />
@@ -78,6 +77,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>ScriptingResources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Compilers\Core\Portable\Microsoft.CodeAnalysis.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PublicAPI Include="PublicAPI.Shipped.txt" />

@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup Condition="'$(Language)' == 'VB' or '$(MSBuildProjectExtension)' == '.vbproj'">
+    <MyType>Empty</MyType>
+    <OptionCompare>Binary</OptionCompare>
+    <OptionStrict>On</OptionStrict>
+    <RemoveIntegerChecks>true</RemoveIntegerChecks>
+    <VBRuntime>Embed</VBRuntime>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <EnableXlfLocalization>false</EnableXlfLocalization>
+    <ErrorOnOutOfDateXlf>false</ErrorOnOutOfDateXlf>
+    <UpdateXlfOnBuild>false</UpdateXlfOnBuild>
+  </PropertyGroup>
+
+  <Target Name="ConfigureGeneratedResxSource" BeforeTargets="PrepareResourceNames" Condition="'@(EmbeddedResource)' != ''">
+    <PropertyGroup>
+      <_GeneratedResxSourceExtension Condition="'$(Language)' == 'C#'">cs</_GeneratedResxSourceExtension>
+      <_GeneratedResxSourceExtension Condition="'$(Language)' == 'VB'">vb</_GeneratedResxSourceExtension>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Update="@(EmbeddedResource)" Condition="'%(EmbeddedResource.GenerateSource)' == 'true' and '%(EmbeddedResource.Extension)' == '.resx' and '%(EmbeddedResource.Generator)' != 'ResXFileCodeGenerator'">
+        <StronglyTypedClassName Condition="'%(EmbeddedResource.StronglyTypedClassName)' == ''">%(Filename)</StronglyTypedClassName>
+        <StronglyTypedLanguage Condition="'%(EmbeddedResource.StronglyTypedLanguage)' == ''">$(Language)</StronglyTypedLanguage>
+        <StronglyTypedNamespace Condition="'%(EmbeddedResource.StronglyTypedNamespace)' == '' and '%(EmbeddedResource.Namespace)' != ''">%(EmbeddedResource.Namespace)</StronglyTypedNamespace>
+        <StronglyTypedNamespace Condition="'%(EmbeddedResource.StronglyTypedNamespace)' == '' and '%(EmbeddedResource.Namespace)' == '' and '$(RootNamespace)' != ''">$(RootNamespace)</StronglyTypedNamespace>
+        <StronglyTypedFileName Condition="'%(EmbeddedResource.StronglyTypedFileName)' == '' and '$(_GeneratedResxSourceExtension)' != ''">$(IntermediateOutputPath)%(EmbeddedResource.Filename).Designer.$(_GeneratedResxSourceExtension)</StronglyTypedFileName>
+        <PublicClass Condition="'%(EmbeddedResource.PublicClass)' == ''">false</PublicClass>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="WorkAroundDotnetSdk10591" AfterTargets="ResolveTargetingPackAssets" Condition="'$(Language)' == 'VB' and '$(VBRuntime)' == 'Embed'">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.VisualBasic' or '%(Filename)' == 'Microsoft.VisualBasic.Core'" />
+    </ItemGroup>
+  </Target>
+</Project>
