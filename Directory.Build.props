@@ -10,7 +10,7 @@
     <OptionCompare>Binary</OptionCompare>
     <OptionStrict>On</OptionStrict>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
-    <VBRuntime>Embed</VBRuntime>
+    <VBRuntime Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.VisualBasic'">Embed</VBRuntime>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.VisualBasic' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.Scripting' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.VisualBasic.Scripting'">
