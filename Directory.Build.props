@@ -1,4 +1,10 @@
 <Project>
+  <PropertyGroup>
+    <MicrosoftDotNetXliffTasksVersion>10.0.0-beta.26371.2</MicrosoftDotNetXliffTasksVersion>
+    <ErrorOnOutOfDateXlf>false</ErrorOnOutOfDateXlf>
+    <UpdateXlfOnBuild>false</UpdateXlfOnBuild>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Language)' == 'VB' or '$(MSBuildProjectExtension)' == '.vbproj'">
     <MyType>Empty</MyType>
     <OptionCompare>Binary</OptionCompare>
@@ -6,4 +12,8 @@
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
     <VBRuntime>Embed</VBRuntime>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.VisualBasic' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.Scripting' or '$(MSBuildProjectName)' == 'Microsoft.CodeAnalysis.VisualBasic.Scripting'">
+    <PackageReference Include="Microsoft.DotNet.XliffTasks" Version="$(MicrosoftDotNetXliffTasksVersion)" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

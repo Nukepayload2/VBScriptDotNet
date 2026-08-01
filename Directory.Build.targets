@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
-    <EnableXlfLocalization>false</EnableXlfLocalization>
-    <ErrorOnOutOfDateXlf>false</ErrorOnOutOfDateXlf>
-    <UpdateXlfOnBuild>false</UpdateXlfOnBuild>
+    <EnableXlfLocalization Condition="'$(EnableXlfLocalization)' == ''">false</EnableXlfLocalization>
+    <ErrorOnOutOfDateXlf Condition="'$(ErrorOnOutOfDateXlf)' == ''">false</ErrorOnOutOfDateXlf>
+    <UpdateXlfOnBuild Condition="'$(UpdateXlfOnBuild)' == ''">false</UpdateXlfOnBuild>
   </PropertyGroup>
 
   <Target Name="ConfigureGeneratedResxSource" BeforeTargets="PrepareResourceNames" Condition="'@(EmbeddedResource)' != ''">
