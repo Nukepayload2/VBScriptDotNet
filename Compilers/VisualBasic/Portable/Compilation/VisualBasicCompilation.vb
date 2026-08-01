@@ -853,6 +853,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     Dim info = model.GetTypeInfo(expression)
                     Return info.Type.SpecialType <> SpecialType.System_Void
 
+                Case SyntaxKind.ReturnStatement
+                    Dim expression = DirectCast(lastStatement, ReturnStatementSyntax).Expression
+                    If expression Is Nothing Then
+                        Return False
+                    End If
+
+                    Dim info = model.GetTypeInfo(expression)
+                    Return info.Type.SpecialType <> SpecialType.System_Void
+
                 Case Else
                     Return False
             End Select
@@ -866,9 +875,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
         Protected Overrides ReadOnly Property CommonScriptGlobalsType As ITypeSymbol
             Get
-                Return Nothing
+                Return GetHostObjectTypeSymbol()
             End Get
         End Property
+
+        Friend Function GetHostObjectTypeSymbol() As TypeSymbol
+            Dim hostObjectType = Me.HostObjectType
+            If hostObjectType Is Nothing OrElse hostObjectType.FullName Is Nothing Then
+                Return Nothing
+            End If
+
+            Dim result As TypeSymbol = GetTypeByMetadataName(hostObjectType.FullName)
+            If result Is Nothing AndAlso hostObjectType.FullName.Contains("+"c) Then
+                result = GetTypeByMetadataName(hostObjectType.FullName.Replace("+"c, "."c))
+            End If
+
+            Return result
+        End Function
 
 #End Region
 

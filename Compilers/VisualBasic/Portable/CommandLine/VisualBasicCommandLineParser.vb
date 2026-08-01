@@ -493,6 +493,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                             End If
                             interactiveMode = False
                             Continue For
+
+                        Case "nostdlib"
+                            If value IsNot Nothing Then
+                                Exit Select
+                            End If
+
+                            noStdLib = True
+                            Continue For
+
+                        Case "vbruntime-"
+                            If value IsNot Nothing Then
+                                Exit Select
+                            End If
+
+                            vbRuntimePath = Nothing
+                            includeVbRuntimeReference = False
+                            Continue For
+
                         Case "loadpath", "loadpaths"
                             If String.IsNullOrEmpty(value) Then
                                 AddDiagnostic(diagnostics, ERRID.ERR_ArgumentRequired, name, ":<path_list>")

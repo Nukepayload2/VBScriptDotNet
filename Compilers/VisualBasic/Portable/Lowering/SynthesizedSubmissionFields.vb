@@ -52,8 +52,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Return _hostObjectField
             End If
 
-            ' TODO (tomat): Dim hostObjectTypeSymbol = compilation.GetHostObjectTypeSymbol()
-            Dim hostObjectTypeSymbol As TypeSymbol = Nothing
+            Dim hostObjectTypeSymbol = _compilation.GetHostObjectTypeSymbol()
             If hostObjectTypeSymbol IsNot Nothing AndAlso hostObjectTypeSymbol.Kind <> SymbolKind.ErrorType Then
                 _hostObjectField = New SynthesizedFieldSymbol(_declaringSubmissionClass, _declaringSubmissionClass, hostObjectTypeSymbol, "<host-object>", accessibility:=Accessibility.Private, isReadOnly:=True, isShared:=False)
                 Return _hostObjectField

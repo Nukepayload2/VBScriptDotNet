@@ -71,7 +71,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #End If
 
         Private Shared Sub PromptScriptError()
+#If WINDOWS7_0_OR_GREATER Or NETFRAMEWORK Then
             MsgBox("The script has error. See the output window for more information.", vbExclamation, "Script Error")
+#Else
+            Console.Error.WriteLine("The script has error. See the output for more information.")
+#End If
         End Sub
     End Class
 

@@ -51,7 +51,7 @@ Public Class ObjectFormatterTests
 
         Dim sort = New Sort()
         str = New TestVisualBasicObjectFormatter(maximumLineLength:=51).FormatObject(sort, SingleLineOptions)
-        Assert.Equal("Sort { aB=-1, ab=1, Ac=-1, Ad=1, ad=-1, aE=1, aF=-1...", str)
+        Assert.Equal("Sort { ab=1, aB2=-1, Ac=-1, Ad=1, ad2=-1, aE=1, aF=...", str)
         Assert.Equal(51 + 3, str.Length)
 
         str = New TestVisualBasicObjectFormatter(maximumLineLength:=5).FormatObject(sort, SingleLineOptions)
@@ -71,7 +71,7 @@ Public Class ObjectFormatterTests
         Assert.Equal("S...", str)
 
         str = New TestVisualBasicObjectFormatter(maximumLineLength:=80).FormatObject(sort, SingleLineOptions)
-        Assert.Equal("Sort { aB=-1, ab=1, Ac=-1, Ad=1, ad=-1, aE=1, aF=-1, AG=1 }", str)
+        Assert.Equal("Sort { ab=1, aB2=-1, Ac=-1, Ad=1, ad2=-1, aE=1, aF=-1, AG=1 }", str)
     End Sub
 
     <Fact>

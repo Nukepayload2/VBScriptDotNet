@@ -54,20 +54,16 @@ Imports Microsoft.UI.Xaml.Controls
 ```
 
 ### 5. Async/Await Support
-Modern asynchronous programming - requires wrapping in methods for top-level code:
+Modern asynchronous programming with top-level await:
 ```vb
-' Async method with proper type declaration
-Dim asyncTask As Func(Of Task(Of Integer)) =
-Async Function()
-    for i=1 to 4
-        console.writeline(i)
-        await task.delay(1000)
-    next
-    Return 5
-End Function
+Imports System.Threading.Tasks
 
-' Execute async task synchronously in top-level code
-Dim result = Task.Run(asyncTask).GetAwaiter().GetResult()
+For i = 1 To 4
+    Console.WriteLine(i)
+    Await Task.Delay(1000)
+Next
+
+Dim result = Await Task.FromResult(5)
 Console.WriteLine(result)
 Console.WriteLine("DONE!")
 Console.ReadKey

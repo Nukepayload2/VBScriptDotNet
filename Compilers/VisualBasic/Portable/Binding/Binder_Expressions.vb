@@ -2606,11 +2606,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 If memberDeclaringType.TypeKind = TYPEKIND.Submission Then
                     Return New BoundPreviousSubmissionReference(syntax, currentType, memberDeclaringType)
                 Else
-                    ' TODO (tomat): host object binding
-                    'Dim hostObjectType As TypeSymbol = Compilation.GetHostObjectTypeSymbol()
-                    'If hostObjectType IsNot Nothing AndAlso (hostObjectType = memberDeclaringType OrElse hostObjectType.BaseClassesContain(memberDeclaringType)) Then
-                    '    Return New BoundHostObjectMemberReference(syntax, hostObjectType)
-                    'End If
+                    Dim hostObjectType = Compilation.GetHostObjectTypeSymbol()
+                    Dim currentHostType = hostObjectType
+
+                    While currentHostType IsNot Nothing
+                        If TypeSymbol.Equals(currentHostType, memberDeclaringType, TypeCompareKind.ConsiderEverything) Then
+                            Return New BoundHostObjectMemberReference(syntax, hostObjectType)
+                        End If
+
+                        currentHostType = currentHostType.BaseTypeNoUseSiteDiagnostics
+                    End While
                 End If
             End If
 
@@ -4630,7 +4635,13 @@ lElseClause:
         End Function
 
         Public Function IsInAsyncContext() As Boolean
-            Return ContainingMember.Kind = SymbolKind.Method AndAlso DirectCast(ContainingMember, MethodSymbol).IsAsync
+            Dim containingMember = Me.ContainingMember
+            If containingMember.Kind = SymbolKind.Method Then
+                Return DirectCast(containingMember, MethodSymbol).IsAsync
+            End If
+
+            Return (containingMember.Kind = SymbolKind.Field OrElse containingMember.Kind = SymbolKind.Property) AndAlso
+                containingMember.ContainingType.IsScriptClass
         End Function
 
         Public Function IsInIteratorContext() As Boolean

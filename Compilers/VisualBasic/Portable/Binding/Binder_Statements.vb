@@ -5009,7 +5009,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim retType As TypeSymbol = Me.GetCurrentReturnType(isAsync, isIterator, methodReturnType)
             Dim returnLabel = GetReturnLabel()
 
-            If BindingTopLevelScriptCode Then
+            If BindingTopLevelScriptCode AndAlso Not DirectCast(ContainingMember, MethodSymbol).IsScriptInitializer Then
                 ReportDiagnostic(diagnostics, originalSyntax, ERRID.ERR_KeywordNotAllowedInScript, SyntaxFacts.GetText(SyntaxKind.ReturnKeyword))
                 Return New BoundReturnStatement(originalSyntax, Nothing, Nothing, returnLabel, hasErrors:=True)
             End If

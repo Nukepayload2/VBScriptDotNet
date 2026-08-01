@@ -1,4 +1,6 @@
 # basic references
+/nostdlib
+/vbruntime-
 /r:System.Collections
 /r:System.Collections.Concurrent
 /r:System.Console

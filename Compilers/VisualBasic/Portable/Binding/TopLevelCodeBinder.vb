@@ -12,16 +12,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
     Friend NotInheritable Class TopLevelCodeBinder
         Inherits SubOrFunctionBodyBinder
 
+        Private ReadOnly _scriptInitializer As SynthesizedInteractiveInitializerMethod
+
         ''' <summary>
         ''' Create binder for binding the body of a method. 
         ''' </summary>
         Public Sub New(scriptInitializer As MethodSymbol, containingBinder As Binder)
             MyBase.New(scriptInitializer, scriptInitializer.Syntax, containingBinder)
             Debug.Assert(scriptInitializer.ContainingType.IsScriptClass)
+            _scriptInitializer = TryCast(scriptInitializer, SynthesizedInteractiveInitializerMethod)
         End Sub
 
         Public Overrides Function GetLocalForFunctionValue() As LocalSymbol
-            Return Nothing
+            Return _scriptInitializer?.FunctionLocal
+        End Function
+
+        Public Overrides Function GetReturnLabel() As LabelSymbol
+            Return If(_scriptInitializer IsNot Nothing, _scriptInitializer.ExitLabel, MyBase.GetReturnLabel())
         End Function
 
         Public Overrides ReadOnly Property IsInQuery As Boolean

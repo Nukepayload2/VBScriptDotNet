@@ -399,7 +399,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Select Case containingMember.Kind
                     Case SymbolKind.Method
                         ' global statements
-                        Return (DirectCast(containingMember, MethodSymbol)).IsScriptConstructor
+                        Dim method = DirectCast(containingMember, MethodSymbol)
+                        Return method.IsScriptConstructor OrElse method.IsScriptInitializer
                     Case SymbolKind.NamedType
                         ' script variable initializers
                         Return (DirectCast(containingMember, NamedTypeSymbol)).IsScriptClass

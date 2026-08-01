@@ -19,7 +19,7 @@
     <ProjectReference Include="..\..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Update="VBResources.resx" GenerateSource="true" Namespace="Microsoft.CodeAnalysis.VisualBasic" />
+    <EmbeddedResource Update="VBResources.resx" GenerateSource="true" Namespace="Microsoft.CodeAnalysis.VisualBasic" LogicalName="Microsoft.CodeAnalysis.VisualBasic.VBResources.resources" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Symbols\EmbeddedSymbols\Embedded.vb" />

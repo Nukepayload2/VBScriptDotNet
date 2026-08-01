@@ -917,6 +917,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Loop Until submission Is Nothing
 
                 If Not result.HasSymbol Then
+                    Dim hostObjectType = binder.Compilation.GetHostObjectTypeSymbol()
+                    If hostObjectType IsNot Nothing AndAlso hostObjectType.Kind <> SymbolKind.ErrorType Then
+                        Dim tempResult = LookupResult.GetInstance()
+                        LookupInClass(result, hostObjectType, name, arity, options, hostObjectType, binder, tempResult, useSiteInfo)
+                        tempResult.Free()
+                    End If
+                End If
+
+                If Not result.HasSymbol Then
                     result.SetFrom(nonViable)
                 End If
 
@@ -1981,6 +1990,11 @@ ExitForFor:
 
                     submission = submission.PreviousSubmission
                 Loop Until submission Is Nothing
+
+                Dim hostObjectType = binder.Compilation.GetHostObjectTypeSymbol()
+                If hostObjectType IsNot Nothing AndAlso hostObjectType.Kind <> SymbolKind.ErrorType Then
+                    AddLookupSymbolsInfoInClass(nameSet, hostObjectType, options, binder)
+                End If
 
                 ' TODO (tomat): extension methods
             End Sub

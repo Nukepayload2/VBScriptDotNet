@@ -433,6 +433,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 declarationSyntax = DirectCast(fieldOrProperty, SourcePropertySymbol).DeclarationSyntax
             End If
 
+            If fieldOrProperty.ContainingType.IsScriptClass AndAlso Not TypeOf containingBinder Is TopLevelCodeBinder Then
+                containingBinder = New TopLevelCodeBinder(fieldOrProperty.ContainingType.GetScriptInitializer(), containingBinder)
+            End If
+
             Return New DeclarationInitializerBinder(fieldOrProperty, additionalFieldsOrProperties, containingBinder, declarationSyntax)
         End Function
 

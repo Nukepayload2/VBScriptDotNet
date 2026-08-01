@@ -2,11 +2,16 @@
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
+Imports System.Collections.Generic
+Imports System.Collections.Immutable
+Imports System.IO
 Imports System.Reflection
+Imports System.Text
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic
+Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
@@ -46,17 +51,147 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Return SyntaxFactory.ParseSyntaxTree(text, If(parseOptions, s_defaultOptions), cancellationToken:=cancellationToken)
         End Function
 
-        Private Shared s_cachedGlobalImports As IEnumerable(Of GlobalImport)
-        Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
-            ' TODO: Import semantics is missing. But at least we can preserve the initial imports defined in rsp.
-            ' Remove or rewrite this cache when import semantics are supported.
-            ' See https://github.com/dotnet/roslyn/issues/6554
-            If s_cachedGlobalImports IsNot Nothing Then Return s_cachedGlobalImports
+        Private Shared Function ExpandLoadDirectives(source As SourceText, options As ScriptOptions) As SourceText
+            Dim resolver = options.SourceResolver
+            Dim hasLoadDirectives = False
+            Dim expanded = ExpandLoadDirectives(source.ToString(), options.FilePath, resolver, New HashSet(Of String)(StringComparer.OrdinalIgnoreCase), hasLoadDirectives)
+            If Not hasLoadDirectives Then
+                Return source
+            End If
 
-            ' TODO: get imports out of compilation??? https://github.com/dotnet/roslyn/issues/5854
-            s_cachedGlobalImports = script.Options.Imports.Select(Function(n) GlobalImport.Parse(n))
-            Return s_cachedGlobalImports
+            Return SourceText.From(expanded, source.Encoding)
         End Function
+
+        Private Shared Function ExpandLoadDirectives(source As String, baseFilePath As String, resolver As SourceReferenceResolver, activeLoads As HashSet(Of String), ByRef hasLoadDirectives As Boolean) As String
+            Dim builder As New StringBuilder()
+
+            Using reader As New StringReader(source)
+                While True
+                    Dim line = reader.ReadLine()
+                    If line Is Nothing Then
+                        Exit While
+                    End If
+
+                    Dim loadedPath As String = Nothing
+                    If TryGetLoadDirectivePath(line, loadedPath) Then
+                        hasLoadDirectives = True
+                        Dim resolvedPath = resolver.ResolveReference(loadedPath, If(String.IsNullOrEmpty(baseFilePath), Nothing, baseFilePath))
+                        If resolvedPath Is Nothing Then
+                            ThrowLoadDirectiveError(Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, loadedPath))
+                        End If
+
+                        If Not activeLoads.Add(resolvedPath) Then
+                            ThrowLoadDirectiveError(Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, loadedPath))
+                        End If
+
+                        Dim loadedText = resolver.ReadText(resolvedPath)
+                        builder.AppendLine(ExpandLoadDirectives(loadedText.ToString(), resolvedPath, resolver, activeLoads, hasLoadDirectives))
+                        activeLoads.Remove(resolvedPath)
+                    Else
+                        builder.AppendLine(line)
+                    End If
+                End While
+            End Using
+
+            Return builder.ToString()
+        End Function
+
+        Private Shared Function TryGetLoadDirectivePath(line As String, ByRef path As String) As Boolean
+            Dim index = 0
+            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
+                index += 1
+            End While
+
+            If index >= line.Length OrElse line(index) <> "#"c Then
+                Return False
+            End If
+
+            index += 1
+            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
+                index += 1
+            End While
+
+            Const loadKeyword = "Load"
+            If index + loadKeyword.Length > line.Length OrElse
+                Not String.Equals(line.Substring(index, loadKeyword.Length), loadKeyword, StringComparison.OrdinalIgnoreCase) Then
+                Return False
+            End If
+
+            index += loadKeyword.Length
+            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
+                index += 1
+            End While
+
+            If index >= line.Length OrElse line(index) <> """"c Then
+                Return False
+            End If
+
+            index += 1
+            Dim builder As New StringBuilder()
+            While index < line.Length
+                Dim ch = line(index)
+                If ch = """"c Then
+                    If index + 1 < line.Length AndAlso line(index + 1) = """"c Then
+                        builder.Append(""""c)
+                        index += 2
+                        Continue While
+                    End If
+
+                    index += 1
+                    While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
+                        index += 1
+                    End While
+
+                    If index <> line.Length Then
+                        Return False
+                    End If
+
+                    path = builder.ToString()
+                    Return True
+                End If
+
+                builder.Append(ch)
+                index += 1
+            End While
+
+            Return False
+        End Function
+
+        Private Shared Sub ThrowLoadDirectiveError(diagnostic As Diagnostic)
+            Throw New CompilationErrorException(diagnostic.GetMessage(), ImmutableArray.Create(diagnostic))
+        End Sub
+
+        Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
+            Dim importNames = New List(Of String)(script.Options.Imports)
+            AddPreviousSubmissionImports(script.Previous, importNames)
+            Return GlobalImport.Parse(importNames)
+        End Function
+
+        Private Shared Sub AddPreviousSubmissionImports(script As Script, importNames As List(Of String))
+            If script Is Nothing Then
+                Return
+            End If
+
+            AddPreviousSubmissionImports(script.Previous, importNames)
+
+            Dim previousSubmission = TryCast(script.GetCompilation(), VisualBasicCompilation)
+            If previousSubmission Is Nothing Then
+                Return
+            End If
+
+            For Each syntaxTree In previousSubmission.SyntaxTrees
+                Dim root = TryCast(syntaxTree.GetRoot(), CompilationUnitSyntax)
+                If root Is Nothing Then
+                    Continue For
+                End If
+
+                For Each importsStatement In root.Imports
+                    For Each clause In importsStatement.ImportsClauses
+                        importNames.Add(clause.ToString())
+                    Next
+                Next
+            Next
+        End Sub
 
         Public Overrides Function CreateSubmission(script As Script) As Compilation
             Dim previousSubmission As VisualBasicCompilation = Nothing
@@ -71,7 +206,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             diagnostics.Free()
 
             ' parse:
-            Dim tree = SyntaxFactory.ParseSyntaxTree(script.SourceText, If(script.Options.ParseOptions, s_defaultOptions), script.Options.FilePath)
+            Dim sourceText = ExpandLoadDirectives(script.SourceText, script.Options)
+            Dim tree = SyntaxFactory.ParseSyntaxTree(sourceText, If(script.Options.ParseOptions, s_defaultOptions), script.Options.FilePath)
 
             ' create compilation:
             Dim assemblyName As String = Nothing

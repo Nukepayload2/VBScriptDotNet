@@ -4,6 +4,7 @@
 
 Imports System.Reflection
 Imports System.Threading.Tasks
+Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Xunit
 
@@ -17,6 +18,68 @@ Public Class InteractiveSessionTests
             ContinueWith("?x + y")
 
         Assert.Equal(3, s.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function Imports_CrossSubmission() As Task
+        Dim options = ScriptOptions.Default.AddReferences(GetType(System.Text.StringBuilder).Assembly)
+        Dim s = Await VisualBasicScript.
+            RunAsync("Imports System.Text", options).
+            ContinueWith("Dim builder = New StringBuilder()", options).
+            ContinueWith("? builder.GetType().FullName", options)
+
+        Assert.Equal("System.Text.StringBuilder", s.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Sub ScriptOptionsImports_AreNotCachedAcrossScripts()
+        Dim systemOptions = ScriptOptions.Default.
+            AddReferences(GetType(Version).Assembly).
+            AddImports("System")
+
+        Assert.Equal("Version", VisualBasicScript.EvaluateAsync(
+"? New Version(1, 2).GetType().Name",
+systemOptions).Result)
+
+        Dim systemTextOptions = ScriptOptions.Default.
+            AddReferences(GetType(System.Text.StringBuilder).Assembly).
+            AddImports("System.Text")
+
+        Assert.Equal("StringBuilder", VisualBasicScript.EvaluateAsync(
+"? New StringBuilder().GetType().Name",
+systemTextOptions).Result)
+    End Sub
+
+    <Fact>
+    Public Async Function PreviousSubmissions_Declarations() As Task
+        Dim s = Await VisualBasicScript.
+            RunAsync("
+Function AddOne(value As Integer) As Integer
+    Return value + 1
+End Function
+").
+            ContinueWith("
+Class Counter
+    Public Value As Integer
+End Class
+").
+            ContinueWith("
+Module Helpers
+    Public Function Twice(value As Integer) As Integer
+        Return value * 2
+    End Function
+End Module
+").
+            ContinueWith("
+Delegate Function Transformer(value As Integer) As Integer
+").
+            ContinueWith("
+Dim counter = New Counter With {.Value = 3}
+Dim transformer As Transformer = AddressOf AddOne
+? Helpers.Twice(transformer(counter.Value))
+")
+
+        Assert.Equal(8, s.ReturnValue)
     End Function
 
     <Fact>
