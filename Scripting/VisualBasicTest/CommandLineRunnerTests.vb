@@ -41,7 +41,7 @@ Public Class CommandLineRunnerTests
             tempDir:=Path.GetTempPath())
 
         Dim compiler = New VisualBasicInteractiveCompiler(
-            responseFile,
+            If(responseFile, Path.Combine(AppContext.BaseDirectory, "vbi.rsp")),
             buildPaths,
             If(args, s_defaultArgs),
             New NotImplementedAnalyzerLoader())

@@ -14,7 +14,7 @@ A patched VB interactive that runs with modified Roslyn.
 - Change target framework to `net10.0-windows`.
 - Run
 
-### Run with .NET 8 SDK
+### Run with .NET SDK
 - cd `Interactive\vbi`
 - Run interactively with `dotnet run --framework net10.0`
 - Run interactively on Windows with `dotnet run --framework net10.0-windows`
