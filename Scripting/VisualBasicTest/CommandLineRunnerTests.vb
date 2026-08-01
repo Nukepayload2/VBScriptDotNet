@@ -113,6 +113,23 @@ Public Class CommandLineRunnerTests
     End Sub
 
     <Fact>
+    Public Sub TestSourceImportsDoNotReplaceResponseFileImports()
+        Dim runner = CreateRunner(input:="? GetType(Console).FullName
+Imports System.Text
+? GetType(Console).FullName")
+
+        runner.RunInteractive()
+
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_logoAndHelpPrompt + "
+> ? GetType(Console).FullName
+""System.Console""
+> Imports System.Text
+> ? GetType(Console).FullName
+""System.Console""
+>", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
     Public Sub TestReferenceDirective()
         Dim directory = CreateIsolatedTempDirectory()
         Dim libraryPath = CreateLibraryAssembly(directory, "ReferenceDirectiveLibrary", "

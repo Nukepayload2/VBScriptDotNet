@@ -162,22 +162,41 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         End Sub
 
         Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
-            Dim importNames = New List(Of String)(script.Options.Imports)
-            AddPreviousSubmissionImports(script.Previous, importNames)
+            Dim importNames = New List(Of String)()
+            Dim seenImports = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+            AddImportNames(script.Options.Imports, importNames, seenImports)
+            AddPreviousSubmissionImports(script.Previous, importNames, seenImports)
             Return GlobalImport.Parse(importNames)
         End Function
 
-        Private Shared Sub AddPreviousSubmissionImports(script As Script, importNames As List(Of String))
+        Private Shared Sub AddImportName(importName As String, importNames As List(Of String), seenImports As HashSet(Of String))
+            If seenImports.Add(importName) Then
+                importNames.Add(importName)
+            End If
+        End Sub
+
+        Private Shared Sub AddImportNames(importList As IEnumerable(Of String), importNames As List(Of String), seenImports As HashSet(Of String))
+            For Each importName In importList
+                AddImportName(importName, importNames, seenImports)
+            Next
+        End Sub
+
+        Private Shared Sub AddPreviousSubmissionImports(script As Script, importNames As List(Of String), seenImports As HashSet(Of String))
             If script Is Nothing Then
                 Return
             End If
 
-            AddPreviousSubmissionImports(script.Previous, importNames)
+            AddPreviousSubmissionImports(script.Previous, importNames, seenImports)
 
             Dim previousSubmission = TryCast(script.GetCompilation(), VisualBasicCompilation)
             If previousSubmission Is Nothing Then
                 Return
             End If
+
+            For Each globalImport In previousSubmission.Options.GlobalImports
+                AddImportName(globalImport.Clause.ToString(), importNames, seenImports)
+            Next
 
             For Each syntaxTree In previousSubmission.SyntaxTrees
                 Dim root = TryCast(syntaxTree.GetRoot(), CompilationUnitSyntax)
@@ -187,7 +206,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
                 For Each importsStatement In root.Imports
                     For Each clause In importsStatement.ImportsClauses
-                        importNames.Add(clause.ToString())
+                        AddImportName(clause.ToString(), importNames, seenImports)
                     Next
                 Next
             Next

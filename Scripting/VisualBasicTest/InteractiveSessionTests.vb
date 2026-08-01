@@ -32,6 +32,20 @@ Public Class InteractiveSessionTests
     End Function
 
     <Fact>
+    Public Async Function Imports_DoNotReplaceInheritedOptionsImports() As Task
+        Dim options = ScriptOptions.Default.
+            AddReferences(GetType(Console).Assembly, GetType(System.Text.StringBuilder).Assembly).
+            AddImports("System")
+
+        Dim s = Await VisualBasicScript.
+            RunAsync("Dim consoleType = GetType(Console)", options).
+            ContinueWith("Imports System.Text").
+            ContinueWith("? GetType(Console).FullName")
+
+        Assert.Equal("System.Console", s.ReturnValue)
+    End Function
+
+    <Fact>
     Public Sub ScriptOptionsImports_AreNotCachedAcrossScripts()
         Dim systemOptions = ScriptOptions.Default.
             AddReferences(GetType(Version).Assembly).
