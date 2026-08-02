@@ -23,6 +23,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ObjectDisplay
         Private Const s_Lf As Char = ChrW(10)
         Private Const s_tab As Char = ChrW(9)
         Private Const s_verticalTab As Char = ChrW(11)
+        Private Const s_leftDoubleQuotationMark As Char = ChrW(&H201C)
+        Private Const s_rightDoubleQuotationMark As Char = ChrW(&H201D)
+        Private Const s_fullWidthQuotationMark As Char = ChrW(&HFF02)
 
         ''' <summary>
         ''' Returns a string representation of an object of primitive type.
@@ -144,6 +147,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ObjectDisplay
         Friend Function FormatLiteral(c As Char, options As ObjectDisplayOptions) As String
             ValidateOptions(options)
 
+            If options.IncludesOption(ObjectDisplayOptions.UseQuotes) AndAlso IsNonHalfWidthVisualBasicDoubleQuote(c) Then
+                Return FormatCharacterCode(c, options.IncludesOption(ObjectDisplayOptions.UseHexadecimalNumbers))
+            End If
+
             If IsPrintable(c) OrElse Not options.IncludesOption(ObjectDisplayOptions.EscapeNonPrintableCharacters) Then
                 Return If(options.IncludesOption(ObjectDisplayOptions.UseQuotes),
                     """" & EscapeQuote(c) & """c",
@@ -155,12 +162,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ObjectDisplay
                 Return wellKnown
             End If
 
-            Dim codepoint = AscW(c)
-            Return If(options.IncludesOption(ObjectDisplayOptions.UseHexadecimalNumbers), "ChrW(&H" & codepoint.ToString("X"), "ChrW(" & codepoint.ToString(Globalization.CultureInfo.InvariantCulture)) & ")"
+            Return FormatCharacterCode(c, options.IncludesOption(ObjectDisplayOptions.UseHexadecimalNumbers))
         End Function
 
         Private Function EscapeQuote(c As Char) As String
-            Return If(c = """", """""", c)
+            Return If(IsVisualBasicDoubleQuote(c), New String(c, 2), c)
+        End Function
+
+        Private Function IsVisualBasicDoubleQuote(c As Char) As Boolean
+            Return c = """"c OrElse
+                c = s_fullWidthQuotationMark OrElse
+                c = s_leftDoubleQuotationMark OrElse
+                c = s_rightDoubleQuotationMark
+        End Function
+
+        Private Function IsNonHalfWidthVisualBasicDoubleQuote(c As Char) As Boolean
+            Return c <> """"c AndAlso IsVisualBasicDoubleQuote(c)
+        End Function
+
+        Private Function FormatCharacterCode(c As Char, useHexadecimalNumbers As Boolean) As String
+            Dim codepoint = AscW(c)
+            Return If(useHexadecimalNumbers, "ChrW(&H" & codepoint.ToString("X"), "ChrW(" & codepoint.ToString(Globalization.CultureInfo.InvariantCulture)) & ")"
         End Function
 
         Friend Function FormatLiteral(value As SByte, options As ObjectDisplayOptions, Optional cultureInfo As CultureInfo = Nothing) As String
@@ -407,6 +429,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ObjectDisplay
                     isCrLf = False
                 End If
 
+                If useQuotes AndAlso IsNonHalfWidthVisualBasicDoubleQuote(c) Then
+                    wellKnown = Nothing
+                    shouldEscape = True
+                    isCrLf = False
+                End If
+
                 If shouldEscape Then
                     If useQuotes Then
                         If lastConcatenandWasQuoted Then
@@ -466,9 +494,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ObjectDisplay
                     End If
 
                     lastConcatenandWasQuoted = True
-                    If c = """"c AndAlso useQuotes Then
-                        Yield Quotes()
-                        Yield Quotes()
+                    If IsVisualBasicDoubleQuote(c) AndAlso useQuotes Then
+                        Yield Character(c)
+                        Yield Character(c)
                     Else
                         Yield Character(c)
                         If copyPair Then

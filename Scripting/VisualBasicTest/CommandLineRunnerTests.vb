@@ -236,6 +236,50 @@ Print(LoadedValue())")
     End Sub
 
     <Fact>
+    Public Sub TestQuestionDirectiveInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "? 21")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(21, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestResponseFileReferencesAndImportsInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libraryPath = CreateLibraryAssembly(directory, "ResponseFileLibrary", "
+Namespace ResponseFileLibrary
+    Public Class C1
+        Public Function Goo() As String
+            Return ""Bar""
+        End Function
+    End Class
+End Namespace")
+        Dim responseFile = Path.Combine(directory, "custom.vbi.rsp")
+        File.WriteAllText(responseFile, File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "vbi.rsp")) & "
+/r:""" & libraryPath & """
+/imports:ResponseFileLibrary")
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(New C1().Goo())")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, responseFile:=responseFile, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("""Bar""", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestScriptFileNotFoundReportsDiagnostic()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim runner = CreateRunner(args:={"missing.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(1, runner.RunInteractive())
+        Assert.Contains("missing.vbx", runner.Console.Out.ToString())
+        Assert.Contains("missing.vbx", runner.Console.Error.ToString())
+    End Sub
+
+    <Fact>
     Public Sub TestTopLevelAwaitInScriptFile()
         Dim directory = CreateIsolatedTempDirectory()
         File.WriteAllText(Path.Combine(directory, "main.vbx"), "Imports System.Threading.Tasks

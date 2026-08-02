@@ -3,6 +3,8 @@
 ' See the LICENSE file in the project root for more information.
 
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
+Imports Microsoft.CodeAnalysis.Scripting
+Imports Microsoft.CodeAnalysis.VisualBasic.Scripting
 Imports Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 Imports ObjectFormatterFixtures
 Imports Xunit
@@ -18,7 +20,7 @@ Public Class ObjectFormatterTests
         Assert.Equal("vbBack", s_formatter.FormatObject(ChrW(&H8), SingleLineOptions))
     End Sub
 
-    <Fact(Skip:="IDK")>
+    <Fact>
     Public Sub QuotedStrings()
         Dim s = "a" & ChrW(&HFFFE) & ChrW(&HFFFF) & vbCrLf & "b"
 
@@ -27,8 +29,29 @@ Public Class ObjectFormatterTests
         Dim withoutQuotes = New TestVisualBasicObjectFormatter(quoteStringsAndCharacters:=False)
 
         ' ObjectFormatter should substitute spaces for non-printable characters
-        Assert.Equal("""a"" & ChrW(&HABCF) & ChrW(&HABCD) & vbCrLf & ""b""", withQuotes.FormatObject(s, options))
-        Assert.Equal("a    b", withoutQuotes.FormatObject(s, options))
+        Assert.Equal("""a"" & ChrW(&HFFFE) & ChrW(&HFFFF) & vbCrLf & ""b""", withQuotes.FormatObject(s, options))
+        Assert.Throws(Of ArgumentException)(Sub() withoutQuotes.FormatObject(s, options))
+    End Sub
+
+    <Fact>
+    Public Sub QuotedStrings_EscapesAllVisualBasicDoubleQuoteCharacters()
+        Dim halfWidth = """"c
+        Dim fullWidth = ChrW(&HFF02)
+        Dim leftSmart = ChrW(&H201C)
+        Dim rightSmart = ChrW(&H201D)
+        Dim s = "a" & halfWidth & fullWidth & leftSmart & rightSmart & "b"
+
+        Dim formatted = s_formatter.FormatObject(s, New PrintOptions With {.NumberRadix = ObjectFormatterHelpers.NumberRadixHexadecimal})
+
+        Assert.StartsWith(String.Concat(halfWidth, "a", New String(halfWidth, 3)), formatted)
+        Assert.Contains("ChrW(&HFF02)", formatted)
+        Assert.Contains("ChrW(&H201C)", formatted)
+        Assert.Contains("ChrW(&H201D)", formatted)
+
+        Dim options = ScriptOptions.Default.
+            AddReferences(GetType(Microsoft.VisualBasic.Strings).Assembly).
+            AddImports("Microsoft.VisualBasic")
+        Assert.Equal(s, VisualBasicScript.EvaluateAsync("? " & formatted, options).Result)
     End Sub
 
     <Fact>

@@ -27,6 +27,20 @@ Public Class ScriptTests
         Inherits Globals
     End Class
 
+    Public Class EventGlobals
+        Public Count As Integer
+
+        Public Event Changed As EventHandler
+
+        Public Sub Handler(sender As Object, e As EventArgs)
+            Count += 10
+        End Sub
+
+        Public Sub RaiseChanged()
+            RaiseEvent Changed(Me, EventArgs.Empty)
+        End Sub
+    End Class
+
     ''' <summary>
     ''' Need to create a <see cref="PortableExecutableReference"/> without a file path here. Scripting
     ''' will attempt to validate file paths and one does not exist for this reference as it's an in
@@ -87,6 +101,67 @@ Public Class ScriptTests
     End Function
 
     <Fact>
+    Public Async Function TestCreateTypedScriptReportsExecutorSignatureMismatch() As Task
+        Dim script = VisualBasicScript.Create(Of Integer)("? 1 + 2", s_defaultOptions)
+
+        Await Assert.ThrowsAsync(Of ArgumentException)(
+            Async Function()
+                Await script.EvaluateAsync()
+            End Function)
+    End Function
+
+    <Fact>
+    Public Async Function TestCreateScriptDelegate() As Task
+        Dim script = VisualBasicScript.Create("? 1 + 2", s_defaultOptions)
+        Dim runner = script.CreateDelegate()
+
+        Assert.Equal(3, Await runner())
+        Await Assert.ThrowsAsync(Of ArgumentException)(
+            Async Function()
+                Await runner(New Object())
+            End Function)
+    End Function
+
+    <Fact>
+    Public Sub TestCreateTypedScriptDelegateWithGlobalsReportsExecutorSignatureMismatch()
+        Dim script = VisualBasicScript.Create(Of Integer)("? Add(5)", s_defaultOptions, globalsType:=GetType(Globals))
+
+        Assert.Throws(Of ArgumentException)(Sub() script.CreateDelegate())
+    End Sub
+
+    <Fact>
+    Public Async Function TestScriptVariableSetValue() As Task
+        Dim state = Await VisualBasicScript.RunAsync("Dim x = 1", s_defaultOptions)
+        Dim variable = state.GetVariable("x")
+
+        variable.Value = 2
+        Assert.Equal(2, variable.Value)
+
+        Dim rerunState = Await state.Script.RunAsync()
+        Assert.Equal(1, rerunState.GetVariable("x").Value)
+
+        Dim continuedState = Await state.ContinueWithAsync("? x")
+        Assert.Equal(2, continuedState.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestScriptVariableSetValueTypeMismatch() As Task
+        Dim state = Await VisualBasicScript.RunAsync("Dim x As Integer = 1", s_defaultOptions)
+
+        Assert.Throws(Of ArgumentException)(Sub() state.GetVariable("x").Value = "str")
+    End Function
+
+    <Fact>
+    Public Async Function TestRunScriptWithExpectedReturnTypeMismatch() As Task
+        Dim script = VisualBasicScript.Create(Of Integer)("? ""str""", s_defaultOptions)
+
+        Await Assert.ThrowsAsync(Of ArgumentException)(
+            Async Function()
+                Await script.RunAsync()
+            End Function)
+    End Function
+
+    <Fact>
     Public Sub TestGetCompilation()
         Dim script = VisualBasicScript.Create("? 1 + 2")
         Dim compilation = script.GetCompilation()
@@ -116,6 +191,152 @@ Public Class ScriptTests
         Dim state = Await VisualBasicScript.RunAsync("Return 7", s_defaultOptions)
         Assert.Equal(7, state.ReturnValue)
     End Function
+
+    <Fact>
+    Public Async Function TestTopLevelReturnPrecedesTrailingExpression() As Task
+        Dim state = Await VisualBasicScript.RunAsync("Return 7
+? 9", s_defaultOptions)
+
+        Assert.Equal(7, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestReturnValueInLoadedFile() As Task
+        Dim directory = Path.Combine(AppContext.BaseDirectory, "TestTemp", Guid.NewGuid().ToString("N"))
+        System.IO.Directory.CreateDirectory(directory)
+        Try
+            Dim mainPath = Path.Combine(directory, "main.vbx")
+            File.WriteAllText(Path.Combine(directory, "loaded.vbx"), "Return 17")
+
+            Dim options = s_defaultOptions.WithFilePath(mainPath)
+            Dim state = Await VisualBasicScript.RunAsync("#Load ""loaded.vbx""", options)
+
+            Assert.Equal(17, state.ReturnValue)
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Function
+
+    <Fact>
+    Public Async Function TestTopLevelExecutableStatements() As Task
+        Dim state = Await VisualBasicScript.RunAsync("
+Dim total = 1
+Const stepValue As Integer = 2
+total = total + stepValue
+total += 3
+Call System.Console.Write("""")
+System.Math.Abs(-4)
+If total = 6 Then
+    total += 10
+Else
+    total = -1
+End If
+Select Case total
+    Case 16
+        total += 20
+    Case Else
+        total = -2
+End Select
+For i = 1 To 3
+    total += i
+Next
+Dim j = 0
+While j < 2
+    total += j
+    j += 1
+End While
+Do
+    j += 1
+    total += j
+Loop Until j = 4
+For Each item In New Integer() {1, 2}
+    total += item
+Next
+Using reader As New System.IO.StringReader(""xy"")
+    total += reader.ReadToEnd().Length
+End Using
+Dim builder = New System.Text.StringBuilder()
+With builder
+    .Append(""abc"")
+    total += .Length
+End With
+Dim gate = New Object()
+SyncLock gate
+    total += 7
+End SyncLock
+Try
+    Throw New System.InvalidOperationException(""boom"")
+Catch ex As System.InvalidOperationException
+    total += 11
+Finally
+    total += 13
+End Try
+Return total", s_defaultOptions)
+
+        Assert.Equal(89, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Sub TestTopLevelGoToLabelStatementCompiles()
+        Dim diagnostics = VisualBasicScript.Create("
+Dim total = 1
+GoTo done
+total = -1000
+done:
+Return total", s_defaultOptions).GetCompilation().GetDiagnostics()
+
+        Assert.DoesNotContain(diagnostics, Function(d) d.Severity = DiagnosticSeverity.Error)
+    End Sub
+
+    <Fact>
+    Public Async Function TestTopLevelThrowStatement() As Task
+        Await Assert.ThrowsAsync(Of InvalidOperationException)(
+            Async Function()
+                Await VisualBasicScript.RunAsync("Throw New System.InvalidOperationException(""boom"")", s_defaultOptions)
+            End Function)
+    End Function
+
+    <Fact>
+    Public Sub TestTopLevelOnErrorStatementReportsUnsupportedDiagnostic()
+        AssertDiagnosticsContainAny("On Error Resume Next
+Return 1", "BC30024", "BC30188", "BC30205", "BC36956")
+    End Sub
+
+    <Fact>
+    Public Sub TestTopLevelAddHandlerWithLambdaReportsUnsupportedDiagnostic()
+        AssertDiagnosticsContainAnyWithGlobalsType("
+Dim callback As System.EventHandler = Sub(sender As Object, e As System.EventArgs)
+                                          Count += 1
+                                      End Sub
+AddHandler Changed, callback
+RaiseChanged()
+Return Count", GetType(EventGlobals), "BC30188", "BC30205")
+    End Sub
+
+    <Fact>
+    Public Sub TestTopLevelRemoveHandlerReportsUnsupportedDiagnostic()
+        AssertDiagnosticsContainAnyWithGlobalsType("
+AddHandler Changed, AddressOf Handler
+RemoveHandler Changed, AddressOf Handler
+RaiseChanged()
+Return Count", GetType(EventGlobals), "BC30188", "BC30205")
+    End Sub
+
+    <Fact>
+    Public Sub TestTopLevelAddHandlerWithPreviousSubmissionHandlerReportsUnsupportedDiagnostic()
+        Dim script = VisualBasicScript.
+            Create("Dim callback As System.EventHandler = AddressOf Handler", s_defaultOptions, globalsType:=GetType(EventGlobals)).
+            ContinueWith("AddHandler Changed, callback
+RaiseChanged()
+Return Count")
+
+        AssertDiagnosticsContainAny(script.GetCompilation().GetDiagnostics(), "BC30188", "BC30205")
+    End Sub
+
+    <Fact>
+    Public Sub TestTopLevelRaiseEventStatementReportsUnsupportedDiagnostic()
+        AssertDiagnosticsContainAnyWithGlobalsType("RaiseEvent Changed(Nothing, System.EventArgs.Empty)", GetType(EventGlobals), "BC30024", "BC30188", "BC30205")
+    End Sub
 
     <Fact>
     Public Async Function TestTopLevelAwaitReturnValue() As Task
@@ -195,6 +416,23 @@ Public Class ScriptTests
         ' If this ever changes, it is important to ensure that the 
         ' IDE is also updated with the same default namespaces.
         Assert.Empty(ScriptOptions.Default.Imports)
+    End Sub
+
+    Private Shared Sub AssertDiagnosticsContainAny(code As String, ParamArray expectedIds() As String)
+        AssertDiagnosticsContainAnyCore(code, globalsType:=Nothing, expectedIds:=expectedIds)
+    End Sub
+
+    Private Shared Sub AssertDiagnosticsContainAnyWithGlobalsType(code As String, globalsType As Type, ParamArray expectedIds() As String)
+        AssertDiagnosticsContainAnyCore(code, globalsType, expectedIds)
+    End Sub
+
+    Private Shared Sub AssertDiagnosticsContainAnyCore(code As String, globalsType As Type, expectedIds() As String)
+        Dim diagnostics = VisualBasicScript.Create(code, s_defaultOptions, globalsType:=globalsType).GetCompilation().GetDiagnostics()
+        AssertDiagnosticsContainAny(diagnostics, expectedIds)
+    End Sub
+
+    Private Shared Sub AssertDiagnosticsContainAny(diagnostics As IEnumerable(Of Diagnostic), ParamArray expectedIds() As String)
+        Assert.Contains(diagnostics, Function(d) expectedIds.Contains(d.Id))
     End Sub
 
     ' TODO: port C# tests

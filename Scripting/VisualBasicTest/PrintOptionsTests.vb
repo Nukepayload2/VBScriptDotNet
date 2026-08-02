@@ -62,7 +62,7 @@ Public Class PrintOptionsTests
         Assert.Equal("ChrW(&H10)", s_formatter.FormatObject(ChrW(&H10), options))
     End Sub
 
-    <Fact(Skip:="https://github.com/dotnet/roslyn/issues/8241")>
+    <Fact>
     Public Sub ValidMemberDisplayFormat()
         Dim options = New PrintOptions()
 
