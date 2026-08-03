@@ -2,21 +2,30 @@
 <!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace></RootNamespace>
+    <DefineConstants>INCLUDE_CSHARP_SYMBOL_DISPLAY_TESTS=true</DefineConstants>
     <SkipTests Condition="'$(TestRuntime)' == 'Mono'">true</SkipTests>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Helpers\AssertEx.vb" />
+    <Compile Remove="Helpers\TestAttributes.vb" />
+  </ItemGroup>
   <ItemGroup Label="Project References">
+    <ProjectReference Include="..\Test\Core\Microsoft.CodeAnalysis.Test.Utilities.csproj" />
+    <ProjectReference Include="..\CSharp\Portable\Microsoft.CodeAnalysis.CSharp.csproj" />
     <ProjectReference Include="..\VisualBasic\Portable\Microsoft.CodeAnalysis.VisualBasic.vbproj" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis.VisualBasic" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" PrivateAssets="all" />
+    <PackageReference Include="Xunit.Combinatorial" Version="1.6.24" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Nukepayload2.SourceGenerators.IgnoresAccessChecksTo" Version="1.1.0" PrivateAssets="all" />
-    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <Import Include="System.Xml.Linq" />
+    <Import Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

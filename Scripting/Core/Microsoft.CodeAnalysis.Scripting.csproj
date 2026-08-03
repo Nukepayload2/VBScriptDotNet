@@ -40,6 +40,9 @@
     <Compile Include="..\..\Compilers\Shared\GlobalAssemblyCacheHelpers\MonoGlobalAssemblyCache.cs">
       <Link>Hosting\Resolvers\MonoGlobalAssemblyCache.cs</Link>
     </Compile>
+    <Compile Include="..\..\Compilers\Shared\GlobalAssemblyCacheHelpers\DotNetCoreGlobalAssemblyCache.cs">
+      <Link>Hosting\Resolvers\DotNetCoreGlobalAssemblyCache.cs</Link>
+    </Compile>
     <Compile Update="ScriptingResources.Designer.cs" GenerateSource="true">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -47,12 +50,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="IgnoresAccessChecksToGenerator" Version="0.8.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <InternalsAssemblyName Include="Microsoft.CodeAnalysis" />
-    <!--<InternalsAssemblyName Include="Microsoft.CodeAnalysis" />-->
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting" />

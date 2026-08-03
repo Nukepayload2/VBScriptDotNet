@@ -18,11 +18,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             MyBase.New(VisualBasicCommandLineParser.Script, responseFile, args, buildPaths, Nothing, analyzerLoader)
         End Sub
 
-        Public Overrides Function GetCommandLineMetadataReferenceResolver(loggerOpt As TouchedFileLogger) As MetadataReferenceResolver
+        Friend Overrides Function GetCommandLineMetadataReferenceResolver(loggerOpt As TouchedFileLogger) As MetadataReferenceResolver
             Return CommandLineRunner.GetMetadataReferenceResolver(Arguments, loggerOpt)
         End Function
 
-        Public Overrides ReadOnly Property Type As Type
+        Friend Overrides ReadOnly Property Type As Type
             Get
                 Return GetType(VisualBasicInteractiveCompiler)
             End Get
