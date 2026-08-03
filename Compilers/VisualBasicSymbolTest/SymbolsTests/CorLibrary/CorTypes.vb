@@ -47,13 +47,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Symbols.CorLibrary
 
         <Fact()>
         Public Sub PresentCorLib()
-            Dim assemblies = MetadataTestHelpers.GetSymbolsForReferences({NetCoreApp.SystemRuntime})
+            Dim systemRuntime = DirectCast(
+                TargetFrameworkUtil.GetReferences(TargetFramework.NetLatest).
+                    Single(Function(reference) String.Equals(IO.Path.GetFileName(reference.Display), "System.Runtime.dll", StringComparison.OrdinalIgnoreCase)),
+                PortableExecutableReference)
+            Dim assemblies = MetadataTestHelpers.GetSymbolsForReferences({systemRuntime})
             Dim msCorLibRef As MetadataOrSourceAssemblySymbol = DirectCast(assemblies(0), MetadataOrSourceAssemblySymbol)
-
-            Dim knownMissingSpecialTypes As HashSet(Of SpecialType) = New HashSet(Of SpecialType) From {SpecialType.System_Runtime_CompilerServices_InlineArrayAttribute}
-            Dim knownMissingInternalSpecialTypes As HashSet(Of InternalSpecialType) = New HashSet(Of InternalSpecialType) From
+            Dim knownMissingInternalSpecialTypes As New HashSet(Of InternalSpecialType) From
             {
-                InternalSpecialType.System_Runtime_CompilerServices_AsyncHelpers,
                 InternalSpecialType.System_Runtime_InteropServices_ExtendedLayoutAttribute,
                 InternalSpecialType.System_Runtime_InteropServices_ExtendedLayoutKind
             }
@@ -64,12 +65,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Symbols.CorLibrary
                 Assert.Equal(CType(i, SpecialType), t.SpecialType)
                 Assert.Equal(CType(i, ExtendedSpecialType), t.ExtendedSpecialType)
                 Assert.Same(msCorLibRef, t.ContainingAssembly)
-                If knownMissingSpecialTypes.Contains(specialType) Then
-                    ' not present on dotnet core 3.1
-                    Assert.Equal(TypeKind.Error, t.TypeKind)
-                Else
-                    Assert.NotEqual(TypeKind.Error, t.TypeKind)
-                End If
+                Assert.NotEqual(TypeKind.Error, t.TypeKind)
             Next
 
             For i As Integer = InternalSpecialType.First To InternalSpecialType.NextAvailable - 1
@@ -79,7 +75,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Symbols.CorLibrary
                 Assert.Equal(CType(i, ExtendedSpecialType), t.ExtendedSpecialType)
                 Assert.Same(msCorLibRef, t.ContainingAssembly)
                 If knownMissingInternalSpecialTypes.Contains(internalSpecialType) Then
-                    ' not present on dotnet core 3.1
                     Assert.Equal(TypeKind.Error, t.TypeKind)
                 Else
                     Assert.NotEqual(TypeKind.Error, t.TypeKind)
@@ -88,7 +83,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Symbols.CorLibrary
 
             Assert.False(msCorLibRef.KeepLookingForDeclaredSpecialTypes)
 
-            assemblies = MetadataTestHelpers.GetSymbolsForReferences({NetCoreApp.SystemRuntime})
+            assemblies = MetadataTestHelpers.GetSymbolsForReferences({MetadataReference.CreateFromFile(systemRuntime.FilePath)})
             msCorLibRef = DirectCast(assemblies(0), MetadataOrSourceAssemblySymbol)
             Assert.True(msCorLibRef.KeepLookingForDeclaredSpecialTypes)
 
@@ -109,13 +104,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Symbols.CorLibrary
                     End If
 
                     If (count >= SpecialType.Count) Then
-                        Assert.False(msCorLibRef.KeepLookingForDeclaredSpecialTypes)
+                        Assert.True(msCorLibRef.KeepLookingForDeclaredSpecialTypes)
                     End If
                 Next
             End While
 
-            Assert.Equal(count + knownMissingSpecialTypes.Count, CType(SpecialType.Count, Integer))
-            Assert.Equal(knownMissingSpecialTypes.Any(), msCorLibRef.KeepLookingForDeclaredSpecialTypes)
+            Assert.Equal(CType(SpecialType.Count, Integer), count)
+            Assert.True(msCorLibRef.KeepLookingForDeclaredSpecialTypes)
         End Sub
 
         <Fact()>

@@ -274,7 +274,7 @@ Value2")
 
         <Fact>
         Public Sub TestLoadFieldsOfReadOnlySpanFromCorlib()
-            Dim comp = CreateCompilation("", targetFramework:=TargetFramework.Net60)
+            Dim comp = CreateCompilation("", targetFramework:=TargetFramework.NetLatest)
 
             Dim readOnlySpanType = comp.GetSpecialType(InternalSpecialType.System_ReadOnlySpan_T)
             Assert.False(readOnlySpanType.IsErrorType())

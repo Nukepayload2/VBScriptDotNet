@@ -169,7 +169,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests
         End Function
 
         Public Function CreateCompilationWithMscorlib40AndVBRuntimeAndReferences(source As XElement, Optional references As IEnumerable(Of MetadataReference) = Nothing, Optional options As VisualBasicCompilationOptions = Nothing, Optional parseOptions As VisualBasicParseOptions = Nothing) As VisualBasicCompilation
-            Return CreateCompilationWithMscorlib40(source, references, options, parseOptions)
+            Dim allReferences As IEnumerable(Of MetadataReference) = {ReferenceAssemblies.MicrosoftVisualBasic}
+            If references IsNot Nothing Then
+                allReferences = allReferences.Concat(references)
+            End If
+
+            Return CreateCompilationWithMscorlib40(source, allReferences, options, parseOptions)
         End Function
 
         Public Function CreateCompilationWithMscorlib40AndVBRuntime(source As XElement, options As VisualBasicCompilationOptions, Optional parseOptions As VisualBasicParseOptions = Nothing) As VisualBasicCompilation

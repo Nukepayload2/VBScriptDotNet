@@ -12,7 +12,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests
     Public Class StaticAbstractMembersInInterfacesTests
         Inherits BasicTestBase
 
-        Private Const _supportingFramework As TargetFramework = TargetFramework.Net60
+        Private Const _supportingFramework As TargetFramework = TargetFramework.NetLatest
 
         Private Function GetCSharpCompilation(
             csSource As String,

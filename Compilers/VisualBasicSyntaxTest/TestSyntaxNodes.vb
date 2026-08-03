@@ -1106,7 +1106,7 @@ End Class
             End Function
 
 #If DEBUG Then
-            Public Overrides Function ShouldAssertExpectedMessageArgumentsLength(errorCode As Integer) As Boolean
+            Friend Overrides Function ShouldAssertExpectedMessageArgumentsLength(errorCode As Integer) As Boolean
                 Return False
             End Function
 #End If

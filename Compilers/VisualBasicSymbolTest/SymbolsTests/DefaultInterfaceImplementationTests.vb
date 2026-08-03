@@ -1982,7 +1982,7 @@ End Class
 ]]></file>
 </compilation>
 
-            Dim comp1 = CreateCompilation(source1, targetFramework:=TargetFramework.NetCoreApp, references:={csCompilation})
+            Dim comp1 = CreateCompilation(source1, targetFramework:=TargetFramework.NetLatest, references:={csCompilation})
             comp1.AssertTheseEmitDiagnostics(
 <error>
 BC37307: Type 'ITest33' cannot be embedded because it has a non-abstract member. Consider setting the 'Embed Interop Types' property to false.
@@ -2032,7 +2032,7 @@ End Class
 ]]></file>
 </compilation>
 
-            Dim comp1 = CreateCompilation(source1, targetFramework:=TargetFramework.NetCoreApp, references:={csCompilation})
+            Dim comp1 = CreateCompilation(source1, targetFramework:=TargetFramework.NetLatest, references:={csCompilation})
             comp1.AssertTheseEmitDiagnostics(
 <expected>
 BC37308: Type 'ITest44' cannot be embedded because it has a re-abstraction of a member from base interface. Consider setting the 'Embed Interop Types' property to false.

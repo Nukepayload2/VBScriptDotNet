@@ -168,8 +168,9 @@ namespace Roslyn.Test.Utilities
     public static class TargetFrameworkUtil
     {
         private static readonly ConcurrentDictionary<string, ImmutableArray<PortableExecutableReference>> s_dynamicReferenceMap = new ConcurrentDictionary<string, ImmutableArray<PortableExecutableReference>>(StringComparer.Ordinal);
+        private static readonly Lazy<ImmutableArray<MetadataReference>> s_netLatestReferences = new(LoadNetLatestReferences);
 
-        public static ImmutableArray<MetadataReference> NetLatest => RuntimeUtilities.IsCoreClrRuntime ? NetCoreApp.References : NetFramework.References;
+        public static ImmutableArray<MetadataReference> NetLatest => RuntimeUtilities.IsCoreClrRuntime ? s_netLatestReferences.Value : NetFramework.References;
         public static ImmutableArray<MetadataReference> StandardReferences => RuntimeUtilities.IsCoreClrRuntime ? NetStandard20References : NetFramework.Standard;
         public static MetadataReference StandardCSharpReference => RuntimeUtilities.IsCoreClrRuntime ? NetStandard20.ExtraReferences.MicrosoftCSharp : NetFramework.MicrosoftCSharp;
         public static MetadataReference StandardVisualBasicReference => RuntimeUtilities.IsCoreClrRuntime ? NetStandard20.ExtraReferences.MicrosoftVisualBasic : NetFramework.MicrosoftVisualBasic;
@@ -442,6 +443,68 @@ namespace Roslyn.Test.Utilities
                 var message = $"Error loading {assemblyName}. Make sure the test project has a <PackageReference> for this assembly";
                 throw new Exception(message, ex);
             }
+        }
+
+        private static ImmutableArray<MetadataReference> LoadNetLatestReferences()
+        {
+            var runtimeDirectory = new DirectoryInfo(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory());
+            var dotnetRoot = runtimeDirectory.Parent?.Parent?.Parent;
+            var runtimeVersion = Environment.Version;
+            var targetFramework = $"net{runtimeVersion.Major}.{runtimeVersion.Minor}";
+            var packRoot = dotnetRoot is null
+                ? null
+                : Path.Combine(dotnetRoot.FullName, "packs", "Microsoft.NETCore.App.Ref");
+
+            if (packRoot is null || !Directory.Exists(packRoot))
+            {
+                throw new DirectoryNotFoundException($"Could not find the Microsoft.NETCore.App.Ref pack root for runtime {runtimeVersion}: {packRoot ?? "<unknown>"}.");
+            }
+
+            var compatiblePacks = Directory.EnumerateDirectories(packRoot)
+                .Select(path => new
+                {
+                    Path = path,
+                    Version = Version.TryParse(Path.GetFileName(path), out var version) ? version : null,
+                })
+                .Where(pack => pack.Version is not null &&
+                               pack.Version.Major == runtimeVersion.Major &&
+                               pack.Version.Minor == runtimeVersion.Minor)
+                .Select(pack => new
+                {
+                    pack.Path,
+                    pack.Version,
+                    ReferenceDirectory = Path.Combine(pack.Path, "ref", targetFramework),
+                })
+                .Select(pack => new
+                {
+                    pack.Path,
+                    pack.Version,
+                    pack.ReferenceDirectory,
+                    ReferencePaths = Directory.Exists(pack.ReferenceDirectory)
+                        ? Directory.EnumerateFiles(pack.ReferenceDirectory, "*.dll")
+                            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                            .ToImmutableArray()
+                        : ImmutableArray<string>.Empty,
+                })
+                .ToImmutableArray();
+
+            var selectedPack = compatiblePacks
+                .Where(pack => !pack.ReferencePaths.IsEmpty)
+                .OrderByDescending(pack => pack.Version == runtimeVersion)
+                .ThenByDescending(pack => pack.Version)
+                .FirstOrDefault();
+
+            if (selectedPack is null)
+            {
+                var foundVersions = compatiblePacks.IsEmpty
+                    ? "none"
+                    : string.Join(", ", compatiblePacks.Select(pack => Path.GetFileName(pack.Path)));
+                throw new FileNotFoundException($"Could not find a non-empty {targetFramework} reference directory in {packRoot} for runtime {runtimeVersion}. Compatible pack versions found: {foundVersions}.");
+            }
+
+            return selectedPack.ReferencePaths
+                .Select(path => MetadataReference.CreateFromFile(path))
+                .ToImmutableArray<MetadataReference>();
         }
     }
 }

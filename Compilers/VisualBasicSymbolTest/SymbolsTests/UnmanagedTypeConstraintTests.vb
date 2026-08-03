@@ -919,7 +919,8 @@ public ref struct StructWithRefField<T>
     public ref T RefField;
 }
 
-", parseOptions:=New CSharpParseOptions(CSharp.LanguageVersion.Latest)).EmitToImageReference()
+", parseOptions:=New CSharpParseOptions(CSharp.LanguageVersion.Latest),
+               referencedAssemblies:=TargetFrameworkUtil.GetReferences(TargetFramework.NetLatest)).EmitToImageReference()
 
             Dim source = "
 public class Program 

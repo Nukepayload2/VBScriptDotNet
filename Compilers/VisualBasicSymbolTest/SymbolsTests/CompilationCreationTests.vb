@@ -2243,22 +2243,6 @@ End Class
             Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.DefaultImplementationsOfInterfaces))
 
             compilation = VisualBasicCompilation.Create("Compilation", references:=TargetFrameworkUtil.GetReferences(TargetFramework.NetLatest, Nothing))
-            Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.ByRefFields))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.CovariantReturnsOfClasses))
-            Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.NumericIntPtr))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.UnmanagedSignatureCallingConvention))
-            Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.VirtualStaticsInInterfaces))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.DefaultImplementationsOfInterfaces))
-
-            compilation = VisualBasicCompilation.Create("Compilation", references:=TargetFrameworkUtil.GetReferences(TargetFramework.Net60, Nothing))
-            Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.ByRefFields))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.CovariantReturnsOfClasses))
-            Assert.False(compilation.SupportsRuntimeCapability(RuntimeCapability.NumericIntPtr))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.UnmanagedSignatureCallingConvention))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.VirtualStaticsInInterfaces))
-            Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.DefaultImplementationsOfInterfaces))
-
-            compilation = VisualBasicCompilation.Create("Compilation", references:=TargetFrameworkUtil.GetReferences(TargetFramework.Net70, Nothing))
             Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.ByRefFields))
             Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.CovariantReturnsOfClasses))
             Assert.True(compilation.SupportsRuntimeCapability(RuntimeCapability.NumericIntPtr))
