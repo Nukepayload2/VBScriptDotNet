@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>vbc</AssemblyName>
+    <RootNamespace>Microsoft.CodeAnalysis.VisualBasic.CommandLine</RootNamespace>
+    <StartupObject>Microsoft.CodeAnalysis.VisualBasic.CommandLine.Program</StartupObject>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>..\..\..\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\vbc.runtime.rsp" Link="vbc.rsp" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="..\..\..\Shared\BuildClient.cs" />
+    <Compile Include="..\..\..\Shared\BuildProtocol.cs" />
+    <Compile Include="..\..\..\Shared\BuildServerConnection.cs" />
+    <Compile Include="..\..\..\Shared\CompilerServerLogger.cs" />
+    <Compile Include="..\..\..\Shared\ConsoleUtil.cs" />
+    <Compile Include="..\..\..\Shared\ExitingTraceListener.cs" />
+    <Compile Include="..\..\..\Shared\NamedPipeUtil.cs" />
+    <Compile Include="..\..\..\Shared\NativeMethods.cs" />
+    <Compile Include="..\..\..\Shared\RuntimeHostInfo.cs" />
+    <Compile Include="..\..\..\Shared\Vbc.cs" />
+    <Compile Include="..\Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
+    <ProjectReference Include="..\..\Portable\Microsoft.CodeAnalysis.VisualBasic.vbproj" />
+  </ItemGroup>
+
+  <Target Name="WriteNet10ResponseFile" AfterTargets="Build">
+    <PropertyGroup>
+      <Net48ReferenceDirectory>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8</Net48ReferenceDirectory>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(Net48ReferenceDirectory)\mscorlib.dll')" Text="The .NET Framework 4.8 reference assemblies are required for command-line compiler tests: $(Net48ReferenceDirectory)" />
+    <ItemGroup>
+      <Net48Reference Include="$(Net48ReferenceDirectory)\*.dll" />
+      <Net10ResponseLine Include="/sdkpath:&quot;$(TargetDir)&quot;" />
+      <Net10ResponseLine Include="/imports:System" />
+      <Net10ResponseLine Include="/imports:Microsoft.VisualBasic" />
+      <Net10ResponseLine Include="/imports:System.Linq" />
+      <Net10ResponseLine Include="/imports:System.Xml.Linq" />
+      <Net10ResponseLine Include="/optioninfer+" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(TargetDir)vbc.rsp" Lines="@(Net10ResponseLine)" Overwrite="true" Encoding="UTF-8" />
+    <Copy SourceFiles="@(Net48Reference)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

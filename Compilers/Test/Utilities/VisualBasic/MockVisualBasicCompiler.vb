@@ -43,7 +43,21 @@ Friend Class MockVisualBasicCompiler
     End Sub
 
     Private Shared Function CreateBuildPaths(workingDirectory As String, tempDirectory As String) As BuildPaths
-        Return RuntimeUtilities.CreateBuildPaths(workingDirectory, tempDirectory:=tempDirectory)
+        Dim sdkDirectory As String = Nothing
+        If RuntimeUtilities.IsCoreClrRuntime Then
+            sdkDirectory = Path.GetDirectoryName(GetType(MockVisualBasicCompiler).Assembly.Location)
+            Dim dependencyDirectory = Path.Combine(sdkDirectory, "dependency")
+            If File.Exists(Path.Combine(dependencyDirectory, "mscorlib.dll")) Then
+                sdkDirectory = dependencyDirectory
+            End If
+
+            If Not File.Exists(Path.Combine(sdkDirectory, "mscorlib.dll")) Then
+                sdkDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                                            "Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8")
+            End If
+        End If
+
+        Return RuntimeUtilities.CreateBuildPaths(workingDirectory, sdkDirectory, tempDirectory)
     End Function
 
     Protected Overrides Sub ResolveAnalyzersFromArguments(

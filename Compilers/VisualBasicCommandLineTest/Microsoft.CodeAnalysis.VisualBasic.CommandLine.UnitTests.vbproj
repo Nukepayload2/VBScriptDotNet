@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework Condition="'$(EnableNet48Tests)' != 'true'">net10.0</TargetFramework>
+    <TargetFrameworks Condition="'$(EnableNet48Tests)' == 'true'">net10.0;net48</TargetFrameworks>
+    <RootNamespace></RootNamespace>
+    <GenerateMicrosoftCodeAnalysisCommitHashAttribute>true</GenerateMicrosoftCodeAnalysisCommitHashAttribute>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>..\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\..\Test\PdbUtilities\Roslyn.Test.PdbUtilities.csproj" />
+    <ProjectReference Include="..\Test\Core\Microsoft.CodeAnalysis.Test.Utilities.csproj" />
+    <ProjectReference Include="..\CSharp\Portable\Microsoft.CodeAnalysis.CSharp.csproj" />
+    <ProjectReference Include="..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
+    <ProjectReference Include="..\Test\Utilities\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Test.Utilities.vbproj" />
+    <ProjectReference Include="..\VisualBasic\vbc\AnyCpu\vbc.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\VisualBasic\Portable\Microsoft.CodeAnalysis.VisualBasic.vbproj" />
+    <ProjectReference Include="..\Test\Resources\Core\Microsoft.CodeAnalysis.Compiler.Test.Resources.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" PrivateAssets="all" />
+    <PackageReference Include="runtime.win-x64.Microsoft.NETCore.ILAsm" Version="10.0.0" PrivateAssets="all" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Import Include="System.Xml.Linq" />
+    <EmbeddedResource Include="..\VisualBasic\vbc\vbc.rsp" Link="Resources\vbc.rsp" />
+  </ItemGroup>
+
+  <Target Name="CopyVbcToDependencyDirectory" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net10.0'">
+    <ItemGroup>
+      <VbcDependency Include="..\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net10.0\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VbcDependency)" DestinationFiles="@(VbcDependency->'$(TargetDir)dependency\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <RuntimeResponseLine Include="/sdkpath:&quot;$(TargetDir)dependency&quot;" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(TargetDir)dependency\vbc.rsp" Lines="@(RuntimeResponseLine)" Overwrite="true" Encoding="UTF-8" />
+    <Copy SourceFiles="@(VbcDependency)" DestinationFiles="@(VbcDependency->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'%(VbcDependency.Extension)' == '.dll' and '%(VbcDependency.Filename)' != 'Microsoft.CodeAnalysis' and '%(VbcDependency.Filename)' != 'Microsoft.CodeAnalysis.VisualBasic' and '%(VbcDependency.Filename)' != 'vbc'" />
+    <Delete Files="$(TargetDir)vbc.rsp" />
+  </Target>
+</Project>

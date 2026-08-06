@@ -1,0 +1,6 @@
+/sdkpath:"."
+/imports:System
+/imports:Microsoft.VisualBasic
+/imports:System.Linq
+/imports:System.Xml.Linq
+/optioninfer+
