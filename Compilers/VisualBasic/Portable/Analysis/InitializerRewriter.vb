@@ -221,8 +221,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If submissionResultType IsNot Nothing Then
                 If submissionResult Is Nothing Then
-                    ' Return Nothing if submission does not have a trailing expression.
-                    submissionResult = New BoundLiteral(method.Syntax, ConstantValue.Nothing, submissionResultType)
+                    ' Return the default value if submission does not have a trailing expression.
+                    ' A "Nothing" literal is not a valid constant for non-nullable value types, so use the
+                    ' type's default constant in that case (e.g. 0 for Integer).
+                    Dim discriminator = submissionResultType.GetConstantValueTypeDiscriminator()
+                    If discriminator <> ConstantValueTypeDiscriminator.Bad AndAlso
+                       discriminator <> ConstantValueTypeDiscriminator.Nothing AndAlso
+                       submissionResultType.SpecialType <> SpecialType.System_String Then
+                        submissionResult = New BoundLiteral(method.Syntax, ConstantValue.Default(discriminator), submissionResultType)
+                    Else
+                        submissionResult = New BoundLiteral(method.Syntax, ConstantValue.Nothing, submissionResultType)
+                    End If
                 End If
                 Debug.Assert(submissionResult.Type.SpecialType <> SpecialType.System_Void)
 

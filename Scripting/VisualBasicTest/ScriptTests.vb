@@ -101,13 +101,10 @@ Public Class ScriptTests
     End Function
 
     <Fact>
-    Public Async Function TestCreateTypedScriptReportsExecutorSignatureMismatch() As Task
+    Public Async Function TestCreateTypedScript() As Task
         Dim script = VisualBasicScript.Create(Of Integer)("? 1 + 2", s_defaultOptions)
 
-        Await Assert.ThrowsAsync(Of ArgumentException)(
-            Async Function()
-                Await script.EvaluateAsync()
-            End Function)
+        Assert.Equal(3, Await script.EvaluateAsync())
     End Function
 
     <Fact>
@@ -123,11 +120,12 @@ Public Class ScriptTests
     End Function
 
     <Fact>
-    Public Sub TestCreateTypedScriptDelegateWithGlobalsReportsExecutorSignatureMismatch()
+    Public Async Function TestCreateTypedScriptDelegateWithGlobals() As Task
         Dim script = VisualBasicScript.Create(Of Integer)("? Add(5)", s_defaultOptions, globalsType:=GetType(Globals))
+        Dim runner = script.CreateDelegate()
 
-        Assert.Throws(Of ArgumentException)(Sub() script.CreateDelegate())
-    End Sub
+        Assert.Equal(10, Await runner(New Globals()))
+    End Function
 
     <Fact>
     Public Async Function TestScriptVariableSetValue() As Task
@@ -152,13 +150,12 @@ Public Class ScriptTests
     End Function
 
     <Fact>
-    Public Async Function TestRunScriptWithExpectedReturnTypeMismatch() As Task
-        Dim script = VisualBasicScript.Create(Of Integer)("? ""str""", s_defaultOptions)
+    Public Async Function TestRunScriptWithTypedReturnType() As Task
+        Dim script = VisualBasicScript.Create(Of Integer)("? 7", s_defaultOptions)
 
-        Await Assert.ThrowsAsync(Of ArgumentException)(
-            Async Function()
-                Await script.RunAsync()
-            End Function)
+        Dim state = Await script.RunAsync()
+
+        Assert.Equal(7, state.ReturnValue)
     End Function
 
     <Fact>
@@ -303,35 +300,37 @@ Return 1", "BC30024", "BC30188", "BC30205", "BC36956")
     End Sub
 
     <Fact>
-    Public Sub TestTopLevelAddHandlerWithLambdaReportsUnsupportedDiagnostic()
-        AssertDiagnosticsContainAnyWithGlobalsType("
+    Public Async Function TestTopLevelAddHandlerWithLambda() As Task
+        Dim state = Await VisualBasicScript.RunAsync("
 Dim callback As System.EventHandler = Sub(sender As Object, e As System.EventArgs)
                                           Count += 1
                                       End Sub
 AddHandler Changed, callback
 RaiseChanged()
-Return Count", GetType(EventGlobals), "BC30188", "BC30205")
-    End Sub
+Return Count", s_defaultOptions, globals:=New EventGlobals())
+        Assert.Equal(1, state.ReturnValue)
+    End Function
 
     <Fact>
-    Public Sub TestTopLevelRemoveHandlerReportsUnsupportedDiagnostic()
-        AssertDiagnosticsContainAnyWithGlobalsType("
+    Public Async Function TestTopLevelRemoveHandler() As Task
+        Dim state = Await VisualBasicScript.RunAsync("
 AddHandler Changed, AddressOf Handler
 RemoveHandler Changed, AddressOf Handler
 RaiseChanged()
-Return Count", GetType(EventGlobals), "BC30188", "BC30205")
-    End Sub
+Return Count", s_defaultOptions, globals:=New EventGlobals())
+        Assert.Equal(0, state.ReturnValue)
+    End Function
 
     <Fact>
-    Public Sub TestTopLevelAddHandlerWithPreviousSubmissionHandlerReportsUnsupportedDiagnostic()
-        Dim script = VisualBasicScript.
+    Public Async Function TestTopLevelAddHandlerWithPreviousSubmissionHandler() As Task
+        Dim state = Await VisualBasicScript.
             Create("Dim callback As System.EventHandler = AddressOf Handler", s_defaultOptions, globalsType:=GetType(EventGlobals)).
             ContinueWith("AddHandler Changed, callback
 RaiseChanged()
-Return Count")
-
-        AssertDiagnosticsContainAny(script.GetCompilation().GetDiagnostics(), "BC30188", "BC30205")
-    End Sub
+Return Count").
+            RunAsync(New EventGlobals())
+        Assert.Equal(10, state.ReturnValue)
+    End Function
 
     <Fact>
     Public Sub TestTopLevelRaiseEventStatementReportsUnsupportedDiagnostic()
@@ -359,6 +358,18 @@ Return Count")
 ? value", options)
 
         Assert.Equal(13, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestTopLevelBareAwaitStatement() As Task
+        Dim options = s_defaultOptions.
+            AddReferences(GetType(Task).Assembly).
+            AddImports("System.Threading.Tasks")
+
+        ' A bare "Await <expr>" as a standalone top-level statement used to fail to parse.
+        Dim state = Await VisualBasicScript.RunAsync("Await Task.FromResult(11)", options)
+
+        Assert.Equal(11, state.ReturnValue)
     End Function
 
     <Fact>

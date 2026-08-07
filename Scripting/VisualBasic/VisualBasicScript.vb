@@ -144,6 +144,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         End Function
 
         Public Shared Function RunInteractive(args() As String, vbiDirectory As String, interactiveResponseFileName As String) As Integer
+            Return RunInteractiveAsync(args, vbiDirectory, interactiveResponseFileName).GetAwaiter().GetResult()
+        End Function
+
+        Public Shared Function RunInteractiveAsync(args() As String, vbiDirectory As String, interactiveResponseFileName As String) As Task(Of Integer)
             Dim buildPaths = New BuildPaths(
                 clientDir:=vbiDirectory,
                 workingDir:=Directory.GetCurrentDirectory(),
@@ -162,8 +166,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                 VisualBasicScriptCompiler.Instance,
                 VisualBasicObjectFormatter.Instance)
 
-            Dim retVal = runner.RunInteractive()
-            Return retVal
+            Return runner.RunInteractiveAsync()
         End Function
 
     End Class

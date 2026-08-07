@@ -15,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
 
@@ -49,6 +50,14 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         /// </summary>
         internal int RunInteractive()
         {
+            return RunInteractiveAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// csi.exe and vbi.exe entry point.
+        /// </summary>
+        internal async Task<int> RunInteractiveAsync()
+        {
             SarifErrorLogger errorLogger = null;
             if (_compiler.Arguments.ErrorLogOptions?.Path != null)
             {
@@ -61,14 +70,14 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
             using (errorLogger)
             {
-                return RunInteractiveCore(errorLogger);
+                return await RunInteractiveCoreAsync(errorLogger);
             }
         }
 
         /// <summary>
         /// csi.exe and vbi.exe entry point.
         /// </summary>
-        private int RunInteractiveCore(ErrorLogger errorLogger)
+        private async Task<int> RunInteractiveCoreAsync(ErrorLogger errorLogger)
         {
             Debug.Assert(_compiler.Arguments.IsScriptRunner);
 
@@ -134,12 +143,12 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
             if (_compiler.Arguments.InteractiveMode)
             {
-                RunInteractiveLoop(scriptOptions, code?.ToString(), cancellationToken);
+                await RunInteractiveLoopAsync(scriptOptions, code?.ToString(), cancellationToken);
                 return CommonCompiler.Succeeded;
             }
             else
             {
-                return RunScript(scriptOptions, code, errorLogger, cancellationToken);
+                return await RunScriptAsync(scriptOptions, code, errorLogger, cancellationToken);
             }
         }
 
@@ -189,24 +198,16 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             return new CommonCompiler.LoggingSourceFileResolver(arguments.SourcePaths, arguments.BaseDirectory, ImmutableArray<KeyValuePair<string, string>>.Empty, loggerOpt);
         }
 
-        private int RunScript(ScriptOptions options, SourceText code, ErrorLogger errorLogger, CancellationToken cancellationToken)
+        private async Task<int> RunScriptAsync(ScriptOptions options, SourceText code, ErrorLogger errorLogger, CancellationToken cancellationToken)
         {
             var globals = new CommandLineScriptGlobals(_console.Out, _objectFormatter);
             globals.Args.AddRange(_compiler.Arguments.ScriptArguments);
 
-            // Workaround VB script return type. `VisualBasicCompilation.CreateScriptCompilation` should use `script.ReturnType` as return type instead of hard-coded `Object`.
-            var script = Script.CreateInitialScript<object>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
+            var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
             try
             {
-                return (script.RunAsync(globals, cancellationToken).GetAwaiter().GetResult().ReturnValue as int?).GetValueOrDefault();
+                return (await script.RunAsync(globals, cancellationToken)).ReturnValue;
             }
-
-            // Original code
-            //var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
-            //try
-            //{
-            //    return script.RunAsync(globals, cancellationToken).GetAwaiter().GetResult().ReturnValue;
-            //}
 
             catch (CompilationErrorException e)
             {
@@ -220,7 +221,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
         }
 
-        private void RunInteractiveLoop(ScriptOptions options, string initialScriptCodeOpt, CancellationToken cancellationToken)
+        private async Task RunInteractiveLoopAsync(ScriptOptions options, string initialScriptCodeOpt, CancellationToken cancellationToken)
         {
             var globals = new InteractiveScriptGlobals(_console.Out, _objectFormatter);
             globals.Args.AddRange(_compiler.Arguments.ScriptArguments);
@@ -230,7 +231,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             if (initialScriptCodeOpt != null)
             {
                 var script = Script.CreateInitialScript<object>(_scriptCompiler, SourceText.From(initialScriptCodeOpt), options, globals.GetType(), assemblyLoaderOpt: null);
-                BuildAndRun(script, globals, ref state, ref options, displayResult: false, cancellationToken: cancellationToken);
+                (state, options) = await BuildAndRunAsync(script, globals, state, options, displayResult: false, cancellationToken: cancellationToken);
             }
 
             while (true)
@@ -288,24 +289,23 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                     newScript = state.Script.ContinueWith(code, options);
                 }
 
-                BuildAndRun(newScript, globals, ref state, ref options, displayResult: true, cancellationToken: cancellationToken);
+                (state, options) = await BuildAndRunAsync(newScript, globals, state, options, displayResult: true, cancellationToken: cancellationToken);
             }
         }
 
-        private void BuildAndRun(Script<object> newScript, InteractiveScriptGlobals globals, ref ScriptState<object> state, ref ScriptOptions options, bool displayResult, CancellationToken cancellationToken)
+        private async Task<(ScriptState<object> State, ScriptOptions Options)> BuildAndRunAsync(Script<object> newScript, InteractiveScriptGlobals globals, ScriptState<object> state, ScriptOptions options, bool displayResult, CancellationToken cancellationToken)
         {
             var diagnostics = newScript.Compile(cancellationToken);
             DisplayDiagnostics(diagnostics);
             if (diagnostics.HasAnyErrors())
             {
-                return;
+                return (state, options);
             }
 
-            var task = (state == null)
-                ? newScript.RunAsync(globals, catchException: e => true, cancellationToken: cancellationToken)
-                : newScript.RunFromAsync(state, catchException: e => true, cancellationToken: cancellationToken);
+            state = (state == null)
+                ? await newScript.RunAsync(globals, catchException: e => true, cancellationToken: cancellationToken)
+                : await newScript.RunFromAsync(state, catchException: e => true, cancellationToken: cancellationToken);
 
-            state = task.GetAwaiter().GetResult();
             if (state.Exception != null)
             {
                 DisplayException(state.Exception);
@@ -316,6 +316,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
 
             options = UpdateOptions(options, globals);
+            return (state, options);
         }
 
         private static ScriptOptions UpdateOptions(ScriptOptions options, InteractiveScriptGlobals globals)

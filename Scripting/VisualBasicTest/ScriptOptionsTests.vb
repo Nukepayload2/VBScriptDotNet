@@ -206,7 +206,7 @@ Public Class ScriptOptionsTests
             End Get
         End Property
 
-        Public Overrides Sub ValidateOptions(builder As ArrayBuilder(Of Diagnostic))
+        Friend Overrides Sub ValidateOptions(builder As ArrayBuilder(Of Diagnostic))
         End Sub
 
         Public Overrides Function CommonWithKind(kind As SourceCodeKind) As ParseOptions

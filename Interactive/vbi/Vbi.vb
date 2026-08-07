@@ -6,6 +6,7 @@ Option Compare Text
 Imports System.IO
 Imports System.Reflection
 Imports System.Runtime.CompilerServices
+Imports System.Threading.Tasks
 
 
 #If USE_WINUI Then
@@ -45,11 +46,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         Public Shared Function OnStartup(args() As String) As Integer
+            Return OnStartupAsync(args).GetAwaiter().GetResult()
+        End Function
+
+        Public Shared Async Function OnStartupAsync(args() As String) As Task(Of Integer)
             Try
                 ' Note that AppContext.BaseDirectory isn't necessarily the directory containing vbi.exe.
                 ' For example, when executed via corerun it's the directory containing corerun.
                 Dim vbiDirectory = Path.GetDirectoryName(GetType(Vbi).GetTypeInfo().Assembly.ManifestModule.FullyQualifiedName)
-                Dim retVal = VisualBasicScript.RunInteractive(args, vbiDirectory, InteractiveResponseFileName)
+                Dim retVal = Await VisualBasicScript.RunInteractiveAsync(args, vbiDirectory, InteractiveResponseFileName)
 
                 If retVal <> 0 Then
                     PromptScriptError()

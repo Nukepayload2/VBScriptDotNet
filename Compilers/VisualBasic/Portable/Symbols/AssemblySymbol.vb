@@ -5,11 +5,13 @@
 Imports System.Collections.Concurrent
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
+Imports System.Reflection
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Symbols
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Microsoft.CodeAnalysis.Collections
+Imports Microsoft.CodeAnalysis.PooledObjects
 Imports System.Runtime.InteropServices
 Imports Microsoft.CodeAnalysis.Symbols
 
@@ -706,6 +708,128 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
             Debug.Assert(If(Not result?.IsErrorType(), True))
             Return result
+        End Function
+
+        ''' <summary>
+        ''' Resolves <see cref="System.Type"/> to a <see cref="TypeSymbol"/> available in this assembly
+        ''' and its referenced assemblies.
+        ''' </summary>
+        ''' <param name="type">The type to resolve.</param>
+        ''' <returns>The resolved symbol if successful or Nothing on failure.</returns>
+        Friend Function GetTypeByReflectionType(type As Type) As TypeSymbol
+            Debug.Assert(Not type.IsByRef)
+
+            ' not supported (we don't accept open types as submission results nor host types):
+            Debug.Assert(Not type.ContainsGenericParameters)
+
+            If type.IsArray Then
+                Dim symbol As TypeSymbol = GetTypeByReflectionType(type.GetElementType())
+                If symbol Is Nothing Then
+                    Return Nothing
+                End If
+
+                Dim rank As Integer = type.GetArrayRank()
+
+                Return ArrayTypeSymbol.CreateVBArray(symbol, Nothing, rank, Me)
+            ElseIf type.IsPointer Then
+                Dim symbol As TypeSymbol = GetTypeByReflectionType(type.GetElementType())
+                If symbol Is Nothing Then
+                    Return Nothing
+                End If
+
+                Return New PointerTypeSymbol(symbol, Nothing)
+            ElseIf type.DeclaringType IsNot Nothing Then
+                Debug.Assert(Not type.IsArray)
+
+                ' consolidated generic arguments (includes arguments of all declaring types):
+                Dim genericArguments As Type() = type.GenericTypeArguments
+                Dim typeArgumentIndex As Integer = 0
+
+                Dim currentType As Type = If(type.IsGenericType, type.GetGenericTypeDefinition(), type)
+                Dim nestedTypes As ArrayBuilder(Of Type) = ArrayBuilder(Of Type).GetInstance()
+                While True
+                    Debug.Assert(currentType.IsGenericTypeDefinition OrElse Not currentType.IsGenericType)
+
+                    nestedTypes.Add(currentType)
+                    If currentType.DeclaringType Is Nothing Then
+                        Exit While
+                    End If
+
+                    currentType = currentType.DeclaringType
+                End While
+
+                Dim i As Integer = nestedTypes.Count - 1
+                Dim symbol As NamedTypeSymbol = TryCast(GetTypeByReflectionType(nestedTypes(i)), NamedTypeSymbol)
+                If symbol IsNot Nothing Then
+                    While i > 0
+                        i -= 1
+
+                        Dim forcedArity As Integer = nestedTypes(i).GetGenericArguments().Length - nestedTypes(i + 1).GetGenericArguments().Length
+                        Dim mdName As MetadataTypeName = MetadataTypeName.FromTypeName(nestedTypes(i).Name, forcedArity:=forcedArity)
+
+                        symbol = symbol.LookupMetadataType(mdName)
+                        Debug.Assert(If(Not symbol?.IsErrorType(), True))
+
+                        If symbol Is Nothing Then
+                            Exit While
+                        End If
+
+                        symbol = TryCast(ApplyGenericArguments(symbol, genericArguments, typeArgumentIndex), NamedTypeSymbol)
+                        If symbol Is Nothing Then
+                            Exit While
+                        End If
+                    End While
+                End If
+
+                nestedTypes.Free()
+                Debug.Assert(symbol Is Nothing OrElse typeArgumentIndex = genericArguments.Length)
+                Return symbol
+            Else
+                Dim mdName As MetadataTypeName = MetadataTypeName.FromNamespaceAndTypeName(
+                    If(type.Namespace, String.Empty),
+                    type.Name,
+                    forcedArity:=type.GenericTypeArguments.Length)
+
+                Dim conflicts As (AssemblySymbol, AssemblySymbol)
+                Dim symbol As NamedTypeSymbol = GetTopLevelTypeByMetadataName(mdName, includeReferences:=True, isWellKnownType:=False, conflicts)
+
+                If symbol Is Nothing Then
+                    Return Nothing
+                End If
+
+                Debug.Assert(Not symbol.IsErrorType())
+
+                Dim typeArgumentIndex As Integer = 0
+                symbol = DirectCast(ApplyGenericArguments(symbol, type.GenericTypeArguments, typeArgumentIndex), NamedTypeSymbol)
+                Debug.Assert(typeArgumentIndex = type.GenericTypeArguments.Length)
+                Return symbol
+            End If
+        End Function
+
+        Private Function ApplyGenericArguments(symbol As NamedTypeSymbol, typeArguments As Type(), ByRef currentTypeArgument As Integer) As TypeSymbol
+            Dim remainingTypeArguments As Integer = typeArguments.Length - currentTypeArgument
+
+            ' in case we are specializing a nested generic definition we might have more arguments than the current symbol:
+            Debug.Assert(remainingTypeArguments >= symbol.Arity)
+
+            If remainingTypeArguments = 0 Then
+                Return symbol
+            End If
+
+            Dim length As Integer = symbol.Arity
+            Dim typeArgumentSymbols As ArrayBuilder(Of TypeSymbol) = ArrayBuilder(Of TypeSymbol).GetInstance(length)
+            For i As Integer = 0 To length - 1
+                Dim argSymbol As TypeSymbol = GetTypeByReflectionType(typeArguments(currentTypeArgument))
+                If argSymbol Is Nothing Then
+                    typeArgumentSymbols.Free()
+                    Return Nothing
+                End If
+
+                typeArgumentSymbols.Add(argSymbol)
+                currentTypeArgument += 1
+            Next
+
+            Return symbol.Construct(typeArgumentSymbols.ToImmutableAndFree())
         End Function
 
         Private Function IsValidCandidate(candidate As NamedTypeSymbol, isWellKnownType As Boolean) As Boolean

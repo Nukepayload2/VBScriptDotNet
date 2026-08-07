@@ -785,6 +785,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                             Return ReportUnrecognizedStatementError(ERRID.ERR_ObsoleteStructureNotType)
                         ElseIf contextualKind = SyntaxKind.AsyncKeyword OrElse contextualKind = SyntaxKind.IteratorKeyword Then
                             Return ParseSpecifierDeclaration()
+                        ElseIf contextualKind = SyntaxKind.AwaitKeyword AndAlso Context.IsWithinAsyncMethodOrLambda Then
+                            Return ParseAwaitStatement()
                         End If
                     End If
 
@@ -812,9 +814,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Return ParseOptionStatement(Nothing, Nothing)
 
                 Case SyntaxKind.AddHandlerKeyword
+                    If IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit Then
+                        Return ParseStatementInMethodBodyInternal()
+                    End If
                     Return ParsePropertyOrEventAccessor(SyntaxKind.AddHandlerAccessorStatement, Nothing, Nothing)
 
                 Case SyntaxKind.RemoveHandlerKeyword
+                    If IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit Then
+                        Return ParseStatementInMethodBodyInternal()
+                    End If
                     Return ParsePropertyOrEventAccessor(SyntaxKind.RemoveHandlerAccessorStatement, Nothing, Nothing)
 
                 Case SyntaxKind.RaiseEventKeyword

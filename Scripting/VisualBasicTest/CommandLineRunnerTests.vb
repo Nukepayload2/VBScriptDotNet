@@ -293,6 +293,41 @@ Print(value)")
     End Sub
 
     <Fact>
+    Public Sub TestBareAwaitStatementInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Imports System.Threading.Tasks
+Await Task.Delay(0)
+Print(""after"")")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("""after""", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestTopLevelAddHandlerInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Public Class TestEvents
+    Public Event SomethingHappened As EventHandler
+    Public Sub Raise()
+        RaiseEvent SomethingHappened(Me, EventArgs.Empty)
+    End Sub
+End Class
+
+Dim t As New TestEvents
+Dim ran As Boolean = False
+AddHandler t.SomethingHappened, Sub() ran = True
+t.Raise()
+Print(ran)")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("True", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
     Public Sub TestScriptFileArguments()
         Dim directory = CreateIsolatedTempDirectory()
         File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(1)")

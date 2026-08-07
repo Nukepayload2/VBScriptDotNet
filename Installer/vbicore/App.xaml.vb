@@ -14,9 +14,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private _mWindow As Window
         Public Shared Property VbiArgs As String()
 
-        Protected Overrides Sub OnLaunched(args As LaunchActivatedEventArgs)
+        Protected Overrides Async Sub OnLaunched(args As LaunchActivatedEventArgs)
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
-            Environment.ExitCode = Vbi.OnStartup(VbiArgs)
+            Environment.ExitCode = Await Vbi.OnStartupAsync(VbiArgs)
             [Exit]()
         End Sub
 

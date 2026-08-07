@@ -1996,8 +1996,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         End Function
 
         Friend Function GetTypeByReflectionType(type As Type) As TypeSymbol
-            ' TODO: See CSharpCompilation.GetTypeByReflectionType
-            Return GetSpecialType(SpecialType.System_Object)
+            Return Assembly.GetTypeByReflectionType(type)
         End Function
 
         ''' <summary>
