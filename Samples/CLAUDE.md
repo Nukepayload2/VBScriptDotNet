@@ -66,7 +66,7 @@ Next
 Dim result = Await Task.FromResult(5)
 Console.WriteLine(result)
 Console.WriteLine("DONE!")
-Console.ReadKey
+Console.ReadKey()
 ```
 
 ### 6. Command Line Arguments
@@ -147,15 +147,13 @@ Declare Function GetSystemCpuSetInformation Lib "kernel32.dll" (
 ```
 
 ### Event Handling
-Top-level event handling requires inline initialization:
+AddHandler and RemoveHandler work directly in top-level code:
 ```vb
-' AddHandler and WithEvents can't be used in top-level code.
-Dim initEvents =
-Sub()
-    AddHandler wnd.Closed, Sub() closed = True
-    AddHandler btn.Click, Sub() btn.Content = $"Clicked at {Now}"
-End Sub
-initEvents.Invoke()
+Dim clickHandler As RoutedEventHandler = Sub() btn.Content = $"Clicked at {Now}"
+AddHandler wnd.Closed, Sub() closed = True
+AddHandler btn.Click, clickHandler
+' Later, remove the handler:
+RemoveHandler btn.Click, clickHandler
 ```
 
 ### Structure Definitions
@@ -200,6 +198,9 @@ Environment.Exit(0)
 ### Application Lifecycle
 - Scripts exit automatically when execution completes
 - Use Environment.Exit() for immediate termination when needed
+- Following the VB Function Main semantics, the process exit code comes only from an explicit
+  `Return` statement: `Return <number>` sets it (e.g. `Return 42` exits with 42), a bare `Return`
+  or no `Return` exits with 0. The last expression statement of the script does not set the exit code.
 
 ## Framework Compatibility
 

@@ -102,7 +102,7 @@ Public Class ScriptTests
 
     <Fact>
     Public Async Function TestCreateTypedScript() As Task
-        Dim script = VisualBasicScript.Create(Of Integer)("? 1 + 2", s_defaultOptions)
+        Dim script = VisualBasicScript.Create(Of Integer)("Return 1 + 2", s_defaultOptions)
 
         Assert.Equal(3, Await script.EvaluateAsync())
     End Function
@@ -121,7 +121,7 @@ Public Class ScriptTests
 
     <Fact>
     Public Async Function TestCreateTypedScriptDelegateWithGlobals() As Task
-        Dim script = VisualBasicScript.Create(Of Integer)("? Add(5)", s_defaultOptions, globalsType:=GetType(Globals))
+        Dim script = VisualBasicScript.Create(Of Integer)("Return Add(5)", s_defaultOptions, globalsType:=GetType(Globals))
         Dim runner = script.CreateDelegate()
 
         Assert.Equal(10, Await runner(New Globals()))
@@ -151,11 +151,29 @@ Public Class ScriptTests
 
     <Fact>
     Public Async Function TestRunScriptWithTypedReturnType() As Task
-        Dim script = VisualBasicScript.Create(Of Integer)("? 7", s_defaultOptions)
+        Dim script = VisualBasicScript.Create(Of Integer)("Return 7", s_defaultOptions)
 
         Dim state = Await script.RunAsync()
 
         Assert.Equal(7, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestTypedScriptIgnoresTrailingExpression() As Task
+        ' A typed script follows the VB Function Main semantics: the result comes only from an explicit
+        ' Return statement. The trailing expression (even an unconvertible one like a Guid) is ignored,
+        ' so the result defaults to 0 instead of reporting a conversion error.
+        Dim state = Await VisualBasicScript.RunAsync(Of Integer)("? New System.Guid()", s_defaultOptions)
+
+        Assert.Equal(0, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestTypedScriptBareReturnIsZero() As Task
+        ' Function Main semantics: a bare Return in a typed script returns the default value (0).
+        Dim state = Await VisualBasicScript.RunAsync(Of Integer)("Return", s_defaultOptions)
+
+        Assert.Equal(0, state.ReturnValue)
     End Function
 
     <Fact>

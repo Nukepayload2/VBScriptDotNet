@@ -203,7 +203,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim submissionResult As BoundExpression = Nothing
 
             For Each initializer In boundInitializers
+                ' Only REPL-style (Object) submissions use the trailing expression as the result;
+                ' typed submissions (vbx exit code) follow Function Main semantics: Return only.
                 If submissionResultType IsNot Nothing AndAlso
+                    submissionResultType.IsObjectType() AndAlso
                     initializer Is boundInitializers.Last AndAlso
                     initializer.Kind = BoundKind.GlobalStatementInitializer Then
                     Dim statement = DirectCast(initializer, BoundGlobalStatementInitializer).Statement

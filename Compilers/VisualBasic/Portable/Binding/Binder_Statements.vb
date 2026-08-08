@@ -5081,6 +5081,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         ' We should not require expression, to allow more accurate inference.
                         Debug.Assert(Me.ContainingMember.Kind = SymbolKind.Method AndAlso DirectCast(Me.ContainingMember, MethodSymbol).MethodKind = MethodKind.LambdaMethod)
                         Return New BoundReturnStatement(originalSyntax, Nothing, Nothing, returnLabel, hasErrors:=False)
+                    ElseIf BindingTopLevelScriptCode AndAlso DirectCast(ContainingMember, MethodSymbol).IsScriptInitializer Then
+                        ' Bare Return in a script initializer is "Return <default>": result defaults to 0.
+                        Dim discriminator = retType.GetConstantValueTypeDiscriminator()
+                        Dim defaultExpression As BoundExpression
+                        If discriminator <> ConstantValueTypeDiscriminator.Bad AndAlso
+                           discriminator <> ConstantValueTypeDiscriminator.Nothing AndAlso
+                           retType.SpecialType <> SpecialType.System_String Then
+                            defaultExpression = New BoundLiteral(originalSyntax, ConstantValue.Default(discriminator), retType)
+                        Else
+                            defaultExpression = New BoundLiteral(originalSyntax, ConstantValue.Nothing, retType)
+                        End If
+                        Return New BoundReturnStatement(originalSyntax, defaultExpression, GetLocalForFunctionValue(), returnLabel)
                     Else
                         ReportDiagnostic(diagnostics, originalSyntax, ERRID.ERR_ReturnWithoutValue)
                         Return New BoundReturnStatement(originalSyntax, Nothing, Nothing, returnLabel, hasErrors:=True)

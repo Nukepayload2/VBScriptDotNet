@@ -236,13 +236,51 @@ Print(LoadedValue())")
     End Sub
 
     <Fact>
-    Public Sub TestQuestionDirectiveInScriptFile()
+    Public Sub TestQuestionDirectiveInScriptFileDoesNotSetExitCode()
+        ' The trailing expression of a script file does not set the exit code; only an explicit Return does.
         Dim directory = CreateIsolatedTempDirectory()
         File.WriteAllText(Path.Combine(directory, "main.vbx"), "? 21")
 
         Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
 
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestTrailingExpressionInScriptFileDoesNotSetExitCode()
+        ' Even an unconvertible trailing expression compiles and is discarded (no conversion error),
+        ' and it does not set the exit code.
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "? New System.Guid()")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestReturnStatementSetsExitCodeInScriptFile()
+        ' Function Main semantics: an explicit Return sets the exit code.
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Return 21")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
         Assert.Equal(21, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("", runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestBareReturnStatementExitCodeIsZero()
+        ' Function Main semantics: a bare Return exits with 0.
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Return")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
         AssertEx.AssertEqualToleratingWhitespaceDifferences("", runner.Console.Out.ToString())
     End Sub
 

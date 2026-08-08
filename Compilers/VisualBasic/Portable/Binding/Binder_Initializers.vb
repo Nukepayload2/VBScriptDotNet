@@ -213,8 +213,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Dim expression = (DirectCast(boundStatement, BoundExpressionStatement)).Expression
                 If expression.Type Is Nothing OrElse expression.Type.SpecialType <> SpecialType.System_Void Then
                     Dim submissionReturnType = scriptInitializerOpt.ResultType
-                    expression = ApplyImplicitConversion(expression.Syntax, submissionReturnType, expression, diagnostics)
-                    boundStatement = New BoundExpressionStatement(boundStatement.Syntax, expression, expression.HasErrors)
+
+                    ' The trailing expression is the result only for REPL-style (Object) submissions;
+                    ' typed submissions (vbx exit code) follow Function Main semantics: Return only.
+                    If submissionReturnType IsNot Nothing AndAlso submissionReturnType.IsObjectType() Then
+                        expression = ApplyImplicitConversion(expression.Syntax, submissionReturnType, expression, diagnostics)
+                        boundStatement = New BoundExpressionStatement(boundStatement.Syntax, expression, expression.HasErrors)
+                    End If
                 End If
             End If
 
