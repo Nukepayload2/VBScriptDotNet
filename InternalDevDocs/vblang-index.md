@@ -6,7 +6,7 @@
 - **如何使用**：
   1. 先读「一、VB 语言设计现实方向摘要」快速建立世界观；
   2. 若某主题与手头提案相关，到「二、关键文件索引」用 Windows 反斜杠路径 + Grep 关键词深挖原文；
-  3. 手头提案的「VBScript.NET 应对」应参考 **`modvb\decisions.md`（VBScript.NET 设计决策记录）**；VB 事实仍以本文件为准。
+  3. 手头提案的「VBScript.NET 应对」应参考 **`decisions.md`（VBScript.NET 设计决策记录）**；VB 事实仍以本文件为准。
 - **来源目录**：`vblang\`（dotnet/vblang 官方仓库镜像，含 2014–2018 LDM notes、proposals、Version 11 规范）。Governance 见该目录 `README.md`、`proposals\README.md`、`meetings\README.md`。
 - **活跃度提示**：会议笔记（meetings/）止于 2018-12-19（模式匹配讨论）——根因是 VB 语言设计主推人 **Anthony D. Green 离职后无人推进 VB LDM**，一批 VB 语言工作转入 **ModVB**（本仓库 `modvb\`）。仓库本身未停更：2024-11/12 设计并更新 **Overload Resolution Priority** 提案（VB 17.13 落地），2019–2022 间多为文档维护（DocuTune 链接修复、typo）与 2021 年 CallerArgumentExpression 版本历史补充。VB 特性稀少（VB 15.5 后长期空白，至 VB 17.13 才新增两项）。**C# 是 CLR/生态的主要推动者，VB 多数新特性先在 C#/CLR 定平台决策后再对齐。**
 - **版本对照**（Language-Version-History.md）：
@@ -123,9 +123,9 @@
 
 ---
 
-## 三、对 VBScript.NET 的含义 → 已移至 `modvb\decisions.md`
+## 三、对 VBScript.NET 的含义 → 已移至 `decisions.md`
 
-> 原「三、对 ModVB / VBScript.NET 的含义（M1–M8）」已按用户指示独立成文，见 **`modvb\decisions.md`**（VBScript.NET 设计决策记录）。该文件同时记录决策修正（ref struct 解法、NativeAOT 桥、postfix-casting 语义）。本索引只保留 VB 语言设计事实。
+> 原「三、对 ModVB / VBScript.NET 的含义（M1–M8）」已按用户指示独立成文，见 **`decisions.md`**（VBScript.NET 设计决策记录）。该文件同时记录决策修正（ref struct 解法、NativeAOT 桥、postfix-casting 语义）。本索引只保留 VB 语言设计事实。
 
 ---
 

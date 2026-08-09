@@ -186,7 +186,7 @@ We 想到了 2017.08.30 主线的先例：NRT 当时判 "Not ready yet"，需要
 ### 状态
 
 - **LDM 状态：Rejected（作为捆绑建议）**；析出的空条件 Await / 空条件赋值为 Consider；AddHandler 部分 Reject（维持主线）；For Each / AddressOf 部分 Table。
-- **三态判定：Table（整体暂缓）/ Reject（AddHandler 与后置 `?` 语句修饰符）** —— 痛点真实但方案未成熟，记法冲突与隐蔽控制流不可放行；真实价值在子集，待流分析引擎与 NRT 地基就绪后以窄建议形式复活。
+- **三态判定：Reject（作为捆绑建议）/ 拆出的空条件 Await·空条件赋值 Consider** —— 全家桶捆绑五种能力、混用 `?.` 与后置 `?`、复活主线 #303 无新证据、且违反原则 #7（隐蔽控制流），作为一份建议 Reject；真实价值在子集，已拆成两份独立窄建议走 Consider，待流分析引擎与 NRT 地基就绪后以窄建议形式复活。
 
 ---
 

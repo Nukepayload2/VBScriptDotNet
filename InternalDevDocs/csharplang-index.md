@@ -6,7 +6,7 @@
 - **如何使用**：
   1. 先读「一、C# interop 现实方向摘要」快速建立世界观；
   2. 若某主题与手头提案相关，到「二、关键文件索引」用 Windows 反斜杠路径 + Grep 关键词深挖原文；
-  3. 手头提案的「VBScript.NET 应对」应参考 **`modvb\decisions.md`（VBScript.NET 设计决策记录）** 的 M1–M8 节；C# 事实仍以本文件为准。
+  3. 手头提案的「VBScript.NET 应对」应参考 **`decisions.md`（VBScript.NET 设计决策记录）** 的 M1–M8 节；C# 事实仍以本文件为准。
 - **来源目录**：`csharplang\`（dotnet/csharplang 官方仓库镜像，main 分支，含 2013–2026 LDM notes、proposals、spec）。Governance 见该目录 `README.md`、`Design-Process.md`、`Language-Version-History.md`。
 - **版本对照**（Language-Version-History.md）：C# 7.2=Span/ref-like、7.3=unmanaged 约束、8.0=构造 unmanaged/栈上 stackalloc、9.0=nint/nuint+函数指针+SkipLocalsInit+Source Generators、11.0=ref fields/scoped/UnscopedRef+static abstract+数值 IntPtr、12.0=inline arrays+ref readonly params、13.0=ref struct interfaces+allows ref struct+ref/unsafe in iterators/async+params collections、14.0=first-class Span+extensions、15.0（开发中）=unsafe evolution+unions+closed hierarchies。
 
@@ -57,7 +57,7 @@
 - **Unsafe evolution**（proposals/unsafe-evolution.md，C# 15 候选）：把 `unsafe` 从「出现指针」改为「解引用非托管内存」；指针类型/固定缓冲/地址运算将**不再需要 unsafe 上下文**，只有解引用仍需；成员级 `unsafe` 变为 *requires-unsafe*（调用方需 unsafe 上下文），新增 `safe` 关键字与 `unsafe(expr)` 表达式；程序集级 opt-in（MemorySafetyRulesAttribute）。**对 VB 的原文表述**：「We do not need to add support to Visual Basic for *requires-unsafe* members since there are no `unsafe` contexts in VB today and no way to work with pointers there either.」（unsafe-evolution.md）
 - **Unions / closed hierarchies / discriminated unions**（C# 15 主线）：让类型系统表达「一组封闭类型」，服务模式匹配与 AOT。
 - **Extensions**（C# 14 已部分落地；C# 15 续）：扩展现有类型，冲击 VB 的 extension 方向。
-- 这些方向**大幅改变 C# 与 VB 的「默认安全模型」差异**（对 VBScript.NET 的含义见 `modvb\decisions.md` M8）。
+- 这些方向**大幅改变 C# 与 VB 的「默认安全模型」差异**（对 VBScript.NET 的含义见 `decisions.md` M8）。
 
 ---
 
@@ -114,9 +114,9 @@
 
 ---
 
-## 三、对 VBScript.NET 的含义 → 已移至 `modvb\decisions.md`
+## 三、对 VBScript.NET 的含义 → 已移至 `decisions.md`
 
-> 原「三、对 ModVB / VBScript.NET 的含义（M1–M8）」已按用户指示独立成文，见 **`modvb\decisions.md`**（VBScript.NET 设计决策记录）。该文件同时记录决策修正（ref struct 解法、NativeAOT 桥、postfix-casting 语义）。本索引只保留 C# interop 事实。
+> 原「三、对 ModVB / VBScript.NET 的含义（M1–M8）」已按用户指示独立成文，见 **`decisions.md`**（VBScript.NET 设计决策记录）。该文件同时记录决策修正（ref struct 解法、NativeAOT 桥、postfix-casting 语义）。本索引只保留 C# interop 事实。
 
 ---
 
