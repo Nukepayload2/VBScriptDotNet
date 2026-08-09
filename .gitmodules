@@ -1,0 +1,6 @@
+[submodule "InternalDevDocs/vblang"]
+	path = InternalDevDocs/vblang
+	url = https://github.com/dotnet/vblang
+[submodule "InternalDevDocs/csharplang"]
+	path = InternalDevDocs/csharplang
+	url = https://github.com/dotnet/csharplang
