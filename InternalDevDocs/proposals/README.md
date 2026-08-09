@@ -1,0 +1,63 @@
+# VBScript.NET 产品语法建议索引
+
+本文档登记 **VBScript.NET 产品自身**的提案（proposals 层），按 vblang/csharplang 规范组织为「建议 → 会议 → spec」三层结构。每个独立的语法/能力增强对应一份提案文档。
+
+**与 modvb 的关系**：`../modvb/`（Anthony 的 ModVB 提案库）是 VBScript.NET 的**参考来源**；本目录描述 VBScript.NET 产品自身的提案，不依赖 Anthony 原文，两者分离。产品提案基于产品版本归档（`vbscript-1.2/`）与设计推理。
+
+## 建议状态（四类，仿 csharplang / modvb 组织）
+
+| 状态 | 位置 | 含义 |
+|------|------|------|
+| **active** | `proposals/` 根目录 | 设计在推进（RESOLUTION **Active** / **Consider**），准备进入实现 |
+| **inactive** | `proposals/inactive/` | 有前景但暂不优先 / 未定型（RESOLUTION **Table**） |
+| **rejected** | `proposals/rejected/` | 否决（RESOLUTION **Reject**） |
+| **done** | `proposals/vbscript-<版本>/` | 已随 VBScript.NET 发布版本实现并定稿（成员见下，1.2 版已归档） |
+
+- **判定依据**：各会议纪要「三态判定」小节（`../meetings/`，与提案 1:1 同名镜像组织）。
+- **分类反映当前设计意图**，不排斥后续复活（inactive/rejected 可因信号回升）或归档（active 完成后转 done）。
+- 会议纪要目录与提案目录同步组织：`meetings/` ↔ `proposals/`、`meetings/inactive/` ↔ `proposals/inactive/`、`meetings/rejected/` ↔ `proposals/rejected/`。
+- 状态行（模板顶部）：`Proposed / Prototype / Implementation / Specification` 复选框标记进度。
+
+---
+
+## Active（2 份，根目录）
+
+> RESOLUTION = Active 或 Consider。编号为产品提案序列号。
+
+| # | 文件名 | 建议 |
+|---|--------|------|
+| 01 | `proposal-avalonia-ise-repl-ui.md` | Avalonia UI + Avalonia Edit 仿制 PowerShell ISE 的图形化 REPL/脚本编辑器（Consider，易用性提升） |
+| 02 | `proposal-optional-question-prefix.md` | REPL 表达式开头问号 `?` 可选，对齐 C# REPL 自动打印表达式结果（Active） |
+
+---
+
+## Inactive（暂无成员，`inactive/`）
+
+- 机制：RESOLUTION = Table（搁置/未定型）的提案放入 `inactive/`，与 modvb 的 inactive 目录同约定。
+- 当前无成员。
+
+---
+
+## Rejected（暂无成员，`rejected/`）
+
+- 机制：RESOLUTION = Reject 的提案放入 `rejected/`，与 modvb 的 rejected 目录同约定。
+- 当前无成员。
+
+---
+
+## Done（vbscript-1.2/）
+
+- 机制：特性随 VBScript.NET 发布版本实现并定稿后，归档到 `proposals/vbscript-<版本>/`（仿照 csharplang 的 `proposals/csharp-<版本>/` 与 modvb 的 `proposals/vbscript-1.0/` 归档规则）。
+- **判入标准**：对应 LDM 判定 Active 且 `Implementation`/`Specification` 进度完成。
+- **当前成员（1.2 版，微软商店已发布）**：VBScript.NET **1.2 beta** 已发布到微软商店（MSIX，`N2ForkVBInteractivePreview`，Identity Version=`1.2.0.0`），随其发布的「对齐 C# REPL」能力已归档到 [`vbscript-1.2/`](vbscript-1.2/README.md)：
+
+  | # | 功能点（一句话） | 文件 |
+  |---|------------------|------|
+  | 01 | REPL 交互会话（`>` 提示符、多行续行 `.`、`?` 前缀打印） | `vbscript-1.2/proposal-repl-interactive-session.md` |
+  | 02 | 指令系统（`#R`、`#help`、`/help`、`/version`、`/?`、`@vbi.rsp`、`/i`、`/` stdin、`-- script-args`） | `vbscript-1.2/proposal-repl-directives.md` |
+  | 03 | 顶层代码免包装（`Dim` / `Sub` / `Function` / `Class` / `Module`） | `vbscript-1.2/proposal-top-level-code.md` |
+  | 04 | 脚本 globals（`CommandLineScriptGlobals` / `InteractiveScriptGlobals`：`Args`、`Print`、搜索路径） | `vbscript-1.2/proposal-script-globals.md` |
+  | 05 | .vbx 脚本执行（`vbi script.vbx [-- args]`，common scripting workaround） | `vbscript-1.2/proposal-vbx-script-execution.md` |
+  | 06 | 运行时宿主选择（按 `' Attribute TargetFramework = "net48"` 注释选 net48 或 .NET 宿主） | `vbscript-1.2/proposal-runtime-host-selection.md` |
+
+- 说明：1.2 是已发布版本，已随其发布的能力归档到 `vbscript-1.2/`；顶层 `Await`、`AddHandler` / `RemoveHandler`、`Imports` 为 1.2 损坏项、已由 2.0 修复（见 `../meetings/meeting-vb-repl-parity-with-csharp-repl.md`），不作为 1.2 功能点。
