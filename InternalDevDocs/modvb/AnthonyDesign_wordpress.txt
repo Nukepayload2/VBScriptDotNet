@@ -1,0 +1,3418 @@
+<article id="post-841" class="post-841 post type-post status-publish format-standard has-post-thumbnail hentry category-uncategorized">
+	<header class="entry-header">
+		<h1 class="entry-title">The Agenda – A Visual Guide</h1>
+
+				<div class="entry-meta">
+						<span class="sep">Posted on </span><a href="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/" title="10:09 am" rel="bookmark"><time class="entry-date" datetime="2026-04-27T10:09:15-05:00">27 Apr 2026</time></a><span class="by-author"> <span class="sep"> by </span> <span class="author vcard"><a class="url fn n" href="https://anthonydgreen.net/author/anthonydiantegreen/" title="View all posts by Anthony D. Green" rel="author">Anthony D. Green</a></span></span>		</div><!-- .entry-meta -->
+			</header><!-- .entry-header -->
+
+	<div class="entry-content">
+		<span id="more-841"></span>
+<!--noteaser-->
+
+
+
+<p class="wp-block-paragraph">A few years back I tried to find a way to communicate the scope of the ModVB project. After repeated attempts to edit the length down from hundreds of pages I decided to try a depth-first summary. This proved too expensive so I’m back going for a breadth-first approach. You know the adage “A picture is worth a thousand words”? I’m hoping that works with code samples. My goal here is for you to “see” the scale not necessarily the precision. I cannot condense 20 years of study into an elevator pitch, I’m sorry.</p>
+
+
+
+<p class="wp-block-paragraph">So, I’m going to go through the outline and try to write as little prose as possible to illustrate what the change is. I’ll resist the urge to give context or backstory or motivation or exhaustively cover every bell and whistle but I will not if an idea feels less baked or there have been changes since I last publicly spoke on a topic. A few quick notes before we start to hopefully limit confusion in the comments.</p>
+
+
+
+<ul class="wp-block-list">
+<li>This is not a priority list; don’t @ me about where I should be focusing.</li>
+
+
+
+<li>This is a list accumulated over 20 years of using VB.NET and/or 8 years developing it and investigating thousands of customer complaints and requests, etc. There is not much here that I haven’t thought about deeply so if it doesn’t make sense the fault is in the description, not the design. Back-compat, tooling, performance, etc., are all part of my process.</li>
+
+
+
+<li>I don’t follow C# or F# language design, intentionally. I want to see VB actualized as the best it can be from its own intrinsic motivation, not copying the new shiny object from another language. There will be overlap in scenarios because they’re both general purpose languages and because I worked on both and had awareness of problems we wanted to solve since 2010 but I haven’t been keeping up with C# or F# since 2018 and have only a “feature name and snippet on Twittter” level of awareness of the depths of C# and F# additions. That said in the places where the features are analogous, of course there would be some reconciliation process to make for an acceptable interop story. It’s unlikely that I would accidentally overlook a chance to work well with the other languages.</li>
+
+
+
+<li>This is not a release schedule. It’s not a project plan. It doesn’t include costs. That’s outside the scope of this document and will evolve on GitHub based on factors.</li>
+
+
+
+<li>This doesn’t include the many IDE improvements I want to make.</li>
+
+
+
+<li>Every section and most subsections have links for each referencing/sharing.</li>
+</ul>
+
+
+
+<h1 class="wp-block-heading">The Agenda Illustrated</h1>
+
+
+<div class="wp-block-image">
+<figure class="aligncenter size-large"><img data-recalc-dims="1" decoding="async" width="584" height="328" data-attachment-id="726" data-permalink="https://anthonydgreen.net/draft-modvb-logo-16x9v2/" data-orig-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2024/06/draft-modvb-logo-16x9v2-1.png?fit=854%2C480&amp;ssl=1" data-orig-size="854,480" data-comments-opened="0" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="draft-modvb-logo-16x9v2" data-image-description="" data-image-caption="" data-large-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2024/06/draft-modvb-logo-16x9v2-1.png?fit=584%2C328&amp;ssl=1" src="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2024/06/draft-modvb-logo-16x9v2-1.png?resize=584%2C328&amp;ssl=1" alt="" class="wp-image-726"></figure>
+</div>
+
+
+<h2 class="wp-block-heading"><a href="#1-type-inference">1. Type-Inference Enhancements</a></h2>
+
+
+
+<p class="wp-block-paragraph">Examples excerpted from <a href="https://anthonydgreen.net/2024/06/06/the-agenda-type-inference-enhancements/">summary here</a>.</p>
+
+
+
+<pre><code><span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Duck</span> <span class="k">Then</span>
+    animal.Quack()
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<pre><code><span class="k">Select</span> <span class="k">Case</span> <span class="k">TypeOf</span> animal
+    <span class="k">Case</span> <span class="t">Mammal</span>
+        animal.SecreteMilk()
+        
+    <span class="k">Case</span> <span class="t">Bird</span>
+        animal.LayEggs()
+        
+    <span class="k">Case</span> <span class="t">Fish</span>
+        animal.Swim()
+        
+    <span class="k">Case</span> <span class="t">Insect</span>
+        animal.Creep()
+        
+    <span class="k">Case</span> <span class="k">Else</span>
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">NotImplementedException</span>()
+        
+<span class="k">End</span> <span class="k">Select</span></code></pre>
+
+
+
+<pre><code><span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Bird</span> <span class="k">AndAlso</span> animal.WingspanInMeters &gt; <span class="l">2</span> <span class="k">Then</span>
+    <span class="c">' Big Bird</span>
+<span class="k">End</span> <span class="k">If</span>
+
+<span class="k">Let</span> holders = <span class="k">If</span>(<span class="k">TypeOf</span> quadruped <span class="k">Is</span> <span class="t">Bird</span>,
+                 quadruped.Hindlimbs, 
+                 quadruped.Forelimbs)</code></pre>
+
+
+
+<pre><code><span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Vertebrate</span> <span class="k">Then</span>
+    animal.FlexBackbone()
+    
+    <span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Reptile</span> <span class="k">Then</span>
+        animal.ShedScales()
+        
+        <span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Snake</span> <span class="k">Then</span>
+            animal.Coil()
+        <span class="k">End</span> <span class="k">If</span>
+    <span class="k">End</span> <span class="k">If</span>
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<pre><code><span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">Mammal</span> <span class="k">AndAlso</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">ICanFly</span> <span class="k">Then</span>
+    <span class="c">' Members of both types are available.</span>
+    animal.SecreteMilk()
+    animal.Fly()
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<pre><code><span class="k">Let</span> animal <span class="k">As</span> <span class="t">Animal</span>? = SomeFunction()
+
+<span class="c">' (Actual error text subject to change)</span>
+<span class="c">' Error: `Move` is not a member of `Animal?`.</span>
+<span class="c">' -OR-</span>
+<span class="c">' Error: Cannot call member `Animal.Move` from nullable value.</span>
+animal.Move()
+
+<span class="k">If</span> animal <span class="k">IsNot</span> <span class="k">Null</span> <span class="k">Then</span>
+    <span class="c">' No error.</span>
+    animal.Move()
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<pre><code><span class="c">' Works with guard statements (Return, Exit, Continue, Throw).</span>
+<span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">IsNot</span> <span class="t">Mammal</span> <span class="k">Then</span> <span class="k">Return</span>
+    
+animal.ShedHair()</code></pre>
+
+
+
+<pre><code><span class="c">' Monotremes are egg-laying mammals, including the Platypus and the Echidna.</span>
+<span class="k">If</span> <span class="k">TypeOf</span> animal <span class="k">IsNot</span> <span class="t">Mammal</span> <span class="k">OrElse</span> animal.IsMonotreme <span class="k">Then</span>
+    mayLayEggs = <span class="k">True</span>
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<pre><code><span class="k">Let</span> animal <span class="k">As</span> <span class="t">Animal</span> = GetDolphin()
+
+<span class="k">Do</span> <span class="k">Until</span> <span class="k">TypeOf</span> animal <span class="k">Is</span> <span class="t">ILandDwelling</span>
+    <span class="c">' Or maybe I should have said:</span>
+    <span class="c">' Do While TypeOf animal IsNot ILandDwelling?</span>
+    animal = animal.GetImmediateAncestor()
+<span class="k">Loop</span>
+
+animal.Walk()</code></pre>
+
+
+
+<pre><code><span class="k">Select</span> <span class="k">Case</span> <span class="k">TypeOf</span> dinosaur
+    <span class="k">Case</span> <span class="k">IsNot</span> <span class="t">Bird</span>
+        
+        dinosaur.GoExtinct()
+        
+    <span class="k">Case</span> <span class="k">Else</span>
+        <span class="c">' This metaphor is straining.</span>
+        <span class="k">If</span> dinosaur.IsDodo <span class="k">Then</span>
+            dinosaur.GoExtinct()
+        <span class="k">Else</span>
+            <span class="c">' Expensive O(n) lookup on Wikipedia.</span>
+            
+        <span class="k">End</span> <span class="k">If</span>
+        
+<span class="k">End</span> <span class="k">Select</span></code></pre>
+
+
+
+<pre><code><span class="k">Let</span> usStateBearsByHibernationPeriod =
+    <span class="k">From</span>
+        state <span class="k">In</span> usStates
+    <span class="k">Let</span>
+        mammal = state.StateMammal
+    <span class="k">Where</span>
+        <span class="k">TypeOf</span> mammal <span class="k">Is</span> <span class="t">Bear</span> <span class="k">AndAlso</span> <span class="k">Not</span> mammal.IsExtinct
+    <span class="k">Order By</span>
+        mammal.HibernationPeriod <span class="k">Descending</span></code></pre>
+
+
+
+<pre><code><span class="c">' In vanilla VB, type inference requires the 2nd &amp; 3rd operands</span>
+<span class="c">' to convert to the type of one or the other or type inference</span>
+<span class="c">' fails, resulting in type 'Object'.</span>
+<span class="kv">Dim</span> animal = <span class="kv">If</span>(someCondition, <span class="kv">New</span> <span class="t">Cat</span>, <span class="kv">New</span> <span class="t">Dog</span>)</code></pre>
+
+
+
+<pre><code><span class="c">' In ModVB, 'animal' would have type 'Carnivora',  which is the taxonomical</span>
+<span class="c">' order common to cat-like and dog-like placental mammals, but that's not</span>
+<span class="c">' actually useful because not all carnivorans are carnivores, e.g. bears</span>
+<span class="c">' are often omnivores except for the Giant Panda which mostly eats plants.</span>
+<span class="c">' So, even though it's inferred that type, the only members I can use are</span>
+<span class="c">' defined on 'Mammal' in this example, which is still more than I could</span>
+<span class="c">' use if the type were 'Object', so... </span>
+<span class="k">Let</span> animal = <span class="k">If</span>(someCondition, <span class="k">New</span> <span class="t">Cat</span>, <span class="k">New</span> <span class="t">Dog</span>)
+animal.SecreteMilk()</code></pre>
+
+
+
+<pre><code><span class="c">' This should work.</span>
+<span class="k">Let</span> snapshot = <span class="t">Snapshot</span>.Create()
+
+<span class="c">' This should work correcly (infer the type of `cache`).</span>
+<span class="k">Static</span> cache = <span class="k">New</span> <span class="t">Dictionary</span>(<span class="k">Of</span> <span class="k">Integer</span>, <span class="k">Integer</span>)
+
+<span class="c">' Normally type-inference can't be done for a variable which</span>
+<span class="c">' refers to itself (e.g. a recursive lambda expression).</span>
+<span class="c">' But, since the types are explicit on the lambda,</span>
+<span class="c">' technically type-inference is unnecessary; this should work.</span>
+<span class="k">Let</span> factorial =
+      <span class="k">Function</span>(n <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Integer</span>
+          <span class="k">If</span> n &lt; <span class="l">0</span> <span class="k">Then</span> <span class="k">Throw</span>
+          
+          <span class="k">Return</span> <span class="k">If</span>(n = <span class="l">0</span>, <span class="l">1</span>, n * factorial(n - <span class="l">1</span>))
+      <span class="k">End</span> <span class="k">Function</span>
+
+<span class="c">' Normally it's an error to refer to a variable before it's</span>
+<span class="c">' declared (and also a definite assignment error).</span>
+<span class="c">' Can these rules be relaxed in lambdas that aren't invoked</span>
+<span class="c">' until all variables are declared and initialized to</span>
+<span class="c">' enable mutual recursion?</span>
+<span class="k">Let</span> isEven = <span class="k">Function</span>(n <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Boolean</span>
+                 <span class="k">Return</span> n = <span class="l">0</span> <span class="k">OrElse</span> isOdd(n - <span class="l">1</span>)
+             <span class="k">End</span> <span class="k">Function</span>
+             
+<span class="k">Let</span> isOdd = <span class="k">Function</span>(n <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Boolean</span>
+                <span class="k">Return</span> n &lt;&gt; <span class="l">0</span> <span class="k">OrElse</span> isEven(n - <span class="l">1</span>)
+            <span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#2-streamlining-and-boilerplate-reduction">2. Streamlining and Boilerplate Reduction</a></h2>
+
+
+
+<p class="wp-block-paragraph">Examples excerpted <a href="https://anthonydgreen.net/2024/06/14/the-agenda-streamlining-and-boilerplate-reduction/">summary here</a>.</p>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.1-top-level-code">2.1 Immersive Files (“Top-Level Code”)</a></h3>
+
+
+
+<p class="wp-block-paragraph"><strong>FirstProgram.vb</strong></p>
+
+
+
+<pre><code><span class="t">Console</span>.WriteLine(<span class="l">"Hello, World!"</span>)</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>SecondProgram.vb</strong></p>
+
+
+
+<pre><code><span class="c">' This is an entire program.</span>
+<span class="k">Imports</span> System.<span class="t">Console</span>
+
+<span class="k">Function</span> Prompt(message <span class="k">As</span> <span class="k">String</span>) <span class="k">As</span> <span class="k">String</span>
+    WriteLine(message)
+    <span class="k">Return</span> ReadLine()
+<span class="k">End</span> <span class="k">Function</span>
+
+<span class="k">Let</span> name = Prompt(<span class="l">"What is your name?"</span>)
+
+WriteLine(<span class="l">$"Hello, </span>{name}<span class="l">&ZeroWidthSpace;."</span>)</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Starfield.vb</strong></p>
+
+
+
+<pre><code>buffer.Clear(<span class="t">Color</span>.Black)
+
+<span class="c">' Draw 10 yellow 5x5 squares randomly across a 600x400 screen.</span>
+<span class="k">For</span> i = <span class="l">1</span> <span class="k">To</span> <span class="l">10</span>
+    buffer.FillRectangle(<span class="t">Brushes</span>.Yellow, Rnd() * <span class="l">600</span>, Rnd() * <span class="l">400</span>, <span class="l">5</span>, <span class="l">5</span>)
+<span class="k">Next</span></code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Index.vbxhtml</strong></p>
+
+
+
+<pre><code>&lt;?xml version=<span class="l">"1.0"</span> encoding=<span class="l">"UTF-8"</span>?&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Welcome to my site!&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;&lt;{ ViewData!Message }&gt;&lt;/h1&gt;
+    &lt;h2&gt;This is a header.&lt;/h2&gt;
+    &lt;p&gt;Today is &lt;{ <span class="k">Date</span>.Today.ToString(<span class="l">"MMM d, yyyy"</span>) }&gt;.&lt;/p&gt;
+    
+    &lt;a href=<span class="l">"/"</span>&gt;Home&lt;/a&gt;
+    &lt;a href=<span class="l">"/home/about"</span>&gt;About&lt;/a&gt;
+    &lt;a href=<span class="l">"/home/contact"</span>&gt;Contact&lt;/a&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Form1.vb</strong></p>
+
+
+
+<pre><code><span class="k">Sub</span> Button1_Click() <span class="k">Handles</span> Button1.Click
+    MsgBox(<span class="l">"Hi"</span>)
+<span class="k">End</span> <span class="k">Sub</span>
+
+<span class="k">Sub</span> Button2_Click() <span class="k">Handles</span> Button2.Click
+    MsgBox(<span class="l">"Bye"</span>)
+<span class="k">End</span> <span class="k">Sub</span></code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Past Demos</strong> (Early Prototypes)</p>
+
+
+
+<ul class="wp-block-list">
+<li><a href="https://www.youtube.com/watch?v=aJTX5SYu2GY">The Basics</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=75QBryAPZpE">Notebooks</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=cGA8fB8P9WA">QBasic-style Game Loop</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=QS0IXfHp2Gg">Web Page</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=VsOCFk7-p2w">Web Controls/Components</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=4sTH_YfeP7s">Web API</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=3eoO3xXDza8">XAML/Xamarin.Forms</a></li>
+</ul>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.2-key-fields-properties-auto-constructors">2.2 Key Fields &amp; Properties, and Auto-Constructors</a></h3>
+
+
+
+<pre><code><span class="k">Class</span> <span class="t">AppointmentBookingService</span>
+    
+    <span class="k">Private</span> <span class="k">Key</span> CalendarService <span class="k">As</span> <span class="t">ICalendarService</span>,
+                PaymentService <span class="k">As</span> <span class="t">IPaymentService</span>,
+                EmailService <span class="k">As</span> <span class="t">IEmailService</span>
+
+    <span class="c">' Look at this code I'm never going to have to type again!</span>
+    <span class="c">''Public Sub New(calendarService As ICalendarService,</span>
+    <span class="c">''               paymentService As IPaymentService,</span>
+    <span class="c">''               emailService As IEmailService)</span>
+    <span class="c">''               </span>
+    <span class="c">''    Me.CalendarService = calendarService</span>
+    <span class="c">''    Me.PaymentService = paymentService</span>
+    <span class="c">''    Me.EmailService = emailService</span>
+    <span class="c">''End Sub</span>
+
+<span class="k">End</span> <span class="k">Class</span></code></pre>
+
+
+
+<pre><code><span class="k">Structure</span> <span class="t">Money</span>
+    <span class="k">Implements</span> <span class="t">IEquatable</span>(<span class="k">Of</span> <span class="t">Money</span>)
+    
+    <span class="k">Public</span> <span class="k">Key</span> <span class="k">ReadOnly</span> <span class="k">Property</span> Value <span class="k">As</span> <span class="k">Decimal</span>
+    
+    <span class="k">Public</span> <span class="k">Key</span> <span class="k">ReadOnly</span> <span class="k">Property</span> Currency <span class="k">As</span> <span class="t">Currency</span>
+    
+    <span class="c">' Sub New(value, currency), Equals, and GetHashCode provided by compiler.</span>
+    
+<span class="k">End</span> <span class="k">Structure</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.3-wildcard-lambda-expressions">2.3 Wildcard Lambda Expressions</a></h3>
+
+
+
+<pre><code>&lt;<span class="t">TextBox</span> Text={*.PrimaryContact.FirstName}/&gt;</code></pre>
+
+
+
+<pre><code class="vvb"><span class="c">' Vanilla VB</span>
+modelBuilder.Entity(<span class="k">Of</span> <span class="t">Blog</span>) _
+            .Property(<span class="k">Function</span>(b) b.Url) _
+            .IsRequired()
+            
+modelBuilder.Entity(<span class="k">Of</span> <span class="t">Blog</span>) _
+            .HasMany(<span class="k">Function</span>(e) e.Posts) _
+            .WithOne(<span class="k">Function</span>(e) e.Blog) _
+            .HasForeignKey(<span class="k">Function</span>(e) e.ContainingBlogId) _
+            .IsRequired()</code>
+            
+<code><span class="c">' ModVB</span>
+modelBuilder.Entity(<span class="k">Of</span> <span class="t">Blog</span>) _
+            .Property(*.Url) _
+            .IsRequired()
+            
+modelBuilder.Entity(<span class="k">Of</span> <span class="t">Blog</span>) _
+            .HasMany(*.Posts) _
+            .WithOne(*.Blog) _
+            .HasForeignKey(*.ContainingBlogId) _
+            .IsRequired()</code></pre>
+
+
+
+<pre><code><span class="k">Let</span> users = context.Users.Include(*.Profile.Avatar).ToList()</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.4-abbreviated-properties-events">2.4 New since summary published</a></h3>
+
+
+
+<pre><code><span class="c">' Computed `ReadOnly` Properties.</span>
+<span class="c">' Now 2 lines instead of 5.</span>
+<span class="k">ReadOnly</span> <span class="k">Property</span> DiscountedPrice <span class="k">As</span> <span class="k">Decimal</span>
+    <span class="k">Return</span> Price - (Price * DiscountRate)
+
+<span class="c">' `Return` or `Get`?</span>
+<span class="k">ReadOnly</span> <span class="k">Property</span> DiscountedPrice <span class="k">As</span> <span class="k">Decimal</span>
+    <span class="k">Get</span> Price - (Price * DiscountRate)
+    
+<span class="c">' Accessor `End` Statements can be omitted.</span>
+<span class="k">Property</span> Age <span class="k">As</span> <span class="k">Integer</span>
+    <span class="k">Get</span>
+        <span class="k">Return</span> _Age
+        
+    <span class="k">Set</span>(value)
+        <span class="k">If</span> value &lt; <span class="l">0</span> <span class="k">Then</span> <span class="k">Throw</span>
+            
+        _Age = value
+<span class="k">End</span> <span class="k">Property</span>
+
+<span class="k">Event</span> AgeChanged <span class="k">As</span> <span class="t">EventHandler</span>
+    <span class="k">AddHandler</span>(value)
+        _AgeChanged += value
+        
+    <span class="k">RemoveHandler</span>(value)
+        _AgeChanged -= value
+    
+    <span class="k">RaiseEvent</span>(sender, e)
+        _AgeChanged?(sender, e)
+    
+<span class="k">End</span> <span class="k">Event</span>
+
+<span class="c">' Pre-processing conditional attributes.</span>
+#<span class="k">If</span> PLATFORM = <span class="l">"NetFX"</span> <span class="k">Then</span>
+    &lt;<span class="t">Serializable</span>&gt;
+#<span class="k">Else</span>
+    &lt;<span class="t">DataContract</span>&gt;
+#<span class="k">End</span> <span class="k">If</span>
+<span class="k">Class</span> <span class="t">Message</span>
+    ...
+<span class="k">End</span> <span class="k">Class</span>
+</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.5-markdown-doc-comments">2.5 Markdown Documentation Comment Syntax</a></h3>
+
+
+
+<pre><code><span class="c">'''</span>
+<span class="c">''' Returns a function from a description of a line in slope-intercept form.</span>
+<span class="c">'''</span>
+<span class="c">''' # Parameters</span>
+<span class="c">''' - @</span>m<span class="c">: The slope of the line. Must not be @</span><span class="k">Double</span>.PositiveInfinity<span class="c">,</span>
+<span class="c">'''       @</span><span class="k">Double</span>.NegativeInfinity<span class="c">, or @</span><span class="k">Double</span>.NaN<span class="c">.</span>
+<span class="c">''' - @</span>b<span class="c">: The y-intercept of the line. Must not be @</span><span class="k">Double</span>.PositiveInfinity<span class="c">,</span>
+<span class="c">'''       @</span><span class="k">Double</span>.NegativeInfinity<span class="c">, or @</span><span class="k">Double</span>.NaN<span class="c">.</span>
+<span class="c">'''</span>
+<span class="c">''' # Returns</span>
+<span class="c">''' An instance of `</span><span class="t">Func</span>(<span class="k">Of</span> <span class="k">Double</span>, <span class="k">Double</span>)<span class="c">` delegate type which</span>
+<span class="c">''' returns the y-coordinate given an x-coordinate.</span>
+<span class="c">'''</span>
+<span class="c">''' # Exceptions</span>
+<span class="c">''' - @</span><span class="t">ArgumentOutOfRangeException</span><span class="c">: Either @</span>m<span class="c"> or @</span>b<span class="c"> is</span>
+<span class="c">'''     @</span><span class="k">Double</span>.PositiveInfinity<span class="c">, @</span><span class="k">Double</span>.NegativeInfinity<span class="c">, or @</span><span class="k">Double</span>.NaN<span class="c">.</span>
+<span class="c">'''</span>
+<span class="c">''' # Remarks</span>
+<span class="c">''' A line can be of one of 3 forms:</span>
+<span class="c">''' 1. Horizontal,</span>
+<span class="c">''' 2. Vertical, or</span>
+<span class="c">''' 3. Diagonal.</span>
+<span class="c">'''</span>
+<span class="c">''' This API only supports forms 1 and 3.</span>
+<span class="c">'''</span>
+<span class="c">''' # Examples</span>
+<span class="c">''' ## Normal usage</span>
+<span class="c">''' ``` vb.net</span>
+<span class="c">''' </span><span class="k">Let</span> y = F(<span class="l">3</span> / <span class="l">2</span>, -<span class="l">5</span>)
+<span class="c">''' </span>Graph(y, <span class="l">0</span> <span class="k">To</span> <span class="l">100</span>)
+<span class="c">''' ```</span>
+<span class="c">'''</span>
+<span class="c">''' ## Horizontal line</span>
+<span class="c">''' ``` vb.net</span>
+<span class="c">''' </span><span class="k">Let</span> y = F(<span class="l">0</span>, -<span class="l">5</span>)
+<span class="c">''' </span>Graph(y, <span class="l">0</span> <span class="k">To</span> <span class="l">100</span>)
+<span class="c">''' ```</span>
+<span class="k">Function</span> F(m <span class="k">As</span> <span class="k">Double</span>, b <span class="k">As</span> <span class="k">Double</span>) <span class="k">As</span> <span class="t">Func</span>(<span class="k">Of</span> <span class="k">Double</span>, <span class="k">Double</span>)
+    <span class="k">If</span> <span class="k">Double</span>.IsInfinity(m) <span class="k">OrElse</span> <span class="k">Double</span>.IsNaN(m) <span class="k">Then</span>
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">ArgumentOutOfRangeException</span>(<span class="k">NameOf</span> m)
+    <span class="k">ElseIf</span> <span class="k">Double</span>.IsInfinity(b) <span class="k">OrElse</span> <span class="k">Double</span>.IsNaN(b) <span class="k">Then</span>
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">ArgumentOutOfRangeException</span>(<span class="k">NameOf</span> b)
+    <span class="k">End</span> <span class="k">If</span>
+    
+    <span class="k">Return</span> <span class="k">Function</span>(x) (m * x) + b
+<span class="k">End</span> <span class="k">Function</span>
+</code></pre>
+
+
+
+<h1 class="wp-block-heading"><a href="#2.6-ignore-warning-directive">2.6 <code>#Ignore Warning</code> Directive</a></h1>
+
+
+
+<pre><code class="vvb"><span class="c">' Before.</span>
+#<span class="k">Disable</span> <span class="k">Warning</span> BC42356 <span class="c">' No `Awaits`; don't care.</span>
+<span class="k">Async</span> <span class="k">Function</span> SayHiAsync() <span class="k">As</span> <span class="t">Task</span>
+#<span class="k">Enable</span> <span class="k">Warning</span> BC42356
+
+    <span class="t">Console</span>.WriteLine(<span class="l">"Hello, World!"</span>)
+
+<span class="k">End</span> <span class="k">Function</span></code>
+    
+<code><span class="c">' After.</span>
+#<span class="k">Ignore</span> <span class="k">Warning</span> BC42356 <span class="c">' No `Awaits`; don't care.</span>
+<span class="k">Async</span> <span class="k">Function</span> SayHiAsync() <span class="k">As</span> <span class="t">Task</span>
+
+    <span class="t">Console</span>.WriteLine(<span class="l">"Hello, World!"</span>)
+
+<span class="k">End</span> <span class="k">Function</span>
+</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.7-implicit-line-continuation">2.7 New Implicit Line Continuations</a></h3>
+
+
+
+<p class="wp-block-paragraph"></p>
+
+
+
+<ul id="block-e29022bc-dcd8-4f38-804a-a5a62f674872" class="wp-block-list">
+<li>Before <code>Then</code></li>
+</ul>
+
+
+
+<pre><code><span class="k">If</span> someComplexConditionExpression1 <span class="k">AndAlso</span>
+   (someComplexConditionExpression2 <span class="k">OrElse</span>
+    someComplexConditionExpression3)
+<span class="k">Then</span>
+    <span class="c">' Do stuff.</span>
+
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<ul id="block-9c7be5e7-0534-47e1-a412-050e83d3d9c4" class="wp-block-list">
+<li>Before <code>Handles</code></li>
+</ul>
+
+
+
+<pre><code><span class="k">Sub</span> Button1_Click(sender <span class="k">As</span> <span class="k">Object</span>, e <span class="k">As</span> <span class="t">MouseMoveEventArgs</span>)
+    <span class="k">Handles</span> Button1.MouseMove
+
+    <span class="c">' Do stuff.</span>
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<ul id="block-adfe5484-f846-4448-8b4e-a0d8d2f8e5aa" class="wp-block-list">
+<li>Before <code>Implements</code></li>
+</ul>
+
+
+
+<pre><code><span class="k">Function</span> GetEnumerator() <span class="k">As</span> <span class="t">IEnumerator</span>(<span class="k">Of</span> <span class="t">T</span>)
+    <span class="k">Implements</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">T</span>).GetEnumerator
+    
+    <span class="c">' Get thing.</span>
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<ul id="block-22d53add-6be7-476d-afd4-e3380a65f57d" class="wp-block-list">
+<li>Between <code>)</code> and <code>As</code> in <code>Function</code> statements</li>
+</ul>
+
+
+
+<pre><code><span class="k">Function</span> BuyCar(
+           make <span class="k">As</span> <span class="k">String</span>,
+           model <span class="k">As</span> <span class="k">String</span>,
+           year <span class="k">As</span> <span class="k">Integer</span>,
+           <span class="k">Optional</span> trim <span class="k">As</span> <span class="k">String</span>
+         )
+         <span class="k">As</span> <span class="t">Car</span></code></pre>
+
+
+
+<ul id="block-0c172e71-7b29-48ba-bed6-f5098cddc48f" class="wp-block-list">
+<li>Maybe allowing comments between query clauses?</li>
+</ul>
+
+
+
+<pre><code><span class="c">' Getting customers</span>
+<span class="k">From</span> customer <span class="k">In</span> db.Customers
+<span class="c">' in Illinois</span>
+<span class="k">Where</span> customer.Address.State = <span class="l">"IL"</span>
+<span class="c">' with orders</span>
+<span class="k">Join</span> order <span class="k">In</span> db.Orders <span class="k">On</span> order.CustomerId = customer.Id
+<span class="c">' made last year</span>
+<span class="k">Where</span> order.OrderDate.Year = <span class="l">2023</span>
+<span class="c">' from most expensive to least</span>
+<span class="k">Order By</span> order.Total <span class="k">Descending</span>
+<span class="c">' getting the top 10</span>
+<span class="k">Take</span> <span class="l">10</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#2.8-bug-fixes-misc">2.8 Bug Fixes &amp; Other Minutiae</a></h3>
+
+
+
+<ul id="block-ec7696bd-e30f-4af0-bf53-02902d484984" class="wp-block-list">
+<li>Async <code>Main</code> methods will be legal</li>
+</ul>
+
+
+
+<pre><code><span class="k">Async</span> <span class="k">Function</span> Main(args <span class="k">As</span> <span class="k">String</span>()) <span class="k">As</span> <span class="t">Task</span>(<span class="k">Of</span> <span class="k">Integer</span>)
+
+    <span class="k">Await</span> <span class="t">Console</span>.Out.WriteLineAsync(<span class="l">"This is an example."</span>)
+
+    <span class="k">Return</span> <span class="l">0</span>
+<span class="k">End</span> <span class="k">Sub</span></code></pre>
+
+
+
+<ul id="block-2b884cbe-0b9b-4e77-8dd4-32d2da63f1a8" class="wp-block-list">
+<li>Optional parameter default value inference</li>
+</ul>
+
+
+
+<pre><code><span class="k">Function</span> BuyCar(
+           make <span class="k">As</span> <span class="k">String</span>,
+           model <span class="k">As</span> <span class="k">String</span>,
+           year <span class="k">As</span> <span class="k">Integer</span>,
+           <span class="k">Optional</span> trim <span class="k">As</span> <span class="k">String</span> <span class="c">' &lt;-- No default here.</span>
+         )
+         <span class="k">As</span> <span class="t">Car</span></code></pre>
+
+
+
+<ul id="block-584b4633-8412-4029-83f1-4c74d443a6b6" class="wp-block-list">
+<li><code>Optional</code> keyword … optional after first optional parameter?</li>
+</ul>
+
+
+
+<pre><code><span class="k">Function</span> MakeDateTime(
+           year <span class="k">As</span> <span class="k">Integer</span>,
+           month <span class="k">As</span> <span class="k">Integer</span>,
+           day <span class="k">As</span> <span class="k">Integer</span>,
+           <span class="k">Optional</span>
+             hour <span class="k">As</span> <span class="k">Integer</span>,
+             minute <span class="k">As</span> <span class="k">Integer</span>,
+             second <span class="k">As</span> <span class="k">Integer</span>,
+             millisecond <span class="k">As</span> <span class="k">Integer</span>,
+             microsecond <span class="k">As</span> <span class="k">Integer</span>
+         )
+         <span class="k">As</span> <span class="k">Date</span></code></pre>
+
+
+
+<ul id="block-dd9e9e6a-f511-4fb2-83fd-ee0d10ab9bef" class="wp-block-list">
+<li>Type inference for accessor <code>value</code> parameters</li>
+</ul>
+
+
+
+<pre><code class="vvb"><span class="c">' Before</span>
+<span class="k">Property</span> Name <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Get</span>
+
+    <span class="k">End</span> <span class="k">Get</span>
+    <span class="k">Set</span>(value <span class="k">As</span> <span class="k">String</span>)
+
+    <span class="k">End</span> <span class="k">Set</span>
+<span class="k">End</span> <span class="k">Property</span>
+
+<span class="c">' We shall never know the delegate type of this event.</span>
+<span class="k">Custom</span> <span class="k">Event</span> NameChanged <span class="k">As</span> <span class="t">EventHandler</span>(<span class="k">Of</span> <span class="t">EventArgs</span>)
+    <span class="k">AddHandler</span>(value <span class="k">As</span> <span class="t">EventHandler</span>(<span class="k">Of</span> <span class="t">EventArgs</span>))
+
+    <span class="k">End</span> <span class="k">AddHandler</span>
+    <span class="k">RemoveHandler</span>(value <span class="k">As</span> <span class="t">EventHandler</span>(<span class="k">Of</span> <span class="t">EventArgs</span>))
+
+    <span class="k">End</span> <span class="k">RemoveHandler</span>
+    <span class="k">RaiseEvent</span>(sender <span class="k">As</span> <span class="k">Object</span>, e <span class="k">As</span> <span class="t">EventArgs</span>)
+
+    <span class="k">End</span> <span class="k">RaiseEvent</span>
+<span class="k">End</span> <span class="k">Event</span></code>
+
+<code><span class="c">' After</span>
+<span class="k">Property</span> Name <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Get</span>
+
+    <span class="k">End</span> <span class="k">Get</span>
+    <span class="k">Set</span>(value)
+
+    <span class="k">End</span> <span class="k">Set</span>
+<span class="k">End</span> <span class="k">Property</span>
+
+<span class="k">Event</span> NameChanged <span class="k">As</span> <span class="t">EventHandler</span>(<span class="k">Of</span> <span class="t">EventArgs</span>)
+    <span class="k">AddHandler</span>(value)
+
+    <span class="k">End</span> <span class="k">AddHandler</span>
+    <span class="k">RemoveHandler</span>(value)
+
+    <span class="k">End</span> <span class="k">RemoveHandler</span>
+    <span class="k">RaiseEvent</span>(sender, e)
+
+    <span class="k">End</span> <span class="k">RaiseEvent</span>
+<span class="k">End</span> <span class="k">Event</span></code></pre>
+
+
+
+<ul id="block-d1a6f6d1-0b31-4c8c-9735-b6809cebd67c" class="wp-block-list">
+<li><code>Custom</code> keyword in for custom <code>Event</code> declarations not required</li>
+</ul>
+
+
+
+<p class="wp-block-paragraph">See above.</p>
+
+
+
+<ul id="block-2265c5ea-da11-41f4-bf8e-7bb27b730936" class="wp-block-list">
+<li>Optional parentheses for <code>NameOf</code> expressions?</li>
+</ul>
+
+
+
+<pre><code><span class="k">Public</span> <span class="k">Shared</span> <span class="k">ReadOnly</span> HeaderTextProperty <span class="k">As</span> <span class="t">DependencyProperty</span> =
+                         <span class="t">DependencyProperty</span>.Register(
+                           <span class="k">NameOf</span> HeaderText, <span class="c">' &lt;-- No parentheses.</span>
+                           <span class="k">GetType</span>(<span class="k">String</span>),
+                           <span class="k">GetType</span>(<span class="t">MyControl</span>)
+                         )
+                                            
+<span class="k">Public</span> <span class="k">Property</span> HeaderText <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Get</span>
+        ...
+</code></pre>
+
+
+
+<ul id="block-001323cf-c12d-4c30-94a8-64c081b234e9" class="wp-block-list">
+<li>Open generic types/methods(?) allowed in <code>NameOf</code> expressions</li>
+</ul>
+
+
+
+<pre><code class="vvb"><span class="c">' Vanilla VB</span>
+<span class="c">' This is legal:</span>
+<span class="k">Shared</span> <span class="k">ReadOnly</span> DictionaryType <span class="k">As</span> <span class="t">Type</span> = <span class="k">GetType</span>(<span class="t">Dictionary</span>(<span class="k">Of</span>,))
+
+<span class="c">' But you're required to write this:</span>
+<span class="k">Shared</span> <span class="k">ReadOnly</span> DictionaryName <span class="k">As</span> <span class="k">String</span> = <span class="k">NameOf</span>(<span class="t">Dictionary</span>(<span class="k">Of</span> <span class="k">Object</span>, <span class="k">Object</span>))</code>
+
+<code><span class="c">' ModVB</span>
+<span class="c">' Now this is also legal:</span>
+<span class="k">Shared</span> <span class="k">ReadOnly</span> DictionaryName <span class="k">As</span> <span class="k">String</span> = <span class="k">NameOf</span> <span class="t">Dictionary</span>(<span class="k">Of</span>,)</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#3-modernization-statements-expressions">3. General Modernization and Evolution I (Statements &amp; Expressions)</a></h2>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.1-local-declarations">3.1 Local variables</a></h3>
+
+
+
+<pre><code><span class="c">' Tuple deconstruction.</span>
+<span class="k">Let</span> suit, rank = GetCard()
+
+<span class="c">' Fix: `As New` for arrays and anonymous types.</span>
+<span class="k">Dim</span> buffer <span class="k">As</span> <span class="k">New</span> <span class="k">Byte</span>(<span class="l">0</span> <span class="k">To</span> <span class="l">1023</span>) {}
+
+<span class="k">Let</span> foreignKey <span class="k">As</span> <span class="k">New</span> <span class="k">With</span> {emailAddress, userId}</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.2-assignment">3.2 Assignment</a></h3>
+
+
+
+<pre><code><span class="c">' Explicit `Set` statement.</span>
+<span class="k">Set</span> obj.Position += acceleration
+    
+<span class="k">Set</span> left = <span class="k">Null</span>,
+    right = <span class="k">Null</span>    
+            
+<span class="k">Set</span> suit, rank = GetNextCard()</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.3-select-case">3.3 <code>Select Case</code></a></h3>
+
+
+
+<pre><code><span class="c">' `Select Case` on type.</span>
+<span class="k">Select</span> <span class="k">Case</span> <span class="k">TypeOf</span> obj
+    <span class="k">Case</span> AppDomain
+        ...
+
+<span class="c">' `Select Case` on shape.</span>
+<span class="k">Select</span> <span class="k">Case</span> <span class="k">ShapeOf</span> coordinate
+    <span class="k">Case</span> (latitude, longitude)
+        ...
+
+<span class="c">' `Select Case` on identity.</span>
+<span class="k">Select</span> <span class="k">Case</span> sender
+    <span class="k">Case</span> <span class="k">Is</span> CloseButton
+        ...
+        
+    <span class="k">Case</span> <span class="k">IsNot</span> MainForm
+        ...
+        
+<span class="c">' `Select Case` with `Like`.</span>
+<span class="k">Select</span> <span class="k">Case</span> str
+    <span class="k">Case</span> <span class="k">Is</span> <span class="k">Like</span> <span class="l">"?*@?*.?*"</span>
+        ...
+
+    <span class="k">Case</span> <span class="k">IsNot</span> <span class="k">Like</span> <span class="l">"#.#.#.#"</span>
+        ...
+        
+<span class="c">' `Select Case` on collection membership.</span>
+<span class="k">Select</span> <span class="k">Case</span> str
+    <span class="k">Case</span> <span class="k">In</span> bannedWords
+        ...
+
+    <span class="k">Case</span> <span class="k">NotIn</span> bannedWords
+        ...</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.4-for">3.4 <code>For</code></a></h3>
+
+
+
+<pre><code><span class="c">' Multiple nested counter variables and ranges.</span>
+<span class="k">For</span> z = <span class="l">0</span> <span class="k">To</span> maxDepth,
+    y = <span class="l">0</span> <span class="k">To</span> maxHeight,
+    x = <span class="l">0</span> <span class="k">To</span> maxWidth
+    
+    ....   
+    
+<span class="k">Next</span> x, y, z
+
+<span class="c">' Explicit variable in `Exit For` and `Continue For` statements.</span>
+<span class="k">Continue</span> <span class="k">For</span> y
+
+<span class="k">Exit</span> <span class="k">For</span> z
+</code></pre>
+
+
+
+<pre><code><span class="c">' Fix: Capture `For` variable per iteration to avoid</span>
+<span class="c">' reporting warning BC42324 AND throwing </span>
+<span class="c">' 'IndexOutOfRangeException' in cases like this:</span>
+<span class="k">Let</span> arr = {<span class="l">"Peaches"</span>, <span class="l">"Pears"</span>, <span class="l">"Plums"</span>}
+<span class="k">Let</span> elementPrintActions = <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="t">Action</span>)
+
+<span class="k">For</span> i = <span class="l">0</span> <span class="k">To</span> arr.Length - <span class="l">1</span>
+    <span class="c">' Warning BC42324: Using the iteration variable in</span>
+    <span class="c">' a lambda expression may have unexpected results.</span>
+    <span class="c">' Instead, create a local variable within the loop</span>
+    <span class="c">' and assign it the value of the iteration variable.</span>
+    elementPrintActions.Add(<span class="k">Sub</span>() Console.WriteLine(arr(i)))
+    <span class="c">'                                                   ~</span>
+<span class="k">Next</span>
+
+<span class="k">For</span> <span class="k">Each</span> printAction <span class="k">In</span> elementPrintActions
+    printAction()
+<span class="k">Next</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.5-for-each">3.5 <code>For Each</code></a></h3>
+
+
+
+<pre><code><span class="c">' Tuple deconstruction.</span>
+<span class="k">For</span> <span class="k">Each</span> <span class="k">key</span>, value <span class="k">In</span> dictionary
+    ...
+
+<span class="c">' Explicit variable in `Exit For` and `Continue For` statements.</span>
+<span class="k">Continue</span> <span class="k">For</span> child
+
+<span class="k">Exit</span> <span class="k">For</span> parent
+
+
+<span class="c">' Query comprehensions.</span>
+<span class="k">For</span> <span class="k">Each</span> ch <span class="k">In</span> str <span class="k">Where</span> ch -&gt; <span class="k">Char</span>.IsDigit()
+    ...
+    
+<span class="c">' IAsyncEnumerable support.</span>
+<span class="k">Await</span> <span class="k">Each</span> item <span class="k">In</span> sequence
+    ...
+<span class="k">Next</span>
+</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Past Demo </strong>(Early Prototype)</p>
+
+
+
+<ul class="wp-block-list">
+<li><a href="https://www.youtube.com/watch?v=ynBHLuicCYs">Query Operators in <code>For Each</code></a></li>
+</ul>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.6-do">3.6 <code>Do</code></a></h3>
+
+
+
+<pre><code><span class="c">' Variable declaration/assignment in header BEFORE condition is evaluated.</span>
+<span class="k">Do</span> line = Console.ReadLine() <span class="k">Until</span> line <span class="k">Is</span> <span class="k">Null</span>
+    ...
+
+<span class="k">Do</span> bytesRead = stream.ReadAsync(buffer, <span class="l">0</span>, buffer.Length) <span class="k">While</span> bytesRead &gt; -<span class="l">1</span>
+    ...</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.7-with">3.7 <code>With</code></a></h3>
+
+
+
+<pre><code><span class="c">' Named `With` variable.</span>
+<span class="k">With</span> parameter = command.CreateParameter()
+    .ParameterName = <span class="l">"@id"</span>
+    .DbType = DbType.Guid
+    .Value = id
+    
+    command.Parameters.Add(parameter)
+<span class="k">End</span> <span class="k">With</span>
+
+<span class="c">' `.Me` pseudo-member.</span>
+<span class="k">With</span> command.CreateParameter()
+    .ParameterName = <span class="l">"@id"</span>
+    .DbType = DbType.Guid
+    .Value = id
+    
+    command.Parameters.Add(.Me)
+<span class="k">End</span> <span class="k">With</span>
+
+<span class="c">' Compound-assignment operators.</span>
+<span class="k">With</span> builder
+    &amp;= item.Header
+    &amp;= vbCrLf
+    &amp;= item.Description
+    &amp;= vbCrLf
+<span class="k">End</span> <span class="k">With</span>
+</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.8-throw">3.8 Throw</a></h3>
+
+
+
+<pre><code><span class="c">' Exception type inference.</span>
+
+<span class="c">' Throws ArgumentNullException.</span>
+<span class="k">If</span> name <span class="k">Is</span> <span class="k">Null</span> <span class="k">Then</span> <span class="k">Throw</span>
+
+<span class="c">' Throws ArgumentOutOfRangeException.</span>
+<span class="k">If</span> count &lt; <span class="l">0</span> <span class="k">Then</span> <span class="k">Throw</span>
+    
+<span class="c">' Throws InvalidOperationException.</span>
+<span class="k">If</span> IsClosed <span class="k">Then</span> <span class="k">Throw</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.9-try">3.9 <code>Try</code></a></h3>
+
+
+
+<pre><code><span class="c">' `Await` in `Catch` and `Finally` blocks.</span>
+<span class="k">Try</span>
+    ...
+<span class="k">Catch</span> <span class="k">ex</span> <span class="k">As</span> <span class="t">Exception</span>
+    <span class="k">Await</span> logger.LogAsync(<span class="k">ex</span>)
+    
+<span class="k">Finally</span>
+    <span class="k">Await</span> resource.DisposeAsync()
+<span class="k">End</span> <span class="k">Try</span>
+
+<span class="c">' Local declarations scoped to entire `Try`/`Catch`/`Finally` block.</span>
+<span class="k">Try</span> resource1 = GetResource(),
+    resource2 <span class="k">As</span> <span class="t">ResourceHandle</span>
+    
+    resource1.Open()
+    resource2 = resource1.GetChildResourceHandle()
+    
+<span class="k">Catch</span> <span class="k">ex</span> <span class="k">As</span> <span class="t">Exception</span>
+    resource2?.Revert()
+    resource1?.Revert()
+    
+<span class="k">Finally</span>
+    resource2?.Dispose()
+    resource1?.Dispose()
+<span class="k">End</span> <span class="k">Try</span>
+
+<span class="c">' `Catch` and/or `Finally` in any block.</span>
+<span class="k">For</span> <span class="k">Each</span> p <span class="k">In</span> Process.GetProcesses() <span class="k">Where</span> p.Name = <span class="l">"chrome.exe"</span>
+    ...
+    
+<span class="k">Finally</span>
+    p.Kill()
+<span class="k">Next</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.10-using">3.10 <code>Using</code></a></h3>
+
+
+
+<pre><code><span class="c">' `Catch` and/or `Finally` in `Using` block.</span>
+<span class="k">Using</span> reader = File.OpenText(filename)
+    ...
+
+<span class="k">Catch</span> <span class="k">ex</span> <span class="k">As</span> <span class="t">IOException</span>
+    logger.Log(<span class="l">"Failed to read configuration."</span>)
+
+<span class="k">Finally</span>
+    <span class="k">Await</span> reader.DisposeAsync()
+
+<span class="k">End</span> <span class="k">Using</span>
+
+<span class="c">' Tuple deconstruction.</span>
+<span class="k">Using</span> one, two, three = GetTriplet()
+    ...
+    
+<span class="c">' Recognize `Dispose` method by name (maybe even an extension method?).</span>
+</code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.11-synclock">3.11 <code>SyncLock</code></a></h3>
+
+
+
+<p class="wp-block-paragraph">Basically the same stuff as <code>Using</code>. Maybe some enhancements for additional synchronization  methods other than <code>Monitor.Enter/Exit</code>.</p>
+
+
+
+<h3 class="wp-block-heading"><a href="#3.12-casting">3.12 Casting</a></h3>
+
+
+
+<pre><code><span class="c">' Post-fix casting syntax makes it easier to read</span>
+<span class="c">' and write chained conversions and member accesses.</span>
+<span class="k">Let</span> rowId = control.Tag(<span class="k">As</span> <span class="t">DataRow</span>).RowId
+
+? jsonObject!receivedDate(<span class="k">As</span> <span class="k">Date</span>)</code></pre>
+
+
+
+<h3 class="wp-block-heading">3.13 <code>Return</code></h3>
+
+
+
+<pre><code><span class="c">' `Return` statement may now also assign to `ByRef`/`Out` parameters.</span>
+<span class="k">Return</span> <span class="k">True</span>, value:=result</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#4-xml-xaml-literals">4. UI, XML, XAML</a></h2>
+
+
+
+<pre><code><span class="c">' XAML Literals.</span>
+<span class="k">Let</span> button = &lt;?xaml?&gt;
+             &lt;Button Content=<span class="l">"{Binding Command.Name}"</span>
+                     Clicked=<span class="l">"OnButtonClicked"</span>/&gt;
+             
+<span class="c">' Embedded VB Parsing Mode (No &lt;%= %&gt; or XML escapes required).</span>
+<span class="c">'</span>
+<span class="c">' Not Shown: Full-Fidelity VB Code-Trees to support inspection, execution, and</span>
+<span class="c">' translation of embedded VB code to target DSLs such as JavaScript.</span>
+&lt;?vb?&gt;
+&lt;html&gt;
+  &lt;head&gt;&lt;title&gt;document.Title&lt;/title&gt;&lt;/head&gt;
+  &lt;body&gt;
+  &lt;h1&gt;<span class="l">$"&ZeroWidthSpace;</span>{document.Title&ZeroWidthSpace;}<span class="l"> &gt;&gt; &ZeroWidthSpace;</span>{document.LastUpdated&ZeroWidthSpace;}<span class="l">"</span>&lt;/h1&gt;
+  
+  <span class="k">If</span> includeDisclaimer <span class="k">Then</span>
+      &lt;div&gt;
+          ...
+      &lt;/div&gt;
+  <span class="k">End</span> <span class="k">If</span>
+  
+  <span class="k">For</span> <span class="k">Each</span> p <span class="k">In</span> document.Paragraphs
+      &lt;p&gt;p.Text&lt;/p&gt;
+  <span class="k">Next</span>
+  &lt;/body&gt;
+&lt;/html&gt;
+
+<span class="c">' Implicit `Return` or `Yield` for XML expression statements in</span>
+<span class="c">' function and property bodies.</span>
+<span class="c">'</span>
+<span class="c">' Not Shwon: Implicit self-application inside `InitializeComponent` methods.</span>
+<span class="c">' Not Shown: Builder-pattern to support streaming writes of XML documents.</span>
+<span class="k">Function</span> GetResponse() <span class="k">As</span> &lt;ResponseMessage&gt;
+    &lt;ResponseMessage&gt;
+        ...
+    &lt;/ResponseMessage&gt;
+<span class="k">End</span> <span class="k">Function</span>
+
+<span class="c">' XML Schema "types" to re-enable XML IntelliSense.</span>
+<span class="k">Let</span> address <span class="k">As</span> &lt;geo:Address&gt; = ...
+? address.&lt;Country&gt;.Value</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Past Demos</strong> (Early Prototypes)</p>
+
+
+
+<ul class="wp-block-list">
+<li><a href="https://www.youtube.com/watch?v=QS0IXfHp2Gg">Web Page</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=VsOCFk7-p2w">Web Controls/Components</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=3eoO3xXDza8">XAML/Xamarin.Forms</a></li>
+
+
+
+<li><a href="https://www.youtube.com/watch?v=4HSym7pa0YU">HTML/JavaScript Transpilation</a></li>
+</ul>
+
+
+
+<h2 class="wp-block-heading"><a href="#5-json-literals-pattern-matching">5. JSON and JSON Pattern Matching</a></h2>
+
+
+
+<p class="wp-block-paragraph"><strong>Past Demo</strong></p>
+
+
+
+<ul class="wp-block-list">
+<li><a href="https://www.youtube.com/watch?v=HvW7fmbw5jk">JSON Pattern Matching</a></li>
+</ul>
+
+
+
+<h3 class="wp-block-heading">Additions since demo</h3>
+
+
+
+<pre><code><span class="c">' Target-typed object creation from JSON.</span>
+
+<span class="c">' Intialize test data.</span>
+<span class="k">Let</span> dbContext <span class="k">As</span> <span class="t">InMemoryDbContext</span> =
+    {
+      <span class="l">"employees"</span>: [
+        {<span class="l">"firstName"</span>:<span class="l">"John"</span>, <span class="l">"lastName"</span>:<span class="l">"Doe"</span>},
+        {<span class="l">"firstName"</span>:<span class="l">"Anna"</span>, <span class="l">"lastName"</span>:<span class="l">"Smith"</span>},
+        {<span class="l">"firstName"</span>:<span class="l">"Peter"</span>, <span class="l">"lastName"</span>:<span class="l">"Jones"</span>}
+      ]
+    }
+    
+<span class="k">Let</span> service = <span class="k">New</span> <span class="t">HrService</span>(dbContext)
+
+<span class="k">Let</span> results = <span class="k">Await</span> service.FindEmployeesByNameAsync(<span class="l">"John Doe"</span>)
+    
+<span class="k">Assert</span>.Equal(<span class="l">1</span>, results.Count)
+
+<span class="k">Let</span> newEmployee = <span class="k">Await</span> service.AddEmployeeAsync(<span class="l">"Jack"</span>, <span class="l">"Sparrow"</span>)
+
+<span class="c">' Copied base-line from postman.</span>
+<span class="t">Assert</span>.IsTrue(<span class="k">ShapeOf</span> newEmployee <span class="k">Is</span> {
+                <span class="l">"firstName"</span>: <span class="l">"Jack"</span>,
+                <span class="l">"lastName"</span>: <span class="l">"Sparrow"</span>,
+                <span class="l">"emailAddress"</span>: <span class="l">"jack.sparrow@company.com"</span>
+              })
+              
+<span class="c">' Pattern to support &amp;= for writers w/o realizing/allocating</span>
+<span class="c">' objects (e.g. JsonWriter/Serialization).</span>
+<span class="k">For</span> <span class="k">Each</span> e <span class="k">In</span> Employees
+    response &amp;= {
+                  <span class="l">"firstName"</span>: e.FirstName,
+                  <span class="l">"lastName"</span>: e.LastName,
+                  <span class="l">"emailAddress"</span>: e.EmailAddress
+                }
+<span class="k">Next</span>
+
+<span class="c">' JSON schema types for IntelliSense/analyzers.</span>
+<span class="k">Let</span> employee <span class="k">As</span> {<span class="l">"http://.../employee"</span>} = ...
+? employee!emergencyContact</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#6-strings-pattern-matching">6. Strings and String Pattern Matching</a></h2>
+
+
+
+<pre><code><span class="c">' This should only call String.Format once.</span>
+? <span class="l">$"Greetings, &ZeroWidthSpace;</span>{firstName&ZeroWidthSpace;}<span class="l">. "</span> &amp;
+  <span class="l">$"The current time is &ZeroWidthSpace;</span>{<span class="k">Date</span>.Now&ZeroWidthSpace;}<span class="l">, "</span> &amp;
+  <span class="l">$"on &ZeroWidthSpace;</span>{<span class="k">Date</span>.Today.DayOfWeek&ZeroWidthSpace;}<span class="l">."</span>
+
+<span class="c">' This shouldn't call String.Format at all.</span>
+<span class="k">Throw</span> <span class="k">New</span> <span class="t">ArgumentNullException</span>(
+            description, 
+            <span class="l">$"Argument '&ZeroWidthSpace;</span>{<span class="k">NameOf</span>(description)}<span class="l">' may not be null."</span>
+          )
+
+<span class="c">' `&amp;=` should work whether concatenating a string variable or a StringBuilder.</span>
+<span class="k">Let</span> builder <span class="k">As</span> <span class="t">StringBuilder</span> = ...
+builder &amp;= <span class="l">"Line"</span> &amp; vbCrLf
+
+<span class="c">' String pattern matching (inverse of interpolation).</span>
+<span class="k">Select</span> <span class="k">Case</span> <span class="k">ShapeOf</span> command
+    <span class="k">Case</span> <span class="l">$"/echo &ZeroWidthSpace;</span>{message&ZeroWidthSpace;}<span class="l">"</span>
+        
+        ? message
+        
+    <span class="k">Case</span> <span class="l">$"/beep &ZeroWidthSpace;</span>{frequency <span class="k">As</span> <span class="k">Integer</span>}<span class="l"> &ZeroWidthSpace;</span>{duration <span class="k">As</span> <span class="k">Integer</span>}<span class="l">"</span>
+        
+        Console.Beep(frequency, duration \ <span class="l">1000</span>)
+        
+    <span class="k">Case</span> <span class="l">"/clear"</span>
+        
+        Console.Clear()
+
+    <span class="k">Case</span> <span class="k">Else</span>
+        ? <span class="l">"Unrecognized command: "</span> &amp; command
+
+<span class="k">End</span> <span class="k">Select</span></code></pre>
+
+
+
+<pre><code><span class="c">' Narrowing conversion operator from String if Parse exists.</span>
+<span class="k">Let</span> nil <span class="k">As</span> <span class="t">Guid</span> = <span class="l">"00000000-0000-0000-0000-000000000000"</span>
+
+<span class="c">' Pattern/Shape operator from String if TryParse exists.</span>
+<span class="k">Let</span> str = <span class="l">"20.0.255.255:23"</span>
+
+<span class="k">If</span> <span class="k">ShapeOf</span> str <span class="k">Is</span> ip <span class="k">As</span> <span class="t">IPEndpoint</span> <span class="k">Then</span>
+    ? ip.Port
+<span class="k">End</span> <span class="k">If</span>
+
+<span class="c">' Narrowing conversion operator from String to Enum types.</span>
+<span class="k">Enum</span> <span class="t">PhoneKind</span>
+    Home
+    Office
+    Mobile
+<span class="k">End</span> <span class="k">Enum</span>
+
+<span class="k">Let</span> kind <span class="k">As</span> <span class="t">PhoneKind</span> = <span class="l">"mobile"</span>
+</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#7-general-pattern-matching">7. General Pattern Matching</a></h2>
+
+
+
+<pre><code><span class="c">' Explicit and implicit `ShapeOf` operators.</span>
+<span class="k">Select</span> <span class="k">Case</span> <span class="k">ShapeOf</span> input
+  <span class="k">Case</span> pn <span class="k">As</span> <span class="t">USPhoneNumber</span>
+    <span class="k">Return</span> <span class="k">New</span> <span class="t">DomesticContact</span>(pn)
+  
+  <span class="k">Case</span> pn <span class="k">As</span> <span class="t">InternationalPhoneNumber</span> 
+    <span class="k">Return</span> <span class="k">New</span> <span class="t">GlobalContact</span>(pn)
+    
+<span class="k">End</span> <span class="k">Select</span>
+
+<span class="c">' User-defined pattern methods.</span>
+<span class="k">Let</span> hasAnotherChar =
+      <span class="k">Function</span>(reader <span class="k">As</span> <span class="t">TextStream</span>, <span class="k">Out</span> ch <span class="k">As</span> <span class="k">Char</span>) <span class="k">As</span> <span class="k">Boolean</span>
+          <span class="k">If</span> reader.EndOfFile() <span class="k">Then</span>
+              <span class="k">Return</span> <span class="k">False</span>, ch:=<span class="k">Nothing</span>
+          <span class="k">Else</span>
+              <span class="k">Return</span> <span class="k">True</span>, ch:=reader.PeekChar(<span class="l">0</span>)
+          <span class="k">End</span> <span class="k">If</span>
+      <span class="k">End</span> <span class="k">Function</span>
+
+<span class="k">If</span> <span class="k">ShapeOf</span> stream <span class="k">Is</span> hasAnotherChar(c) <span class="k">AndAlso</span> c &lt;&gt; <span class="k">Nothing</span> <span class="k">Then</span>
+    buffer.Append(c)
+    stream.EatNextChar()
+<span class="k">End</span> <span class="k">If</span>
+</code></pre>
+
+
+
+<pre><code><span class="c">' Named patterns.</span>
+<span class="k">Function</span> ConstructorCall(
+           node <span class="k">As</span> <span class="t">ExecutableStatementSyntax</span>,
+           <span class="k">Out</span> kind <span class="k">As</span> <span class="t">VBSyntaxKind</span>,
+           <span class="k">Out</span> arguments <span class="k">As</span> <span class="t">SeparatedSyntaxList</span>(<span class="k">Of</span> <span class="t">ArgumentSyntax</span>)
+         )
+         <span class="k">As</span> <span class="k">Boolean</span>
+
+    <span class="c">' Bring shared pattern functions into scope.</span>
+    <span class="k">Imports</span> SyntaxPatterns
+
+    <span class="c">' Deconstruction syntax matches/inverts factory syntax.</span>
+    <span class="k">Select</span> <span class="k">Case</span> <span class="k">ShapeOf</span> node
+      <span class="c">' MyBase.New(...)</span>
+      <span class="k">Case</span> ExpressionStatement(
+             InvocationExpression(
+               MemberAccess(
+                 MeExpression(),
+                 IdentifierName(<span class="l">"New"</span>)
+               ),
+               argList
+             )
+           )
+       
+        <span class="k">Return</span> <span class="k">True</span>, kind:=VBSyntaxKind.MeExpression,
+                     arguments:=argList.Arguments
+
+      <span class="c">' Me.New(...)</span>
+      <span class="k">Case</span> ExpressionStatement(
+             InvocationExpression(
+               MemberAccess(
+                 MyBaseExpression(),
+                 IdentifierName(<span class="l">"New"</span>)
+               ),
+               argList
+             )
+           )
+
+        <span class="k">Return</span> <span class="k">True</span>, kind:=VBSyntaxKind.MyBaseExpression,
+                     arguments:=argList.Arguments
+
+      <span class="k">Case</span> <span class="k">Else</span>
+
+        <span class="k">Return</span> <span class="k">False</span>, kind:=<span class="k">Nothing</span>, arguments:=<span class="k">Nothing</span>
+      
+    <span class="k">End</span> <span class="k">Select</span>
+<span class="k">End</span> <span class="k">Function</span>
+
+<span class="c">' Check if first statement of constructor is</span>
+<span class="c">' a call to another constructor.</span>
+<span class="k">Let</span> firstStatement <span class="k">As</span> <span class="t">ExecutableStatementSyntax</span> = ...
+
+<span class="k">If</span> <span class="k">ShapeOf</span> firstStatement <span class="k">Is</span> ConstructorCall(kind, args) <span class="k">Then</span>
+    <span class="k">If</span> kind = VBSyntaxKind.MeExpression <span class="k">Then</span>
+        ProcessChainedConstructorCall(args)
+        
+    <span class="k">ElseIf</span> kind = VBSyntaxKind.MyBaseExpression <span class="k">Then</span>
+        ProcessBaseConstructorCall(args)
+        
+    <span class="k">End</span> <span class="k">If</span>
+<span class="k">Else</span>
+    ProcessOtherStatement(firstStatement)
+   
+<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#8-modernization-declarations">8. General Modernization and Evolution II (Declarations)</a></h2>
+
+
+
+<pre><code><span class="c">' `Out` arguments avoid null-reference warnings, and</span>
+<span class="c">' allow for inference and implicit declaration of variables.</span>
+<span class="k">If</span> cache.TryGetValue(name, <span class="k">Out</span> value) <span class="k">Then</span>
+    <span class="k">Return</span> value
+<span class="k">End</span> <span class="k">If</span>
+
+<span class="c">' Explicit `ByRef` argument syntax for clarity, stricter checking,</span>
+<span class="c">' and disambiguation when needed.</span>
+ReportErrors(<span class="k">ByRef</span> diagnostics)
+
+<span class="c">' `Out` parameters for idiomatic multiple returns (e.g. pattern methods).</span>
+<span class="k">Function</span> IsPerfectSquare(number <span class="k">As</span> <span class="k">Integer</span>, <span class="k">Out</span> root <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Boolean</span>
+    
+    <span class="k">Select</span> <span class="k">Case</span> number
+        <span class="k">Case</span> <span class="l">1</span>
+            <span class="c">' Simplified single-statement return with `Out` assigns.</span>
+            <span class="k">Return</span> <span class="k">True</span>, root:=<span class="l">1</span>
+            
+        <span class="k">Case</span> <span class="l">4</span>
+            <span class="k">Return</span> <span class="k">True</span>, root:=<span class="l">2</span>
+            
+        <span class="k">Case</span> <span class="l">9</span>        
+            <span class="k">Return</span> <span class="k">True</span>, root:=<span class="l">3</span>
+
+        <span class="k">Case</span> <span class="k">Else</span>
+            <span class="k">Let</span> intRoot <span class="k">As</span> <span class="k">Integer</span> = <span class="t">Math</span>.Sqrt(number)
+
+            <span class="k">If</span> (intRoot * intRoot) = number <span class="k">Then</span>
+                <span class="k">Return</span> <span class="k">True</span>, root:=intRoot
+            <span class="k">Else</span>
+                <span class="k">Return</span> <span class="k">False</span>, root:=<span class="k">Nothing</span>
+            <span class="k">End</span> <span class="k">If</span>
+    <span class="k">End</span> <span class="k">Select</span>
+<span class="k">End</span> <span class="k">Function</span>    
+
+<span class="c">' Modules may be generic, nested, and won't hoist members</span>
+<span class="c">' into containing namespace by default.</span>
+<span class="k">Module</span> <span class="t">Utils</span>(<span class="k">Of</span> <span class="t">T</span>)
+    ...
+    <span class="k">Module</span> <span class="t">Strings</span>
+        ...
+
+<span class="c">' Classic behavior can be opted into with attribute.</span>
+&lt;<span class="t">StandardModule</span>&gt;
+<span class="k">Module</span> <span class="t">IOHelpers</span>
+    ...
+
+<span class="c">' Namespaces, Shared type members, and XML/JSON namespaces can</span>
+<span class="c">' be imported at the method level.</span>
+<span class="k">Sub</span> WriteHelp()
+    <span class="k">Imports</span> System.<span class="t">Console</span>
+    <span class="k">Imports</span> &lt;xmlns:xs=<span class="l">"http://www.w3.org/2001/XMLSchema"</span>&gt;
+
+    Clear()    
+    WriteLine(<span class="l">"..."</span>)
+    WriteLine(<span class="l">"..."</span>)
+
+<span class="k">End</span> <span class="k">Sub</span>
+
+<span class="c">' Bit modifier for &lt;Flags&gt; Enums.</span>
+<span class="k">Bit</span> <span class="k">Enum</span> <span class="t">MyFlags</span> <span class="k">As</span> <span class="k">Byte</span>
+    None
+    
+    <span class="c">' Correct initialization by default</span>
+    First  <span class="c">' = 1</span>
+    Second <span class="c">' = 2</span>
+    Third  <span class="c">' = 4</span>
+    Fourth <span class="c">' = 8</span>
+    
+    <span class="c">' Simpler masks.</span>
+    Odds = First, Third
+    Evens = Second, Fourth
+    All = Odds, Evens
+
+    <span class="c">' Named numeric sections.    </span>
+    Kind = <span class="k">Bit</span> <span class="l">4</span> <span class="k">To</span> <span class="k">Bit</span> <span class="l">7</span>
+<span class="k">End</span> <span class="k">Enum</span>
+
+<span class="k">Let</span> flags <span class="k">As</span> <span class="t">MyFlags</span> = &amp;B_0111_1010
+
+<span class="c">' Simpler checking.</span>
+? flags(Bits MyFlags.First)                  <span class="c">' False.</span>
+? flags(Bits MyFlags.Second)                 <span class="c">' True.</span>
+
+<span class="c">' Simpler settting.</span>
+flags(<span class="k">Bit</span> MyFlags.Third) = <span class="k">True</span>
+
+<span class="c">' I have been coding for 30 years and don't need to</span>
+<span class="c">' do manual bit operations to prove myself.</span>
+? flags(<span class="k">Bit</span> <span class="t">MyFlags</span>.Second, <span class="t">MyFlags</span>.Fourth) <span class="c">' True.</span>
+
+? flags(<span class="k">Bit</span> <span class="t">MyFlags</span>.Kind)                   <span class="c">' 7</span>
+
+<span class="c">' Strongly typed [Delegate].Combine/Remove with + and -.</span>
+<span class="k">Let</span> handlers <span class="k">As</span> <span class="t">EventHandler</span> = <span class="k">Null</span>
+handlers += <span class="k">AddressOf</span> Button_Click
+handlers -= <span class="k">AddressOf</span> Button_Click
+
+<span class="c">' Explicit syntax for anonymous delegate types.</span>
+<span class="k">Let</span> binOp <span class="k">As</span> &lt;<span class="k">Function</span>(<span class="k">Double</span>, <span class="k">Double</span>) <span class="k">As</span> <span class="k">Double</span>&gt;
+
+<span class="c">' Not shown: Relaxed delegates can be removed.</span>
+
+<span class="c">' Pipeline `-&gt;` operator.</span>
+<span class="c">' Instead of:</span>
+<span class="k">Return</span> Third(Second(First(x)))
+<span class="c">' Write this:</span>
+<span class="k">Return</span> First(x) -&gt; Second() -&gt; Third()</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#9-linq">9. Language Integrated Query (LINQ) Enhancements</a></h2>
+
+
+
+<pre><code><span class="c">' Range expressions.</span>
+<span class="k">Let</span> odds = <span class="l">1</span> <span class="k">To</span> <span class="l">10</span> <span class="k">Step</span> <span class="l">2</span>
+
+<span class="k">For</span> <span class="k">Each</span> n <span class="k">In</span> <span class="l">0</span> <span class="k">To</span> <span class="l">60</span>
+    ...
+    
+<span class="k">Let</span> guess = Rnd(<span class="l">1</span> <span class="k">To</span> <span class="l">100</span>)
+
+<span class="c">' Tuple deconstruction.</span>
+? <span class="k">From</span>
+    x, y <span class="k">In</span> EnumerateCoordinates()
+  <span class="k">Order By</span>
+    y <span class="k">Descending</span>
+
+<span class="c">' Smarter syntax for aggregate functions.</span>
+<span class="c">' Less need for Aggregate clause.</span>
+<span class="k">Let</span> firstMatch = <span class="k">From</span>   c <span class="k">In</span> db.Contacts
+                 <span class="k">Where</span>  c.Id = contactId
+                 <span class="k">Select</span> FirstOrDefault()
+                     
+<span class="c">' New Query comprehensions:</span>
+<span class="c">' Shown: Include</span>
+<span class="c">' Not Shown:</span>
+<span class="c">' Skip Until, Take Until,</span>
+<span class="c">' Skip Last, Take Last,</span>
+<span class="c">' Left Join, Right Join</span>
+<span class="k">For</span> <span class="k">Each</span> blog <span class="k">In</span> context.Blogs
+ <span class="k">Include</span> post <span class="k">In</span> blog.Posts,
+         post.Author.Photo,
+         blog.Owner.Photo
+    ...
+<span class="k">Next</span>
+
+
+<span class="c">' Insert expression.</span>
+<span class="k">Let</span> data = [
+      {<span class="l">"name"</span>: <span class="l">"Leo"</span>},
+      {<span class="l">"name"</span>: <span class="l">"Donny"</span>},
+      {<span class="l">"name"</span>: <span class="l">"Raph"</span>},
+      {<span class="l">"name"</span>: <span class="l">"Mikey"</span>}
+    ]
+
+<span class="k">Let</span> newStudentIds =
+      <span class="k">Insert</span> s <span class="k">In</span> db.Students
+        <span class="k">From</span> dto <span class="k">In</span> data
+         <span class="k">Set</span> s.Name = dto!name
+
+<span class="c">' Update expression.</span>
+? <span class="k">Update</span>
+    t <span class="k">In</span> db.Teachers
+  <span class="k">Where</span>
+    t.Id = teacherId
+  <span class="k">Set</span>
+    t.EmailAddress = <span class="l">$"&ZeroWidthSpace;</span>{t.FirstName&ZeroWidthSpace;}<span class="l">.&ZeroWidthSpace;</span>{t.LastName&ZeroWidthSpace;}<span class="l">@university.edu"</span>
+
+<span class="c">' Delete expression.</span>
+? <span class="k">Delete</span> c <span class="k">In</span> db.Classes <span class="k">Where</span> c.IsDeleted
+
+<span class="c">' Nested initializers call `New` when no matching `Add`.</span>
+<span class="k">Let</span> usFederalHolidays =
+      <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="t">DateOnly</span>) <span class="k">From</span> {
+            {<span class="l">2026</span>, <span class="l">1</span>, <span class="l">1</span>},
+            {<span class="l">2026</span>, <span class="l">1</span>, <span class="l">19</span>},
+            {<span class="l">2026</span>, <span class="l">2</span>, <span class="l">16</span>},
+            {<span class="l">2026</span>, <span class="l">5</span>, <span class="l">25</span>},
+            {<span class="l">2026</span>, <span class="l">6</span>, <span class="l">19</span>},
+            {<span class="l">2026</span>, <span class="l">7</span>, <span class="l">3</span>},
+            {<span class="l">2026</span>, <span class="l">9</span>, <span class="l">7</span>},
+            {<span class="l">2026</span>, <span class="l">10</span>, <span class="l">12</span>},
+            {<span class="l">2026</span>, <span class="l">11</span>, <span class="l">11</span>},
+            {<span class="l">2026</span>, <span class="l">11</span>, <span class="l">26</span>},
+            {<span class="l">2026</span>, <span class="l">12</span>, <span class="l">24</span>},
+            {<span class="l">2026</span>, <span class="l">12</span>, <span class="l">25</span>}
+          }
+
+<span class="c">' Nested member and collection initializers.</span>
+? <span class="k">New</span> <span class="t">MessageBoxFrom</span> <span class="k">With</span> {
+        .Caption = <span class="l">"Select one"</span>,
+        .AcceptButton <span class="k">With</span> {
+           .Text = <span class="l">"Proceed"</span>
+         },
+        .Choices <span class="k">From</span> {
+           <span class="l">"Option 1"</span>,
+           <span class="l">"Option 2"</span>,
+           <span class="l">"Option 3"</span>
+         }
+      }
+
+<span class="c">' Combine `With` and `From`.</span>
+? <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">Object</span>) <span class="k">With</span> { .Capacity = <span class="l">8</span> } <span class="k">From</span> { ... }
+
+<span class="c">' Dictionary access in `With`</span>
+? <span class="k">New</span> <span class="t">Dictionary</span>(<span class="k">Of</span> <span class="k">String</span>, <span class="k">Integer</span>) <span class="k">With</span> {
+        !One   = <span class="l">1</span>,
+        !Two   = <span class="l">2</span>,
+        !Three = <span class="l">3</span>
+      }
+      
+<span class="c">' Query collection initializers.</span>
+<span class="k">Let</span> digits = <span class="k">New</span> <span class="t">Hashset</span>(<span class="k">Of</span> <span class="k">Integer</span>) <span class="k">From</span> n <span class="k">In</span> <span class="l">0</span> <span class="k">To</span> <span class="l">9</span>
+
+<span class="c">' In and NotIn operators map to `Contains`.</span>
+<span class="k">If</span> input <span class="k">In</span> bannedWords <span class="k">Then</span> <span class="k">Throw</span>
+
+<span class="c">' Works with range expressions.</span>
+<span class="k">If</span> actScore <span class="k">NotIn</span> <span class="l">1</span> <span class="k">To</span> <span class="l">36</span> <span class="k">Then</span> <span class="k">Throw</span>
+    
+<span class="c">' Target-typing into `Select` clause.</span>
+<span class="k">Let</span> actions <span class="k">As</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">Action</span>) =
+      <span class="k">From</span>   obj <span class="k">In</span> objects
+      <span class="k">Select</span> <span class="k">AddressOf</span> obj.M <span class="c">' &lt;- Typed to `Action`.</span></code></pre>
+
+
+
+<pre><code><span class="c">' Fix: Stop reporting this error in cases like this:</span>
+<span class="c">' BC36606: Range variable name cannot match the name of </span>
+<span class="c">' a member of the 'Object' class.</span>
+<span class="k">Let</span> strings = <span class="k">From</span> n <span class="k">In</span> <span class="l">1</span> <span class="k">To</span> <span class="l">5</span>
+              <span class="k">Select</span> n.ToString()
+<span class="c">'                      ~~~~~~~~</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#10-dynamic-late-binding">10. Dynamic Programming Enhancements</a></h2>
+
+
+
+<pre><code><span class="c">' New (or back from VB6/VBA) `Any` pseudotype for</span>
+<span class="c">' dynamic dispatch instead of `Object`.</span>
+<span class="c">' `Object` always compile-time checked.</span>
+<span class="k">Let</span> obj <span class="k">As</span> <span class="k">Any</span> = <span class="k">New</span> <span class="t">ExpandoObject</span>
+obj.CreateTime = <span class="k">Date</span>.Now
+obj.Id = <span class="l">1</span>
+obj.Description = <span class="l">"[Untitled]"</span>
+
+<span class="c">' Late-bind for a single expression if you want.</span>
+? someObject(<span class="k">As</span> <span class="k">Any</span>).X.Y().Z
+
+<span class="c">' New default type for "typeless" declarations.</span>
+<span class="c">' Great for RAD/prototypes with gradual typing.</span>
+<span class="k">Function</span> Add(left, right)
+<span class="c">'Function Add(left As Any, right As Any) As Any</span>
+    
+<span class="k">Sub</span> <span class="k">New</span>(<span class="k">ParamArray</span> args())
+    
+<span class="k">Property</span> Description
+    
+<span class="k">Async</span> <span class="k">Function</span> Fetch(objectId)
+
+<span class="k">Private</span> State
+
+<span class="c">' Default Methods to enable both early- and late-</span>
+<span class="c">' bound invocable objects/functors.</span>
+<span class="k">Class</span> <span class="t">StoredProcedureInfo</span>
+    
+    <span class="k">Default</span> <span class="k">Sub</span> Invoke(<span class="k">ParamArray</span> args <span class="k">As</span> <span class="k">Object</span>())
+        ...
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Let</span> sp_Users_Initialize <span class="k">As</span> <span class="t">StoredProcedureInfo</span> = ...
+sp_Users_Initialize()
+
+<span class="c">' And dynamic language like capabilities:</span>
+obj.Multiply = <span class="k">Function</span>(left, right) left * right
+? obj.Multiply(<span class="l">3</span>, <span class="l">5</span>)
+
+<span class="c">' Better support for pseudo-dynamic APIs w/o runtime</span>
+<span class="c">' binding.</span>
+<span class="c">' Argument list info passed to method w/ names, etc.</span>
+sp_Users_SelectById(id:=Guid.Empty, role:=<span class="l">"admin"</span>)
+
+<span class="c">' Late-bound support for the following:</span>
+<span class="c">' Not shown: Late-bound AddressOf bug fix from Dev10.</span>
+<span class="k">AddHandler</span>
+<span class="k">RemoveHandler</span>
+<span class="k">AddressOf</span>
+
+<span class="c">' Maybe</span>
+<span class="c">' Await</span>
+<span class="c">' For Each</span>
+<span class="c">' Queries</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#11-async-await">11. Async Programming Enhancements</a></h2>
+
+
+
+<pre><code><span class="c">' New syntax for true "Async Sub"s.</span>
+<span class="c">' No more "Function As Task" weirdness.</span>
+<span class="k">Async</span> <span class="k">Sub</span> Flush() <span class="k">As</span> <span class="t">Task</span>
+    ...
+<span class="k">End</span> <span class="k">Sub</span>
+
+<span class="c">' Default awaitable type for lightweight</span>
+<span class="k">Async</span> <span class="k">Sub</span> MkDir() <span class="k">As</span> <span class="t">ValueTask</span>
+
+<span class="c">' Lightweight Async syntax with configurable default async</span>
+<span class="c">' types and name-suffixing. e.g.</span>
+<span class="c">' Public methods use Task, Private methods use ValueTask.</span>
+
+<span class="c">' Same as `Async Sub Flush() As Task` (configurable).</span>
+<span class="c">' Same as `Function FlushAsync() As Task.</span>
+<span class="k">Async</span> <span class="k">Sub</span> Flush()
+
+<span class="c">' Same as `Async Function Pull(...) As Task(Of JsonObject).</span>
+<span class="c">' Same as `Function PullAsync(...) As Task(Of JsonObject).</span>
+<span class="k">Async</span> <span class="k">Function</span> Pull(...) <span class="k">As</span> <span class="t">JsonObject</span>
+
+<span class="c">' (Thread) `Agile` `Async` methods.</span>
+<span class="c">' Don't capture sync context w/o `ConfigureAwait(False)`.</span>
+<span class="k">Agile</span> <span class="k">Async</span> <span class="k">Sub</span> FeelFreeToUseThreadPool()
+
+<span class="c">' Elision of intermediate `Await` operations.</span>
+<span class="c">' Same as `(Await (Await obj.MAsync()).NAsync()).P`</span>
+<span class="k">Let</span> result = <span class="k">Await</span> obj.MAsync().NAsync().P
+
+<span class="c">' Works with new conversion syntax.</span>
+<span class="c">' Same as `CType(CType(Await client.HttpGetAsync("..."), JsonObject)("requestId"), As Guid)`</span>
+? <span class="k">Await</span> client.HttpGetAsync(<span class="l">"..."</span>)(<span class="k">As</span> <span class="t">JsonObject</span>)!requestId(<span class="k">As</span> <span class="t">Guid</span>)
+
+<span class="c">' Not shown: `Await obj?.MAsync()` actually working.</span>
+
+<span class="c">' "Conversions" to task objects still allowed.</span>
+<span class="k">Let</span> t <span class="k">As</span> <span class="t">Task</span> = MkDirAsync(<span class="l">"..."</span>)
+
+<span class="c">' Async calls must be awaited or task objects assigned.</span>
+MkDirAsync() <span class="c">' &lt;- Not allowed.</span>
+
+<span class="c">' Explicit syntax (required) for not awaiting.</span>
+<span class="k">Call</span> FireAndForgetAsync()
+
+<span class="c">' Support for consuming IAsyncEnumerable.</span>
+<span class="k">Await</span> <span class="k">Each</span> chunk <span class="k">In</span> steam.FetchChunksAsync(cancellationToken)
+    ...
+    
+<span class="c">' Support for constructing IAsyncEnumerable.</span>
+<span class="k">Async</span> <span class="k">Iterator</span> <span class="k">Function</span> FetchChunksAsync(...) <span class="k">As</span> <span class="t">IAsyncEnumerable</span>
+    <span class="k">Await</span> ...
+    
+    <span class="k">Yield</span> ...
+    <span class="k">Yield</span> ...
+<span class="k">End</span> <span class="k">Function</span>
+
+<span class="c">' `Async` events?</span>
+<span class="k">Async</span> <span class="k">Event</span> E(sender <span class="k">As</span> <span class="k">Object</span>, e <span class="k">As</span> <span class="t">EventArgs</span>)</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#12-null-nothing-nullable-reference-types">12. Null and Nothing</a></h2>
+
+
+
+<p class="wp-block-paragraph"><strong>Note:</strong> I have received feedback that the <strong>“Nullable Reference Types”</strong> feature  design, which would otherwise be the highlight of this section, needs further iteration to be less confusing and less annoying. I am currently working on this.</p>
+
+
+
+<pre><code><span class="c">' `Null` literal for null-references and values.</span>
+<span class="c">' Never means CType(Nothing, T) for value types.</span>
+? <span class="k">Null</span>
+
+<span class="c">' Forces nullable type inference.</span>
+<span class="c">' `endDate` is typed as `DateTime?` not `Date`.</span>
+<span class="k">Let</span> endDate = <span class="k">If</span>(HasFinished, EndDatePicker.Value, <span class="k">Null</span>)
+
+<span class="c">' 2-Valued Logic equality operators which treat two</span>
+<span class="c">' nulls as equivalent. (i.e. T-SQL `IS [NOT] DISTINCT FROM`).</span>
+<span class="c">' NOTE: VB `=`/`&lt;&gt;` uses 3-valued logic for NVTs today.</span>
+
+<span class="c">' True if both null, or both not null and equal.</span>
+<span class="c">' Otherwise, false.</span>
+<span class="k">If</span> left ?= right <span class="k">Then</span>
+    ...
+    
+<span class="c">' True if one or the other (but not both) are null,</span>
+<span class="c">' or if neither is null and left &lt;&gt; right.</span>
+<span class="c">' False if both are null, or both not null and equal.</span>
+<span class="k">If</span> left ?&lt;&gt; right <span class="k">Then</span>
+    ...
+
+<span class="c">' Post-fix null-coalescing operator.</span>
+Label1.Text = account.Description ?? <span class="l">"n/a"</span>.
+
+<span class="c">' `Do Nothing` statement (not a joke).</span>
+<span class="c">' https://anthonydgreen.net/2026/04/01/this-feature-intentionally-left-blank/</span>
+<span class="k">Do</span> <span class="k">Nothing</span>
+    
+<span class="c">' Null indicator operator `?` for values.</span>
+<span class="k">Let</span> flag = <span class="k">True</span>? <span class="c">' Infers `Boolean?` type.</span>
+
+<span class="c">' Null indicator `?` for optional reference types.</span>
+<span class="k">Property</span> Description <span class="k">As</span> <span class="k">String</span>?
+
+<span class="c">' Documents value "may be null", turns on</span>
+<span class="c">' stricter error checking.</span>
+<span class="k">Let</span> result = lookup(<span class="l">"key"</span>)?
+
+<span class="c">' Null-safe behaviors (no-op) and</span>
+<span class="c">' null-propagation from `?.` for</span>
+<span class="c">' the following statements/operators:</span>
+
+<span class="c">' Doesn't enumerate if collection is null.</span>
+<span class="k">For</span> <span class="k">Each</span> item <span class="k">In</span> collection?
+<span class="k">For</span> <span class="k">Each</span> item <span class="k">in</span> obj?.Member
+
+<span class="c">' Question: Should querying a null collection evaluate to null or empty?</span>
+            
+<span class="c">' Won't wait a null task/throw exception.</span>
+<span class="k">Await</span> someTask?
+<span class="k">Await</span> obj?.MemberAsync()
+
+<span class="c">' Same as `If(obj Is Null, Null, Await obj.MemberAsync())`</span>
+<span class="k">Let</span> result = <span class="k">Await</span> obj?.MemberAsync()
+
+<span class="c">' Won't assign to member of null object.</span>
+obj?.Member = value
+
+<span class="c">' Won't register/unregister from event on null object.</span>
+<span class="k">AddHandler</span> obj?.E, handler
+<span class="k">RemoveHandler</span> obj?.E, handler
+
+<span class="c">' Returns a null delegate if receiver is null.</span>
+<span class="k">Let</span> d <span class="k">As</span> <span class="t">Action</span>? = <span class="k">AddressOf</span> obj?.Method
+</code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#13-declarative-programming-source-generation">13. Declarative Programming and Code-Generation</a></h2>
+
+
+
+<p class="wp-block-paragraph">These strategies make different trade-offs in end-developer experience, tool-author experience, performance, complexity, etc. The same scenario might be addressed using more than one approach or a combination. How different scenarios and responsibilities are covered will very likely shift based on feedback and further attempts at reconciling their designs and implementation approaches.</p>
+
+
+
+<h3 class="wp-block-heading"><a href="#13.1-smart-attributes">13.1 Smart Attributes – Declarative w/o Source Generators</a></h3>
+
+
+
+<p class="wp-block-paragraph">This approach prioritizes simplicity.</p>
+
+
+
+<pre><code><span class="c">' Custom attributes inject code into auto-</span>
+<span class="c">' properties and events at defined points in</span>
+<span class="c">' in defined order. Allows for composing</span>
+<span class="c">' multiple behaviors declaratively.</span>
+
+<span class="c">' Example use sites:</span>
+
+&lt;<span class="t">Trim</span>, <span class="t">Notify</span>, <span class="t">Undoable</span>, <span class="t">MaxLength</span>(<span class="l">25</span>)&gt;
+<span class="k">Property</span> Title <span class="k">As</span> <span class="k">String</span> = <span class="l">"New Listing"</span>
+
+&lt;<span class="t">ThrowOnNull</span>, <span class="t">Notify</span>, <span class="t">Undoable</span>, <span class="t">MaxLength</span>(<span class="l">50</span>)&gt;
+<span class="k">Property</span> Description <span class="k">As</span> <span class="k">String</span> = <span class="l">"No description."</span>
+
+&lt;<span class="t">Notify</span>&gt;
+<span class="k">Property</span> LastSaved <span class="k">As</span> <span class="k">Date</span>
+
+&lt;<span class="t">Notify</span>, <span class="t">Undoable</span>,
+ <span class="t">Regex</span>(<span class="l">"^\d{3}-\d{2}-\d{4}$"</span>, <span class="l">"Must be of the form '###-##-####'."</span>)&gt;
+<span class="k">Property</span> ListingCode <span class="k">As</span> <span class="k">String</span> = <span class="l">"&lt;None&gt;"</span>
+    
+&lt;<span class="t">Wrapper</span>&gt;
+<span class="k">Public</span> <span class="k">Property</span> Rating <span class="k">As</span> <span class="k">Integer</span> = <span class="l">3</span>
+
+&lt;<span class="t">NotSupported</span>&gt;
+<span class="k">Public</span> <span class="k">ReadOnly</span> <span class="k">Property</span> CanRead <span class="k">As</span> <span class="k">Boolean</span>
+
+&lt;<span class="t">IgnoreExceptions</span>&gt;
+<span class="k">Event</span> Closing <span class="k">As</span> <span class="t">EventHandler</span>
+
+&lt;<span class="t">RaiseAsync</span>&gt;
+<span class="k">Event</span> Saved <span class="k">As</span> <span class="t">EventHandler</span>
+
+<span class="c">' Example declarations:</span>
+
+<span class="k">Public</span> <span class="k">Class</span> <span class="t">TrimAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+
+    <span class="k">Public</span> <span class="k">Shared</span> <span class="k">Sub</span> OnPropertySet(
+                        sender <span class="k">As</span> <span class="k">Object</span>,
+                        propertyName <span class="k">As</span> <span class="k">String</span>,
+                        <span class="k">ByRef</span> backingField <span class="k">As</span> <span class="k">String</span>,
+                        <span class="k">ByRef</span> value <span class="k">As</span> <span class="k">String</span>
+                      )
+
+        <span class="c">' Doesn't set backing field; let's later handlers run.</span>
+        value = <span class="k">If</span>(value?.Trim(), <span class="l">""</span>)
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Public</span> <span class="k">Class</span> <span class="t">IdempotentAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+    
+    <span class="c">' Causes `Set` to exit early if function returns true.</span>
+    <span class="k">Public</span> <span class="k">Shared</span> <span class="k">Function</span> OnPropertySet(<span class="k">Of</span> <span class="t">T</span>)(
+                             sender <span class="k">As</span> <span class="k">Object</span>,
+                             propertyName <span class="k">As</span> <span class="k">String</span>,
+                             <span class="k">ByRef</span> backingField <span class="k">As</span> <span class="t">T</span>,
+                             <span class="k">ByRef</span> value <span class="k">As</span> <span class="t">T</span>
+                           ) <span class="k">As</span> <span class="k">Boolean</span>
+
+        <span class="k">Return</span> (value ?= backingField)
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Public</span> <span class="k">Class</span> <span class="t">AutoRoundAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+
+    <span class="k">Sub</span> <span class="k">New</span>(digits <span class="k">As</span> <span class="k">Integer</span>)
+        <span class="c">' Because this constructor arguments are copied to the generated callsite,</span>
+        <span class="c">' the 'digits' parameter doesn't actually have to be saved anywhere.</span>
+        <span class="k">Do</span> <span class="k">Nothing</span>
+    <span class="k">End</span> <span class="k">Sub</span>
+
+    <span class="k">Public</span> <span class="k">Shared</span> <span class="k">Sub</span> OnPropertySet(
+                        sender <span class="k">As</span> <span class="k">Object</span>,
+                        propertyName <span class="k">As</span> <span class="k">String</span>,
+                        <span class="k">ByRef</span> backingField <span class="k">As</span> <span class="k">Decimal</span>,
+                        <span class="k">ByRef</span> value <span class="k">As</span> <span class="k">Decimal</span>,
+                        digits <span class="k">As</span> <span class="k">Integer</span>
+                      )
+
+        value = Math.Round(value, digits)
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+#<span class="k">End</span> <span class="k">Region</span>
+
+<span class="k">Public</span> <span class="k">Class</span> <span class="t">ThrowOnNullAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+
+    <span class="k">Public</span> <span class="k">Shared</span> <span class="k">Sub</span> OnPropertySet(sender <span class="k">As</span> <span class="k">Object</span>,
+                                    propertyName <span class="k">As</span> <span class="k">String</span>,
+                                    backingField <span class="k">As</span> <span class="k">Object</span>,
+                                    value <span class="k">As</span> <span class="k">Object</span>)
+
+        <span class="k">If</span> value <span class="k">Is</span> <span class="k">Nothing</span> <span class="k">Then</span> <span class="k">Throw</span> <span class="k">New</span> <span class="t">ArgumentNullException</span>(propertyName)
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Public</span> <span class="k">Class</span> <span class="t">UndoableAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+
+    <span class="k">Public</span> <span class="k">Shared</span> <span class="k">Sub</span> OnPropertySet(obj <span class="k">As</span> <span class="k">Object</span>,
+                                    propertyName <span class="k">As</span> <span class="k">String</span>,
+                                    previousValue <span class="k">As</span> <span class="k">Object</span>,
+                                    <span class="k">ByRef</span> newValue <span class="k">As</span> <span class="k">Object</span>)
+
+        UndoRedo.Remember(<span class="k">Sub</span>() CallByName(obj, propertyName, CallType.Set, previousValue))
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Class</span> <span class="t">NotSupportedAttribute</span>
+    <span class="k">Inherits</span> <span class="t">PropertyHandlerAttribute</span>
+
+    <span class="k">Shared</span> <span class="k">Sub</span> OnPropertyGet(<span class="k">Of</span> <span class="t">T</span>)(obj <span class="k">As</span> <span class="k">Object</span>,
+                                   propertyName <span class="k">As</span> <span class="k">String</span>,
+                                   <span class="k">ByRef</span> backingField <span class="k">As</span> <span class="t">T</span>,
+                                   <span class="k">ByRef</span> value <span class="k">As</span> <span class="t">T</span>)
+
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">NotSupportedException</span>(propertyName)
+    <span class="k">End</span> <span class="k">Sub</span>
+
+    <span class="k">Shared</span> <span class="k">Sub</span> OnPropertySet(<span class="k">Of</span> <span class="t">T</span>)(obj <span class="k">As</span> <span class="k">Object</span>,
+                                   propertyName <span class="k">As</span> <span class="k">String</span>,
+                                   <span class="k">ByRef</span> backingField <span class="k">As</span> <span class="t">T</span>,
+                                   <span class="k">ByRef</span> value <span class="k">As</span> <span class="t">T</span>)
+
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">NotSupportedException</span>(propertyName)
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#13.2-source-member-replacement">13.2 New Replacement Modifiers – Declarative w/ Source Generators</a></h3>
+
+
+
+<p class="wp-block-paragraph">This is approach is all about conversational collaboration between an end-developer and source generation tools.</p>
+
+
+
+<p class="wp-block-paragraph"><code>Replaceable</code> and <code>Replaces</code> Modifiers</p>
+
+
+
+<p class="wp-block-paragraph">Analogous to <code>Overridable</code> and <code>Overrides</code> modifiers. Another source member declaration can replace this one.</p>
+
+
+
+<p class="wp-block-paragraph"><strong>Human-to-Tool</strong></p>
+
+
+
+<p class="wp-block-paragraph">e.g. Human writes algorithm semantics naturally and tool <s>mutilates</s> optimizes it for performance.</p>
+
+
+
+<pre><code><span class="c">' Handwritten.vb</span>
+&lt;<span class="t">Optimize</span>&gt;
+<span class="k">Replaceable</span> <span class="k">Function</span> ToCommaSeparated(
+                       items <span class="k">As</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="k">Object</span>)
+                     )
+                     <span class="k">As</span> <span class="k">String</span>
+
+    <span class="k">Let</span> firstItem = items.FirstOrDefault()?
+    
+    <span class="k">If</span> firstItem <span class="k">Is</span> <span class="k">Null</span> <span class="k">Then</span> <span class="k">Return</span> <span class="l">""</span>
+
+    <span class="k">Let</span> result = firstItem.ToString()        
+        
+    <span class="k">For</span> <span class="k">Each</span> item <span class="k">In</span> items <span class="k">Skip</span> <span class="l">1</span>
+        result &amp;= <span class="l">", "</span> &amp; item.ToString()
+    <span class="k">Next</span>
+    
+    <span class="k">Return</span> result.ToString()
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<pre><code><span class="c">' ToolGenerated.vb</span>
+<span class="k">Replaces</span> <span class="k">Function</span> ToCommaSeparated(
+                    items <span class="k">As</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="k">Object</span>)
+                  )
+                  <span class="k">As</span> <span class="k">String</span>
+                     
+    <span class="k">If</span> <span class="k">TypeOf</span> items <span class="k">Is</span> <span class="k">Object</span>() <span class="k">Then</span>
+        <span class="c">' Array fast-path doesn't allocate enumerator</span>
+        <span class="c">' for array and indexing is faster anyway.</span>
+        <span class="k">Select</span> <span class="k">Case</span> items.Length
+          <span class="k">Case</span> <span class="l">0</span>
+              <span class="c">' Don't do anything for an empty collection.</span>
+              <span class="k">Return</span> <span class="k">String</span>.Empty
+          <span class="k">Case</span> <span class="l">1</span>
+              <span class="c">' For array of 1, simply return its `ToString()`.</span>
+              <span class="k">Return</span> items(<span class="l">0</span>).ToString()
+          <span class="k">Case</span> <span class="k">Else</span>
+              <span class="c">' Allocate `StringBuilder` as last resort.</span>
+              <span class="k">Let</span> builder = <span class="k">New</span> <span class="t">StringBuilder</span>(items.Length * <span class="l">4</span>)
+              
+              builder.Append(items(<span class="l">0</span>).ToString())
+              
+              <span class="k">For</span> i = <span class="l">1</span> <span class="k">To</span> builder.Length - <span class="l">1</span>
+                <span class="c">' Don't concat then append;</span>
+                <span class="c">' append twice.</span>
+                  builder.Append(<span class="l">", "</span>)
+                  builder.Append(items(i).ToString())
+              <span class="k">Next</span>
+              
+              <span class="k">Return</span> builder.ToString()
+        <span class="k">End</span> <span class="k">Select</span>
+    <span class="k">Else</span>
+        <span class="k">Using</span> enumerator = items.GetEnumerator()
+            <span class="c">' Don't do anything for an empty collection.</span>
+            <span class="k">If</span> <span class="k">Not</span> enumerator.MoveNext() <span class="k">Then</span> <span class="k">Return</span> <span class="k">String</span>.Empty
+
+            <span class="k">Let</span> firstItem = enumerator.Current
+            
+            <span class="c">' For collection of 1, simply return its `ToString()`.</span>
+            <span class="k">If</span> <span class="k">Not</span> enumerator.MoveNext() <span class="k">Then</span> <span class="k">Return</span> firstItem.ToString()
+
+            <span class="c">' Allocate `StringBuilder` as last resort.</span>
+            <span class="k">Let</span> builder = <span class="k">New</span> <span class="t">StringBuilder</span>(firstItem.ToString())
+              
+            <span class="k">Do</span>
+                <span class="c">' Don't concat then append;</span>
+                <span class="c">' append twice.</span>
+                builder.Append(<span class="l">", "</span>)
+                builder.Append(enumerator.Current.ToString())
+            <span class="k">Loop</span> <span class="k">While</span> enumerator.MoveNext()
+              
+            <span class="k">Return</span> builder.ToString()
+        <span class="k">End</span> <span class="k">Using</span>
+    <span class="k">End</span> <span class="k">If</span>
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Human-to-Tool-to-Human</strong></p>
+
+
+
+<p class="wp-block-paragraph">e.g. Tool provides default implementation which human tweaks for correctness. Note the conversational back-and-forth.</p>
+
+
+
+<p class="wp-block-paragraph">The developer requests boilerplate serialization logic:</p>
+
+
+
+<pre><code><span class="c">' Handwritten.vb - Step 1.</span>
+<span class="k">Class</span> <span class="t">Student</span>
+    
+    <span class="k">Property</span> StudentId <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> LastName <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> FirstName <span class="k">As</span> <span class="k">String</span>
+        
+<span class="k">End</span> <span class="k">Class</span>
+
+&lt;<span class="t">Xmlifiable</span>&gt;
+<span class="k">Class</span> <span class="t">AthleticsTeam</span>
+    
+    <span class="k">Property</span> Sport <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> School <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> Coach <span class="k">As</span> <span class="k">String</span>
+    <span class="k">ReadOnly</span> <span class="k">Property</span> Players <span class="k">As</span> <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="t">Student</span>)
+    
+<span class="k">End</span> <span class="k">Class</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">The tool responds with its best guess based on conventions:</p>
+
+
+
+<pre><code><span class="c">' ToolGenerated.vb - Step 2.</span>
+<span class="k">Partial</span> <span class="k">Class</span> <span class="t">AthleticsTeam</span>
+
+    <span class="k">Replaceable</span> <span class="k">Function</span> ToXml() <span class="k">As</span> <span class="t">XElement</span>
+        &lt;Team&gt;
+          &lt;School&gt;School&lt;/&gt;
+          &lt;Sport&gt;Sport&lt;/&gt;
+          &lt;Coach&gt;Coach&lt;/&gt;
+          &lt;Players&gt;
+            <span class="k">For</span> <span class="k">Each</span> student <span class="k">In</span> Players
+                <span class="k">Yield</span> ToXml(student)
+            <span class="k">Next</span>
+          &lt;/Players&gt;
+        &lt;/Team&gt;
+    <span class="k">End</span> <span class="k">Function</span>
+    
+    <span class="k">Replaceable</span> <span class="k">Shared</span> <span class="k">Function</span> ToXml(student <span class="k">As</span> <span class="t">Student</span>) <span class="k">As</span> <span class="t">XElement</span>
+        &lt;Student&gt;
+          &lt;StudentId&gt;student.StudentId&lt;/&gt;
+          &lt;LastName&gt;student.LastName&lt;/&gt;
+          &lt;FirstName&gt;student.FirstName&lt;/&gt;
+        &lt;/Student&gt;
+    <span class="k">End</span> <span class="k">Function</span>
+    
+<span class="k">End</span> <span class="k">Class</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">And the human tweaks only what they need to:</p>
+
+
+
+<pre><code><span class="c">' Handwritten.vb - Step 3.</span>
+<span class="k">Class</span> <span class="t">Student</span>
+    
+    <span class="k">Property</span> StudentId <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> LastName <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> FirstName <span class="k">As</span> <span class="k">String</span>
+        
+<span class="k">End</span> <span class="k">Class</span>
+
+&lt;<span class="t">Xmlifiable</span>&gt;
+<span class="k">Class</span> <span class="t">AthleticsTeam</span>
+    
+    <span class="k">Property</span> Sport <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> School <span class="k">As</span> <span class="k">String</span>
+    <span class="k">Property</span> Coach <span class="k">As</span> <span class="k">String</span>
+    <span class="k">ReadOnly</span> <span class="k">Property</span> Players <span class="k">As</span> <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="t">Student</span>)
+
+    <span class="c">' Tweaks the default (generated) implementation of</span>
+    <span class="c">' serializing a student without losing the benefit</span>
+    <span class="c">' of the generated boilerplate logic for the team.</span>
+    <span class="k">Replaces</span> <span class="k">Shared</span> <span class="k">Function</span> ToXml(student <span class="k">As</span> <span class="t">Student</span>) <span class="k">As</span> <span class="t">XElement</span>
+        &lt;Player id-number={student.StudentId}&gt;
+          &lt;FullName&gt;student.LastName &amp; <span class="l">", "</span> &amp; student.FirstName&lt;/&gt;
+        &lt;/Player&gt;
+    <span class="k">End</span> <span class="k">Function</span>
+    
+<span class="k">End</span> <span class="k">Class</span></code></pre>
+
+
+
+<p class="wp-block-paragraph"><code>MustReplace</code> Modifier</p>
+
+
+
+<p class="wp-block-paragraph">Analogous to <code>MustOverride</code> modifier and P/Invoke <code>Declare</code> statements. The specified name and signature must be supplied by another source member declaration.</p>
+
+
+
+<p class="wp-block-paragraph"><strong>Human-to-Tool-to-Human</strong></p>
+
+
+
+<p class="wp-block-paragraph">Developer declares a need:</p>
+
+
+
+<pre><code><span class="c">' Handwritten.vb - Step 1.</span>
+&lt;<span class="t">StoredProcedure</span>(<span class="l">"Customers_SelectByCity"</span>)&gt;
+<span class="k">MustReplace</span> <span class="k">Function</span> GetCustomersByCity(city <span class="k">As</span> <span class="k">String</span>) <span class="k">As</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">String</span>)</code></pre>
+
+
+
+<p class="wp-block-paragraph">Tool supplies the need but declares a need of its own:</p>
+
+
+
+<pre><code><span class="c">' ToolGenerated.vb - Step 2.</span>
+<span class="k">MustReplace</span> <span class="k">Function</span> CreateConnection() <span class="k">As</span> <span class="t">DbConnection</span>
+
+<span class="k">Replaces</span> <span class="k">Function</span> GetCustomersByCity(city <span class="k">As</span> <span class="k">String</span>) <span class="k">As</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">String</span>)
+    <span class="k">Using</span> connection = CreateConnection()
+        <span class="k">With</span> command = connection.CreateCommand()
+            .CommandType = <span class="t">CommandType</span>.StoredProcedure
+            .CommandText = <span class="l">"Customers_SelectByCity"</span>
+            
+            <span class="k">With</span> .CreateParameter()
+                .ParameterName = <span class="l">"@city"</span>
+                .DbType = <span class="t">DbType</span>.String
+                .Value = city
+                
+                command.Add(.Me)
+            <span class="k">End</span> <span class="k">With</span>
+            
+            connection.Open()
+            <span class="k">Using</span> reader = .ExecuteReader()
+                <span class="k">Let</span> results = <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">String</span>)
+                        
+                <span class="k">Do</span> <span class="k">While</span> reader.Read()
+                    results.Add(reader.GetString(<span class="l">0</span>))
+                <span class="k">Loop</span>
+                connection.Close()
+                
+                <span class="k">Return</span> results
+            <span class="k">End</span> <span class="k">Using</span>
+        <span class="k">End</span> <span class="k">With</span>
+    <span class="k">End</span> <span class="k">Using</span>
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">Developer supplies what tool needs to fulfill initial request:</p>
+
+
+
+<pre><code><span class="c">' Handwritten.vb - Step 3.</span>
+&lt;<span class="t">StoredProcedure</span>(<span class="l">"Customers_SelectByCity"</span>)&gt;
+<span class="k">MustReplace</span> <span class="k">Function</span> GetCustomersByCity(city <span class="k">As</span> <span class="k">String</span>) <span class="k">As</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">String</span>)
+
+<span class="k">Replaces</span> <span class="k">Function</span> CreateConnection() <span class="k">As</span> <span class="t">DbConnection</span>
+    <span class="k">Return</span> <span class="k">New</span> <span class="t">SqlConnection</span>(
+                 ConfigurationManager.ConnectionStrings!AcmeDb.ConnectionString
+               )
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<p class="wp-block-paragraph"><code>NotReplaceable</code> Modifier</p>
+
+
+
+<p class="wp-block-paragraph">Analogous to <code>NotOverridable</code> modifier. The provided implementation must not be replaced. Only useful if the final design includes that certain kinds of declarations are replaceable by default (i.e. auto-implemented properties and events).</p>
+
+
+
+<h3 class="wp-block-heading"><a href="#13.3-partial-members">13.3 <code>Partial</code> members</a></h3>
+
+
+
+<p class="wp-block-paragraph"><code>Partial</code> Modifier</p>
+
+
+
+<p class="wp-block-paragraph">Can now be applied to any type member, regardless of access modifiers. All partial metadata merged. Useful for adding attributes, documentation comments, <code>Handles</code>, <code>Implements</code>, <code>Overrides</code> clauses to an existing member in another file.</p>
+
+
+
+<pre><code><span class="c">' `End Sub` no longer required for `Partial` subs.</span>
+<span class="k">Partial</span> <span class="k">Sub</span> OnModelLoaded()
+<span class="c">' End Sub</span></code></pre>
+
+
+
+<h3 class="wp-block-heading"><a href="#13.4-semantic-pre-processing">13.4 Semantic Pre-Processing</a></h3>
+
+
+
+<p class="wp-block-paragraph">This capability is highly depending on the performance of certain analyzer or source generator techniques. But the versioning/cross-plat scenario has been a pain for a while.</p>
+
+
+
+<pre><code><span class="c">' Conditionally compile statements.</span>
+
+<span class="c">' Enables better code-sharing (e.g. shared projects/linked-files)</span>
+<span class="c">' and cross-platform "adaptive light-up".</span>
+<span class="k">Let</span> obj <span class="k">As</span> <span class="t">MyType</span> = ...
+
+##<span class="k">If</span> METHOD_EXISTS(obj.BetterMethod) <span class="k">Then</span>
+    obj.BetterMethod(...)
+##<span class="k">Else</span>
+    <span class="c">' Must call obsolete method in this case.</span>
+    #<span class="k">Ignore</span> <span class="k">Warning</span> BC40008
+    obj.OldSlowMethod(...)
+##<span class="k">End</span> <span class="k">If</span>
+
+<span class="c">' Conditionally compile declarations.</span>
+
+<span class="c">' Enables source generation from syntax w/o requiring semantic</span>
+<span class="c">' analysis.</span>
+##<span class="k">If</span> TYPE_EXISTS(System.DateTimeOffset) <span class="k">Then</span>
+    <span class="k">Sub</span> WriteLine(value <span class="k">As</span> <span class="t">DateTimeOffset</span>)
+        ...
+    <span class="k">End</span> <span class="k">Sub</span>
+##<span class="k">End</span> <span class="k">If</span>
+
+<span class="c">' Enables source generators to provide boilerplate if missing.</span>
+
+<span class="c">' ToolGenerated.vb</span>
+<span class="k">Partial</span> <span class="k">Class</span> <span class="t">MyViewModel</span>
+    <span class="k">Implements</span> <span class="t">INotifyPropertyChanged</span>
+
+    <span class="c">' Only declare this if the end-developer didn't.</span>
+    ##<span class="k">If</span> <span class="k">Not</span> MEMBER_EXISTS(PropertyChanged) <span class="k">Then</span>
+        <span class="k">Event</span> PropertyChanged <span class="k">As</span> <span class="t">PropertyChangedEventHandler</span>
+    ##<span class="k">End</span> <span class="k">If</span>
+
+<span class="k">End</span> <span class="k">Class</span>
+
+##<span class="k">If</span> MEMBER_EXISTS(OnNameChanged) <span class="k">Then</span>
+    OnNameChanged()
+
+##<span class="k">ElseIf</span> MEMBER_EXISTS(OnPropertyChanged) <span class="k">Then</span>
+    OnPropertyChanged(<span class="l">"Name"</span>)
+
+##<span class="k">Else</span>
+    <span class="c">' Derived types can't raise base class events!</span>
+    <span class="k">RaiseEvent</span> PropertyChanged(<span class="k">Me</span>, <span class="k">New</span> <span class="t">PropertyChangedEventArgs</span>(<span class="l">"Name"</span>))
+##<span class="k">End</span> <span class="k">If</span>
+
+<span class="c">' Enables project templates/source generators to detect</span>
+<span class="c">' errors or provide warnings.</span>
+
+##<span class="k">If</span> ... <span class="k">Then</span>
+    #<span class="k">Warning</span> <span class="l">"Behavior may be different on this platform. Did you mean to target .NET 11?"</span>
+##<span class="k">End</span> <span class="k">If</span>
+
+##<span class="k">If</span> <span class="k">Not</span> TYPE_EXISTS(...) <span class="k">Then</span>
+    #<span class="k">Warning</span> <span class="l">"Types from 'MyAssembly' required at runtime via reflection. Add a reference to ensure binary is deployed on build."</span>
+##<span class="k">End</span> <span class="k">If</span>
+
+##<span class="k">If</span> <span class="k">Not</span> MEMBER_EXISTS(...) <span class="k">Then</span>
+    #<span class="k">Error</span> <span class="l">"Must define a deserialization constructor."</span>
+#<span class="k">End</span> <span class="k">If</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#type-system">14. Type-System Enhancements</a></h2>
+
+
+
+<pre><code><span class="c">' Ad-hoc intersection types.</span>
+<span class="k">Let</span> i <span class="k">As</span> {IDisposable, ICloneable} = ...
+
+<span class="c">' Ad-hoc union types.</span>
+<span class="k">Let</span> u <span class="k">As</span> {IDisposable <span class="k">Or</span> ICloneable} = ...
+
+<span class="c">' Array pseudo-type?</span>
+<span class="k">Let</span> vector <span class="k">As</span> <span class="t">Array</span>(<span class="k">Of</span> <span class="k">Byte</span>) = {}
+<span class="k">Let</span> jagged <span class="k">As</span> <span class="t">Array</span>(<span class="k">Of</span> <span class="t">Array</span>(<span class="k">Of</span> <span class="k">Integer</span>)) = {({})}
+
+<span class="c">' Array instantiation by size (rather than bounds).</span>
+<span class="k">Let</span> buffer = <span class="k">New</span> <span class="t">Array</span>(<span class="k">Of</span> <span class="k">Byte</span>)(<span class="l">1024</span>)
+
+<span class="c">' Millisecond in `Date` literals.</span>
+? #<span class="l">1</span>/<span class="l">1</span>/<span class="l">2026</span> <span class="l">10</span>:<span class="l">00</span>:<span class="l">00</span>.<span class="l">200</span>#
+
+<span class="c">' DateTimeKind in `Date` literal?</span>
+? #<span class="l">1</span>/<span class="l">1</span>/<span class="l">2026</span> UTC#
+? #<span class="l">1</span>/<span class="l">1</span>/<span class="l">2026</span> Local#
+
+<span class="c">' Built-in type support for: DateOnly, TimeOnly, TimeSpan, DateTimeOffset</span>
+? #<span class="l">7</span>/<span class="l">4</span>/<span class="l">2026</span>#d
+? #<span class="l">12</span>:<span class="l">00</span>#t
+? #<span class="l">1</span>h <span class="l">35</span>m#s
+? #<span class="l">200</span>ms#s
+? #<span class="l">4</span>/<span class="l">2</span>/<span class="l">2007</span> <span class="l">7</span>:<span class="l">23</span>:<span class="l">57</span> PM - <span class="l">4</span>/<span class="l">3</span>/<span class="l">2007</span> <span class="l">2</span>:<span class="l">23</span>:<span class="l">57</span> AM = -<span class="l">07</span>:<span class="l">00</span>:<span class="l">00</span>#
+
+<span class="c">' Not shown:</span>
+<span class="c">' Built-in type support for: Half, Int128 (^/`LongLong`?), UInt128</span>
+<span class="c">' Special-handling of: System.Numerics types?</span>
+<span class="c">' Built-in type support for BigInteger?</span>
+<span class="c">' Operator inference from interfaces (e.g. IEquatable, IComparable, etc)?</span></code></pre>
+
+
+
+<ul class="wp-block-list">
+<li></li>
+</ul>
+
+
+
+<h2 class="wp-block-heading"><a href="#15-inheritance-interfaces-extensions">15. Inheritance, Interface Implementation, and Extension</a></h2>
+
+
+
+<pre><code><span class="c">' Signature (and name?) relaxation for member overriding.</span>
+<span class="c">' (à la relaxed delegates).</span>
+<span class="k">Class</span> <span class="t">Base</span>
+
+    <span class="k">MustOverride</span> <span class="k">Function</span> Clone() <span class="k">As</span> <span class="t">Base</span>
+
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Class</span> <span class="t">Derived</span>
+    <span class="k">Inherits</span> <span class="t">Base</span>
+
+    <span class="k">Function</span> Clone() <span class="k">As</span> <span class="t">Derived</span> <span class="k">Overrides</span> Base.Clone
+        ...
+    <span class="k">End</span> <span class="k">Function</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="c">' Implicit interface implementation.</span>
+<span class="c">' (Great for code generation!)</span>
+<span class="k">Class</span> <span class="t">ResourceHandle</span>
+    <span class="k">Implements</span> <span class="t">IDisposable</span>
+    
+    <span class="k">Sub</span> Dispose() <span class="c">' Implements IDisposable.Dispose</span>
+        ...
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="c">' Signature relaxation for explicit interface implementation.</span>
+<span class="k">Class</span> <span class="t">StudentCollection</span>
+    <span class="k">Implements</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">Student</span>)
+
+    <span class="c">' No need for second method.    </span>
+    <span class="k">Function</span> GetEnumerator() <span class="k">As</span> <span class="t">IEnumerator</span>(<span class="k">Of</span> <span class="t">Student</span>)
+      <span class="k">Implements</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">Student</span>).GetEnumerator,
+                 <span class="t">IEnumerable</span>.GetEnumerator
+
+        ...
+    <span class="k">End</span> <span class="k">Function</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="c">' Interface implementation delegation to fields/properties.</span>
+<span class="c">' (Composition Over Inheritance FTW!)</span>
+
+<span class="k">Interface</span> <span class="t">IContractA</span>
+    <span class="k">Sub</span> M()
+<span class="k">End</span> <span class="k">Interface</span>
+
+<span class="k">Interface</span> <span class="t">IContractB</span>
+    <span class="k">Sub</span> X()
+        
+    <span class="k">Sub</span> Y()
+<span class="k">End</span> <span class="k">Interface</span>
+
+<span class="k">Class</span> <span class="t">ContractAProvider</span>
+    <span class="k">Implements</span> <span class="t">IContractA</span>
+    
+    ...
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Class</span> <span class="t">ContractBProvider</span>
+    <span class="k">Implements</span> <span class="t">IContractB</span>
+    
+    ...
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="k">Class</span> <span class="t">MyObject</span>
+    <span class="k">Implements</span> <span class="t">IContractA</span>, <span class="t">IContractB</span>
+    
+    <span class="c">' Whole composition.</span>
+    <span class="k">Private</span> WholeProvider <span class="k">As</span> <span class="t">ContractAProvider</span> <span class="k">Implements</span> <span class="t">IContractA</span>
+    
+    <span class="c">' Partial composition.</span>
+    <span class="k">Private</span> PartialProvider <span class="k">As</span> <span class="t">ContractBProvider</span> <span class="k">Implements</span> <span class="t">IContractB</span>
+    
+    <span class="k">Private</span> <span class="k">Sub</span> IContractB_Y() <span class="k">Implements</span> <span class="t">IContractB</span>.Y
+        ...
+    <span class="k">End</span> <span class="k">Sub</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+<span class="c">' Extension Properties.</span>
+<span class="k">Module</span> <span class="t">MyExtensions</span>
+
+    <span class="c">' Note: Can be generic.</span>
+    &lt;<span class="t">Extension</span>&gt;
+    <span class="k">ReadOnly</span> <span class="k">Property</span> SecondOrDefault(<span class="k">Of</span> <span class="t">T</span>)(list <span class="k">As</span> <span class="t">List</span>(<span class="k">Of</span> <span class="t">T</span>)) <span class="k">As</span> <span class="t">T</span>
+        <span class="k">Return</span> <span class="k">If</span>(list.Count &gt; <span class="l">1</span>, list(<span class="l">1</span>), <span class="k">Nothing</span>)
+
+<span class="k">End</span> <span class="k">Module</span></code></pre>
+
+
+
+<h2 class="wp-block-heading"><a href="#16-performance-and-interop">16. Performance and Interoperability</a></h2>
+
+
+
+<pre><code><span class="c">' Fix: Smarter name resolution to avoid `Console` namespace</span>
+<span class="c">' hiding `System.Console` class, necessitating an explicit</span>
+<span class="c">' `Imports System`</span>
+<span class="k">Imports</span> Microsoft.Extensions.Logging
+
+<span class="c">' error BC30456: 'WriteLine' is not a member of 'Microsoft.Extensions.Logging.Console'</span>
+Console.WriteLine(<span class="l">"Hello World!"</span>)
+<span class="c">'       ~~~~~~~~~</span>
+
+<span class="c">' `InitOnly` properties.</span>
+<span class="k">Class</span> <span class="t">Account</span>
+    
+    <span class="k">ReadOnly</span> _Id <span class="k">As</span> <span class="t">Guid</span>
+    
+    <span class="k">InitOnly</span> <span class="k">Property</span> Id <span class="k">As</span> <span class="t">Guid</span>
+        <span class="k">Get</span>
+            <span class="k">Return</span> _Id
+
+        <span class="k">Set</span>(value)
+            <span class="k">If</span> value = <span class="t">Guid</span>.Empty <span class="k">Then</span> <span class="k">Throw</span>
+                
+            _Id = value
+    <span class="k">End</span> <span class="k">Property</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+? <span class="k">New</span> <span class="t">Account</span> <span class="k">With</span> {.Id = <span class="t">Guid</span>.NewGuid()}
+
+<span class="c">' `MustInit` (required in C#) properties.</span>
+<span class="k">Class</span> <span class="t">Person</span>
+    <span class="k">MustInit</span> <span class="k">Property</span> Name <span class="k">As</span> <span class="k">String</span> = <span class="l">""</span>
+    <span class="k">MustInit</span> <span class="k">Property</span> Age <span class="k">As</span> <span class="k">Integer</span>
+<span class="k">End</span> <span class="k">Class</span>
+
+? <span class="k">New</span> <span class="t">Person</span> <span class="k">With</span> {.Name = <span class="l">"Anthony"</span>, .Age = <span class="l">41</span>}
+
+<span class="c">' Piecewise initialation allowed before using other members?</span>
+<span class="k">Let</span> p = <span class="k">New</span> <span class="t">Person</span>
+p.Name = <span class="l">"Anthony"</span>
+p.Age = <span class="l">41</span>
+? p.ToString()</code></pre>
+
+
+
+<p class="wp-block-paragraph"><strong>Not shown</strong></p>
+
+
+
+<ul class="wp-block-list">
+<li><code>ByRef</code> structure story.</li>
+
+
+
+<li><code>Optional</code> in delegates.</li>
+
+
+
+<li><code>System.Range</code> interop.</li>
+
+
+
+<li>C# “Extension everything” story/interop.</li>
+
+
+
+<li>Interpolated string handlers.</li>
+
+
+
+<li><code>Delegate</code> and <code>Enum</code> generic constraints.</li>
+
+
+
+<li><code>Unmanaged</code>(?) Constraint.</li>
+
+
+
+<li>“extern alias” scenarios.</li>
+
+
+
+<li>Recognize overloaded <code>^</code> (exponentiation) operator from F#.</li>
+
+
+
+<li>Recognize overloaded <code>^</code> (exponentiation) operator from <code>Pow</code>.<br>(e.g. <code>BigInteger</code>).</li>
+
+
+
+<li>Recognize overloaded <code>=</code>/<code>&lt;&gt;</code> operators from <code>IEquatable</code>.</li>
+
+
+
+<li>Recognize overloaded</li>
+
+
+
+<li>Recognize overloaded <code>++</code> and <code>--</code> for <code>For</code> loops?</li>
+
+
+
+<li>Optimized <code>Select Case TypeOf</code> for classes using Visitor Pattern.</li>
+
+
+
+<li>LINQ optimization using value tuples?</li>
+
+
+
+<li>Optimized imperative generation of <code>For Each ... Where ...</code>.<br>(When appropriate, i.e. in-memory, not <code>IQueryable</code>, well-known methods.<br>used on in-memory collections.</li>
+
+
+
+<li>Generalize <code>For Each</code> -&gt; <code>For</code> code-gen for <code>IList(Of T)</code>.<br>(Where appropriate)</li>
+
+
+
+<li>Generalize delegate <code>Invoke</code> syntax.<br>(May just be <code>Default</code> method attribution)</li>
+
+
+
+<li>Value (open) delegates?</li>
+
+
+
+<li>“Property Delegates”?</li>
+
+
+
+<li>Syntax for iterator functions that return structures?</li>
+
+
+
+<li>(Extra items I remember this morning but have forgotten but presume I’ll remember again later)</li>
+</ul>
+
+
+
+<h2 class="wp-block-heading"><a href="#17-runtime-library">17. Runtime Library Enhancements</a></h2>
+
+
+
+<p class="wp-block-paragraph">There are a host of improvements that need to be made to the “VB runtime”, including but not limited to:</p>
+
+
+
+<ul class="wp-block-list">
+<li>Performance of runtime methods particularly around intrinsic conversions.</li>
+
+
+
+<li>Better (useful/informative) exceptions for conversions.</li>
+
+
+
+<li>Better (useful/informative) exceptions for late-bound operations.</li>
+
+
+
+<li>More support for early-bound language semantics (e.g. target-typing) when late-binding.</li>
+
+
+
+<li>Better factoring for alternate platforms/targets/etc.</li>
+
+
+
+<li>Bug fixes such as support for binary literal syntax (and separators?) in conversions.</li>
+
+
+
+<li>Modernization of <code>My</code> helpers (e.g. <code>Async</code> methods–might be done already).</li>
+
+
+
+<li>Additional functionality.</li>
+</ul>
+
+
+
+<h2 class="wp-block-heading"><a href="#18-experimental">18. Needs more bake time</a></h2>
+
+
+
+<p class="wp-block-paragraph">These ideas haven’t even been put in the oven. There’s awareness or scouting or sketching ideas but they aren’t “approved in principle”. They’re interesting or experimental concepts that I include so that you know I’m aware of things that have been brought up.</p>
+
+
+
+<h3 class="wp-block-heading">18.1 Target-typed conversions?</h3>
+
+
+
+<pre><code><span class="c">' For those of us who prefer variable types on the variable.</span>
+
+<span class="k">Let</span> obj <span class="k">As</span> <span class="k">Object</span> = <span class="l">1S</span>
+
+<span class="k">Let</span> i <span class="k">As</span> <span class="k">Integer</span> = <span class="k">DirectCast</span> obj
+
+<span class="k">Let</span> v <span class="k">As</span> <span class="t">T</span> = <span class="k">Trycast</span> expression
+
+<span class="c">' I think this will cause fist fights.</span>
+M(<span class="k">CType</span>(x))</code></pre>
+
+
+
+<h3 class="wp-block-heading">18.2 Guarded <code>Let</code></h3>
+
+
+
+<p class="wp-block-paragraph">Ok, so one day I hear an F# dev lament the lack of early returns in functional expressions. So, as I do, I thought <em>“How would I write this code in ModVB?”</em> and here’s what I came up with:</p>
+
+
+
+<pre><code><span class="k">Function</span> GetIVsTextView() <span class="k">As</span> <span class="t">IVsTextView</span>
+    
+    <span class="k">Let</span> textManager = GetService(<span class="k">Of</span> <span class="t">SVsTextManager</span>)
+    <span class="k">If</span> <span class="k">TypeOf</span> textManager <span class="k">IsNot</span> <span class="t">IVsTextManager</span> <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+        
+    <span class="k">Let</span> rdt = GetService(<span class="k">Of</span> <span class="t">SVsRunningDocumentTable</span>)
+    <span class="k">If</span> <span class="k">TypeOf</span> rdt <span class="k">IsNot</span> <span class="t">IVsRunningDocumentTable</span> <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+        
+    <span class="k">Let</span> hresult = FindAndLockDocument(rdt, <span class="k">Out</span> docData <span class="k">As</span> <span class="t">IntPtr</span>)
+    <span class="k">If</span> <span class="k">Not</span> <span class="t">ErrorHandler</span>.Succeed(hresult) <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+    <span class="k">If</span> docData = <span class="t">IntPtr</span>.Zero <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+        
+    <span class="k">Let</span> textBuffer = <span class="t">Marshal</span>.GetObjectForIUnknown(docData)
+    <span class="k">If</span> textBuffer <span class="k">Is</span> <span class="k">Null</span> <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+        
+    hresult = GetActiveView(textManager, <span class="l">1</span>, textBuffer, <span class="k">Out</span> textView)
+    <span class="k">If</span> <span class="k">Not</span> <span class="t">ErrorHandler</span>.Succeeded(hresult) <span class="k">Then</span> <span class="k">Return</span> <span class="k">Null</span>
+        
+    <span class="k">Return</span> textView
+
+<span class="k">End</span> <span class="k">Function</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">This was oppressively monotonous and I started thinking about simplifying with tuples and nullability or <code>Out</code> variables and anything I could think of to break the boring pattern. This made me realize that repeating the variable name to check for null was annoying. I knew I didn’t like the <code>if let</code>/<code>guard let</code> syntax in other languages (e.g. Swift) because it doesn’t read naturally to me. Eventually I realized I was actually cool with the concept, I just didn’t like that syntax and came up with this to eliminate a lot of duplication:</p>
+
+
+
+<pre><code><span class="c">' Declares and initializes a variable (or variables).</span>
+<span class="c">' If the value of the variable after is null, executes</span>
+<span class="c">' the specified control flow statement.</span>
+<span class="c">' (e.g. `Return`, `Throw`, `Exit`, `Continue`, etc)</span>
+<span class="k">Let</span> variable = expression <span class="k">Else</span> &lt;Control Flow Statement&gt;
+
+<span class="c">' e.g.</span>
+<span class="k">Let</span> v = e <span class="k">Else</span> <span class="k">Continue</span> <span class="k">For</span>
+
+<span class="c">' Executes specified control flow statement if variable</span>
+<span class="c">' is not null.</span>
+<span class="k">Let</span> variable = expression <span class="k">Then</span> &lt;Control Flow Statement&gt;
+
+<span class="c">' e.g.</span>
+<span class="k">Let</span> v = dictionary.TryGetValue(<span class="l">"key"</span>) <span class="k">Then</span> <span class="k">Return</span> v
+
+<span class="c">' Executes statements if variable is initialized to</span>
+<span class="c">' non-null value. Variable loses scope after `End Let`.</span>
+<span class="k">Let</span> variable = expression <span class="k">Then</span>
+    ...
+<span class="k">End</span> <span class="k">Let</span>
+
+<span class="c">' `Then` and `Else`.</span>
+<span class="c">' e.g.</span>
+<span class="k">Let</span> v <span class="k">As</span> <span class="t">T</span> = <span class="k">TryCast</span> e <span class="k">Then</span>
+    ...
+<span class="k">Else</span>
+    ...
+<span class="k">End</span> <span class="k">Let</span>
+
+<span class="c">' Not sure about this:</span>
+<span class="k">Let</span> list = lists.TryGetValue(<span class="l">"key"</span>) <span class="k">Else</span>
+    list = <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">Object</span>)
+    lists.Add(<span class="l">"key"</span>, list)
+<span class="k">End</span> <span class="k">Let</span>
+
+<span class="c">' But `list` shouldn't be in scope here.</span>
+<span class="c">' Should it have been `End Else`?</span>
+<span class="c">' This logic should maybe be in a TryGetValueOrCreate?</span>
+list.Add(value)
+
+<span class="c">' And what about conditional 'Set'?</span>
+<span class="k">Let</span> list <span class="k">As</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">Object</span>)
+<span class="k">Set</span> list = lists.TryGetValue(<span class="l">"key"</span>) <span class="k">Else</span>
+    list = <span class="k">New</span> <span class="t">List</span>(<span class="k">Of</span> <span class="k">Object</span>)
+    lists.Add(<span class="l">"key"</span>, list)
+<span class="k">End</span> <span class="k">Set</span>
+list.Add(value)</code></pre>
+
+
+
+<p class="wp-block-paragraph">I’m also interesting in how this kind of construct might be used with a “Result Pattern”, particularly if <code>Case</code> classes make defining such types easier. </p>
+
+
+
+<h3 class="wp-block-heading">18.3 Case Else variable</h3>
+
+
+
+<pre><code><span class="c">' Expect the unexpected?</span>
+<span class="c">' (Great for enums!)</span>
+<span class="k">Select</span> <span class="k">Case</span> expression
+    <span class="k">Case</span> value1
+        ...
+
+    <span class="k">Case</span> value2
+        ...
+
+    <span class="k">Case</span> <span class="k">Else</span> other
+        <span class="c">' Only needed a variable if the value is unexpected.</span>
+        <span class="c">' This keeps the scope limited to this case.</span>
+        <span class="k">Throw</span> <span class="k">New</span> <span class="t">UnexpectedValueException</span>(other)
+        
+<span class="k">End</span> <span class="k">Select</span></code></pre>
+
+
+
+<h3 class="wp-block-heading">18.4 Exclusive <code>For</code> “upper” bound</h3>
+
+
+
+<p class="wp-block-paragraph">I’m a little tired of <code>arr.Length - 1</code>. It didn’t bother me in QB/VB6 because of the <code>UBound</code> function (which only works with arrays). On the other hand, some APIs take exclusive ranges so this <code>x To &lt; y</code> syntax might be generally useful.</p>
+
+
+
+<pre><code><span class="k">For</span> i = <span class="l">0</span> <span class="k">To</span> &lt; arr.Length
+    ...
+<span class="k">Next</span>
+
+<span class="t">Console</span>.WriteLine(<span class="k">String</span>.Join(<span class="l">", "</span>, <span class="l">0</span> <span class="k">To</span> &lt; <span class="l">10</span>)</code></pre>
+
+
+
+<h3 class="wp-block-heading">18.5 Parallel extensions</h3>
+
+
+
+<p class="wp-block-paragraph">We’ve integrated asynchrony but not parallelism. Worth thinking about eventually. For now <code>Parallel.For</code> is enough.</p>
+
+
+
+<h3 class="wp-block-heading">18.6 Retry/Resume</h3>
+
+
+
+<p class="wp-block-paragraph">The only scenarios where I can see using <code>On Error</code> today is for <code>Resume Next</code> or retrying with <code>Goto</code>. If we can hit that with <code>Try</code> that kind of unstructured error handling can be deprecated.</p>
+
+
+
+<pre><code><span class="c">' This isn't that bad.</span>
+<span class="k">Let</span> retryCount = <span class="l">0</span>
+<span class="k">Try</span>
+    Retry:
+    ...
+<span class="k">Catch</span> <span class="k">ex</span> <span class="k">As</span> <span class="t">Exception</span> <span class="k">When</span> retryCount &lt; <span class="l">3</span>
+    retryCount += <span class="l">1</span>
+    <span class="k">Goto</span> Retry
+<span class="k">End</span> <span class="k">Try</span>
+
+<span class="c">' This is worse but likely uncommon and there are</span>
+<span class="c">' other ways to do this elegantly.</span>
+<span class="k">Try</span>
+    <span class="c">' Step 1</span>
+<span class="k">Catch</span>
+<span class="k">End</span> <span class="k">Try</span>
+
+<span class="k">Try</span>
+    <span class="c">' Step 2</span>
+<span class="k">Catch</span>
+<span class="k">End</span> <span class="k">Try</span>
+
+<span class="k">Try</span>
+    <span class="c">' Step 3</span>
+<span class="k">Catch</span>
+<span class="k">End</span> <span class="k">Try</span></code></pre>
+
+
+
+<h3 class="wp-block-heading">18.7 More robust mapping</h3>
+
+
+
+<p class="wp-block-paragraph">Should there be some “natural join” syntax to map the members of one object to another?</p>
+
+
+
+<p class="wp-block-paragraph">Should there be a way to indicate that an unmapped member is intentional?</p>
+
+
+
+<pre><code><span class="c">' If there's a warning that you forgot to serialize a property,</span>
+<span class="c">' how do you silence it without turning off the warning entirely?</span>
+jsonWriter &amp;= {
+                <span class="l">"firstName"</span>: person.Name.Given,
+                <span class="l">"lastName"</span> : person.Name.Surname,
+                <span class="k">null</span>       : person.EmailAddress
+              }
+
+<span class="c">' Same question with deserializing.</span>
+<span class="c">' Pattern matching into existing variables/properties is</span>
+<span class="c">' still an open question, though.</span>
+<span class="k">Let</span> address = <span class="k">New</span> <span class="t">Address</span>
+<span class="k">If</span> <span class="k">ShapeOf</span> json <span class="k">IsNot</span> {
+     <span class="l">"line1"</span>: address.Street
+     <span class="l">"line2"</span>: <span class="k">null</span>,
+     <span class="l">"city"</span> : address.City
+     <span class="l">"state"</span>: address.State
+   }
+<span class="k">Then</span>
+    <span class="k">Throw</span> <span class="k">New</span> <span class="t">DeserializationFailureException</span>()
+<span class="k">End</span> <span class="k">If</span>
+
+<span class="k">Return</span> address
+
+</code></pre>
+
+
+
+<h3 class="wp-block-heading">18.8 VB Idiomatic custom JSON serializers</h3>
+
+
+
+<p class="wp-block-paragraph">This goes with the previous example. The only scenario I consistently hear for “ref structs” is custom JSON serializers with <code>Utf8JsonReader</code>. Setting aside the general issue, this assumes that the idiomatic way to write a deserializer in VB is the way it’s done in C#. I could delay, mitigate, or side-step the issue if VB had a natural abstraction for this.</p>
+
+
+
+<h3 class="wp-block-heading">18.9 More elegant integration of case-insensitivity/collation</h3>
+
+
+
+<p class="wp-block-paragraph">VB has many built-in constructs that may compare strings:</p>
+
+
+
+<ul class="wp-block-list">
+<li>Comparison operators <code>=</code>, <code>&lt;&gt;</code>, <code>&lt;</code> , <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code> in binary expressions.</li>
+
+
+
+<li>The same in <code>Select Case</code> blocks.</li>
+</ul>
+
+
+
+<p class="wp-block-paragraph">Many applications benefit from case-insensitive string comparisons but this means not using the built-in support for strings, which is a hallmark of BASIC since time immemorial.</p>
+
+
+
+<p class="wp-block-paragraph">You can use <code>Option Compare Text</code> but it has unexpected null handling and only affects comparison operators and <code>Select Case</code> and certain APIs in the VB runtime library (if you’ve ever wonder how that works–it’s basically <code>&lt;CallerOptionCompareSettingAttribute&gt;</code>). And this doesn’t include the <code>Distinct</code> query operator at all. This means giving up the syntactic sugar and calling <code>Equals</code> and passing <code>ComparisonType</code> or <code>StringComparer</code>.</p>
+
+
+
+<p class="wp-block-paragraph">This issue becomes worse with String and JSON pattern matching. An elegant solution that integrates with existing .NET APIs would be wonderful. There are some starting places for investigating such as design but it needs more consideration.</p>
+
+
+
+<h3 class="wp-block-heading">18.10 Lookahead and backtracking in String patterns</h3>
+
+
+
+<p class="wp-block-paragraph">As-is pattern-matching evaluates patterns from the outside to the inside, left to right. This raises several problems:</p>
+
+
+
+<ul class="wp-block-list">
+<li>A naïve implementation of String pattern matching would allocate many needless intermediate garbage strings.</li>
+
+
+
+<li>Certain common patterns need backtracking.</li>
+
+
+
+<li>Inner patterns can’t influence decomposition of the outer pattern and lazy or greedy ways.</li>
+</ul>
+
+
+
+<p class="wp-block-paragraph">It would be good in the design of the string pattern matching to consider how the feature would apply to a text window/stream or a span.</p>
+
+
+
+<h3 class="wp-block-heading">18.11 String vs Span/ReadOnlySpan(Of Char/Byte) and UTF-8</h3>
+
+
+
+<p class="wp-block-paragraph">String handling in VB must be awesome! We cannot allow modern problems to introduce ugliness into our codebases.</p>
+
+
+
+<h3 class="wp-block-heading">18.12 Named pattern inputs</h3>
+
+
+
+<p class="wp-block-paragraph">Some hypothetical patterns would benefit from additional “inputs” (e.g. <code>Regex("\d+", n)</code>) but currently the “argument” list for a named pattern is output only. This should be investigated.</p>
+
+
+
+<h3 class="wp-block-heading">18.13 Patterns as data?</h3>
+
+
+
+<p class="wp-block-paragraph">Composition is essential to managing complexity but as-is there isn’t yet a way to pass patterns around as data or compose them. Fixing this could open some scenarios.</p>
+
+
+
+<h3 class="wp-block-heading">18.14 PLINQ, Async queries, more query operators</h3>
+
+
+
+<p class="wp-block-paragraph">Parallel LINQ, queries that use <code>Await</code>, queries against <code>IAsyncEnumerable</code> are areas to investigate. As query languages and data stores evolve we also have to ensure that the query comprehension syntax can smoothly express common use-cases (e.g. Common-Table Expressions, Geospatial data, No-SQL, Temporal Databases) without needing to fallback to extension methods and lambda expressions.</p>
+
+
+
+<h3 class="wp-block-heading">18.15 New ConfigureAwait options/fire-and-forget exception handling</h3>
+
+
+
+<p class="wp-block-paragraph">Void-returning async methods are my white whale. I must find more ways to limit their spread. Additionally when “forgetting” a Task-returning async method I need to be sure folks can express/configure the various patterns to unobserved exceptions.</p>
+
+
+
+<h3 class="wp-block-heading">18.16 “Nullable Reference Types”</h3>
+
+
+
+<p class="wp-block-paragraph">Nullable Reference Types has received mix reviews in C#. And VB users have expressed confusion and concern about how it would be done in VB. I consider it a failure if users hate the new feature turn it off or advise others to do so. I must refine the design to consider these observations.</p>
+
+
+
+<h3 class="wp-block-heading">18.17 Handling duplicate declarations, “File” accessibility, “Appendable” methods?</h3>
+
+
+
+<p class="wp-block-paragraph">Source generator authoring (and performance) could be negatively impacted trying to avoid name clashes, duplicate definitions (or ensuring there aren’t). I’ve thought through some ways to handle this at various layers.</p>
+
+
+
+<p class="wp-block-paragraph">I personally dislike stitching together statements from across multiple files into one method. I don’t want two VB script files to just run back-to-back or for end-developers to have to think too hard about the order partial files would be combined in. With that said, a source generator analog to a “multicast delegate” could impact how certain scenarios are addressed between my various declarative programming approaches.</p>
+
+
+
+<h3 class="wp-block-heading">18.18 Generative compiler scripting</h3>
+
+
+
+<p class="wp-block-paragraph">I’m pretty sure this is a bad idea. But at some point I’ll venture into that dragon’s lair.</p>
+
+
+
+<h3 class="wp-block-heading">18.19 Units of Measure?</h3>
+
+
+
+<p class="wp-block-paragraph">When F# debuted with many cool ideas. I like the feeling of units of measure but I’m not convinced it’s a no-brainer. I’ve gone through several exercises to see how a VB user might implement a unit of measure system in a library without language support at all, or, what the minimal set of features could be added to make the experience of creating and using such a system acceptable. I will continue to investigate but so far my exercises have yielded 1 uncontroversial feature: <strong>Generic Operators</strong>.</p>
+
+
+
+<p class="wp-block-paragraph">There is an attractive syntactic sugar that isn’t necessary but would clean up some rough edges, e.g. <code>Weight(in lbs)</code> but exploring the space is absolutely worth a dedicated and detailed in-depth posting.</p>
+
+
+
+<h3 class="wp-block-heading">18.20 Annotated types/Type flavors</h3>
+
+
+
+<p class="wp-block-paragraph">In Visual Studio 2008 VB introduced XML literals. The VB team had a feature for providing IntelliSense for XML elements and attributes in the code editor based on schema files:</p>
+
+
+
+<figure class="wp-block-image size-large"><img data-recalc-dims="1" decoding="async" width="443" height="353" data-attachment-id="968" data-permalink="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/image-11/" data-orig-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/image-3.png?fit=443%2C353&amp;ssl=1" data-orig-size="443,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;,&quot;alt&quot;:&quot;&quot;}" data-image-title="image" data-image-description="" data-image-caption="" data-large-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/image-3.png?fit=443%2C353&amp;ssl=1" src="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/image-3.png?resize=443%2C353&amp;ssl=1" alt="" class="wp-image-968"></figure>
+
+
+
+<p class="wp-block-paragraph">When building Roslyn we made the painful decision to cut this feature for time and I’ve been stewing over how to gracefully get it back. Additionally, now with a greater emphasis on JSON a similar IntelliSense experience for examining JSON payloads in the editor is a no-brainer. Given some context the IDE should be able to provide a list of completions when you type <code>jsonObject!</code></p>
+
+
+
+<p class="wp-block-paragraph">To support this experience I’ve already mentioned a desire to make XML and JSON schema types expressible in code, even if just decoration:</p>
+
+
+
+<pre><code><span class="c">' Suggestions should be provided after typing `order.&lt;`.</span>
+<span class="k">Sub</span> ProcessOrder(order <span class="k">As</span> &lt;PurchaseOrder&gt;)
+
+<span class="c">' Suggestions should be provided after typing `request!`.</span>
+<span class="k">Sub</span> ProcessRequest(request <span class="k">As</span> {<span class="l">"trade-message"</span>})</code></pre>
+
+
+
+<p class="wp-block-paragraph">These don’t have to be realized as their own types (in fact it’s better if they aren’t) but more of an annotation on e.g. <code>XElement</code> or <code>JsonObject</code> that tools can use.</p>
+
+
+
+<p class="wp-block-paragraph">And we do something like this today with tuple types–<code>(x As Integer, y As Integer)</code> doesn’t generate a new type but annotates the declaration in such a way as to surface those names on <code>ValueTuple(Of Integer, Integer)</code>.</p>
+
+
+
+<p class="wp-block-paragraph">C# does basically the same thing to represent <code>dynamic</code> which is otherwise represented as <code>System.Object</code> within the .NET runtime. And ModVB will do the same with the <code>Any</code> type.</p>
+
+
+
+<p class="wp-block-paragraph">What if simple anonymous delegate types e.g. unified with <code>Action</code> and <code>Func</code> types instead of generating their own anonymous ones, e.g. <code>&lt;Function(Object) As Boolean&gt;</code> is a flavor of  <code>Func(Of Object, Boolean)</code>. VB already does some magic to erase those types if ultimately converted to a nominal delegate type. Then VB users could use <code>Action</code> and <code>Func</code> types while still surfacing valuable information to callers:</p>
+
+
+
+<pre><code><span class="c">' Do you know what the two parameters to the delegate mean?</span>
+<span class="k">Function</span> ReplaceNodes(
+           nodes <span class="k">As</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">Node</span>),
+           replacer <span class="k">As</span> <span class="t">Func</span>(<span class="k">Of</span> <span class="t">Node</span>, <span class="t">Node</span>, <span class="t">Node</span>)
+         )
+         <span class="k">As</span> <span class="t">Node</span>
+         
+<span class="c">' How about now?</span>
+<span class="k">Function</span> ReplaceNodes(
+           nodes <span class="k">As</span> <span class="t">IEnumerable</span>(<span class="k">Of</span> <span class="t">Node</span>),
+           replacer <span class="k">As</span> &lt;<span class="k">Function</span>(original <span class="k">As</span> <span class="t">Node</span>, rewritten <span class="k">As</span> <span class="t">Node</span>) <span class="k">As</span> <span class="t">Node</span>&gt;
+         )
+         <span class="k">As</span> <span class="t">Node</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">And then there’s the aforementioned units-of-measure question, what if it were tracked as an annotation on a numeric variable rather than a real type?</p>
+
+
+
+<p class="wp-block-paragraph">Funny story: Once Erik Meijer (who was a significant influence on VB9) told me that the way the XML IntelliSense was done was actually essentially “type provider”, at least for the purposes of filing a patent on it. Which brings me to my final scenario:</p>
+
+
+
+<p class="wp-block-paragraph">Type Providers.</p>
+
+
+
+<p class="wp-block-paragraph">Ok, not the compile-time code generation/injection approach used in F# but something a little less … trusting of 3rd party code running inside the compiler. I haven’t landed on an intuitive syntax but imagine if a developer could annotate any type reference in code with some arbitrary metadata which tools could use to provide suggestions and diagnostics!</p>
+
+
+
+<pre><code><span class="c">' Annotated with the key for a connection string.</span>
+<span class="k">Let</span> db = <span class="k">New</span> <span class="t">SqlDbProxy</span>(<span class="k">For</span> <span class="l">"AdventureWorks"</span>)()
+
+<span class="c">' Completions could be provided by an editor extension that</span>
+<span class="c">' can connect to the database locally.</span>
+<span class="k">For</span> <span class="k">Each</span> p <span class="k">In</span> db.Tables!Products
+   <span class="k">Where</span> p!Price(<span class="k">As</span> <span class="k">Decimal</span>) &gt;= <span class="l">100</span>
+
+<span class="c">' Remember that thing I said about `Default` methods and invocables?</span>
+db.StoredProcedures!sp_DeleteOldRecords()   
+   
+<span class="k">Let</span> api = <span class="k">New</span> <span class="t">RestProxy</span>(<span class="k">For</span> <span class="l">"api.github.com"</span>)()
+
+<span class="c">' REST API URL completions.</span>
+? api.HttpGet(<span class="l">"/repos/..."</span>)
+
+<span class="c">' As easy as late-binding but not actually.</span>
+<span class="c">' Windows Management Instrumentation.</span>
+<span class="k">Let</span> wmi = <span class="k">New</span> <span class="t">WmiProxy</span>(<span class="k">For</span> <span class="l">"\\.\root\cimv2"</span>)()
+wmi.Classes!Win32_Process.Methods!Create(commandLine:=<span class="l">"notepad.exe"</span>,
+                                         returnValue:=<span class="k">Out</span> code <span class="k">As</span> <span class="t">UInt32</span>)
+<span class="k">If</span> code = <span class="l">0</span> <span class="k">Then</span>
+    ...</code></pre>
+
+
+
+<p class="wp-block-paragraph">And that’s the real scenario, enabling tooling to provide the safe(er) experience a types while retaining the lightweight footprint of late-bound object models but not paying the runtime cost of true Reflection/DLR machinery at run-time!</p>
+
+
+
+<p class="wp-block-paragraph">At this point I’m laughing maniacally. But yeah, that’s <strong>6</strong> scenarios and I thought up like 2-3 more after I stopped writing this section. I think that’s enough to justify searching for a unified solution.</p>
+
+
+
+<h3 class="wp-block-heading">18.21 <code>Case</code> Classes, Structures, and Interfaces</h3>
+
+
+
+<p class="wp-block-paragraph">OK, this is the last section I’m going to write. I’ve known “discriminated unions” were on the “look at this one day” list for dotnet (like many F# features) so I have been watching functional videos and reading articles to appreciate them. And I mostly don’t. But I did see 2 examples that cracked the door and I’ve reframed the issue for myself and that has produced some syntax sketches that I’ll share for illustration purposes.</p>
+
+
+
+<figure class="wp-block-image size-large"><img data-recalc-dims="1" decoding="async" width="584" height="693" data-attachment-id="984" data-permalink="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/448219842_1816248665521496_2005752932713902664_n/" data-orig-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/448219842_1816248665521496_2005752932713902664_n.png?fit=679%2C806&amp;ssl=1" data-orig-size="679,806" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;,&quot;alt&quot;:&quot;&quot;}" data-image-title="448219842_1816248665521496_2005752932713902664_n" data-image-description="" data-image-caption="" data-large-file="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/448219842_1816248665521496_2005752932713902664_n.png?fit=584%2C693&amp;ssl=1" src="https://i0.wp.com/anthonydgreen.net/wp-content/uploads/2026/04/448219842_1816248665521496_2005752932713902664_n.png?resize=584%2C693&amp;ssl=1" alt="" class="wp-image-984"></figure>
+
+
+
+<p class="wp-block-paragraph">I’ll dive into this another day, but sooner than later. </p>
+
+
+
+<h3 class="wp-block-heading">18.22 Overloading on <code>Structure</code> constraint</h3>
+
+
+
+<p class="wp-block-paragraph">Sometimes when dealing with generics, I wish I could provide different implementations for value types and reference types especially when any kind of nullability is involved. But you can’t overload methods on generic constraints. But there’s a cheat.</p>
+
+
+
+<pre><code><span class="c">' (As we all know...) you can't overload on generic constraints.</span>
+<span class="c">' This is illegal:</span>
+<span class="k">Sub</span> M(<span class="k">Of</span> <span class="t">T</span> <span class="k">As</span> <span class="k">Class</span>)(p <span class="k">As</span> <span class="t">T</span>)
+<span class="k">Sub</span> M(<span class="k">Of</span> <span class="t">T</span> <span class="k">As</span> <span class="k">Structure</span>)(p <span class="k">As</span> <span class="t">T</span>)
+
+<span class="c">' But this is not:</span>
+<span class="k">Sub</span> M(<span class="k">Of</span> <span class="t">T</span> <span class="k">As</span> <span class="k">Class</span>)(p <span class="k">As</span> <span class="t">T</span>)
+<span class="k">Sub</span> M(<span class="k">Of</span> <span class="t">T</span> <span class="k">As</span> <span class="k">Structure</span>)(p <span class="k">As</span> <span class="t">T</span>, <span class="k">Optional</span> ignored <span class="k">As</span> <span class="k">Object</span> = <span class="k">Nothing</span>)
+
+<span class="c">' Because VB considers type parameter constraints in determining</span>
+<span class="c">' which overloads are applicable, these lines do what you'd hope:</span>
+M(<span class="l">""</span>) <span class="c">' Calls reference type overload.</span>
+M(<span class="l">1</span>)  <span class="c">' Calls value type overload</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">So this is a “to-do” to consider how to remove the need for the fake parameter in source even if it needs there in the metadata. That’s it.</p>
+
+
+
+<h3 class="wp-block-heading">18.23 Platform Native Instruction Helpers</h3>
+
+
+
+<p class="wp-block-paragraph">Tired of being asked to add a one-off keyword for <a href="https://learn.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes?view=net-10.0">every opcode in the CLR</a>. I wouldn’t go so far as to add “IL Literals” but maybe there’s something that gets the job done without directly bloating the language (similar to P/Invoke), e.g.:</p>
+
+
+
+<ul class="wp-block-list">
+<li>Case-sensitive member resolution against poorly written libraries.</li>
+
+
+
+<li>Checked/Unchecked arithmetic.</li>
+
+
+
+<li>Volatile</li>
+
+
+
+<li>Localloc</li>
+</ul>
+
+
+
+<p class="wp-block-paragraph">VB already recognizes certain method calls and emits them as intrinsic IL instructions. It’s just a matter of expanding the list and defining a well-known module in the runtime with the right shared methods in the right shapes to make more of IL expressible through VB.</p>
+
+
+
+<p class="wp-block-paragraph">Of course, there will always be instructions so mainstream that they should be surfaced more naturally, e.g. the <a href="https://github.com/dotnet/vblang/blob/main/spec/expressions.md#cast-expressions">VB language specification outright says</a> that <code>DirectCast</code> and <code>TryCast</code> were added to make the native <code>unbox</code> and <code>isinst</code> instructions available natively. And maybe there’s some shared infrastructure for easily supporting <code>System.Runtime.Intrinsics</code> for those so inclined. </p>
+
+
+
+<h3 class="wp-block-heading">18.24 Scripting and Interpreted Code</h3>
+
+
+
+<p class="wp-block-paragraph">Of course.</p>
+
+
+
+<h3 class="wp-block-heading">18.25 Simplified “Chained” ternary expressions (<code>Case</code> expression lite?)</h3>
+
+
+
+<pre><code><span class="c">' Something like this.</span>
+? <span class="k">If</span>(year <span class="k">Mod</span> <span class="l">400</span> = <span class="l">0</span>,
+       <span class="k">True</span>,
+     year <span class="k">Mod</span> <span class="l">4</span> = <span class="l">0</span> <span class="k">AndAlso</span>
+     year <span class="k">Mod</span> <span class="l">100</span> &lt;&gt; <span class="l">0</span>,
+       <span class="k">True</span>,
+     <span class="k">Else</span>,
+       <span class="k">False</span>)</code></pre>
+
+
+
+<h3 class="wp-block-heading">18.26 Type Predicates in Flow-Sensitive Typing</h3>
+
+
+
+<p class="wp-block-paragraph">I haven’t given much thought to this at all but it occurred to me when I was writing the <a href="https://anthonydgreen.net/2024/06/06/the-agenda-type-inference-enhancements/">type-inference</a> section that it might be simple to generalize things a little further.</p>
+
+
+
+<p class="wp-block-paragraph">I showed that checking if a variable of type <code>IEnumerable</code> to see if its value is of the type <code>IDisposable</code> will cause in that execution path the type of the variable to become the composite (intersection) type <code>{IEnumerable, IDisposable}</code>.</p>
+
+
+
+<p class="wp-block-paragraph">Then mentioned that you can treat nullness like this so that a variable’s type could be <code>{String, Not Null}</code>.</p>
+
+
+
+<p class="wp-block-paragraph">Skipping a long story … effect system … TypeScript … “future-proof?” …</p>
+
+
+
+<p class="wp-block-paragraph">For the sake of illustration imagine this (conceptually): </p>
+
+
+
+<pre><code><span class="c">' Pseudo-code, not proposed syntax.</span>
+<span class="k">Interface</span> <span class="t">Negative</span>
+    <span class="k">Shared</span> <span class="k">Function</span> IsNegative(x <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Boolean</span>
+        <span class="k">Return</span> x &lt; <span class="l">0</span>
+    <span class="k">End</span> <span class="k">Function</span>
+<span class="k">End</span> <span class="k">Interface</span>
+
+<span class="k">Interface</span> <span class="t">Positive</span>
+    <span class="k">Inherits</span> <span class="t">NonNegative</span>
+    
+    <span class="k">Shared</span> <span class="k">Function</span> IsPositive(x <span class="k">As</span> <span class="k">Integer</span>) <span class="k">As</span> <span class="k">Boolean</span>
+        <span class="k">Return</span> x &gt; <span class="l">0</span>
+    <span class="k">End</span> <span class="k">Function</span>    
+<span class="k">End</span> <span class="k">Interface</span></code></pre>
+
+
+
+<p class="wp-block-paragraph">That is to say if I could provide the system I designed a named type which represented some function returning true then it would start plumbing things through like <code>{Integer, Not Negative}</code> or have a declaration like <code>count As {Integer, Positive}</code>. That’s enough that it’s an interesting thing to explore <em>at some point</em> but I haven’t thought too deeply about it yet.</p>
+
+
+
+<h3 class="wp-block-heading">18.27 More versioning tools to let library authors improve things without binary breaks</h3>
+
+
+
+<p class="wp-block-paragraph">We have <code>TypeForwardedToAttribute</code> to move a type to a different assembly. What about moving it to a different namespace? What about renaming types or methods? Could I design some kind of “virtual” or “meta” namespace concept that let’s authors provide cleaner experiences, e.g. <code>Imports Wpf</code> instead of the 5 or 6 namespaces you actually need. Is there a way to provide a cleaner <code>System</code> namespace for new developers? StringBuilder should be there, _AppDomain probably shouldn’t. What would tooling look like on upgraded projects, looking for help, docs, etc.</p>
+
+
+
+<h3 class="wp-block-heading">18.28 Arbitrary block scopes?</h3>
+
+
+
+<p class="wp-block-paragraph">Just remembered that. People keep asking for this.</p>
+
+
+
+<h3 class="wp-block-heading">18.29 Rust-style “ownership” for disposables, etc.?</h3>
+
+
+
+<p class="wp-block-paragraph">Could we? Of course. Should we? Who knows?</p>
+
+
+
+<p class="wp-block-paragraph"><code>Take</code>, <code>Borrow</code>, <code>Give</code>, <code>Lend</code></p>
+
+
+
+<h3 class="wp-block-heading">18.30 Idk, something about AI I guess</h3>
+
+
+
+<p class="wp-block-paragraph">Ugh. (sigh) yeah, I know…</p>
+
+
+
+<h1 class="wp-block-heading"><a href="#wrap-up">Wrap-up</a></h1>
+
+
+
+<p class="wp-block-paragraph">This post took me at least a month to write. It is 59-pages long when printed, which breaks my previous record. That’s much compressed from the original 300-page+ … “depth-first” expansion of my original outline that I estimated I’d need several years ago. To get down to this length I had to cut out a lot of me talking and explaining and justifying and anecdotes. I could specify and prototype and script and record and demo videos on YouTube and edit them down to ~5mins to hold attention. I could write the grammar and talk about back-compat and the debugging and IDE experience and how to represent these changes in the Roslyn Syntax API in a compatible way that vanilla-VB tooling won’t choke on new features. If I wanted to spend the rest of my 40s trying to prove things to some unknown judge my anxiety has created. But this is like years of work and it won’t all come out in one release and there’s a lot of work to do. This “one-pager” represents probably 80% of the compiler/language possibilities that I’m motivated to pursue in ModVB. But that’s only like 65% of the total project. The other 35% is IDE stuff, etc. And on top of that there’s broader <a href="https://github.com/openvbdotnet">OpenVB community</a>/organization/foss stuff that the entire VB community needs to be part of.  This is not “a product” or “a release” or “some features”. It’s a living programming language community and everything that entails on an ongoing basis without a defined end-point.</p>
+
+
+
+<p class="wp-block-paragraph">I hope this document gives people a sense that the future of VB isn’t about “catching up” to some other perceived front-runner. It’s not about feature envy or re-styling the things other communities are focusing on but finding and maintaining our own focus on what our community has to offer and can become.</p>
+
+
+
+<p class="wp-block-paragraph">And this all lives in my head all the time and I’d like to get it out of there. So, I’m going to trust my audience to trust me. And respect me, and my time, my ideas, and focus on making cool things and stop selling myself and selling the idea that there are cool things worth making. Thanks for reading.</p>
+
+
+
+<p class="wp-block-paragraph">Regards,</p>
+
+
+
+<p class="wp-block-paragraph"><strong>-Anthony D. Green</strong></p>
+<div class="sharedaddy sd-sharing-enabled"><div class="robots-nocontent sd-block sd-social sd-social-icon-text sd-sharing"><h3 class="sd-title">Share this:</h3><div class="sd-content"><ul data-sharing-events-added="true"><li class="share-twitter"><a rel="nofollow noopener noreferrer" data-shared="sharing-twitter-841" class="share-twitter sd-button share-icon" href="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/?share=twitter&amp;nb=1" target="_blank" aria-labelledby="sharing-twitter-841">
+				<span id="sharing-twitter-841" hidden="">Share on X (Opens in new window)</span>
+				<span>X</span>
+			</a></li><li class="share-facebook"><a rel="nofollow noopener noreferrer" data-shared="sharing-facebook-841" class="share-facebook sd-button share-icon" href="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/?share=facebook&amp;nb=1" target="_blank" aria-labelledby="sharing-facebook-841">
+				<span id="sharing-facebook-841" hidden="">Share on Facebook (Opens in new window)</span>
+				<span>Facebook</span>
+			</a></li><li class="share-end"></li></ul></div></div></div><div class="sharedaddy sd-block sd-like jetpack-likes-widget-wrapper jetpack-likes-widget-unloaded" id="like-post-wrapper-156355132-841-6a76b4519ad6f" data-src="https://widgets.wp.com/likes/?ver=16.1-beta.3#blog_id=156355132&amp;post_id=841&amp;origin=anthonydgreen.net&amp;obj_id=156355132-841-6a76b4519ad6f" data-name="like-post-frame-156355132-841-6a76b4519ad6f" data-title="Like or Reblog"><h3 class="sd-title">Like this:</h3><div class="likes-widget-placeholder post-likes-widget-placeholder" style="height: 55px;"><span class="button"><span>Like</span></span> <span class="loading"><svg class="jetpack-spinner" width="18" height="18" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="46" fill="none" stroke="#ddd" stroke-width="8"></circle><path d="M 50 4 A 46 46 0 0 1 96 50" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" dur="1.4s" from="0 50 50" to="360 50 50" repeatCount="indefinite"></animateTransform></path></svg><span class="screen-reader-text">Loading…</span></span></div><span class="sd-text-color"></span><a class="sd-link-color"></a></div>
+<div id="jp-relatedposts" class="jp-relatedposts" style="display: block;">
+	<h3 class="jp-relatedposts-headline"><em>Related</em></h3>
+<div class="jp-relatedposts-items jp-relatedposts-items-minimal jp-relatedposts-grid "><p class="jp-relatedposts-post jp-relatedposts-post0" data-post-id="443" data-post-format="false"><span class="jp-relatedposts-post-title"><a class="jp-relatedposts-post-a" href="/2022/08/20/introducing-modvb/?relatedposts_hit=1&amp;relatedposts_origin=841&amp;relatedposts_position=0" title="Introducing ModVB—A free, independently-created “mod” for VB.NET that gives you new features just by installing a VSIX…" data-origin="841" data-position="0">Introducing ModVB—A free, independently-created “mod” for VB.NET that gives you new features just by installing a VSIX…</a></span><time class="jp-relatedposts-post-date" datetime="20 Aug 2022" style="display: block;">20 Aug 2022</time><span class="jp-relatedposts-post-context">With 9 comments</span></p><p class="jp-relatedposts-post jp-relatedposts-post1" data-post-id="544" data-post-format="false"><span class="jp-relatedposts-post-title"><a class="jp-relatedposts-post-a" href="/2023/05/31/scaling-out/?relatedposts_hit=1&amp;relatedposts_origin=841&amp;relatedposts_position=1" title="Scaling out" data-origin="841" data-position="1">Scaling out</a></span><time class="jp-relatedposts-post-date" datetime="31 May 2023" style="display: block;">31 May 2023</time><span class="jp-relatedposts-post-context">Similar post</span></p><p class="jp-relatedposts-post jp-relatedposts-post2" data-post-id="572" data-post-format="false"><span class="jp-relatedposts-post-title"><a class="jp-relatedposts-post-a" href="/2024/05/25/the-agenda/?relatedposts_hit=1&amp;relatedposts_origin=841&amp;relatedposts_position=2" title="The Agenda" data-origin="841" data-position="2">The Agenda</a></span><time class="jp-relatedposts-post-date" datetime="25 May 2024" style="display: block;">25 May 2024</time><span class="jp-relatedposts-post-context">With 7 comments</span></p></div></div>			</div><!-- .entry-content -->
+
+	<footer class="entry-meta">
+		This entry was posted in <a href="https://anthonydgreen.net/category/uncategorized/" rel="category tag">Uncategorized</a> by <a href="https://anthonydgreen.net/author/anthonydiantegreen/">Anthony D. Green</a>. Bookmark the <a href="https://anthonydgreen.net/2026/04/27/the-agenda-a-visual-guide/" title="Permalink to The Agenda – A Visual Guide" rel="bookmark">permalink</a>.
+		
+			</footer><!-- .entry-meta -->
+</article>

@@ -1,0 +1,1 @@
+This folder contains AI knowledge base files and decisions made by humans.
