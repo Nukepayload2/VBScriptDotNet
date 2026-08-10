@@ -20,14 +20,15 @@
 
 ---
 
-## Active（2 份，根目录）
+## Active（3 份，根目录）
 
-> RESOLUTION = Active 或 Consider。编号为产品提案序列号。
+> RESOLUTION = Active 或 Consider。编号为产品提案序列号。Proposed 未定三态的提案暂列 active 根目录，判定待 LDM 会议评估。
 
 | # | 文件名 | 建议 |
 |---|--------|------|
 | 01 | `proposal-avalonia-ise-repl-ui.md` | Avalonia UI + Avalonia Edit 仿制 PowerShell ISE 的图形化 REPL/脚本编辑器（Consider，易用性提升） |
 | 02 | `proposal-optional-question-prefix.md` | REPL 表达式开头问号 `?` 可选，对齐 C# REPL 自动打印表达式结果（Active） |
+| 03 | `proposal-vscode-extension-ise-repl-ui.md` | VS Code 扩展：在 VS Code 内置 REPL + 脚本编辑（仿 vscode-powershell 架构，宣传/触达 vs 内存/轻量，与 Avalonia 双路线互补）（Proposed，待 LDM 评估） |
 
 ---
 

@@ -17,6 +17,7 @@
 |--------|---------|------|---------|
 | `meeting-vb-repl-parity-with-csharp-repl.md` | 现状盘点 + 评估 `proposal-optional-question-prefix.md` 与 `proposal-avalonia-ise-repl-ui.md` | 让 VB REPL 的功能追上 C# REPL 的讨论（2.0 beta 现状盘点、借鉴 csharplang、评估两个新提案） | optional-question-prefix = **Active**；avalonia-ise-repl-ui = **Consider** |
 | `meeting-optional-question-prefix.md` | 评估 `proposal-optional-question-prefix.md`（REPL `?` 可选） | 深度评审：REPL 表达式开头问号可选——源码机制核实（PrintStatement / BC30545 / HasSubmissionResult）、候选方案（A/B/C/D）、实现落点（编译器层，跟随 C# REPL 设定）、边界与诊断族枚举 | optional-question-prefix = **Active** |
+| `meeting-vscode-extension-ise-repl-ui.md` | 评估 `proposal-vscode-extension-ise-repl-ui.md`（VS Code 扩展 REPL/脚本编辑器） | 深度评审：VS Code 扩展运行方式全考虑（A 一进程 REPL+LSP+DAP / B 独立 stdio LSP / C Zed 扩展 / D 仅编辑）、Zed 竞品分析（本体内存低、stdio LSP、tree-sitter）、LSP 宿主作为跨客户端资产、与 Avalonia 双路线互补 | vscode-extension-ise-repl-ui = **Consider** |
 
 ## 会议纪要格式
 
