@@ -23,6 +23,7 @@
   - 顶层 `AddHandler` / `RemoveHandler`
   - `Imports` 跨提交累积
   - `Function Main` 退出码语义（`Return 42` → 退出码 42；裸 Return/无 Return → 0；**末尾表达式不再设退出码**）
+- **REPL 裸表达式自动打印**（表达式开头 `?` 可选）：见 `spec-optional-question-prefix.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令。
 - **理论上和 C# REPL 不应该有功能差距**。
 - 注意：代码内产品版本号仍停在 `1.2.0-beta`，「2.0 beta」是当前里程碑叫法。

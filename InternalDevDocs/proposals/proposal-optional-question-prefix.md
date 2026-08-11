@@ -3,7 +3,7 @@
 * [x] Proposed
 * [ ] Prototype: [Complete](https://github.com/PROTOTYPE_OWNER/roslyn/BRANCH_NAME)
 * [ ] Implementation: [In Progress](https://github.com/dotnet/roslyn/BRANCH_NAME)
-* [ ] Specification: [Not Started](pr/1)
+* [x] Specification: [Complete](../spec/spec-optional-question-prefix.md)
 
 ## Summary
 [summary]: #summary
