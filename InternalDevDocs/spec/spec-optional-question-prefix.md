@@ -22,7 +22,7 @@ proposal（`proposals/proposal-optional-question-prefix.md`，Active）→ LDM �
 
 ## 测试事实
 
-- 无副作用测试矩阵（REPL / 脚本模式 / Regular 零影响三块）：`tasks/optional-question-prefix/design-detailed.md` §7。
+- 无副作用测试矩阵（REPL / 脚本模式 / Regular 零影响三块）：`tasks/optional-question-prefix/design-detailed.md` §7；分层测试计划（参考 C# 四层强度 + VB 语法特性综合）：`tasks/optional-question-prefix/test-plan.md`。
 - 测试纪律：单测无副作用（不发起网络、不写文件、不启动进程、不写注册表）；REPL 用例走内存 `CreateRunner(input:=...)` + `TestConsoleIO`。
 - 实现期测试项：畸形脚本（`Now +`）错误码偏移（BC30800 类 →「缺失表达式」类 BC3xxxx）需补回归用例。
 
