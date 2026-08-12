@@ -29,6 +29,7 @@
 | 01 | `proposal-avalonia-ise-repl-ui.md` | Avalonia UI + Avalonia Edit 仿制 PowerShell ISE 的图形化 REPL/脚本编辑器（Consider，易用性提升） |
 | 02 | `proposal-optional-question-prefix.md` | REPL 表达式开头问号 `?` 可选，对齐 C# REPL 自动打印表达式结果（Active） |
 | 03 | `proposal-vscode-extension-ise-repl-ui.md` | VS Code 扩展：在 VS Code 内置 REPL + 脚本编辑（仿 vscode-powershell 架构，宣传/触达 vs 内存/轻量，与 Avalonia 双路线互补）（Proposed，待 LDM 评估） |
+| 04 | `proposal-byref-like-safety.md` | byref-like 类型安全（对齐 C# `ref struct`）：识别 `IsByRefLikeAttribute` + suppress ref struct obsolete error + 移植 RefStructHelper BCX 规则进编译器 + REPL/脚本顶层约束；**对 vbx 与常规编译模式都生效**，追上 .NET 生态（`Span`/`allows ref struct` 接口）的重要一步（Proposed，设计来源 `meeting-byref-like-repl-safety.md`，服务于 p1 前置-1 D1） |
 
 ---
 

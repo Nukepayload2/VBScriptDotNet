@@ -15,7 +15,7 @@
 ### D1. ref struct 在 VB 的解法 = 自定义分析器（RefStructHelper）
 
 - **VB 规范已有受限类型分析规则**：`System.RuntimeArgumentHandle`、`System.ArgIterator`、`System.TypedReference` 一类受限类型的栈引用限制已写入 `vblang\spec\types.md`。
-- **`G:\Projects\RefStructHelper` 已把规则扩展为 BCX 系列错误码，实现 ref-safe**：BCX31394（转 Object/ValueType）、BCX31396（Nullable(Of T)）、BCX32061（泛型参数）、BCX36598（LINQ 装箱）、BCX36640（lambda 闭包装箱）、BCX37052（async/iterator 状态机装箱）、BCX31393（继承实例方法装箱）。
+- **`G:\Projects\RefStructHelper` 已把规则扩展为 BCX 系列错误码，实现 ref-safe**：BCX31394（转 Object/ValueType）、BCX31396（Nullable(Of T) / 泛型类型实参）、BCX32061（受限/特殊类型作泛型约束）、BCX36598（LINQ 装箱）、BCX36640（lambda 闭包装箱）、BCX37052（async/iterator 状态机装箱）、BCX31393（继承实例方法装箱）。
 - **但编译器层面尚未做到 suppress ref struct obsolete error**。
 - **VBScript.NET 做法**：**移植 RefStructHelper 分析器进编译器内部，并在编译器层面 suppress ref struct obsolete error**——这是消费 C# 13 `ref struct` 接口类型（`allows ref struct` 反约束）的前提。
 - **影响**：修正旧表述「VB 基本不支持 ref struct」→「VB 通过自定义分析器实现 ref-safe；编译器层面待移植 suppress obsolete error」。

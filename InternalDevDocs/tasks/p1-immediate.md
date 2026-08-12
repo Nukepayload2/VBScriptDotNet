@@ -14,6 +14,10 @@
 - **来源**：`..\decisions.md` D1 / M7。
 - **内容**：把 `G:\Projects\RefStructHelper` 的 BCX 系列错误码（BCX31394/31396/32061/36598/36640/37052/31393）移植进编译器内部，并在编译器层面 suppress ref struct obsolete error。
 - **D4 依据**：C# interop 用例（consume C#13 `allows ref struct` 接口类型）。P1 硬约束适用：obsolete 类误用 ref struct 由运行期 `InvalidProgramException` 改为正确编译报错 = **修错不算回归**。
+- **REPL/脚本侧语义契约**：`..\meetings\meeting-byref-like-repl-safety.md`（2026-08-12）——byref-like 提交内可用、不跨提交持久化；顶层 byref-like `Dim`（脚本类字段）、byref-like 结果（`?`/末尾表达式装箱到 Object）、跨顶层 `Await` 均编译错误；方法体局部/参数/返回值/`allows ref struct` 接口消费可用。D1 落地时按此补 REPL/脚本顶层拒绝与文案（错误码走 restricted-type 族 BC31393/31394/31396/…/37052）。
+- **产品提案**：`..\proposals\proposal-byref-like-safety.md`（2026-08-12，Active/Proposed）——byref-like 类型安全的产品化，**对 vbx 与常规编译模式都生效**；D1 实施按该提案 Detailed design（识别 IsRefLikeType + suppress obsolete + 移植 BCX 规则 + 模式特化 4a/4b）。
+- **规范说明**：`..\spec\spec-byref-like-safety.md`（2026-08-12）——byref-like 类型安全的能力规范与结构事实；实施细节仍以本条目为准。
+- **设计任务**：`byref-like-safety\`（2026-08-12）——概要设计（`design-overview.md`）、详细设计（`design-detailed.md`，改动清单/判定细化/suppress obsolete/REPL 三碰撞点落点/错误码核实）、测试计划（`test-plan.md`，L1-L4 分层矩阵）；实施阶段按其拆 Vortex 代办。
 - **解锁**：M7 方向全部（委托增强/接口委托/隐式接口实现消费 ref struct 接口）。
 
 ### 前置-2. M8：识别 C# 新元数据属性
