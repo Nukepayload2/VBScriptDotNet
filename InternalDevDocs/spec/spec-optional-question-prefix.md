@@ -24,7 +24,7 @@ proposal（`proposals/proposal-optional-question-prefix.md`，Active）→ LDM �
 
 - 无副作用测试矩阵（REPL / 脚本模式 / Regular 零影响三块）：`tasks/optional-question-prefix/design-detailed.md` §7；分层测试计划（参考 C# 四层强度 + VB 语法特性综合）：`tasks/optional-question-prefix/test-plan.md`。
 - 测试纪律：单测无副作用（不发起网络、不写文件、不启动进程、不写注册表）；REPL 用例走内存 `CreateRunner(input:=...)` + `TestConsoleIO`。
-- 实现期测试项：畸形脚本（`Now +`）错误码偏移（BC30800 类 →「缺失表达式」类 BC3xxxx）需补回归用例。
+- 实现期测试项：畸形脚本（`Now +` 现为**不完整提交**——REPL 等待续行不报错；改用 `Now x` 触发 BC30800 覆盖「畸形输入仍报错」）错误码断言见 test-plan R11。实现期另有三类发现记录于 test-plan §11（解析层两处分发点、方法组感知、晚绑定既有行为）。
 
 ## 与 modvb 的关系
 

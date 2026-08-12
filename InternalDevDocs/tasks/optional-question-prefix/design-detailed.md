@@ -24,9 +24,12 @@
 | `Compilers\VisualBasic\Portable\Binding\Binder_Statements.vb` | `BindExpressionStatement`（:2608-2630） | 修改 | 末尾脚本语句抑制「值被丢弃」诊断（BC30545）；非末尾裸表达式报 BC31003；**Case Else 增加方法组拦截**（裸 `MySub`/`MyFunc` 按调用语句重分类，变量/属性引用走 RValue） |
 | `Compilers\VisualBasic\Portable\Binding\Binder_Statements.vb` | `BindInvocationExpressionAsStatement`（:2715-2717）与 `ReclassifyInvocationExpressionAsStatement`（:2719-2755） | 修改（加可选参数） | 透传「末尾脚本语句」标志，抑制 `ERR_PropertyAccessIgnored`（:2726/:2742 两处） |
 | `Compilers\VisualBasic\Portable\Binding\Binder_Statements.vb` | 新增 `IsFinalStatementOfSubmission(statement As StatementSyntax)` | 新增 | P-003 定案：binder 线程「是否提交末尾语句」的同一性判定 |
+| `Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb` | `HasSubmissionResult` ExpressionStatement 分支（:846-861） | **修改（实现期发现）** | 方法组感知：最高 bound 节点为 `BoundCall` → 按方法返回类型判定（Sub→False、Function→True）。理由：`GetTypeInfo(方法组)` 返回**包含类型**（脚本类 `Script`，非 Void）使裸 `MySub` 误判 True；语义模型符号 API 对重分类方法组返回空。见 §3.5/§5 修正说明 |
 | 其余（宿主/编译信息/退出码机制） | — | **零改动** | 依据见 §5、§6 |
 
-零改动清单：`Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb`（`HasSubmissionResult` :816-868）、`Compilers\VisualBasic\Portable\Analysis\InitializerRewriter.vb`（`BuildScriptInitializerBody` :174-186、结果回传判定 :202-223）、`Compilers\VisualBasic\Portable\Compilation\VisualBasicScriptCompilationInfo.vb`（`PreviousScriptCompilation`）、`Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs`（:201/:224/:296-320）、`Compilers\VisualBasic\Portable\CommandLine\VisualBasicCompiler.vb`（:96）。
+零改动清单：`Compilers\VisualBasic\Portable\Analysis\InitializerRewriter.vb`（`BuildScriptInitializerBody` :174-186、结果回传判定 :202-223）、`Compilers\VisualBasic\Portable\Compilation\VisualBasicScriptCompilationInfo.vb`（`PreviousScriptCompilation`）、`Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs`（:201/:224/:296-320）、`Compilers\VisualBasic\Portable\CommandLine\VisualBasicCompiler.vb`（:96）。
+
+> **实现期修正（2026-08-11）**：`VisualBasicCompilation.vb`（`HasSubmissionResult`）原列零改动，但实测 `GetTypeInfo` 对方法组标识符返回**包含类型**（脚本类 `Script`，非 Void），F10 绑定层重分类（BoundCall）对该路径不可见，导致裸 `MySub` 被误判为有结果（REPL 打印 `Nothing`）。故改为方法组感知（见 §3.5、§5），已从零改动清单移出。
 
 ---
 
@@ -70,6 +73,7 @@ Case SyntaxKind.IntegerLiteralToken
 
 - token 判定：**`IsFirstStatementOnLine(CurrentToken) AndAlso PeekToken(1).Kind = SyntaxKind.ColonToken` 为真 → 标签**（`1:`）；否则在顶层脚本 → 表达式语句（`1 + 2`）。与 `ShouldParseAsLabel()`（`ParseStatement.vb:1569-1571`）在 IntegerLiteralToken 下的判据一致。
 - 顶层脚本里 `x = 5 : 1 + 2`（非行首）也会走表达式语句分支（`IsTopLevelScript` 为真且非标签），与「裸表达式即表达式语句」语义一致。
+- **实现期发现（两处分发点，F9 缺口已补）**：顶层脚本数值字面量经 `ParseDeclarationStatementInternal` 分发，其 `IntegerLiteralToken` 分支在 **`Parser.vb:773-778`**；方法体语句经 `ParseStatementInMethodBodyCore`（**`Parser.vb:1104-1111`**）。两处都必须加 `IsTopLevelScript` 表达式语句分支——F9 最初只改了方法体处，顶层 `1 + 2` 仍在 :773 被旧逻辑截走（BC30801/BC30035），实现期补上。`CompilationUnitContext.vb:25` 证实顶层 `Context.BlockKind = CompilationUnit`，门控在顶层分发处同样为真。
 
 #### (b) `x > 5` 被 `MakeInvocationExpression` 误包 —— `ParseAssignmentOrInvocationStatement`（`ParseStatement.vb:1087-1114`）
 
@@ -343,6 +347,7 @@ End Function
 - 末尾 `before`/`Now`（裸标识符）经 Case Else 绑定为 `BoundExpressionStatement(BoundLocal`/`BoundPropertyAccess)`（值引用、无错、非 Void）→ `HasSubmissionResult`（`VisualBasicCompilation.vb:846-849`）走 `ExpressionStatement` 分支：`info.Type <> Void` → **True**。
 - `InitializerRewriter.RewriteInitializersAsStatements`（:202-223）：REPL 提交 `ResultType = Object` → 末尾 `GlobalStatementInitializer` 是 `ExpressionStatement` 且非 Void → `submissionResult = expr` → 方法返回该值 → 宿主 `HasReturnValue()` True → `globals.Print(state.ReturnValue)`（`CommandLineRunner.cs:313-315`）。
 - **不需要**走 PrintStatement「恒 True」分支（:840-844）；ExpressionStatement 非 Void 分支已足够，因为自动打印只针对非 Void 值表达式。这是对 F1 概要 §2.2「绑定为 PrintStatement 语义」的细化：**不新建 PrintStatementSyntax，而是把 ExpressionStatement 绑定为 RValue**，`HasSubmissionResult` 复用现有分支。
+- **实现期修正（方法组感知）**：`HasSubmissionResult` 的 `ExpressionStatement` 分支原用 `model.GetTypeInfo(表达式).Type`——对**方法组标识符**（裸 `MySub`）返回**包含类型**（脚本类 `Script`，非 Void）→ 误判 True，F10 绑定层重分类（BoundCall Void）对该路径不可见，REPL 打印 `Nothing`。修正：若该表达式**最高 bound 节点为 `BoundCall`**，改用 `BoundCall.Method.ReturnType` 判定（Sub→Void→False 不打印；Function→非 Void→True 现状打印）；否则回退 `GetTypeInfo`（`DateTime.Now`/`before`/`1 + 2`/`Console.WriteLine` 各形态均不受影响）。语义模型符号 API（`GetSymbolInfo`）对重分类方法组语句返回空，故用 bound 节点判定。这是 §1/§5 零改动清单的移出项。
 
 ---
 
@@ -358,7 +363,7 @@ End Function
 | `BoundKind.PropertyAccess` | `DateTime.Now`（成员访问，`X()` 形状）；裸 `Now` 经 `BoundPropertyGroup → MakeRValue` 转此形态 | **打印**（属性引用，值是值） | 成员访问形态常规绑定报 BC30545（`Binder_Statements.vb:2726`）；末尾抑制 |
 | `BoundKind.MethodGroup` | 裸 `MySub` / `MyFunc` | **不打印**（方法组 → 无参调用重分类为调用语句；Sub→Void 不打印，Function→非 Void 现状已打印） | 无诊断（若走 `BindRValue` 会报 BC30491 `ERR_VoidValue`，故必须拦截） |
 | `BoundKind.Call` | `Console.WriteLine("hi")` / `SomeFunction()` | **不打印**（真正调用，保持合法语句） | 无诊断 |
-| `BoundKind.LateMemberAccess` | `obj.Prop`（Object 接收者，晚绑定成员访问） | **不打印**（保持调用语义） | 无诊断 |
+| `BoundKind.LateMemberAccess` | `obj.Prop`（Object 接收者，晚绑定成员访问） | **不打印**（保持调用语义） | **实现期修正**：脚本提交下实际报 **BC30491**（`ERR_VoidValue`）——`HasSubmissionResult` 判 True 后 `InitializerRewriter` 把带 Call access kind 的 `BoundLateInvocation` 当值回传，`ReclassifyAsValue`（`Binder_Expressions.vb:1257-1261`）报 BC30491。属**既有行为**（F9/F10 前同样如此；Regular `Sub` 内 `o.Prop` 仅 BC42104 警告、无 BC30491），本任务**不修复**，测试如实记录（S10/R15 断言 BC30491 + 不打印）。「无诊断」预期仅当未来修脚本结果回传口径时才能达成 |
 | `BoundKind.LateInvocation` + PropertyGroup | 晚绑定属性访问（Object 接收者） | **打印**（晚绑定属性） | 常规绑定报 BC30545（`Binder_Statements.vb:2742`）；末尾抑制 |
 | `BoundKind.ConditionalAccess` | `a?.Prop` | **递归**：按 `WhenNotNull` 子形态判定 | 递归调用 `ReclassifyInvocationExpressionAsStatement`（:2750） |
 | 其余（`BindExpressionStatement` Case Else → 非方法组 → `MakeRValue` 无诊断） | `1 + 2` / `x > 5` / `"a" & "b"` | **打印**（绑定即值，无「值被丢弃」信号） | 解析层已修误解析（BC30801/BC30800 消除），绑定层无诊断 |
@@ -379,6 +384,7 @@ End Function
   - 交互循环 `RunInteractiveLoopAsync`（`CommandLineRunner.cs:224`）→ `BuildAndRunAsync`（:296）：`Compile` → `diagnostics.HasAnyErrors()` 短路（:300）→ `RunAsync` → `newScript.HasReturnValue()`（:313）为真 → `globals.Print(state.ReturnValue)`（:315）。
   - F2 绑定层产出「无错 + 非 Void 末尾表达式语句」后，`HasReturnValue()` 恒真，统一走 `globals.Print`。
   - `InitializerRewriter` 的 `ResultType.IsObjectType()` 门控（`InitializerRewriter.vb:208-211`）负责「REPL 打印 / 脚本丢弃」的最终分叉，与绑定层改动正交。
+- **实现期修正**：`HasSubmissionResult`（`VisualBasicCompilation.vb`）原属宿主层零改动范围，现因**方法组感知**移出（见 §1 表与 §3.5）。宿主 `CommandLineRunner.cs` 与 `InitializerRewriter` 仍零改动。
 - **「重试为 `? <raw>`」fallback 仅作备用（主方案不采用）**：设计把解析层歧义收敛到「`IsTopLevelScript` 门控 + 绑定层方法组消歧」，`before`/`Now`/`MySub` 解析同形由绑定层区分，无需宿主文本重写兜底。主方案为解析/绑定层修正；fallback 仅当解析层裸表达式歧义风险过大、或未来需要「让 `.vbx` 里的裸表达式仍报错」时才启用 REPL/脚本区分开关（RESOLUTION #4 之 fallback 场景）。
 
 ---

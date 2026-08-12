@@ -187,3 +187,36 @@ C# 用「缺分号」表达「末尾表达式」，VB **无分号**，靠「绑�
 | —（新增） | L2 语义层 S1-S12（含 `CreateSubmission` 链与 BoundKind 回归断言）、L3 `HasSubmissionResult` 矩阵 C1-C12、§6 既有测试更新清单 |
 
 > 测试命名建议：沿用 F2 §7.1 的 `TestBareXxx` 风格（`TestBarePropertyAccessPrints`、`TestBareVariablePrints`、`TestBareArithmeticExpressionPrints`…）；语义层沿用 C# `ArithmeticOperators_MultiplicationExpression` 的 `<Features>_<Mode>` 命名风格（如 `BareExpression_InteractiveNoDiagnostics` / `BareExpression_RegularLabelError`）。
+
+## 11. 实现期发现与修订（2026-08-11，测试全绿后记录）
+
+> 实现（F9-F12）按本计划执行后，三类根因经修复轮解决，此处记录与计划的差异与依据，供回归与后续维护参考。
+
+### 11.1 解析层两处分发点（F9 缺口，已修）
+
+顶层脚本数值字面量经 `ParseDeclarationStatementInternal` 分发（`Parser.vb:773-778` 的 `IntegerLiteralToken` 分支），**不是** `ParseStatementInMethodBodyCore`（:1104-1111）。F9 最初只改了方法体处，P1/P12/S4a/S8/C1/C3/R3/R12/R14/V1 共 9 例失败，实现期在 :773 补 `IsTopLevelScript` 分支后全部转绿。**本计划 P1/P12 的预期不变**，仅实现落点需记住两处。
+
+### 11.2 方法组回归（HasSubmissionResult 方法组感知，已修）
+
+裸 `MySub` 在 REPL 打印 `Nothing` 而非无输出。根因：`HasSubmissionResult` 用 `GetTypeInfo(方法组)` 返回包含类型（脚本类 `Script`，非 Void）→ True；F10 绑定层重分类（BoundCall Void）对该路径不可见。修正：`HasSubmissionResult` ExpressionStatement 分支改为「最高 bound 节点为 `BoundCall` → 按 `Method.ReturnType` 判定（Sub→False / Function→True），否则回退 `GetTypeInfo`」（`VisualBasicCompilation.vb:846-861`）。这使本计划 S5/R8 的「Sub 不打印 / Function 打印」断言成立。**偏离 design §1/§5 零改动清单**，已在设计文档标注。
+
+### 11.3 晚绑定行为与计划预期不符（既有行为，测试如实记录）
+
+`Dim o As Object = ... : o.Prop`（Object 接收者）作脚本末尾语句报 **BC30491**（`ERR_VoidValue`），而非计划 §4 的「无诊断、不打印」。实证为**既有行为**（F9/F10 前同样如此；Regular `Sub` 内 `o.Prop` 仅 BC42104 警告），根因是脚本结果回传路径把带 Call access kind 的 `BoundLateInvocation` 当值回传。S10 改名为 `LateBoundMemberAccess_ReportsVoidValue`（断言 BC30491）、R15 断言 `«Red»` 错误块 + BC30491 + 无值打印，均附注释。
+
+### 11.4 输入层偏离（断言意图不变，代码注释已标）
+
+| 位置 | 计划输入 | 实际输入 | 原因 |
+|---|---|---|---|
+| S2 | 多行提交链 `Dim before = Now` → `before` | 单提交 `Dim before = Now : before` | 单提交内 `before` 才是 BoundLocal（跨提交为字段）；语义相同 |
+| S4b/R6/R17/R19/R20 | 裸 `x` / `x = 5` / `before = 1` / `a = 1 : b = 2` / `x += 1` | 先 `Dim` 声明再使用 | 交互 OptionExplicit 默认 On，未声明变量 BC30451 |
+| S6/S9 | `Console.WriteLine`/`DateTime.Now` | 加 `ScriptCompilationOptions()` 全局导入 | `CreateSubmission` 无默认导入 |
+| S10/R15 | `New X()`（X 未定义） | `New Object()`/`New StringBuilder()` | X 未定义必 BC30002；改真实类型覆盖「Object 接收者」意图 |
+| S12 | `a?.Prop` | `Dim a As New StringBuilder()` 后 `a?.Length` | `a?.Prop` 无类型可绑定 |
+| R7 | 期望输出含 `hi` | 期望输出不含 `hi` | WriteLine 副作用走真实控制台，不进 TestConsoleIO |
+| R11 | `Now +` | `Now x` | `Now +` 现为不完整提交（REPL 等待续行不报错）；`Now x` 触发 BC30800 覆盖「畸形输入仍报错」意图 |
+| R14 | 宽松 Contains("3") | 精确行断言 | 宽松断言可能假阳性 |
+
+### 11.5 既有测试翻转完成
+
+`CompilationAPITests.vb:2644` `Assert.False(CreateSubmission("1"...))` → **`Assert.True`**，:2645 TODO「? should be optional」已删除；C4-C10 既有断言未动。V3-V5/V7/V8 既有退出码用例未重复创建（回归通过）。

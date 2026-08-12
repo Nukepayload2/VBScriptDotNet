@@ -19,8 +19,12 @@
 | F6 | 一致性审计 + 修复 + 复验 | F4/F5 修正后四份交付物内部一致、无残留（`? (` 分发、判定原则「其余→打印」、§2.3/§3.5 机制、行号、README 决策、拆版措辞 6 项全修净），复验通过 | **done**（审计打回→修复→复验通过，流水账 `11-verifier-f6-consistency.md`、`12-implementer-f6-fix.md`、`13-verifier-f6-recheck.md`） |
 | F7 | 测试计划（参考 C# 四层测试强度 + VB 语法特性综合） | 四层矩阵（L1 解析树形 / L2 语义诊断 / L3 `HasSubmissionResult` / L4 REPL 全输出）+ VB 特性维度（标签/比较/`=`/字符串 `&`/方法组/成员访问/晚绑定/续行/`:` 分隔/Option Strict/.vbx 代价）+ 既有测试翻转清单（`CompilationAPITests.vb:2644` 翻 True 删 TODO） | **done**（`test-plan.md`；审计 2 项 → 修复 → 复验；后续按用户追问补 VB 特殊边界：复合赋值 P13、`Mid` 赋值 P14、`? .`/`? !` 分发 P15、双变量赋值 vs 比较 R19、复合赋值不改义 R20、`Mid`/`ReDim`/`With` 不改义 R21——复验一轮打回 P13 复合赋值 kind 归属 → 修复 → 复验 PASS） |
 | F8 | 验证 test-plan.md | ①四层锚点真实 ②行为对照一致 ③既有测试翻转核实 ④无副作用纪律 ⑤错误码一致 ⑥无遗漏（审计：缺 `DateTime.Now` REPL 打印用例 → 修复） | **done**（验证者 → 修复 → 复验 PASS） |
+| F9 | 解析层实现 | `Parser.vb` 顶层/方法体两处 `IntegerLiteralToken` + `Case Else`、`ParseStatement.vb` 二元延续/裸标识符裸表达式 + 两个 helper，`IsTopLevelScript` 门控 | **done**（实施者 → 验证者 PASS；实现期发现**两处分发点**：顶层走 `ParseDeclarationStatementInternal`（:773-778），F9 首轮只改方法体处 → 修复轮补齐，见 test-plan §11.1） |
+| F10 | 绑定层实现 | `Binder_Statements.vb` `BindExpressionStatement` 方法组消歧 + BC30545 抑制透传 + `IsFinalStatementOfSubmission`（P-003 机制①） | **done**（实施者 → 验证者 PASS） |
+| F11 | 测试实现 + 修复轮 | test-plan 四层（L1 P1-P15 / L2 S1-S12 / L3 C1-C12 翻转 / L4 R1-R21+V1-V8）；13 例失败三类根因 → 修复轮全绿：L1 18/18、L2/L3 19/19、L4 45/45，回归面全量通过（Syntax 4049 / CompilationAPI 124 / Scripting 127） | **done**（实施者 → 验证者 → 修复轮 → 复验 PASS；三类根因见 test-plan §11：两处分发点 / 方法组感知 / 晚绑定既有行为） |
+| F12 | 集成验证 + 文档修订 | 全量构建 0 错误、四层矩阵全绿、§0 七项验收达成；design/test-plan/spec/README 记录实现期三类修正 | **done**（2026-08-11） |
 
-> 全流程 2026-08-10/11 经 Vortex 涡流完成：F1→F2→F3→F4→F5→F6 每组实施者+验证者串行交替，全部通过；F7/F8（测试计划）2026-08-11 同样串行交替通过。流水账见 `<项目根>/tmp/vortex-logs/1..13-*`；失败点缓存 `pitfalls.md`（P-001~P-011）。
+> 全流程 2026-08-10/11 经 Vortex 涡流完成：F1→F2→F3→F4→F5→F6 每组实施者+验证者串行交替，全部通过；F7/F8（测试计划）2026-08-11 同样串行交替通过；F9-F12（实现）2026-08-11 实施者+验证者串行交替，F11 经历一轮打回修复后全部转绿。流水账见 `<项目根>/tmp/vortex-logs/1..20-*`；失败点缓存 `pitfalls.md`（P-001~P-011）与实现期三类根因（test-plan §11）。
 > F4（核心设计决策修正）：触发判定由「错误码/诊断族枚举」改为「**绑定结果形态（`BoundKind`）**」；Option Strict 定案**无分叉**；`? 变量名 = 表达式` 定案**非开放问题**（`?` 使 `=` 为比较）。流水账 `7-implementer-f4-design-update.md`、`8-verifier-f4-design-update.md`。
 > F5（核心范围修正）：**裸变量打印纳入本版本**——`Dim before = Now` 后敲 `before` 自动打印。裸标识符解析为**裸表达式**（不包成 `X()`），绑定层按绑定结果形态消歧（方法组 → 调用语句不打印；值引用 → RValue 打印）。原 F2 §8 误标 follow-up，已升级为本版本行为。
 
