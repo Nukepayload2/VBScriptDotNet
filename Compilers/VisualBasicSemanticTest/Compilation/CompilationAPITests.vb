@@ -2641,15 +2641,29 @@ End Namespace
 
             Assert.True(CreateSubmission("?1", parseOptions:=TestOptions.Script).HasSubmissionResult())
 
-            Assert.False(CreateSubmission("1", parseOptions:=TestOptions.Script).HasSubmissionResult())
-            ' TODO (https://github.com/dotnet/roslyn/issues/4763): '?' should be optional
-            ' TestSubmissionResult(CreateSubmission("1", parseOptions:=TestOptions.Interactive), expectedType:=SpecialType.System_Int32, expectedHasValue:=True)
+            ' C1: A bare numeric expression is now a final expression and prints (the "?" is optional). Was Assert.False with a TODO.
+            Assert.True(CreateSubmission("1", parseOptions:=TestOptions.Script).HasSubmissionResult())
+
+            ' C2: A bare property / member-access value reference prints.
+            Assert.True(CreateSubmission("Now", parseOptions:=TestOptions.Script).HasSubmissionResult())
+            Assert.True(CreateSubmission("DateTime.Now", parseOptions:=TestOptions.Script).HasSubmissionResult())
+
+            ' C3: An evaluated expression prints.
+            Assert.True(CreateSubmission("1 + 2", parseOptions:=TestOptions.Script).HasSubmissionResult())
+            Assert.True(CreateSubmission("""a"" & ""b""", parseOptions:=TestOptions.Script).HasSubmissionResult())
+            Assert.True(CreateSubmission("True", parseOptions:=TestOptions.Script).HasSubmissionResult())
+
+            ' C11: An assignment does not change the submission value, so it does not print.
+            Assert.False(CreateSubmission("Dim x = 1 : x = 5", parseOptions:=TestOptions.Script).HasSubmissionResult())
+
+            ' C12: A Return of a non-Void value prints (regression).
+            Assert.True(CreateSubmission("Return 42", parseOptions:=TestOptions.Script).HasSubmissionResult())
 
             ' TODO (https://github.com/dotnet/roslyn/issues/4766): ReturnType should not be ignored
             ' TestSubmissionResult(CreateSubmission("?1", parseOptions:=TestOptions.Interactive, returnType:=GetType(Double)), expectedType:=SpecialType.System_Double, expectedHasValue:=True)
 
             Assert.False(CreateSubmission("
-Sub Goo() 
+Sub Goo()
 End Sub
 ").HasSubmissionResult())
 

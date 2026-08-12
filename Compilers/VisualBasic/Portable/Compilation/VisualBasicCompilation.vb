@@ -846,6 +846,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Case SyntaxKind.ExpressionStatement
                     Dim expression = DirectCast(lastStatement, ExpressionStatementSyntax).Expression
                     Dim info = model.GetTypeInfo(expression)
+                    ' Method-group awareness: after F9 parses a bare identifier (MySub/MyFunc) as a bare expression, the binder
+                    ' reclassifies the method group as a call statement (BoundCall) in BindExpressionStatement. GetTypeInfo(method group).Type
+                    ' returns the containing script type (non-Void), which misreports a Sub method group as True (should be False, i.e. no
+                    ' print). Inspect the highest bound node instead: if it is a BoundCall, decide by the method return type
+                    ' (Sub -> Void -> False; Function -> non-Void -> True).
+                    Dim boundCall = GetBoundCallForExpressionStatement(model, expression)
+                    If boundCall IsNot Nothing Then
+                        Return boundCall.Method.ReturnType.SpecialType <> SpecialType.System_Void
+                    End If
                     Return info.Type.SpecialType <> SpecialType.System_Void
 
                 Case SyntaxKind.CallStatement
@@ -865,6 +874,25 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Case Else
                     Return False
             End Select
+        End Function
+
+        ''' <summary>
+        ''' Returns the highest bound node for the expression of an expression statement when it is a BoundCall.
+        ''' A bare method group (MySub/MyFunc) is reclassified as a call statement in BindExpressionStatement, so its highest bound
+        ''' node is the BoundCall itself; other shapes (property/local/binary/literal) do not yield a BoundCall, so Nothing is returned.
+        ''' </summary>
+        Private Shared Function GetBoundCallForExpressionStatement(model As SemanticModel, expression As ExpressionSyntax) As BoundCall
+            Dim treeModel = TryCast(model, SyntaxTreeSemanticModel)
+            If treeModel Is Nothing Then
+                Return Nothing
+            End If
+
+            Dim memberModel = treeModel.GetMemberSemanticModel(expression)
+            If memberModel Is Nothing Then
+                Return Nothing
+            End If
+
+            Return TryCast(memberModel.GetUpperBoundNode(expression), BoundCall)
         End Function
 
         Friend Function GetSubmissionInitializer() As SynthesizedInteractiveInitializerMethod

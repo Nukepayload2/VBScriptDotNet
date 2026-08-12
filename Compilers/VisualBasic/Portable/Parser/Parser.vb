@@ -82,6 +82,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             End Get
         End Property
 
+        Private ReadOnly Property IsTopLevelScript As Boolean
+            Get
+                ' True only for SourceCodeKind.Script at compilation-unit top level; excludes Regular and methods nested inside scripts.
+                Return IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit
+            End Get
+        End Property
+
         Private Function ParseSimpleName(
                                      allowGenericArguments As Boolean,
                                      allowGenericsWithoutOf As Boolean,
@@ -764,6 +771,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Return ParseStatementInMethodBodyInternal()
 
                 Case SyntaxKind.IntegerLiteralToken
+                    If IsTopLevelScript AndAlso Not (IsFirstStatementOnLine(CurrentToken) AndAlso PeekToken(1).Kind = SyntaxKind.ColonToken) Then
+                        ' A bare numeric expression (1 + 2) parses as an expression statement; 1: (a label) is handled below.
+                        ' Mirrors the IntegerLiteralToken branch in ParseStatementInMethodBodyCore.
+                        Return ParseScriptExpressionStatement()
+                    End If
                     If IsFirstStatementOnLine(CurrentToken) Then
                         Return ParseLabel()
                     End If
@@ -1090,6 +1102,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Return ParseThrowStatement()
 
                 Case SyntaxKind.IntegerLiteralToken
+                    If IsTopLevelScript AndAlso Not (IsFirstStatementOnLine(CurrentToken) AndAlso PeekToken(1).Kind = SyntaxKind.ColonToken) Then
+                        ' A bare numeric expression (1 + 2) parses as an expression statement; 1: (a label) is handled below.
+                        Return ParseScriptExpressionStatement()
+                    End If
                     If IsFirstStatementOnLine(CurrentToken) Then
                         Return ParseLabel()
                     End If
@@ -1239,6 +1255,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     End If
 
                 Case Else
+                    If IsTopLevelScript AndAlso Not CanFollowStatement(CurrentToken) Then
+                        ' A literal or expression-starting token (string, True/False, Nothing, etc.) is a bare expression at top level.
+                        Return ParseScriptExpressionStatement()
+                    End If
                     If CanFollowStatement(CurrentToken) Then
                         ' It's an error for a single-statement lambda to be empty, e.g. "Console.WriteLine(Sub())"
                         ' But we're not in the best position to report that error, because we don't know span locations &c.

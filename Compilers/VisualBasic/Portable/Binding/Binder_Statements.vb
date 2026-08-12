@@ -2608,25 +2608,56 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Private Function BindExpressionStatement(statement As ExpressionStatementSyntax, diagnostics As BindingDiagnosticBag) As BoundStatement
 
             Dim expression = statement.Expression
-
+            Dim isFinalStatement = IsFinalStatementOfSubmission(statement)
             Dim boundExpression As BoundExpression
 
             Select Case expression.Kind
                 Case SyntaxKind.InvocationExpression,
                      SyntaxKind.ConditionalAccessExpression
-                    boundExpression = BindInvocationExpressionAsStatement(expression, diagnostics)
+                    ' Normal binding; only a final script statement suppresses the "value discarded" diagnostic (BC30545, both sites).
+                    boundExpression = BindInvocationExpressionAsStatement(expression, diagnostics,
+                                                                          suppressPropertyAccessIgnored:=isFinalStatement)
 
                 Case SyntaxKind.AwaitExpression
                     boundExpression = BindAwait(DirectCast(expression, AwaitExpressionSyntax), diagnostics, bindAsStatement:=True)
                 Case Else
-                    ' TODO(ADGreen): This case covers top-level expressions in interactive.
-                    ' Otherwise it should be an error.
-                    boundExpression = BindRValue(expression, diagnostics)
+                    ' This branch has always bound top-level interactive expressions via BindRValue without diagnostics.
+                    ' A non-final bare expression (1 + 2 / x > 5 / before) must still error mid-submission, so report BC31003.
+                    If IsBindingTopLevelScriptInitializer() AndAlso Not isFinalStatement Then
+                        ReportDiagnostic(diagnostics, statement, ERRID.ERR_UnexpectedExpressionStatement)
+                        boundExpression = BindRValue(expression, diagnostics)
+                        Return New BoundExpressionStatement(statement, boundExpression)
+                    End If
+                    ' Method-group disambiguation: bind a bare identifier with BindExpression first (not BindRValue).
+                    ' BindRValue(method group) would auto-invoke a Void Sub and then report BC30491 (ERR_VoidValue),
+                    ' breaking the invariant that a parenthesized-less Sub call is legal; reclassify as a call statement instead of binding by value.
+                    Dim candidate = BindExpression(expression, diagnostics)
+                    If candidate.Kind = BoundKind.MethodGroup Then
+                        boundExpression = ReclassifyInvocationExpressionAsStatement(
+                            BindInvocationExpression(candidate.Syntax, candidate.Syntax, ExtractTypeCharacter(candidate.Syntax),
+                                                     DirectCast(candidate, BoundMethodGroup), s_noArguments, Nothing,
+                                                     diagnostics, callerInfoOpt:=candidate.Syntax),
+                            diagnostics)
+                    Else
+                        boundExpression = MakeRValue(candidate, diagnostics)
+                    End If
             End Select
 
             WarnOnUnobservedCallThatReturnsAnAwaitable(statement, boundExpression, diagnostics)
 
             Return New BoundExpressionStatement(statement, boundExpression)
+        End Function
+
+        Private Function IsBindingTopLevelScriptInitializer() As Boolean
+            Return BindingTopLevelScriptCode AndAlso DirectCast(ContainingMember, MethodSymbol).IsScriptInitializer
+        End Function
+
+        Private Function IsFinalStatementOfSubmission(statement As StatementSyntax) As Boolean
+            If Not IsBindingTopLevelScriptInitializer() Then
+                Return False
+            End If
+            Dim root = DirectCast(statement.SyntaxTree.GetRoot(), CompilationUnitSyntax)
+            Return root.Members.LastOrDefault() Is statement
         End Function
 
         Private Sub WarnOnUnobservedCallThatReturnsAnAwaitable(statement As ExpressionStatementSyntax, boundExpression As BoundExpression, diagnostics As BindingDiagnosticBag)
@@ -2712,17 +2743,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Return New BoundExpressionStatement(callStmt, boundInvocation)
         End Function
 
-        Private Function BindInvocationExpressionAsStatement(expression As ExpressionSyntax, diagnostics As BindingDiagnosticBag) As BoundExpression
-            Return ReclassifyInvocationExpressionAsStatement(BindExpression(expression, diagnostics), diagnostics)
+        Private Function BindInvocationExpressionAsStatement(expression As ExpressionSyntax, diagnostics As BindingDiagnosticBag,
+                                                              Optional suppressPropertyAccessIgnored As Boolean = False) As BoundExpression
+            Return ReclassifyInvocationExpressionAsStatement(BindExpression(expression, diagnostics), diagnostics, suppressPropertyAccessIgnored)
         End Function
 
-        Friend Function ReclassifyInvocationExpressionAsStatement(boundInvocation As BoundExpression, diagnostics As BindingDiagnosticBag) As BoundExpression
+        Friend Function ReclassifyInvocationExpressionAsStatement(boundInvocation As BoundExpression, diagnostics As BindingDiagnosticBag,
+                                                                   Optional suppressPropertyAccessIgnored As Boolean = False) As BoundExpression
             Select Case boundInvocation.Kind
                 Case BoundKind.PropertyAccess
                     boundInvocation = MakeRValue(boundInvocation, diagnostics)
 
                     '  specially for properties being called in Call statement context
-                    If Not boundInvocation.HasErrors Then
+                    If Not boundInvocation.HasErrors AndAlso Not suppressPropertyAccessIgnored Then
                         ReportDiagnostic(diagnostics, boundInvocation.Syntax, ERRID.ERR_PropertyAccessIgnored)
                     End If
 
@@ -2737,7 +2770,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                     '  specially for properties being called in Call statement context
                     If Not lateInvocation.HasErrors AndAlso
-                        TryCast(lateInvocation.MethodOrPropertyGroupOpt, BoundPropertyGroup) IsNot Nothing Then
+                        TryCast(lateInvocation.MethodOrPropertyGroupOpt, BoundPropertyGroup) IsNot Nothing AndAlso
+                        Not suppressPropertyAccessIgnored Then
 
                         ReportDiagnostic(diagnostics, boundInvocation.Syntax, ERRID.ERR_PropertyAccessIgnored)
                     End If
@@ -2747,7 +2781,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     Dim conditionalAccess = DirectCast(boundInvocation, BoundConditionalAccess)
                     boundInvocation = conditionalAccess.Update(conditionalAccess.Receiver,
                                                                conditionalAccess.Placeholder,
-                                                               ReclassifyInvocationExpressionAsStatement(conditionalAccess.AccessExpression, diagnostics),
+                                                               ReclassifyInvocationExpressionAsStatement(conditionalAccess.AccessExpression, diagnostics, suppressPropertyAccessIgnored),
                                                                GetSpecialType(SpecialType.System_Void, conditionalAccess.Syntax, diagnostics))
             End Select
 

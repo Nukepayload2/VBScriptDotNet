@@ -1110,7 +1110,45 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                 Return MakeAssignmentStatement(target, operatorToken, source)
             End If
 
+            If IsTopLevelScript AndAlso CurrentToken.IsBinaryOperator Then
+                ' ParseTerm consumed only the left operand (e.g. "x > 5", "x + 1"); continue the binary parse.
+                Return SyntaxFactory.ExpressionStatement(ParseBinaryExpressionContinuation(target))
+            End If
+
+            If IsTopLevelScript AndAlso target.Kind = SyntaxKind.IdentifierName AndAlso CanEndExecutableStatement(CurrentToken) Then
+                ' A bare identifier (before/Now/MySub) stays a bare expression instead of being wrapped as an invocation.
+                Return SyntaxFactory.ExpressionStatement(target)
+            End If
+
             Return SyntaxFactory.ExpressionStatement(MakeInvocationExpression(target))
+        End Function
+
+        Private Function ParseScriptExpressionStatement() As StatementSyntax
+            ' A bare expression introduced by a literal or other expression-starting token; no assignment ambiguity, so parse the whole statement.
+            Dim expr As ExpressionSyntax = ParseExpressionCore()
+            If expr.ContainsDiagnostics Then
+                expr = ResyncAt(expr)
+            End If
+            Return SyntaxFactory.ExpressionStatement(expr)
+        End Function
+
+        Private Function ParseBinaryExpressionContinuation(left As ExpressionSyntax) As ExpressionSyntax
+            ' Continue from the parsed left operand, mirroring the binary loop in ParseExpressionCore.
+            ' Only genuine binary operators are handled; "=" never reaches here because the assignment branch intercepts it.
+            Dim expression = left
+            Do
+                If Not CurrentToken.IsBinaryOperator Then
+                    Exit Do
+                End If
+                Dim precedence As OperatorPrecedence = KeywordTable.TokenOpPrec(CurrentToken.Kind)
+                If precedence <= OperatorPrecedence.PrecedenceNone Then
+                    Exit Do
+                End If
+                Dim operatorToken As SyntaxToken = ParseBinaryOperator()
+                Dim rightOperand As ExpressionSyntax = ParseExpressionCore(precedence)
+                expression = SyntaxFactory.BinaryExpression(GetBinaryOperatorHelper(operatorToken), expression, operatorToken, rightOperand)
+            Loop
+            Return expression
         End Function
 
         Private Function MakeInvocationExpression(target As ExpressionSyntax) As ExpressionSyntax
