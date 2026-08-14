@@ -658,9 +658,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
             Dim succeeded = True
 
-            If typeArgument.IsRestrictedType() Then
+            If typeArgument.IsRefLikeType() Then
+                ' Ref-like type arguments are allowed only if the type parameter itself declares `allows ref struct`.
+                If Not typeParameter.AllowsRefLikeType Then
+                    If diagnosticsBuilder IsNot Nothing Then
+                        ' "'{0}' cannot be made nullable, and cannot be used as the data type of an array element, field, anonymous type member, type argument, 'ByRef' parameter, or return statement."
+                        diagnosticsBuilder.Add(New TypeParameterDiagnosticInfo(typeParameter, ErrorFactory.ErrorInfo(ERRID.ERR_RestrictedType1, typeArgument)))
+                    End If
+                    succeeded = False
+                End If
+            ElseIf typeArgument.SpecialType.IsRestrictedType() Then
+                ' The legacy restricted special types are always rejected.
                 If diagnosticsBuilder IsNot Nothing Then
-                    ' "'{0}' cannot be made nullable, and cannot be used as the data type of an array element, field, anonymous type member, type argument, 'ByRef' parameter, or return statement."
                     diagnosticsBuilder.Add(New TypeParameterDiagnosticInfo(typeParameter, ErrorFactory.ErrorInfo(ERRID.ERR_RestrictedType1, typeArgument)))
                 End If
                 succeeded = False

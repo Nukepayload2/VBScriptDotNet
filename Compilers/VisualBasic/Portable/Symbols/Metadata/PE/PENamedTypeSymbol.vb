@@ -89,6 +89,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
 
         Private _lazyObsoleteAttributeData As ObsoleteAttributeData = ObsoleteAttributeData.Uninitialized
 
+        Private _lazyIsByRefLike As Boolean? = Nothing
+
         Private _lazyIsExtensibleInterface As ThreeState = ThreeState.Unknown
 
         Friend Sub New(
@@ -1452,9 +1454,22 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
             Throw ExceptionUtilities.Unreachable
         End Sub
 
+        Friend Overrides ReadOnly Property IsRefLikeType As Boolean
+            Get
+                If Not _lazyIsByRefLike.HasValue Then
+                    Dim isByRefLike = False
+                    If TypeKind = TypeKind.Struct Then
+                        isByRefLike = ContainingPEModule.Module.HasIsByRefLikeAttribute(_handle)
+                    End If
+                    _lazyIsByRefLike = isByRefLike
+                End If
+                Return _lazyIsByRefLike.Value
+            End Get
+        End Property
+
         Friend Overrides ReadOnly Property ObsoleteAttributeData As ObsoleteAttributeData
             Get
-                ObsoleteAttributeHelpers.InitializeObsoleteDataFromMetadata(_lazyObsoleteAttributeData, _handle, ContainingPEModule)
+                ObsoleteAttributeHelpers.InitializeObsoleteDataFromMetadata(_lazyObsoleteAttributeData, _handle, ContainingPEModule, ignoreByRefLikeMarker:=Me.IsRefLikeType)
                 Return _lazyObsoleteAttributeData
             End Get
         End Property

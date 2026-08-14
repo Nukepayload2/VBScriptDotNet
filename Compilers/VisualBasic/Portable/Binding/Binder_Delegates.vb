@@ -990,6 +990,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, targetMethod.IsShared, diagnostics, resolvedTypeOrValueReceiver)
             End If
 
+            ' BC31393: AddressOf on a ref-like (or ref-like-capable) receiver targeting ANY instance
+            ' member boxes the receiver at delegate-creation time (emits `box` on a ref-like type ->
+            ' InvalidProgramException). This applies to inherited Object/ValueType members AND to the
+            ' ref struct's own instance members: a delegate must capture the receiver as an object
+            ' reference, which boxes a value type. Shared methods capture no receiver and are legal.
+            ' (Direct calls do not box: they use `constrained. callvirt`, so the direct-call check in
+            ' Binder_Invocation.CreateBoundCallOrPropertyAccess stays narrower.)
+            Dim delegateReceiverType As TypeSymbol = receiver?.Type
+            If delegateReceiverType IsNot Nothing AndAlso Not targetMethod.IsShared AndAlso
+               delegateReceiverType.IsRefLikeOrAllowsRefLikeType() Then
+                ReportDiagnostic(diagnostics, addressOfExpression.Syntax, ERRID.ERR_RestrictedAccess, delegateReceiverType)
+            End If
+
             If Me.OptionStrict = OptionStrict.On AndAlso Conversions.IsNarrowingConversion(delegateResolutionResult.DelegateConversions) Then
 
                 Dim addressOfOperandSyntax = addressOfExpression.Syntax

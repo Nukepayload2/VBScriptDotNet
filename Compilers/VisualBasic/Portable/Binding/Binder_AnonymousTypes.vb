@@ -29,7 +29,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             '  Check for restricted types.
             For Each field As AnonymousTypeField In typeDescr.Fields
                 Dim restrictedType As TypeSymbol = Nothing
-                If field.Type.IsRestrictedTypeOrArrayType(restrictedType) Then
+                If field.Type.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                     ReportDiagnostic(diagnostics, field.Location, ERRID.ERR_RestrictedType1, restrictedType)
                 End If
             Next
@@ -250,7 +250,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                     '  check for restricted type
                     Dim restrictedType As TypeSymbol = Nothing
-                    If fieldType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                    If fieldType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                         ReportDiagnostic(diagnostics, initExpression, ERRID.ERR_RestrictedType1, restrictedType)
                     End If
 

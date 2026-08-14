@@ -1313,7 +1313,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
         Friend Overrides ReadOnly Property ObsoleteAttributeData As ObsoleteAttributeData
             Get
                 If Not _packedFlags.IsObsoleteAttributePopulated Then
-                    Dim result = ObsoleteAttributeHelpers.GetObsoleteDataFromMetadata(_handle, DirectCast(ContainingModule, PEModuleSymbol))
+                    Dim result = ObsoleteAttributeHelpers.GetObsoleteDataFromMetadata(_handle, DirectCast(ContainingModule, PEModuleSymbol), ignoreByRefLikeMarker:=False)
                     If result IsNot Nothing Then
                         result = InterlockedOperations.Initialize(AccessUncommonFields()._lazyObsoleteAttributeData, result, ObsoleteAttributeData.Uninitialized)
                     End If

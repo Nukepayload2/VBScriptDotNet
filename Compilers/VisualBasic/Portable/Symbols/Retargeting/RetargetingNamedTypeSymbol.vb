@@ -416,6 +416,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
 
         End Function
 
+        Friend Overrides ReadOnly Property IsRefLikeType As Boolean
+            Get
+                Return _underlyingType.IsRefLikeType
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property TypeKind As TypeKind
             Get
                 Return _underlyingType.TypeKind

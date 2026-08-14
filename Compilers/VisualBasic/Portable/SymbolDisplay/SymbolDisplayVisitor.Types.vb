@@ -442,13 +442,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     Builder.Add(New SymbolDisplayPart(SymbolDisplayPartKind.AnonymousTypeIndicator, Nothing, "Tuple"))
                     AddSpace()
                 Else
-                    Dim keyword = GetTypeKindKeyword(symbol.TypeKind)
-                    If keyword = SyntaxKind.None Then
-                        Return
-                    End If
+                    If symbol.IsRefLikeType AndAlso symbol.TypeKind = TypeKind.Struct Then
+                        ' 显示「ByRef Like Structure」修饰（仅显示、不可声明；VBX 侧定稿格式）。
+                        Builder.Add(New SymbolDisplayPart(SymbolDisplayPartKind.Keyword, symbol, "ByRef Like Structure"))
+                        AddSpace()
+                    Else
+                        Dim keyword = GetTypeKindKeyword(symbol.TypeKind)
+                        If keyword = SyntaxKind.None Then
+                            Return
+                        End If
 
-                    AddKeyword(keyword)
-                    AddSpace()
+                        AddKeyword(keyword)
+                        AddSpace()
+                    End If
                 End If
             End If
         End Sub

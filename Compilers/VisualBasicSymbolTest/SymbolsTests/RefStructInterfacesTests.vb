@@ -136,15 +136,10 @@ End Class
             Dim comp1 = CreateCompilation(source1, targetFramework:=s_targetFrameworkSupportingByRefLikeGenerics, references:={csCompilation})
 
             Dim m = comp1.GetMember(Of MethodSymbol)("B.M")
-            Assert.False(m.TypeParameters.Single().AllowsRefLikeType)
+            Assert.True(m.TypeParameters.Single().AllowsRefLikeType)
             Assert.True(m.OverriddenMethod.TypeParameters.Single().AllowsRefLikeType)
 
-            comp1.AssertTheseDiagnostics(
-<expected>
-BC32077: 'Public Overrides Sub M(Of T)()' cannot override 'Public Overridable Overloads Sub M(Of T)()' because they differ by type parameter constraints.
-    Public Overrides Sub M(Of T)
-                         ~
-</expected>)
+            comp1.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -176,15 +171,10 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=s_targetFrameworkSupportingByRefLikeGenerics, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
-<expected>
-BC32078: 'Public Sub M(Of T)()' cannot implement 'IC.Sub M(Of T)()' because they differ by type parameter constraints.
-    Sub M(Of T) Implements IC.M
-                           ~~~~
-</expected>)
+            comp1.AssertNoDiagnostics()
 
             Dim m = comp1.GetMember(Of MethodSymbol)("B.M")
-            Assert.False(m.TypeParameters.Single().AllowsRefLikeType)
+            Assert.True(m.TypeParameters.Single().AllowsRefLikeType)
             Assert.True(m.ExplicitInterfaceImplementations.Single().TypeParameters.Single().AllowsRefLikeType)
         End Sub
 

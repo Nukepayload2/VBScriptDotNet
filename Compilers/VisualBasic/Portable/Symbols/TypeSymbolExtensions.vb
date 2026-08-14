@@ -363,7 +363,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         <Extension()>
         Public Function IsRestrictedType(this As TypeSymbol) As Boolean
-            Return this.SpecialType.IsRestrictedType()
+            ' RestrictedType = ref-like（IsRefLikeType）+ 三个遗留特殊类型（TypedReference/ArgIterator/RuntimeArgumentHandle）。
+            Return this.IsRefLikeType OrElse this.SpecialType.IsRestrictedType()
         End Function
 
         <Extension()>
@@ -383,6 +384,40 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End While
 
             If this.IsRestrictedType() Then
+                restrictedType = this
+                Return True
+            End If
+
+            restrictedType = Nothing
+            Return False
+        End Function
+
+        <Extension()>
+        Public Function IsRefLikeOrAllowsRefLikeType(this As TypeSymbol) As Boolean
+            ' A type parameter that allows ref-like type arguments is treated as ref-like
+            ' for field/array/ByRef/async-capture checks. The legacy restricted special
+            ' types (TypedReference/ArgIterator/RuntimeArgumentHandle) remain rejected.
+            Return this.IsRefLikeType OrElse this.SpecialType.IsRestrictedType() OrElse
+                   (TypeOf this Is TypeParameterSymbol AndAlso DirectCast(this, TypeParameterSymbol).AllowsRefLikeType)
+        End Function
+
+        <Extension()>
+        Public Function IsRefLikeOrAllowsRefLikeArrayType(this As TypeSymbol, <Out> ByRef restrictedType As TypeSymbol) As Boolean
+            If this.Kind = SymbolKind.ArrayType Then
+                Return this.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType)
+            End If
+
+            restrictedType = Nothing
+            Return False
+        End Function
+
+        <Extension()>
+        Public Function IsRefLikeOrAllowsRefLikeTypeOrArrayType(this As TypeSymbol, <Out> ByRef restrictedType As TypeSymbol) As Boolean
+            While this.Kind = SymbolKind.ArrayType
+                this = DirectCast(this, ArrayTypeSymbol).ElementType
+            End While
+
+            If this.IsRefLikeOrAllowsRefLikeType() Then
                 restrictedType = this
                 Return True
             End If

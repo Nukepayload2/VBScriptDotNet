@@ -101,6 +101,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Friend Overrides ReadOnly Property IsRefLikeType As Boolean
+            Get
+                Return OriginalDefinition.IsRefLikeType
+            End Get
+        End Property
+
         Public NotOverridable Overrides ReadOnly Property Arity As Integer
             Get
                 Return OriginalDefinition.Arity

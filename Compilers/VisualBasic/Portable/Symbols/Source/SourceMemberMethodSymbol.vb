@@ -348,6 +348,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Return syntax IsNot Nothing AndAlso syntax.ImplementsClause IsNot Nothing
         End Function
 
+        Friend ReadOnly Property AreExplicitInterfaceImplementationsResolved As Boolean
+            Get
+                Return Not _lazyImplementedMethods.IsDefault
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property ExplicitInterfaceImplementations As ImmutableArray(Of MethodSymbol)
             Get
                 If _lazyImplementedMethods.IsDefault Then

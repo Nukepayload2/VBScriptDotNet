@@ -28,6 +28,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ' The value is a list of all usage of each such variable.
         Private _lazyDisallowedCaptures As MultiDictionary(Of Symbol, SyntaxNode)
 
+        ' Restricted synthesized locals that Debug builds hoist but can never lift into a state machine field.
+        ' The value is the syntax node that creates the local, used as the location of the reported error.
+        Private ReadOnly _debugRestrictedLocals As Dictionary(Of LocalSymbol, SyntaxNode) = New Dictionary(Of LocalSymbol, SyntaxNode)()
+
         Public Structure Result
             Public ReadOnly CapturedLocals As OrderedSet(Of Symbol)
             Public ReadOnly ByRefLocalsInitializers As Dictionary(Of LocalSymbol, BoundExpression)
@@ -82,8 +86,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 ' there is no reason to hoist them and the pipeline doesn't handle this.
                 Dim skipByRefLocals As Boolean = DirectCast(info.Symbol, MethodSymbol).IsIterator
                 For Each v In allVariables
-                    If v.Symbol IsNot Nothing AndAlso HoistInDebugBuild(v.Symbol, skipByRefLocals) Then
-                        variablesToHoist.Add(v.Symbol)
+                    If v.Symbol IsNot Nothing Then
+                        If HoistInDebugBuild(v.Symbol, skipByRefLocals) Then
+                            variablesToHoist.Add(v.Symbol)
+                        Else
+                            ' Restricted (ByRef-like) synthesized locals can never be lifted into a state
+                            ' machine field, so report a compile error instead of failing at type load.
+                            Dim local As LocalSymbol = TryCast(v.Symbol, LocalSymbol)
+                            If local IsNot Nothing AndAlso local.Type.IsRefLikeOrAllowsRefLikeType() AndAlso
+                               local.SynthesizedKind <> SynthesizedLocalKind.UserDefined AndAlso
+                               local.SynthesizedKind <> SynthesizedLocalKind.ConditionalBranchDiscriminator Then
+                                Dim syntax As SyntaxNode = Nothing
+                                walker._debugRestrictedLocals.TryGetValue(local, syntax)
+                                diagnostics.Add(ERRID.ERR_CannotLiftRestrictedTypeResumable1,
+                                                If(syntax IsNot Nothing, syntax.GetLocation(), local.GetFirstLocation()),
+                                                local.Type)
+                            End If
+                        End If
                     End If
                 Next
             End If
@@ -95,7 +114,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             ' In debug build hoist all parameters that can be hoisted:
             If symbol.Kind = SymbolKind.Parameter Then
                 Dim parameter = TryCast(symbol, ParameterSymbol)
-                Return Not parameter.Type.IsRestrictedType()
+                Return Not parameter.Type.IsRefLikeOrAllowsRefLikeType()
             End If
 
             If symbol.Kind = SymbolKind.Local Then
@@ -110,11 +129,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                 ' hoist all user-defined locals that can be hoisted
                 If local.SynthesizedKind = SynthesizedLocalKind.UserDefined Then
-                    Return Not local.Type.IsRestrictedType()
+                    Return Not local.Type.IsRefLikeOrAllowsRefLikeType()
                 End If
 
-                ' hoist all synthesized variables that have to survive state machine suspension
-                Return local.SynthesizedKind <> SynthesizedLocalKind.ConditionalBranchDiscriminator
+                ' hoist all synthesized variables that have to survive state machine suspension,
+                ' except restricted (ByRef-like) types that can never be lifted into a state machine field
+                Return local.SynthesizedKind <> SynthesizedLocalKind.ConditionalBranchDiscriminator AndAlso Not local.Type.IsRefLikeOrAllowsRefLikeType()
             End If
 
             Return False
@@ -124,13 +144,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Me._variablesToHoist.Clear()
             Me._byRefLocalsInitializers.Clear()
             Me._lazyDisallowedCaptures?.Clear()
+            Me._debugRestrictedLocals.Clear()
 
             Return MyBase.Scan()
         End Function
 
         Private Sub CaptureVariable(variable As Symbol, syntax As SyntaxNode)
             Dim type As TypeSymbol = If(variable.Kind = SymbolKind.Local, TryCast(variable, LocalSymbol).Type, TryCast(variable, ParameterSymbol).Type)
-            If type.IsRestrictedType() Then
+            If type.IsRefLikeOrAllowsRefLikeType() Then
                 ' Error has already been reported:
                 If TypeOf variable Is SynthesizedLocal Then
                     Return
@@ -226,6 +247,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim result As BoundNode = Nothing
 
             For Each local In node.Locals
+                If compilation.Options.OptimizationLevel <> OptimizationLevel.Release AndAlso
+                   local.SynthesizedKind <> SynthesizedLocalKind.UserDefined AndAlso
+                   local.SynthesizedKind <> SynthesizedLocalKind.ConditionalBranchDiscriminator AndAlso
+                   local.Type.IsRefLikeOrAllowsRefLikeType() AndAlso node.Syntax IsNot Nothing AndAlso
+                   Not _debugRestrictedLocals.ContainsKey(local) Then
+                    _debugRestrictedLocals.Add(local, node.Syntax)
+                End If
+
                 SetSlotState(GetOrCreateSlot(local), True)
             Next
             result = MyBase.VisitSequence(node)

@@ -38,9 +38,6 @@ End Module"
 
             Dim compB = CreateCompilation(sourceB, references:={refA})
             compB.AssertTheseDiagnostics(<expected>
-BC30668: 'S(Of Integer)' is obsolete: 'Types with embedded references are not supported in this version of your compiler.'.
-        Dim s = New S(Of Integer)()
-                    ~~~~~~~~~~~~~
 BC30656: Field 'F' is of an unsupported type.
         Console.WriteLine(s.F)
                           ~~~
@@ -65,18 +62,7 @@ Module Program
 End Module"
 
             Dim comp = CreateCompilation(source, targetFramework:=TargetFramework.NetLatest)
-            comp.AssertTheseDiagnostics(<expected>
-BC30668: 'ReadOnlySpan(Of Char)' is obsolete: 'Types with embedded references are not supported in this version of your compiler.'.
-        Dim s2 As ReadOnlySpan(Of Char) = "123".AsSpan()
-                  ~~~~~~~~~~~~~~~~~~~~~
-</expected>)
-
-            comp = CreateCompilation(source, targetFramework:=TargetFramework.NetLatest)
-            comp.AssertTheseDiagnostics(<expected>
-BC30668: 'ReadOnlySpan(Of Char)' is obsolete: 'Types with embedded references are not supported in this version of your compiler.'.
-        Dim s2 As ReadOnlySpan(Of Char) = "123".AsSpan()
-                  ~~~~~~~~~~~~~~~~~~~~~
-</expected>)
+            comp.AssertNoDiagnostics()
         End Sub
 
         ''' <summary>

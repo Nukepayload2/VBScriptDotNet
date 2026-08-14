@@ -3708,6 +3708,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If destination.SpecialType = SpecialType.System_Object Then
                 'From a type parameter to Object.
+                If typeParameter.AllowsRefLikeType Then
+                    ' A type parameter that allows ref-like type arguments can never be boxed.
+                    Return Nothing
+                End If
+
                 Return ConversionKind.WideningTypeParameter
             End If
 

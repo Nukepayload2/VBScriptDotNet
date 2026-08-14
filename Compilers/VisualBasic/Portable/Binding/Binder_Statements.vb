@@ -1155,12 +1155,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim errSyntax = If(asClauseOpt Is Nothing, DirectCast(equalsValueOpt, VisualBasicSyntaxNode), asClauseOpt.Type)
 
             Dim restrictedType As TypeSymbol = Nothing
-            If type.IsRestrictedArrayType(restrictedType) Then
+            If type.IsRefLikeOrAllowsRefLikeArrayType(restrictedType) Then
                 If Not isInitializedByAsNew OrElse Not skipAsNewInitializer Then
                     ReportDiagnostic(diagnostics, errSyntax, ERRID.ERR_RestrictedType1, restrictedType)
                 End If
             ElseIf symbol.IsStatic Then
-                If type.IsRestrictedType() Then
+                If type.IsRefLikeOrAllowsRefLikeType() Then
                     If Not isInitializedByAsNew OrElse Not skipAsNewInitializer Then
                         ReportDiagnostic(diagnostics, errSyntax, ERRID.ERR_RestrictedType1, type)
                     End If
@@ -1168,7 +1168,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     ReportDiagnostic(diagnostics, name, ERRID.ERR_BadStaticInitializerInResumable)
                 End If
             ElseIf IsInAsyncContext() OrElse IsInIteratorContext() Then
-                If type.IsRestrictedType() Then
+                If type.IsRefLikeOrAllowsRefLikeType() Then
                     If Not isInitializedByAsNew OrElse Not skipAsNewInitializer Then
                         ReportDiagnostic(diagnostics, errSyntax, ERRID.ERR_CannotLiftRestrictedTypeResumable1, type)
                     End If

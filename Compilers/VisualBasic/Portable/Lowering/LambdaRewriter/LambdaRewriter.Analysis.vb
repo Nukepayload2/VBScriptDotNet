@@ -453,7 +453,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     End If
                 End If
 
-                If type.IsRestrictedType Then
+                If type.IsRefLikeOrAllowsRefLikeType Then
                     If Binder.IsTopMostEnclosingLambdaAQueryLambda(_currentParent, variableOrParameter.ContainingSymbol) Then
                         _diagnostics.Add(ERRID.ERR_CannotLiftRestrictedTypeQuery, syntax.GetLocation(), type)
                     Else

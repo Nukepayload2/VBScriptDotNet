@@ -379,7 +379,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                         AccessCheck.VerifyAccessExposureForMemberType(Me, errorLocation, type, diagnostics)
 
                         Dim restrictedType As TypeSymbol = Nothing
-                        If type.IsRestrictedTypeOrArrayType(restrictedType) Then
+                        If type.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                             Binder.ReportDiagnostic(diagnostics, errorLocation, ERRID.ERR_RestrictedType1, restrictedType)
                         End If
 

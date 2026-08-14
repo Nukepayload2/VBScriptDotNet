@@ -139,7 +139,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
                 Else
                     Dim restrictedType As TypeSymbol = Nothing
-                    If varType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                    If varType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                         binder.ReportDiagnostic(diagBag, declarator.AsClause.Type, ERRID.ERR_RestrictedType1, restrictedType)
                     End If
                 End If

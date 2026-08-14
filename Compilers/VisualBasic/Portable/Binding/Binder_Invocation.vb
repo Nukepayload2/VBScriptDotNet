@@ -851,6 +851,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Dim receiver As BoundExpression = group.ReceiverOpt
 
+            ' BC31393: a ref-like (or ref-like-capable) receiver cannot access members inherited
+            ' from Object/ValueType (GetHashCode/ToString/Equals/GetType) — the runtime would box the
+            ' receiver. C# reports CS0029 for the same scenario. Members overridden by the ref-like
+            ' type itself (e.g. Span.GetHashCode) have a different ContainingType and are unaffected.
+            Dim receiverType As TypeSymbol = receiver?.Type
+            If receiverType IsNot Nothing AndAlso Not methodOrProperty.IsShared AndAlso
+               receiverType.IsRefLikeOrAllowsRefLikeType() AndAlso
+               (methodOrProperty.ContainingType.SpecialType = SpecialType.System_Object OrElse
+                methodOrProperty.ContainingType.SpecialType = SpecialType.System_ValueType) Then
+                ReportDiagnostic(diagnostics, node, ERRID.ERR_RestrictedAccess, receiverType)
+            End If
+
             If group.ResultKind = LookupResultKind.Good Then
                 hasErrors = CheckSharedSymbolAccess(target, methodOrProperty.IsShared, receiver, group.QualificationKind, diagnostics)  ' give diagnostics if sharedness is wrong.
             End If

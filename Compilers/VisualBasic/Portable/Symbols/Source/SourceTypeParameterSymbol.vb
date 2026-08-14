@@ -297,6 +297,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Return True
         End Function
 
+        Public Overrides ReadOnly Property AllowsRefLikeType As Boolean
+            Get
+                Return _container.IsRefLikeCapableTypeParameter(Me.Ordinal)
+            End Get
+        End Property
+
     End Class
 
     ''' <summary>
@@ -373,6 +379,31 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
             Return True
         End Function
+
+        Public Overrides ReadOnly Property AllowsRefLikeType As Boolean
+            Get
+                ' Pass through from the overridden method. Reading OverriddenMethod only does
+                ' signature matching (no constraint comparison), so this cannot recurse.
+                Dim overridden = _container.OverriddenMethod
+                If overridden IsNot Nothing AndAlso Ordinal < overridden.Arity Then
+                    Return overridden.TypeParameters(Ordinal).AllowsRefLikeType
+                End If
+
+                ' Pass through from the explicitly implemented method, only once the
+                ' implements clause has been resolved to avoid reentrancy during binding.
+                ' Note (R4): implicit (name-matched) implements of a C# `allows ref struct`
+                ' generic method still reports BC30149; the interface map uses a constraint-
+                ' inclusive comparer and would need an interface-map lookup here to pass through.
+                If _container.AreExplicitInterfaceImplementationsResolved Then
+                    Dim impls = _container.ExplicitInterfaceImplementations
+                    If Not impls.IsEmpty AndAlso Ordinal < impls(0).Arity Then
+                        Return impls(0).TypeParameters(Ordinal).AllowsRefLikeType
+                    End If
+                End If
+
+                Return False
+            End Get
+        End Property
 
     End Class
 End Namespace

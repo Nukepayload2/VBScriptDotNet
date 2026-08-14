@@ -1605,7 +1605,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Private Sub ReportArrayLiteralInferredTypeDiagnostics(arrayLiteral As BoundArrayLiteral, diagnostics As BindingDiagnosticBag)
             Dim targetElementType = arrayLiteral.InferredType.ElementType
 
-            If targetElementType.IsRestrictedType Then
+            If targetElementType.IsRefLikeOrAllowsRefLikeType Then
                 ReportDiagnostic(diagnostics, arrayLiteral.Syntax, ERRID.ERR_RestrictedType1, targetElementType)
 
             ElseIf Not arrayLiteral.HasDominantType Then
@@ -4562,7 +4562,7 @@ lElseClause:
 
                     typeList.AddType(expressionType, RequiredConversion.Any, expression)
 
-                    If expressionType.IsRestrictedType() Then
+                    If expressionType.IsRefLikeOrAllowsRefLikeType() Then
                         ' this element is a restricted type; not convertible to object
                         allConvertibleToObject = False
                     End If

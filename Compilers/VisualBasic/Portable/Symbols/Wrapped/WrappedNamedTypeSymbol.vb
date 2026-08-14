@@ -75,6 +75,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Friend Overrides ReadOnly Property IsRefLikeType As Boolean
+            Get
+                Return Me._underlyingType.IsRefLikeType
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property TypeKind As TypeKind
             Get
                 Return Me._underlyingType.TypeKind

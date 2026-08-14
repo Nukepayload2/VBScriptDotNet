@@ -65,6 +65,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         Private _lazyCoClassType As TypeSymbol = ErrorTypeSymbol.UnknownResultType
 
         ''' <summary>
+        ''' Ordinals of the container's type parameters that acquire `allows ref struct` capability
+        ''' through an implemented interface. Lazily computed from AllInterfaces.
+        ''' </summary>
+        Private _lazyRefLikeCapableTypeParameters As HashSet(Of Integer)
+
+        ''' <summary>
         ''' In case a cyclic dependency was detected during base type resolution 
         ''' this field stores the diagnostic.
         ''' </summary>
@@ -942,6 +948,50 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Next
 
             Return typeParameters.AsImmutableOrNull()
+        End Function
+
+        Friend Function IsRefLikeCapableTypeParameter(ordinal As Integer) As Boolean
+            If ordinal < 0 OrElse ordinal >= Me.Arity Then
+                Return False
+            End If
+
+            Dim capableSet = _lazyRefLikeCapableTypeParameters
+            If capableSet Is Nothing Then
+                capableSet = ComputeRefLikeCapableTypeParameters()
+                Interlocked.CompareExchange(_lazyRefLikeCapableTypeParameters, capableSet, Nothing)
+                capableSet = _lazyRefLikeCapableTypeParameters
+            End If
+
+            Return capableSet.Contains(ordinal)
+        End Function
+
+        Private Function ComputeRefLikeCapableTypeParameters() As HashSet(Of Integer)
+            Dim result As New HashSet(Of Integer)()
+
+            ' Interface construction only reads IsRestrictedType (not AllowsRefLikeType) of the
+            ' container's type parameters, so resolving AllInterfaces cannot recurse back here.
+            For Each [interface] In Me.AllInterfacesNoUseSiteDiagnostics
+                If [interface].Arity = 0 Then
+                    Continue For
+                End If
+
+                Dim typeParameters = [interface].TypeParameters
+                Dim typeArguments = [interface].TypeArgumentsNoUseSiteDiagnostics
+
+                For i = 0 To typeParameters.Length - 1
+                    If typeParameters(i).AllowsRefLikeType Then
+                        Dim arg = typeArguments(i)
+                        If arg.Kind = SymbolKind.TypeParameter Then
+                            Dim tp = DirectCast(arg, TypeParameterSymbol)
+                            If tp.ContainingSymbol Is Me Then
+                                result.Add(tp.Ordinal)
+                            End If
+                        End If
+                    End If
+                Next
+            Next
+
+            Return result
         End Function
 
         Private Shared Function GetTypeParameterListSyntax(syntax As VisualBasicSyntaxNode) As TypeParameterListSyntax

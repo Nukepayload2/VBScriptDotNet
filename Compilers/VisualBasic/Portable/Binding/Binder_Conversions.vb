@@ -1568,7 +1568,7 @@ DoneWithDiagnostics:
             For Each delegateParam As ParameterSymbol In delegateInvoke.Parameters
                 If delegateParam.IsByRef OrElse delegateParam.OriginalDefinition.Type.IsTypeParameter() Then
                     Dim restrictedType As TypeSymbol = Nothing
-                    If delegateParam.Type.IsRestrictedTypeOrArrayType(restrictedType) Then
+                    If delegateParam.Type.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                         ReportDiagnostic(diagnostics, lambda.LambdaSymbol.Parameters(delegateParam.Ordinal).GetFirstLocation(),
                                          ERRID.ERR_RestrictedType1, restrictedType)
                     End If
@@ -1579,7 +1579,7 @@ DoneWithDiagnostics:
 
             If delegateInvoke.OriginalDefinition.ReturnType.IsTypeParameter() Then
                 Dim restrictedType As TypeSymbol = Nothing
-                If delegateReturnType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                If delegateReturnType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                     Dim location As SyntaxNode
 
                     If lambda.Expression.Kind = BoundKind.RangeVariableAssignment Then

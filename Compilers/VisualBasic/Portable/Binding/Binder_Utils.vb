@@ -1092,15 +1092,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     If paramType IsNot Nothing Then
                         If paramType.IsArrayType() Then
                             Dim restrictedType As TypeSymbol = Nothing
-                            If paramType.IsRestrictedArrayType(restrictedType) Then
+                            If paramType.IsRefLikeOrAllowsRefLikeArrayType(restrictedType) Then
                                 ReportDiagnostic(diagBag, paramSyntax.AsClause.Type, ERRID.ERR_RestrictedType1, restrictedType)
                             End If
                         ElseIf newParam.IsByRef Then
-                            If paramType.IsRestrictedType Then
+                            If paramType.IsRefLikeOrAllowsRefLikeType Then
                                 ReportDiagnostic(diagBag, paramSyntax.AsClause.Type, ERRID.ERR_RestrictedType1, paramType)
                             End If
                         ElseIf (modifiers And (SourceMemberFlags.Async Or SourceMemberFlags.Iterator)) <> 0 Then
-                            If paramType.IsRestrictedType Then
+                            ' Reject ref-like capable parameters at declaration; otherwise the async/iterator
+                            ' capture walker would run on them and crash (it records Nothing syntax for params).
+                            If paramType.IsRefLikeOrAllowsRefLikeType Then
                                 ReportDiagnostic(diagBag, paramSyntax.AsClause.Type, ERRID.ERR_RestrictedResumableType1, paramType)
                             End If
                         End If

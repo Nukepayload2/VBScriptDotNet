@@ -2343,7 +2343,7 @@ lReportErrorOnTwoTokens:
                         AccessCheck.VerifyAccessExposureForMemberType(Me, errorLocation, retType, diagBag)
 
                         Dim restrictedType As TypeSymbol = Nothing
-                        If retType.IsRestrictedArrayType(restrictedType) Then
+                        If retType.IsRefLikeOrAllowsRefLikeArrayType(restrictedType) Then
                             binder.ReportDiagnostic(diagBag, errorLocation, ERRID.ERR_RestrictedType1, restrictedType)
                         End If
 

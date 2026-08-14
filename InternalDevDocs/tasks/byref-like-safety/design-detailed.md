@@ -107,7 +107,7 @@ End Function
 | 检查点 | 文件:行号 | 现在对 `Span(Of Integer)` 的行为 |
 |---|---|---|
 | 字段（含脚本类字段） | `SourceMemberFieldSymbol.vb:142-143` | BC31396 |
-| 返回/数组 | `SourceMethodSymbol.vb:2346-2347` | BC31396 |
+| 数组元素 | `Binder_Statements.vb:1158` | BC31396 |
 | 数组/静态/async 上下文 | `Binder_Statements.vb:1158/:1163/:1171` | BC31396 / BC37052 |
 | 转换（装箱） | `Binder_Conversions.vb:508-513`（`ApplyConversion`） | BC31394 |
 | 直接转换 CType | `Binder_Conversions.vb:121-125`（`ApplyDirectCastConversion`） | BC31394 |
@@ -128,28 +128,28 @@ End Function
 
 ### 3.1 现状（源码实证）
 
-- C# 原型：`CSharp\Portable\Symbols\Metadata\PE\PENamedTypeSymbol.cs:998`——`filterObsoleteAttribute = IsRefLikeType && ObsoleteAttributeData is null`（`GetCustomAttributes` 时对 ref-like 类型过滤 `[Obsolete]` 属性）。
-- VB 侧缺失：`VB\Symbols\Metadata\PE\PENamedTypeSymbol.vb` **无 `IsRefLikeType` 覆盖**（Grep 无匹配）；VB PE 类型 obsolete 读取路径 `PENamedTypeSymbol.vb:1455-1460`（`ObsoleteAttributeData` 覆盖，`ObsoleteAttributeHelpers.InitializeObsoleteDataFromMetadata(_lazyObsoleteAttributeData, _handle, ContainingPEModule)` 于 `:1457`）。
+- **真正的机制**：BC30668（`ERR_UseOfObsoleteSymbol2`）来自 `VB\Symbols\ObsoleteAttributeHelpers.vb:33-39`（`GetObsoleteDataFromMetadata`）→ `Core\Portable\MetadataReader\PEModule.cs:1249-1275`（`TryGetDeprecatedOrExperimentalOrObsoleteAttribute`）。类型带 `[Obsolete("Types with embedded references are not supported...", true)]`（`ByRefLikeMarker`，`PEModule.cs:1245`）时，仅当 `ignoreByRefLikeMarker=True` 才返回 `Nothing`（`:1269-1270`）。VB 现硬编码 `ignoreByRefLikeMarker:=False`（`ObsoleteAttributeHelpers.vb:36`）→ ref-like 类型报 obsolete。
+- **C# 正确原型**：`CSharp\Portable\Symbols\Metadata\PE\PENamedTypeSymbol.cs:3028-3029`——`bool ignoreByRefLikeMarker = this.IsRefLikeType;` 传入 C# 版 `ObsoleteAttributeHelpers.InitializeObsoleteDataFromMetadata`（C# helper 有 `ignoreByRefLikeMarker` 形参）。仅**类型级**传 `IsRefLikeType`；方法/字段/属性/事件传 `False`（`PEMethodSymbol.cs:1703` / `PEFieldSymbol.cs:722` / `PEPropertySymbol.cs:1101` / `PEEventSymbol.cs:543`）。
+- VB 侧缺失：`ObsoleteAttributeHelpers.vb` 的 `InitializeObsoleteDataFromMetadata`/`GetObsoleteDataFromMetadata` 无 `ignoreByRefLikeMarker` 形参，硬编码 `False`。
 
 ### 3.2 改动形状
 
-`PENamedTypeSymbol.vb:1455-1460` 的 `ObsoleteAttributeData` 覆盖改为：
+**(a) `VB\Symbols\ObsoleteAttributeHelpers.vb`——加 `ignoreByRefLikeMarker` 形参**
 
-```vb
-Friend Overrides ReadOnly Property ObsoleteAttributeData As ObsoleteAttributeData
-    Get
-        If Me.IsRefLikeType Then
-            ' Suppress ref struct obsolete error（对齐 C# PENamedTypeSymbol.cs:998 的 filterObsoleteAttribute）。
-            Return Nothing
-        End If
-        ObsoleteAttributeHelpers.InitializeObsoleteDataFromMetadata(_lazyObsoleteAttributeData, _handle, ContainingPEModule)
-        Return _lazyObsoleteAttributeData
-    End Get
-End Property
-```
+`InitializeObsoleteDataFromMetadata`（:26）与 `GetObsoleteDataFromMetadata`（:33）各加 `ignoreByRefLikeMarker As Boolean` 形参；`:36` 的硬编码 `ignoreByRefLikeMarker:=False` 改为传参 `ignoreByRefLikeMarker:=ignoreByRefLikeMarker`；`:35` 注释同步更新。
 
-- `Return Nothing` 语义 = 「该类型无 obsolete 数据」，与 C# `filterObsoleteAttribute = IsRefLikeType && ObsoleteAttributeData is null`（过滤 `[Obsolete]` 使其不可见）效果一致。`Span(Of Integer)` 在 VB 里直接可写、可绑定。
-- **实现期检查点**：C# `:1000` 还有 `filterIsByRefLikeAttribute = IsRefLikeType`（把 `[IsByRefLike]` 自身从 `GetCustomAttributes` 过滤掉，不外泄给符号属性列表）。VB 侧若 `GetAttributes()`/`GetCustomAttributes()` 会把 `[IsByRefLike]` 暴露为符号属性，实现期按需对齐过滤；不影响 suppress obsolete 主效果（VB obsolete 走独立的 `ObsoleteAttributeData` 路径）。
+**(b) 5 个调用点传参**
+
+| 调用点 | 传值 |
+|---|---|
+| `PENamedTypeSymbol.vb:1457`（类型级） | `ignoreByRefLikeMarker:=Me.IsRefLikeType` |
+| `PEMethodSymbol.vb:1316` | `ignoreByRefLikeMarker:=False` |
+| `PEPropertySymbol.vb:345` | `ignoreByRefLikeMarker:=False` |
+| `PEFieldSymbol.vb:320` | `ignoreByRefLikeMarker:=False` |
+| `PEEventSymbol.vb:255` | `ignoreByRefLikeMarker:=False` |
+
+- **为何不用旧版「`ObsoleteAttributeData` 返回 `Nothing`」**：那会把 ref-like 类型上**合法的用户 `[Obsolete]`** 一并 suppress（C# 只 suppress `ByRefLikeMarker` 一种 marker，保留用户自定义 obsolete）。`ignoreByRefLikeMarker` 形参法精确对齐 C#。
+- **实现期检查点**：C# `PENamedTypeSymbol.cs:998-1010` 还有 `filterObsoleteAttribute = IsRefLikeType && ObsoleteAttributeData is null` + `filterIsByRefLikeAttribute = IsRefLikeType`（在 `GetAttributes()` 过滤 `[Obsolete]`/`[IsByRefLike]` 属性本身）。VB 侧若 `GetAttributes()` 把 `[IsByRefLike]`/marker `[Obsolete]` 暴露为符号属性，实现期按需对齐；不影响 suppress obsolete 主效果（BC30668 走 `ObsoleteAttributeData` 路径）。
 
 ---
 
@@ -200,7 +200,7 @@ End Property
 
 - 机制：`<Initialize>` 恒为 async（`SynthesizedInteractiveInitializerMethod.vb:51-55` `IsAsync` 恒 `True`）；顶层 `Await` + 作用域内 byref-like 落入 async 状态机捕获检查。
 - 覆盖：`Analysis\IteratorAndAsyncAnalysis\IteratorAndAsyncCaptureWalker.vb:98/:113/:133`（`Not parameter.Type.IsRestrictedType()` / `Not local.Type.IsRestrictedType()` / `If type.IsRestrictedType()`）——谓词扩展即覆盖，报 **BC37052**（`ERR_CannotLiftRestrictedTypeResumable1`）。对齐 C# `span-safety.md:262`。
-- **零新增**：REPL 零额外处理。
+- **D1-7 更正**：谓词扩展覆盖常规捕获路径；但 Debug 构建下 `HoistInDebugBuild` 会把 ref-like 合成局部（如顶层 ByVal span 实参临时）提升成字段且不查 restricted → 运行期 TypeLoadException。D1-7 追加 `Not local.Type.IsRestrictedType()` 守卫并报 BC37052，补齐此缺口。
 
 ### 5.4 宿主层（零改动）
 
@@ -261,7 +261,7 @@ End If
 | `VB\Symbols\SpecialTypeExtensions.vb:84-93` | 保留三特殊类型遗留检查（`TypedReference` 等非 `IsByRefLike` 标记，独立受限机制） |
 | `VB\Binding\Binder_Initializers.vb:211-220` | 结果装箱由 `ApplyImplicitConversion` → `ApplyConversion:508` 自动覆盖（§5.2） |
 | `VB\Analysis\InitializerRewriter.vb:202-243` | 结果回传路径不改；错误在编译期短路 |
-| `VB\Analysis\IteratorAndAsyncAnalysis\IteratorAndAsyncCaptureWalker.vb` | 谓词扩展即覆盖（§5.3） |
+| `VB\Analysis\IteratorAndAsyncAnalysis\IteratorAndAsyncCaptureWalker.vb` | 谓词扩展覆盖常规捕获；Debug hoisting 合成局部需 D1-7 追加 `IsRestrictedType` 守卫（§5.3 已更正） |
 | `VB\Symbols\Source\SourceMemberFieldSymbol.vb` / `SourceMethodSymbol.vb` | 既有检查点，谓词扩展即覆盖 |
 | `Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs` | 编译期短路，宿主零改动（§5.4） |
 | `VB\Compilation\VisualBasicCompilation.vb`（`HasSubmissionResult`） | 结果报错在编译期，打印路径不变 |
@@ -270,7 +270,7 @@ End If
 ### 8.2 边界
 
 - **`.vbx` 顶层同样受限**：REPL 与 `.vbx` 同 kind（`SourceCodeKind.Script`，`VisualBasicCompiler.vb:96`）。`.vbx` 脚本文件顶层 `Dim` of span / 顶层结果 / 顶层 Await + span 报与 REPL 相同错误（同 kind、同一编译器路径）。这是**已接受的代价**（对齐 C# 对 csx 的同一判断，`LDM-2020-02-26.md:46-56`）。
-- **方法体局部 / ByVal 值参数可用**：`Sub F(s As Span(Of Integer))`、`Dim x As Span(Of Integer)` 在方法体内正常绑定（不触发任何 restricted 检查），这是 D1「消费 `allows ref struct` 接口类型」的主场景。**返回值与 `ByRef` 参数 → BC31396**（`Binder_Utils.vb:1096-1104` ByRef 参数；`SourceMethodSymbol.vb:2346` 返回）。
+- **方法体局部 / ByVal 值参数 / 按值返回可用**：`Sub F(s As Span(Of Integer))`、`Dim x As Span(Of Integer)`、`Function F() As Span(Of Integer)` 正常绑定（ref struct 按值返回合法，对齐 C#；VB 源符号层无返回值 restricted 检查）。**`ByRef` 参数 → BC31396**（`Binder_Utils.vb:1096-1104`）。
 - **`scoped`/`UnscopedRef` 非 VB 概念**：不引入用户级关键字；ref-like 逃逸/生命周期以编译器内部规则表达（本设计不实现逃逸流分析——那是 RefStructHelper 未来项，不在 D1 范围）。
 - **Regular 零影响证明**：
   1. `SourceCodeKind.Regular` 下 `IsRefLikeType` 基类默认 `False`（§2.2a）→ `IsRestrictedType()` 行为与现状完全一致（仍只保护三特殊类型）。

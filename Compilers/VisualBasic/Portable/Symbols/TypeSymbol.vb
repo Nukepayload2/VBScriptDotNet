@@ -584,10 +584,16 @@ Done:
             End Get
         End Property
 
+        Friend Overridable ReadOnly Property IsRefLikeType As Boolean
+            Get
+                ' VB 源类型无 ref struct 声明语法，默认不是 ref-like；PE 类型覆盖此属性读 IsByRefLikeAttribute。
+                Return False
+            End Get
+        End Property
+
         Private ReadOnly Property ITypeSymbol_IsRefLikeType As Boolean Implements ITypeSymbol.IsRefLikeType
             Get
-                ' VB has no concept of ref-like types
-                Return False
+                Return Me.IsRefLikeType
             End Get
         End Property
 

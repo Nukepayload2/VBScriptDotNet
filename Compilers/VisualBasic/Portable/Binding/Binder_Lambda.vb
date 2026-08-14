@@ -43,7 +43,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                node.SubOrFunctionHeader.AsClause IsNot Nothing Then
                 returnType = BindTypeSyntax(node.SubOrFunctionHeader.AsClause.Type, diagnostics)
 
-                If returnType.IsRestrictedType() Then
+                If returnType.IsRefLikeOrAllowsRefLikeType() Then
                     ReportDiagnostic(diagnostics, node.SubOrFunctionHeader.AsClause.Type, ERRID.ERR_RestrictedType1, returnType)
                     hasErrors = True
 
@@ -104,7 +104,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     ' Get the type from the target.
                     unboundType = delegateType
 
-                    If Not unboundParam.IsByRef AndAlso source.Flags <> 0 AndAlso unboundType.IsRestrictedType Then
+                    If Not unboundParam.IsByRef AndAlso source.Flags <> 0 AndAlso unboundType.IsRefLikeOrAllowsRefLikeType Then
                         ReportDiagnostic(diagnostics, unboundParam.IdentifierSyntax, ERRID.ERR_RestrictedResumableType1, unboundType)
                     Else
                         ' Other cases with restricted types are not interesting because either the target delegate type is "bad"
@@ -266,7 +266,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         For Each param In lambdaSymbol.Parameters
                             ' Verify for restricted types.
                             Dim restrictedType As TypeSymbol = Nothing
-                            If param.Type.IsRestrictedTypeOrArrayType(restrictedType) Then
+                            If param.Type.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                                 ReportDiagnostic(diagnostics,
                                                  DirectCast(source.Parameters(param.Ordinal), UnboundLambdaParameterSymbol).TypeSyntax,
                                                  ERRID.ERR_RestrictedType1, restrictedType)
@@ -282,7 +282,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                             ' Check return type as well, but complain only if we "inherited" it from the target signature. If we got
                             ' it from the lambda's signature or inferred it, we already complained about it.
                             Dim restrictedType As TypeSymbol = Nothing
-                            If targetReturnType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                            If targetReturnType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                                 delegateRelaxation = ConversionKind.DelegateRelaxationLevelInvalid 'No conversion
                                 methodConversions = methodConversions Or MethodConversionKind.Error_RestrictedType
 
@@ -801,7 +801,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     parameters(i).Name, parameters(i).Type, sourceParameter.Syntax.GetLocation(), parameters(i).IsByRef)
 
                 ' Verify for restricted types.
-                If parameters(i).Type.IsRestrictedType() Then
+                If parameters(i).Type.IsRefLikeOrAllowsRefLikeType() Then
                     ReportDiagnostic(diagnostics, sourceParameter.TypeSyntax, ERRID.ERR_RestrictedType1, parameters(i).Type)
                 End If
             Next
@@ -945,7 +945,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     diagnostics.Clear()
 
                     Dim restrictedType As TypeSymbol = Nothing
-                    If lambdaReturnType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                    If lambdaReturnType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                         ReportDiagnostic(diagnostics, LambdaHeaderErrorNode(source), ERRID.ERR_RestrictedType1, restrictedType)
                     End If
                 Else
@@ -960,7 +960,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         ReportDiagnostic(diagnostics, LambdaHeaderErrorNode(source), ERRID.ERR_LambdaNoType)
                         lambdaReturnType = LambdaSymbol.ReturnTypeIsUnknown
 
-                    ElseIf lambdaReturnType.IsRestrictedTypeOrArrayType(restrictedType) Then
+                    ElseIf lambdaReturnType.IsRefLikeOrAllowsRefLikeTypeOrArrayType(restrictedType) Then
                         ReportDiagnostic(diagnostics, LambdaHeaderErrorNode(source), ERRID.ERR_RestrictedType1, restrictedType)
 
                     ElseIf numCandidates <> 1 Then

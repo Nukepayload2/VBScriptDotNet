@@ -895,5 +895,302 @@ Dim sb As New System.Text.StringBuilder() : With sb : .Append(""x"") : End With"
 
 #End Region
 
+#Region "ByRef-like safety - L2 REPL/scripts (test-plan section 4, R1-R15)"
+
+    ''' <summary>
+    ''' R1: A top-level "Dim s As New Span(Of Integer)(1)" becomes a script-class field; the restricted-type
+    ''' field check reports BC31396 and the submission does not run.
+    ''' </summary>
+    <Fact>
+    Public Sub TestTopLevelDimOfSpanReportsRestrictedType()
+        Dim runner = CreateRunner(input:="Dim s As New Span(Of Integer)(1)")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.StartsWith(s_logoAndHelpPrompt, output)
+        Assert.Contains("> Dim s As New Span(Of Integer)(1)", output)
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31396", output)
+    End Sub
+
+    ''' <summary>
+    ''' R2: "? New Span(Of Integer)(1)" boxes the result to Object for printing; the restricted conversion
+    ''' reports BC31394 and nothing prints.
+    ''' </summary>
+    <Fact>
+    Public Sub TestQuestionPrintingSpanReportsRestrictedConversion()
+        Dim runner = CreateRunner(input:="? New Span(Of Integer)(1)")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.StartsWith(s_logoAndHelpPrompt, output)
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31394", output)
+    End Sub
+
+    ''' <summary>
+    ''' R3: A trailing bare expression "New Span(Of Integer)(1)" is the submission result, boxed to Object by
+    ''' the initializer rewriter; the restricted conversion reports BC31394 and nothing prints.
+    ''' </summary>
+    <Fact>
+    Public Sub TestTrailingBareSpanExpressionReportsRestrictedConversion()
+        Dim runner = CreateRunner(input:="New Span(Of Integer)(1)")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.StartsWith(s_logoAndHelpPrompt, output)
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31394", output)
+    End Sub
+
+    ''' <summary>
+    ''' R4: A method-local Span is usable; the method runs and "? F()" prints "ok".
+    ''' (Console.WriteLine is not captured by TestConsoleIO, so the method returns "ok" instead of writing it.)
+    ''' </summary>
+    <Fact>
+    Public Sub TestMethodLocalSpanIsUsable()
+        Dim runner = CreateRunner(input:="Function F() As String
+    Dim s As New Span(Of Integer)(1)
+    Return ""ok""
+End Function
+? F()")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.Contains("""ok""", output)
+    End Sub
+
+    ''' <summary>
+    ''' R5: A ByVal Span parameter is usable; a Span is passed ByVal to F and "ok" prints.
+    ''' Note: a top-level call that passes a ref struct argument currently throws TypeLoadException (the
+    ''' generated submission class hoists the argument into a ByRef-like instance field), so the call runs
+    ''' from within a method body, which the scripting runtime handles.
+    ''' </summary>
+    <Fact>
+    Public Sub TestByValSpanParameterIsUsable()
+        Dim runner = CreateRunner(input:="Function F(s As Span(Of Integer)) As String
+    Return ""ok""
+End Function
+Sub G()
+    Dim sp As New Span(Of Integer)(1)
+    Print(F(sp))
+End Sub
+G()")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.Contains("""ok""", output)
+    End Sub
+
+    ''' <summary>
+    ''' R5a: A top-level call passing a ByVal Span argument lifts that argument into the async
+    ''' &lt;Initialize&gt; state machine in Debug builds. It must report BC37052 at compile time instead
+    ''' of crashing at runtime with TypeLoadException.
+    ''' </summary>
+    <Fact>
+    Public Sub TestTopLevelByValSpanArgumentReportsRestrictedLift()
+        Dim runner = CreateRunner(input:="Function F(s As Span(Of Integer)) As String
+Return ""ok""
+End Function
+? F(New Span(Of Integer)(1))")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.StartsWith(s_logoAndHelpPrompt, output)
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC37052", output)
+        Assert.DoesNotContain("TypeLoadException", output)
+    End Sub
+
+    ''' <summary>
+    ''' R6: A ByRef Span parameter is a restricted type; BC31396.
+    ''' </summary>
+    <Fact>
+    Public Sub TestByRefSpanParameterReportsRestrictedType()
+        Dim runner = CreateRunner(input:="Sub F(ByRef s As Span(Of Integer))
+End Sub")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.StartsWith(s_logoAndHelpPrompt, output)
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31396", output)
+    End Sub
+
+    ''' <summary>
+    ''' R7: Cross top-level Await with a Span in scope. A top-level "Dim s" is a script-class field, so the
+    ''' restricted-field error (BC31396) preempts the async state-machine capture check (BC37052). The actual
+    ''' first error reported is BC31396; BC37052 is not observable at REPL top level.
+    ''' </summary>
+    <Fact>
+    Public Sub TestTopLevelAwaitWithSpanInScopeReportsFieldFirst()
+        Dim runner = CreateRunner(input:="Dim s As New Span(Of Integer)(1) : Await Task.FromResult(0)")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31396", output)
+    End Sub
+
+    ''' <summary>
+    ''' R8: A top-level "Dim s As New Span(Of Integer)(1)" in a .vbx script is restricted the same way as the
+    ''' REPL (both are Script kind); the script fails with BC31396.
+    ''' </summary>
+    <Fact>
+    Public Sub TestVbxTopLevelDimOfSpanReportsRestrictedType()
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "Dim s As New Span(Of Integer)(1)")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(1, runner.RunInteractive())
+        Assert.Contains("BC31396", runner.Console.Error.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R9: A method-local Span in a .vbx script is usable; the script runs, exits 0, and prints "ok".
+    ''' (Console.WriteLine is not captured by TestConsoleIO, so Print is used instead.)
+    ''' </summary>
+    <Fact>
+    Public Sub TestVbxMethodLocalSpanIsUsable()
+        Dim directory = CreateIsolatedTempDirectory()
+        File.WriteAllText(Path.Combine(directory, "main.vbx"),
+            "Sub F()
+    Dim s As New Span(Of Integer)(1)
+    Print(""ok"")
+End Sub
+F()")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences("""ok""", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R10: "allows ref struct" interface consumption depends on prerequisite-2 / M8, which is not landed.
+    ''' The REPL harness cannot supply a C# "allows ref struct" interface reference (CreateRunner references
+    ''' only the default assemblies), so the end-to-end "usable" assertion is a documented timing gap. Current
+    ''' not-ready behavior: a Span cannot be converted to an interface reference; interface conversion has no
+    ''' restricted-type check, so the reported error is the generic type mismatch BC30311 (per L1 S21), not
+    ''' BC31396 as the plan anticipated.
+    ''' </summary>
+    <Fact>
+    Public Sub TestAllowsRefStructInterfaceConsumptionNotReady()
+        Dim runner = CreateRunner(input:="Sub F()
+    Dim x As IDisposable = New Span(Of Integer)(1)
+End Sub")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC30311", output)
+    End Sub
+
+    ''' <summary>
+    ''' R11: "? CType(New Span(Of Integer)(1), Object)" boxes explicitly to Object -> BC31394;
+    ''' "? CType(New Span(Of Integer)(1), IDisposable)" targets an interface -> BC30311. Neither runs.
+    ''' </summary>
+    <Fact>
+    Public Sub TestExplicitCTypeSpanToObjectAndInterface()
+        Dim objectRunner = CreateRunner(input:="? CType(New Span(Of Integer)(1), Object)")
+
+        objectRunner.RunInteractive()
+
+        Dim objectOutput = objectRunner.Console.Out.ToString()
+        Assert.Contains("«Red»", objectOutput)
+        Assert.Contains("BC31394", objectOutput)
+
+        Dim interfaceRunner = CreateRunner(input:="? CType(New Span(Of Integer)(1), IDisposable)")
+
+        interfaceRunner.RunInteractive()
+
+        Dim interfaceOutput = interfaceRunner.Console.Out.ToString()
+        Assert.Contains("«Red»", interfaceOutput)
+        Assert.Contains("BC30311", interfaceOutput)
+    End Sub
+
+    ''' <summary>
+    ''' R12: "? (""a"" & New Span(Of Integer)(1))" has no applicable '&' overload for a restricted operand;
+    ''' the error is BC30452, not BC31394.
+    ''' </summary>
+    <Fact>
+    Public Sub TestStringConcatenationOfSpanReportsOperatorError()
+        Dim runner = CreateRunner(input:="? (""a"" & New Span(Of Integer)(1))")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC30452", output)
+        Assert.DoesNotContain("BC31394", output)
+    End Sub
+
+    ''' <summary>
+    ''' R13: A failed submission does not pollute the session: the top-level Dim error is reported, then the
+    ''' next submission "1 + 2" still prints 3.
+    ''' </summary>
+    <Fact>
+    Public Sub TestFailedSubmissionDoesNotPolluteSession()
+        Dim runner = CreateRunner(input:="Dim s As New Span(Of Integer)(1)" & vbCrLf & "1 + 2")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC31396", output)
+        Assert.True(output.IndexOf("BC31396") < output.IndexOf("> 1 + 2"),
+                    "The next submission's prompt must appear after the failed submission's error block.")
+        Assert.Contains("> 1 + 2" & vbCrLf & "3", output)
+    End Sub
+
+    ''' <summary>
+    ''' R14: For Each over a ReadOnlySpan(Of Char) is not usable in VB: the enumerator's Current is a
+    ''' ByRef-returning property, unsupported (BC30643).
+    ''' </summary>
+    <Fact>
+    Public Sub TestForEachOverReadOnlySpanReportsUnsupportedProperty()
+        Dim runner = CreateRunner(input:="Sub F()
+    Dim s As New ReadOnlySpan(Of Char)(""ab"".ToCharArray())
+    For Each c As Char In s
+        Console.WriteLine(c)
+    Next
+End Sub")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC30643", output)
+    End Sub
+
+    ''' <summary>
+    ''' R15: "? 42" prints the exact value line (reference TestPrint; not a widened assertion).
+    ''' </summary>
+    <Fact>
+    Public Sub TestQuestionPrintExactFormat()
+        Dim runner = CreateRunner(input:="? 42")
+
+        runner.RunInteractive()
+
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_logoAndHelpPrompt + "
+> ? 42
+42
+>", runner.Console.Out.ToString())
+    End Sub
+
+#End Region
+
 End Class
 

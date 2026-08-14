@@ -23,17 +23,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         ''' Initialize the ObsoleteAttributeData by fetching attributes and decoding ObsoleteAttributeData. This can be 
         ''' done for Metadata symbol easily whereas trying to do this for source symbols could result in cycles.
         ''' </summary>
-        Friend Shared Sub InitializeObsoleteDataFromMetadata(ByRef data As ObsoleteAttributeData, token As EntityHandle, containingModule As PEModuleSymbol)
+        Friend Shared Sub InitializeObsoleteDataFromMetadata(ByRef data As ObsoleteAttributeData, token As EntityHandle, containingModule As PEModuleSymbol, ignoreByRefLikeMarker As Boolean)
             If data Is ObsoleteAttributeData.Uninitialized Then
-                Dim obsoleteAttributeData As ObsoleteAttributeData = GetObsoleteDataFromMetadata(token, containingModule)
+                Dim obsoleteAttributeData As ObsoleteAttributeData = GetObsoleteDataFromMetadata(token, containingModule, ignoreByRefLikeMarker)
                 Interlocked.CompareExchange(data, obsoleteAttributeData, ObsoleteAttributeData.Uninitialized)
             End If
         End Sub
 
-        Friend Shared Function GetObsoleteDataFromMetadata(token As EntityHandle, containingModule As PEModuleSymbol) As ObsoleteAttributeData
+        Friend Shared Function GetObsoleteDataFromMetadata(token As EntityHandle, containingModule As PEModuleSymbol, ignoreByRefLikeMarker As Boolean) As ObsoleteAttributeData
             Dim obsoleteAttributeData As ObsoleteAttributeData = Nothing
-            ' ignoreByRefLikeMarker := False, since VB does not support ref-like types
-            obsoleteAttributeData = containingModule.Module.TryGetDeprecatedOrExperimentalOrObsoleteAttribute(token, New MetadataDecoder(containingModule), ignoreByRefLikeMarker:=False, ignoreRequiredMemberMarker:=True)
+            ' ignoreByRefLikeMarker is True for ref-like types, whose embedded-reference [Obsolete] marker is not a user error
+            obsoleteAttributeData = containingModule.Module.TryGetDeprecatedOrExperimentalOrObsoleteAttribute(token, New MetadataDecoder(containingModule), ignoreByRefLikeMarker:=ignoreByRefLikeMarker, ignoreRequiredMemberMarker:=True)
             Debug.Assert(obsoleteAttributeData Is Nothing OrElse Not obsoleteAttributeData.IsUninitialized)
             Return obsoleteAttributeData
         End Function

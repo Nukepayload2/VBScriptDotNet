@@ -2975,11 +2975,7 @@ Class C
     End Sub
 End Class")
             Dim comp = CreateCompilation(tree, references:={csharpComp.EmitToImageReference()})
-            comp.AssertTheseDiagnostics(<errors>
-BC30668: 'S2' is obsolete: 'Types with embedded references are not supported in this version of your compiler.'.
-        Dim s2 = new S2()
-                     ~~
-                                        </errors>)
+            comp.AssertNoDiagnostics()
             Dim model = comp.GetSemanticModel(tree)
             Dim root = tree.GetRoot()
             Dim getLocalType = Function(name As String) As ITypeSymbol
@@ -2988,9 +2984,9 @@ BC30668: 'S2' is obsolete: 'Types with embedded references are not supported in 
                                    Single(Function(n) n.Identifier.ValueText = name)
                                    Return CType(model.GetDeclaredSymbol(decl), ILocalSymbol).Type
                                End Function
-            ' VB does not have a concept of a ref-like type
+            ' VB source types are never ref-like; metadata ref structs (e.g. C#-emitted S2) are.
             Assert.False(getLocalType("s1").IsRefLikeType)
-            Assert.False(getLocalType("s2").IsRefLikeType)
+            Assert.True(getLocalType("s2").IsRefLikeType)
             Assert.False(getLocalType("s3").IsRefLikeType)
             Assert.False(getLocalType("e1").IsRefLikeType)
         End Sub
