@@ -2,8 +2,8 @@
 
 * [x] Proposed
 * [ ] Prototype: [Complete](https://github.com/PROTOTYPE_OWNER/roslyn/BRANCH_NAME)
-* [ ] Implementation: [In Progress](https://github.com/dotnet/roslyn/BRANCH_NAME)
-* [ ] Specification: [In Progress](../spec/spec-byref-like-safety.md)
+* [x] Implementation: [Complete](https://github.com/dotnet/roslyn/BRANCH_NAME)
+* [x] Specification: [Complete](../spec/spec-byref-like-safety.md)
 
 ## Summary
 [summary]: #summary
@@ -58,7 +58,7 @@
 
 - **既有检查点只需扩展谓词，无需新建位置**：字段（`SourceMemberFieldSymbol.vb:142-143`）、数组/返回类型（`SourceMethodSymbol.vb:2346`、`Binder_Statements.vb:1158`）、转换（`Binder_Conversions.vb:121/248/508`）、lambda（`Binder_Lambda.vb`）、匿名类型（`Binder_AnonymousTypes.vb`）等已全部走 `IsRestrictedType*` 系，改 `IsRestrictedType()` 定义即自动覆盖。
 - **字段限制对齐 C# `span-safety.md:266`**（ref-like 不能作字段，除 ref-struct 内嵌 ref-struct）；**数组元素限制对齐 `:268`**；**装箱限制对齐 `:270-271`**。
-- **`allows ref struct` 例外**：当目标泛型约束为 C# 13 `allows ref struct` 时，ref-like 允许作该类型实参（M8 元数据识别，`p1-immediate.md` 前置-2）。此时仍不可装箱——接口调度经 ref struct 直接完成，不走 Object。
+- **`allows ref struct` 例外（已实现）**：当目标泛型约束为 C# 13 `allows ref struct` 时，ref-like 允许作该类型实参（元数据识别 `GenericParameterAttributes.AllowByRefLike` = 0x0020）。此时仍不可装箱——接口调度经 ref struct 直接完成，不走 Object。完整规则面（类型实参放行 / override/implement 透传 / 方法体校验 / BCX31393 装箱拦截 / codegen constrained）见 spec 新增小节「allows ref struct 反约束消费」。
 
 ### 4. 模式特化
 
