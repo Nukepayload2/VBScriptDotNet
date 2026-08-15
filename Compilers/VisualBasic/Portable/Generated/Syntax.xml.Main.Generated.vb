@@ -740,6 +740,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Public Overridable Function VisitReferenceDirectiveTrivia(ByVal node As ReferenceDirectiveTriviaSyntax) As TResult
             Return Me.DefaultVisit(node)
         End Function
+        Public Overridable Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As TResult
+            Return Me.DefaultVisit(node)
+        End Function
         Public Overridable Function VisitBadDirectiveTrivia(ByVal node As BadDirectiveTriviaSyntax) As TResult
             Return Me.DefaultVisit(node)
         End Function
@@ -1473,6 +1476,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Me.DefaultVisit(node) : Return
         End Sub
         Public Overridable Sub VisitReferenceDirectiveTrivia(ByVal node As ReferenceDirectiveTriviaSyntax)
+            Me.DefaultVisit(node) : Return
+        End Sub
+        Public Overridable Sub VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax)
             Me.DefaultVisit(node) : Return
         End Sub
         Public Overridable Sub VisitBadDirectiveTrivia(ByVal node As BadDirectiveTriviaSyntax)
@@ -5655,6 +5661,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If anyChanges Then
                 Return New ReferenceDirectiveTriviaSyntax(node.Kind, node.Green.GetDiagnostics, node.Green.GetAnnotations, newHashToken, newReferenceKeyword, newFile)
+            Else
+                Return node
+            End If
+        End Function
+
+        Public Overrides Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As SyntaxNode
+            Dim anyChanges As Boolean = False
+
+            Dim newHashToken = DirectCast(VisitToken(node.HashToken).Node, InternalSyntax.PunctuationSyntax)
+            If node.HashToken.Node IsNot newHashToken Then anyChanges = True
+            Dim newLoadKeyword = DirectCast(VisitToken(node.LoadKeyword).Node, InternalSyntax.KeywordSyntax)
+            If node.LoadKeyword.Node IsNot newLoadKeyword Then anyChanges = True
+            Dim newFile = DirectCast(VisitToken(node.File).Node, InternalSyntax.StringLiteralTokenSyntax)
+            If node.File.Node IsNot newFile Then anyChanges = True
+
+            If anyChanges Then
+                Return New LoadDirectiveTriviaSyntax(node.Kind, node.Green.GetDiagnostics, node.Green.GetAnnotations, newHashToken, newLoadKeyword, newFile)
             Else
                 Return node
             End If
@@ -43971,6 +43994,40 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
 
         ''' <summary>
+        ''' Represents a #Load directive appearing in scripts.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Public Shared Function LoadDirectiveTrivia(hashToken As SyntaxToken, loadKeyword As SyntaxToken, file As SyntaxToken) As LoadDirectiveTriviaSyntax
+            Select Case hashToken.Kind()
+                Case SyntaxKind.HashToken
+                Case Else
+                    Throw new ArgumentException("hashToken")
+            End Select
+            Select Case loadKeyword.Kind()
+                Case SyntaxKind.LoadKeyword
+                Case Else
+                    Throw new ArgumentException("loadKeyword")
+            End Select
+            Select Case file.Kind()
+                Case SyntaxKind.StringLiteralToken
+                Case Else
+                    Throw new ArgumentException("file")
+            End Select
+            Return New LoadDirectiveTriviaSyntax(SyntaxKind.LoadDirectiveTrivia, Nothing, Nothing, DirectCast(hashToken.Node, InternalSyntax.PunctuationSyntax), DirectCast(loadKeyword.Node, InternalSyntax.KeywordSyntax), DirectCast(file.Node, InternalSyntax.StringLiteralTokenSyntax))
+        End Function
+
+
+        ''' <summary>
+        ''' Represents a #Load directive appearing in scripts.
+        ''' </summary>
+        Public Shared Function LoadDirectiveTrivia() As LoadDirectiveTriviaSyntax
+            Return SyntaxFactory.LoadDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.HashToken), SyntaxFactory.Token(SyntaxKind.LoadKeyword), SyntaxFactory.Token(SyntaxKind.StringLiteralToken))
+        End Function
+
+
+        ''' <summary>
         ''' Represents an unrecognized pre-processing directive. This occurs when the
         ''' parser encounters a hash '#' token at the beginning of a physical line but does
         ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -45017,6 +45074,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 SyntaxKind.CObjKeyword,
                 SyntaxKind.ConstKeyword,
                 SyntaxKind.ReferenceKeyword,
+                SyntaxKind.LoadKeyword,
                 SyntaxKind.ContinueKeyword,
                 SyntaxKind.CSByteKeyword,
                 SyntaxKind.CShortKeyword,
@@ -45403,6 +45461,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     Return "Const"
                 Case SyntaxKind.ReferenceKeyword
                     Return "R"
+                Case SyntaxKind.LoadKeyword
+                    Return "Load"
                 Case SyntaxKind.ContinueKeyword
                     Return "Continue"
                 Case SyntaxKind.CSByteKeyword

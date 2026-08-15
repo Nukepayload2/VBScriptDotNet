@@ -2728,8 +2728,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 ' Only add a constructor if it is not shared OR if there are shared initializers
                 If Not isShared OrElse Me.AnyInitializerToBeInjectedIntoConstructor(initializers, False) Then
 
-                    ' a submission can only have a single declaration:
-                    Dim syntaxRef = SyntaxReferences.Single()
+                    ' use the first part; a submission may span multiple script trees (#Load)
+                    Dim syntaxRef = SyntaxReferences.First()
 
                     Dim binder As Binder = BinderBuilder.CreateBinderForType(m_containingModule, syntaxRef.SyntaxTree, Me)
                     Dim constructor As New SynthesizedSubmissionConstructorSymbol(syntaxRef, Me, isShared, binder, diagnostics)
@@ -2759,8 +2759,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End If
 
             If Not isShared AndAlso IsScriptClass Then
-                ' a submission can only have a single declaration:
-                Dim syntaxRef = SyntaxReferences.Single()
+                ' use the first part; a submission may span multiple script trees (#Load)
+                Dim syntaxRef = SyntaxReferences.First()
                 Dim scriptInitializer = New SynthesizedInteractiveInitializerMethod(syntaxRef, Me, diagnostics)
                 AddSymbolToMembers(scriptInitializer, members.Members)
                 Dim scriptEntryPoint = SynthesizedEntryPointSymbol.Create(scriptInitializer, diagnostics)

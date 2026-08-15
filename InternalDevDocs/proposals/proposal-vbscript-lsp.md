@@ -110,9 +110,16 @@ vbx 文档的 `Project.Language = VisualBasic` 与普通项目一致，**同一�
 | 差异点 | 处理 |
 |---|---|
 | `SourceCodeKind` | `.vbx` 用 `SourceCodeKind.Script`，普通项目 `Regular` |
-| 引用来源 | `#R` / vbi 默认引用集（对齐 `vbi.coreclr.rsp`）vs MSBuild 项目引用 |
+| 引用来源 | `#R` / vbi 默认引用集（对齐 `vbi.coreclr.rsp`），**复用 fork `ScriptMetadataResolver`（含 `nuget:` 前缀解析）** vs MSBuild 项目引用 |
 | 松散文件路由 | 扩展名注册 `.vbx` → `VisualBasic` + script；无 `.sln/.vbproj` 目录进脚本模式 |
+| 指令参数补全 | `#R "` / `#Load "` 参数内补全文件路径——LSP completion provider 的脚本指令上下文 |
 | 修改语法 | `?` 前缀 / `#R` / byref-like 由 fork 编译器 `SemanticModel` 天然支持；Features 中匹配标准语法的代码路径需验证/补 patch（M0 定位） |
+
+#### 脚本指令的 LSP 边界（甄别）
+
+- **`#R` / `#Load` 文件路径补全——LSP 职责。** 光标位于指令参数内时补全 DLL / `.vbx` 文件路径，属 LSP completion provider（指令参数上下文识别，Roslyn Features 的 `CompletionProvider` 机制）。
+- **`#R "nuget: Package, Version"`——产品层已有，LSP 零新增。** fork 的 Scripting 层已实现 `nuget:` 前缀解析（`RuntimeMetadataReferenceResolver` → `NuGetPackageResolver.TryParsePackageReference` / `ResolveNuGetPackage`）；LSP 构建脚本 compilation 时**复用同一 resolver**，诊断/补全/悬停与 vbi 执行保持一致，不重复实现 NuGet 解析（实际下载/加载属执行层）。
+- **`#!path/to/vbi`——编译器语法特性（C# 有、VB 无），非本提案范畴。** 甄别纠正：`#!` **不是执行层 hack，而是 C# 编译器语法层正式引入的脚本指令**——`ShebangDirectiveTrivia`（`CSharp.Generated.g4` 的 `shebang_directive_trivia` 文法；`DirectiveParser.cs` 的 `ParseShebangDirective`，与 `#r` / `#load` 并列解析，仅 Script / file-based programs 允许，专有诊断 `ERR_PPShebangNotOnFirstLine` / `ERR_PPShebangInProjectBasedProgram`），`.csx` 因此天然支持。**fork VB 编译器无等价物**——若产品要让 `.vbx` 支持 `#!`，需在 fork VB Parser/Scanner 加等价 shebang trivia（语法特性，与 `?` 前缀 / byref-like 同类），走编译器提案而非本 LSP。LSP 侧仅**弱相关**（语义模型天然继承该 trivia；文件发现可参考 Roslyn `FileBasedProgramsEntryPointDiscovery`），不参与 `#!` 的语义。
 
 #### 传输与宿主
 

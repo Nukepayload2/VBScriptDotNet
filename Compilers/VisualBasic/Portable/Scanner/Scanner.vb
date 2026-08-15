@@ -36,6 +36,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
         Protected _lineBufferOffset As Integer ' marks the next character to read from _buffer
         Private _endOfTerminatorTrivia As Integer ' marks how far scanner may have scanned ahead for terminator trivia. This may be greater than _lineBufferOffset
+        Private _leadingTriviaStartOffset As Integer ' position of the token whose leading trivia is being scanned; 0 for the first token of the tree
+        Private _directiveIsFollowingToken As Boolean ' set while scanning a directive that follows the first token
 
         Friend Const BadTokenCountLimit As Integer = 200
         Private _badTokenCount As Integer ' cumulative count of bad tokens produced
@@ -625,6 +627,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             If Not CanGet() Then
                 Return Nothing
             End If
+
+            _leadingTriviaStartOffset = _lineBufferOffset
 
             Dim ch = Peek()
 

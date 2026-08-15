@@ -1593,6 +1593,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_ReferenceDirectiveOnlyAllowedInScripts = 36964
         ERR_NamespaceNotAllowedInScript = 36965
         ERR_KeywordNotAllowedInScript = 36966
+        ERR_LoadDirectiveOnlyAllowedInScripts = 36967
 
         ERR_ReservedAssemblyName = 36968
 
@@ -1614,6 +1615,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
         ERR_InvalidAssemblyCulture = 36982
         ERR_EncUpdateFailedMissingSymbol = 36983
+
+        ERR_PPReferenceFollowsToken = 36984
+        ERR_PPLoadFollowsToken = 36985
 
         ERR_CantAwaitAsyncSub1 = 37001
         ERR_ResumableLambdaInExpressionTree = 37050

@@ -339,13 +339,36 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                           isSubmission:=False)
         End Function
 
-        ''' <summary> 
-        ''' Creates a new compilation that can be used in scripting. 
+        ''' <summary>
+        ''' Creates a new compilation that can be used in scripting.
         ''' </summary>
         Friend Shared Function CreateScriptCompilation(
             assemblyName As String,
             Optional syntaxTree As SyntaxTree = Nothing,
             Optional references As IEnumerable(Of MetadataReference) = Nothing,
+            Optional options As VisualBasicCompilationOptions = Nothing,
+            Optional previousScriptCompilation As VisualBasicCompilation = Nothing,
+            Optional returnType As Type = Nothing,
+            Optional globalsType As Type = Nothing) As VisualBasicCompilation
+
+            Return CreateScriptCompilation(
+                assemblyName,
+                If((syntaxTree IsNot Nothing), {syntaxTree}, SpecializedCollections.EmptyEnumerable(Of SyntaxTree)()),
+                references,
+                options,
+                previousScriptCompilation,
+                returnType,
+                globalsType)
+        End Function
+
+        ''' <summary>
+        ''' Creates a new compilation that can be used in scripting. The submission
+        ''' may span multiple script trees (e.g. the main file plus trees loaded via #Load).
+        ''' </summary>
+        Friend Shared Function CreateScriptCompilation(
+            assemblyName As String,
+            syntaxTrees As IEnumerable(Of SyntaxTree),
+            references As IEnumerable(Of MetadataReference),
             Optional options As VisualBasicCompilationOptions = Nothing,
             Optional previousScriptCompilation As VisualBasicCompilation = Nothing,
             Optional returnType As Type = Nothing,
@@ -357,7 +380,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Return Create(
                 assemblyName,
                 If(options, New VisualBasicCompilationOptions(OutputKind.DynamicallyLinkedLibrary)).WithReferencesSupersedeLowerVersions(True),
-                If((syntaxTree IsNot Nothing), {syntaxTree}, SpecializedCollections.EmptyEnumerable(Of SyntaxTree)()),
+                If((syntaxTrees IsNot Nothing), syntaxTrees, SpecializedCollections.EmptyEnumerable(Of SyntaxTree)()),
                 references,
                 previousScriptCompilation,
                 returnType,
@@ -816,8 +839,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Friend Overrides Function HasSubmissionResult() As Boolean
             Debug.Assert(IsSubmission)
 
-            ' submission can be empty or comprise of a script file
-            Dim tree = SyntaxTrees.SingleOrDefault()
+            ' The result of a submission is determined by its top-level script file, which is the last tree.
+            Dim tree = SyntaxTrees.LastOrDefault()
             If tree Is Nothing Then
                 Return False
             End If
@@ -1015,10 +1038,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     ordinalMap = ordinalMap.Add(tree, oldTreeCount + i)
                     i += 1
                 Next
-
-                If IsSubmission AndAlso declMap.Count > 1 Then
-                    Throw New ArgumentException(VBResources.SubmissionCanHaveAtMostOneSyntaxTree, NameOf(trees))
-                End If
 
                 Return UpdateSyntaxTrees(builder.ToImmutable(), ordinalMap, declMap, declTable, referenceDirectivesChanged)
             Finally

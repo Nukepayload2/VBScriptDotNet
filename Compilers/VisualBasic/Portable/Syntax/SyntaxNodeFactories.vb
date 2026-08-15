@@ -660,6 +660,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 SyntaxKind.OrderKeyword,
                 SyntaxKind.PreserveKeyword,
                 SyntaxKind.RegionKeyword,
+                SyntaxKind.LoadKeyword,
                 SyntaxKind.SkipKeyword,
                 SyntaxKind.StrictKeyword,
                 SyntaxKind.TextKeyword,

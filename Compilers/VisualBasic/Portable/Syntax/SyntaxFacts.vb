@@ -602,6 +602,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Select Case kind
                 Case SyntaxKind.AddHandlerKeyword To SyntaxKind.EndOfXmlToken,
                      SyntaxKind.NameOfKeyword,
+                     SyntaxKind.LoadKeyword,
                      SyntaxKind.DollarSignDoubleQuoteToken,
                      SyntaxKind.EndOfInterpolatedStringToken
                     Return True

@@ -15,10 +15,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Private ReadOnly _scriptInitializer As SynthesizedInteractiveInitializerMethod
 
         ''' <summary>
-        ''' Create binder for binding the body of a method. 
+        ''' Create binder for binding the body of a method.
+        ''' The root is the tree that contains the top-level code being bound; a script class may span multiple trees.
         ''' </summary>
-        Public Sub New(scriptInitializer As MethodSymbol, containingBinder As Binder)
-            MyBase.New(scriptInitializer, scriptInitializer.Syntax, containingBinder)
+        Public Sub New(scriptInitializer As MethodSymbol, root As SyntaxNode, containingBinder As Binder)
+            MyBase.New(scriptInitializer, root, containingBinder)
             Debug.Assert(scriptInitializer.ContainingType.IsScriptClass)
             _scriptInitializer = TryCast(scriptInitializer, SynthesizedInteractiveInitializerMethod)
         End Sub

@@ -116,8 +116,10 @@ BC2014: the value 'Nothing' is invalid for option 'ScriptClassName'
         <Fact>
         <WorkItem(10023, "https://github.com/dotnet/roslyn/issues/10023")>
         <WorkItem("https://github.com/dotnet/roslyn/issues/78792")>
-        <ValidatePooledObjects(LeakReason:="Test intentionally triggers InvalidOperationException from using Script-kind syntax trees in a regular compilation, which leaks BinderFactory visitor")>
         Public Sub Errors_02()
+            ' A script class may span multiple script trees; symbols in each tree resolve normally
+            ' even when the trees are used in a regular compilation (previously this threw
+            ' InvalidOperationException from SyntaxReferences.Single()).
             Dim compilationUnit = VisualBasic.SyntaxFactory.ParseCompilationUnit("System.Console.WriteLine(1)", options:=New VisualBasicParseOptions(kind:=SourceCodeKind.Script))
             Dim syntaxTree1 = compilationUnit.SyntaxTree
             Dim syntaxTree2 = SyntaxFactory.ParseSyntaxTree("System.Console.WriteLine(2)", options:=New VisualBasicParseOptions(kind:=SourceCodeKind.Script))
@@ -126,41 +128,21 @@ BC2014: the value 'Nothing' is invalid for option 'ScriptClassName'
             Dim node2 As MemberAccessExpressionSyntax = ErrorTestsGetNode(syntaxTree2)
             Assert.Equal("WriteLine", node2.Name.ToString())
 
-            Assert.Throws(Of InvalidOperationException)(
-                Sub()
-                    Dim compilation = CreateCompilationWithMscorlib461({syntaxTree1, syntaxTree2})
-                    Dim semanticModel1 = compilation.GetSemanticModel(syntaxTree1, True)
-                    Dim semanticModel2 = compilation.GetSemanticModel(syntaxTree2, True)
+            Dim expectedDisplay = "Sub System.Console.WriteLine(value As System.Int32)"
 
-                    Assert.Null(semanticModel1.GetSymbolInfo(node1.Name).Symbol)
-                    Assert.Equal("Sub System.Console.WriteLine(value As System.Int32)", semanticModel2.GetSymbolInfo(node2.Name).Symbol.ToTestDisplayString())
+            Dim compilation = CreateCompilationWithMscorlib461({syntaxTree1, syntaxTree2})
+            Dim semanticModel1 = compilation.GetSemanticModel(syntaxTree1, True)
+            Dim semanticModel2 = compilation.GetSemanticModel(syntaxTree2, True)
 
-                    Compilation.AssertTheseDiagnostics(
-<expected>
-BC30001: Statement is not valid in a namespace.
-System.Console.WriteLine(1)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-</expected>
-                    )
-                End Sub)
+            Assert.Equal(expectedDisplay, semanticModel1.GetSymbolInfo(node1.Name).Symbol.ToTestDisplayString())
+            Assert.Equal(expectedDisplay, semanticModel2.GetSymbolInfo(node2.Name).Symbol.ToTestDisplayString())
 
-            Assert.Throws(Of InvalidOperationException)(
-                Sub()
-                    Dim compilation = CreateCompilationWithMscorlib461({syntaxTree2, syntaxTree1})
-                    Dim semanticModel1 = compilation.GetSemanticModel(syntaxTree1, True)
-                    Dim semanticModel2 = compilation.GetSemanticModel(syntaxTree2, True)
+            compilation = CreateCompilationWithMscorlib461({syntaxTree2, syntaxTree1})
+            semanticModel1 = compilation.GetSemanticModel(syntaxTree1, True)
+            semanticModel2 = compilation.GetSemanticModel(syntaxTree2, True)
 
-                    Assert.Null(semanticModel1.GetSymbolInfo(node1.Name).Symbol)
-                    Assert.Equal("Sub System.Console.WriteLine(value As System.Int32)", semanticModel2.GetSymbolInfo(node2.Name).Symbol.ToTestDisplayString())
-
-                    Compilation.AssertTheseDiagnostics(
-        <expected>
-BC30001: Statement is not valid in a namespace.
-System.Console.WriteLine(1)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-</expected>
-                    )
-                End Sub)
+            Assert.Equal(expectedDisplay, semanticModel1.GetSymbolInfo(node1.Name).Symbol.ToTestDisplayString())
+            Assert.Equal(expectedDisplay, semanticModel2.GetSymbolInfo(node2.Name).Symbol.ToTestDisplayString())
         End Sub
 
         Private Shared Function ErrorTestsGetNode(syntaxTree As SyntaxTree) As MemberAccessExpressionSyntax

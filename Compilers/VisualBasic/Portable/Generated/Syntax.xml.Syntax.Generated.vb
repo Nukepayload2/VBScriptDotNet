@@ -37957,6 +37957,134 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
     End Class
 
     ''' <summary>
+    ''' Represents a #Load directive appearing in scripts.
+    ''' </summary>
+    ''' <remarks>
+    ''' <para>This node is associated with the following syntax kinds:</para>
+    ''' <list type="bullet">
+    ''' <item><description><see cref="SyntaxKind.LoadDirectiveTrivia"/></description></item>
+    ''' </list>
+    ''' </remarks>
+    Public NotInheritable Class LoadDirectiveTriviaSyntax
+        Inherits DirectiveTriviaSyntax
+
+
+        Friend Sub New(ByVal green As GreenNode, ByVal parent as SyntaxNode, ByVal startLocation As Integer)
+            MyBase.New(green, parent, startLocation)
+            Debug.Assert(green IsNot Nothing)
+            Debug.Assert(startLocation >= 0)
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, ByVal errors as DiagnosticInfo(), ByVal annotations as SyntaxAnnotation(), hashToken As InternalSyntax.PunctuationSyntax, loadKeyword As InternalSyntax.KeywordSyntax, file As InternalSyntax.StringLiteralTokenSyntax)
+            Me.New(New Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.LoadDirectiveTriviaSyntax(kind, errors, annotations, hashToken, loadKeyword, file), Nothing, 0)
+        End Sub
+
+        ''' <summary>
+        ''' The "#" token in a preprocessor directive.
+        ''' </summary>
+        Public Shadows ReadOnly Property HashToken As SyntaxToken
+            Get
+                return new SyntaxToken(Me, DirectCast(Me.Green, Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.LoadDirectiveTriviaSyntax)._hashToken, Me.Position, 0)
+            End Get
+        End Property
+
+        Friend Overrides Function GetHashTokenCore() As SyntaxToken
+            Return Me.HashToken
+        End Function
+
+        Friend Overrides Function WithHashTokenCore(hashToken As SyntaxToken) As DirectiveTriviaSyntax
+            Return WithHashToken(hashToken)
+        End Function
+
+        ''' <summary>
+        ''' Returns a copy of this with the HashToken property changed to the specified
+        ''' value. Returns this instance if the specified value is the same as the current
+        ''' value.
+        ''' </summary>
+        Public Shadows Function WithHashToken(hashToken as SyntaxToken) As LoadDirectiveTriviaSyntax
+            return Update(hashToken, Me.LoadKeyword, Me.File)
+        End Function
+
+        Public ReadOnly Property LoadKeyword As SyntaxToken
+            Get
+                return new SyntaxToken(Me, DirectCast(Me.Green, Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.LoadDirectiveTriviaSyntax)._loadKeyword, Me.GetChildPosition(1), Me.GetChildIndex(1))
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Returns a copy of this with the LoadKeyword property changed to the specified
+        ''' value. Returns this instance if the specified value is the same as the current
+        ''' value.
+        ''' </summary>
+        Public Shadows Function WithLoadKeyword(loadKeyword as SyntaxToken) As LoadDirectiveTriviaSyntax
+            return Update(Me.HashToken, loadKeyword, Me.File)
+        End Function
+
+        Public ReadOnly Property File As SyntaxToken
+            Get
+                return new SyntaxToken(Me, DirectCast(Me.Green, Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.LoadDirectiveTriviaSyntax)._file, Me.GetChildPosition(2), Me.GetChildIndex(2))
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Returns a copy of this with the File property changed to the specified value.
+        ''' Returns this instance if the specified value is the same as the current value.
+        ''' </summary>
+        Public Shadows Function WithFile(file as SyntaxToken) As LoadDirectiveTriviaSyntax
+            return Update(Me.HashToken, Me.LoadKeyword, file)
+        End Function
+
+        Friend Overrides Function GetCachedSlot(i as Integer) as SyntaxNode
+            Select case i
+                Case Else
+                    Return Nothing
+            End Select
+        End Function
+
+        Friend Overrides Function GetNodeSlot(i as Integer) as SyntaxNode
+            Select case i
+                Case Else
+                    Return Nothing
+            End Select
+        End Function
+
+        Public Overrides Function Accept(Of TResult)(ByVal visitor As VisualBasicSyntaxVisitor(Of TResult)) As TResult
+            Return visitor.VisitLoadDirectiveTrivia(Me)
+        End Function
+
+        Public Overrides Sub Accept(ByVal visitor As VisualBasicSyntaxVisitor)
+            visitor.VisitLoadDirectiveTrivia(Me)
+        End Sub
+
+
+        ''' <summary>
+        ''' Returns a copy of this with the specified changes. Returns this instance if
+        ''' there are no actual changes.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The value for the HashToken property.
+        ''' </param>
+        ''' <param name="loadKeyword">
+        ''' The value for the LoadKeyword property.
+        ''' </param>
+        ''' <param name="file">
+        ''' The value for the File property.
+        ''' </param>
+        Public Function Update(hashToken As SyntaxToken, loadKeyword As SyntaxToken, file As SyntaxToken) As LoadDirectiveTriviaSyntax
+            If hashToken <> Me.HashToken OrElse loadKeyword <> Me.LoadKeyword OrElse file <> Me.File Then
+                Dim newNode = SyntaxFactory.LoadDirectiveTrivia(hashToken, loadKeyword, file)
+                Dim annotations = Me.GetAnnotations()
+                If annotations IsNot Nothing AndAlso annotations.Length > 0
+                    return newNode.WithAnnotations(annotations)
+                End If
+                Return newNode
+            End If
+            Return Me
+        End Function
+
+    End Class
+
+    ''' <summary>
     ''' Represents an unrecognized pre-processing directive. This occurs when the
     ''' parser encounters a hash '#' token at the beginning of a physical line but does
     ''' recognize the text that follows as a valid Visual Basic pre-processing

@@ -21,6 +21,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         Public Shared Function IsContextualKeyword(kind As SyntaxKind) As Boolean
             Return kind = SyntaxKind.ReferenceKeyword OrElse
+                kind = SyntaxKind.LoadKeyword OrElse
                 (SyntaxKind.AggregateKeyword <= kind AndAlso kind <= SyntaxKind.YieldKeyword)
         End Function
 
@@ -68,6 +69,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     SyntaxKind.EndKeyword,
                     SyntaxKind.ConstKeyword,
                     SyntaxKind.ReferenceKeyword,
+                    SyntaxKind.LoadKeyword,
                     SyntaxKind.EnableKeyword,
                     SyntaxKind.DisableKeyword,
                     SyntaxKind.ExternalSourceKeyword,
@@ -275,6 +277,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             SyntaxKind.PreserveKeyword,
             SyntaxKind.RegionKeyword,
             SyntaxKind.ReferenceKeyword,
+            SyntaxKind.LoadKeyword,
             SyntaxKind.SkipKeyword,
             SyntaxKind.StrictKeyword,
             SyntaxKind.TakeKeyword,
@@ -358,6 +361,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                                             SyntaxKind.RegionKeyword,
                                                             SyntaxKind.ConstKeyword,
                                                             SyntaxKind.ReferenceKeyword,
+                                                            SyntaxKind.LoadKeyword,
                                                             SyntaxKind.EnableKeyword,
                                                             SyntaxKind.DisableKeyword,
                                                             SyntaxKind.WarningKeyword,
@@ -533,6 +537,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     SyntaxKind.EnableWarningDirectiveTrivia,
                     SyntaxKind.DisableWarningDirectiveTrivia,
                     SyntaxKind.ReferenceDirectiveTrivia,
+                    SyntaxKind.LoadDirectiveTrivia,
                     SyntaxKind.BadDirectiveTrivia
                     Return True
                 Case Else
@@ -802,6 +807,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                    {"preserve", SyntaxKind.PreserveKeyword},
                    {"region", SyntaxKind.RegionKeyword},
                    {"r", SyntaxKind.ReferenceKeyword},
+                   {"load", SyntaxKind.LoadKeyword},
                    {"skip", SyntaxKind.SkipKeyword},
                    {"strict", SyntaxKind.StrictKeyword},
                    {"take", SyntaxKind.TakeKeyword},
@@ -837,6 +843,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                    {"externalsource", SyntaxKind.ExternalSourceKeyword},
                    {"externalchecksum", SyntaxKind.ExternalChecksumKeyword},
                    {"r", SyntaxKind.ReferenceKeyword},
+                   {"load", SyntaxKind.LoadKeyword},
                    {"enable", SyntaxKind.EnableKeyword},
                    {"disable", SyntaxKind.DisableKeyword}
             }

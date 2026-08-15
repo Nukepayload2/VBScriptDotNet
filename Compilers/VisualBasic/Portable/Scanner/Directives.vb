@@ -22,8 +22,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
         Private _isScanningDirective As Boolean = False
         Protected _scannerPreprocessorState As PreprocessorState
 
+        Friend ReadOnly Property DirectiveIsFollowingToken As Boolean
+            Get
+                Return _directiveIsFollowingToken
+            End Get
+        End Property
+
         Private Function TryScanDirective(tList As SyntaxListBuilder) As Boolean
             Debug.Assert(IsAtNewLine())
+
+            ' A directive is "following a token" if the leading trivia it belongs to does not start the tree
+            ' (i.e. the token whose leading trivia is being scanned is not the first token). Mirrors C# #load/#r.
+            _directiveIsFollowingToken = _leadingTriviaStartOffset > 0
 
             ' leading whitespace until we see # should be regular whitespace
             If CanGet() AndAlso IsWhitespace(Peek()) Then
@@ -53,7 +63,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
             Else
                 Using parser = New Parser(Me)
-                    directiveTrivia = parser.ParseConditionalCompilationStatement()
+                    directiveTrivia = parser.ParseConditionalCompilationStatement(_directiveIsFollowingToken)
                     directiveTrivia = parser.ConsumeStatementTerminatorAfterDirective(directiveTrivia)
                 End Using
             End If
@@ -212,7 +222,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     SyntaxKind.BadDirectiveTrivia,
                     SyntaxKind.EnableWarningDirectiveTrivia, 'TODO: Add support for processing #Enable and #Disable
                     SyntaxKind.DisableWarningDirectiveTrivia,
-                    SyntaxKind.ReferenceDirectiveTrivia
+                    SyntaxKind.ReferenceDirectiveTrivia,
+                    SyntaxKind.LoadDirectiveTrivia
 
                     ' These directives require no processing
 

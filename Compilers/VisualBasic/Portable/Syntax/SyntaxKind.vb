@@ -3043,6 +3043,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         ReferenceDirectiveTrivia = 750           ' ReferenceDirectiveTriviaSyntax : DirectiveTriviaSyntax : StructuredTriviaSyntax
         ''' <summary>
+        ''' Represents a #Load directive appearing in scripts.
+        ''' </summary>
+        LoadDirectiveTrivia = 751                ' LoadDirectiveTriviaSyntax : DirectiveTriviaSyntax : StructuredTriviaSyntax
+        ''' <summary>
         ''' Represents an unrecognized pre-processing directive. This occurs when the
         ''' parser encounters a hash '#' token at the beginning of a physical line but does
         ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -3200,6 +3204,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' Trivia created when merge conflict markers (like "&lt;&lt;&lt;&lt;&lt;&lt;&lt;") are detected in source code
         ''' </summary>
         ConflictMarkerTrivia = 792
+
+        ''' <summary>
+        ''' Represents a single keyword in a VB program. Which keyword can be determined
+        ''' from the Kind property.
+        ''' </summary>
+        LoadKeyword = 793                        ' KeywordSyntax : SyntaxToken
 
     End Enum
 End Namespace

@@ -14,9 +14,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
             End Get
         End Property
 
-        ''' <summary> 
-        ''' Returns #r directives specified in the compilation. 
-        ''' </summary>       
+        ''' <summary>
+        ''' Returns #r directives specified in the compilation.
+        ''' </summary>
         Public Function GetReferenceDirectives() As IList(Of ReferenceDirectiveTriviaSyntax)
             Return GetReferenceDirectives(Nothing)
         End Function
@@ -25,6 +25,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
             ' #r directives are always on the first token of the compilation unit.
             Dim firstToken = CType(Me.GetFirstToken(includeZeroWidth:=True), SyntaxNodeOrToken)
             Return firstToken.GetDirectives(Of ReferenceDirectiveTriviaSyntax)(filter)
+        End Function
+
+        ''' <summary>
+        ''' Returns #Load directives specified in the compilation.
+        ''' </summary>
+        Public Function GetLoadDirectives() As IList(Of LoadDirectiveTriviaSyntax)
+            Return GetLoadDirectives(Nothing)
+        End Function
+
+        Friend Function GetLoadDirectives(filter As Func(Of LoadDirectiveTriviaSyntax, Boolean)) As IList(Of LoadDirectiveTriviaSyntax)
+            ' #Load directives are always on the first token of the compilation unit.
+            Dim firstToken = CType(Me.GetFirstToken(includeZeroWidth:=True), SyntaxNodeOrToken)
+            Return firstToken.GetDirectives(Of LoadDirectiveTriviaSyntax)(filter)
         End Function
 
     End Class

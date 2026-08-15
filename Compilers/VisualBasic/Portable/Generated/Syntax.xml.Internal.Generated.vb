@@ -28620,6 +28620,94 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
     End Class
 
     ''' <summary>
+    ''' Represents a #Load directive appearing in scripts.
+    ''' </summary>
+    Friend NotInheritable Class LoadDirectiveTriviaSyntax
+        Inherits DirectiveTriviaSyntax
+
+        Friend ReadOnly _loadKeyword as KeywordSyntax
+        Friend ReadOnly _file as StringLiteralTokenSyntax
+
+        Friend Sub New(ByVal kind As SyntaxKind, hashToken As InternalSyntax.PunctuationSyntax, loadKeyword As InternalSyntax.KeywordSyntax, file As InternalSyntax.StringLiteralTokenSyntax)
+            MyBase.New(kind, hashToken)
+            Me.SlotCount = 3
+
+            AdjustFlagsAndWidth(loadKeyword)
+            Me._loadKeyword = loadKeyword
+            AdjustFlagsAndWidth(file)
+            Me._file = file
+
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, hashToken As InternalSyntax.PunctuationSyntax, loadKeyword As InternalSyntax.KeywordSyntax, file As InternalSyntax.StringLiteralTokenSyntax, context As ISyntaxFactoryContext)
+            MyBase.New(kind, hashToken)
+            Me.SlotCount = 3
+            Me.SetFactoryContext(context)
+
+            AdjustFlagsAndWidth(loadKeyword)
+            Me._loadKeyword = loadKeyword
+            AdjustFlagsAndWidth(file)
+            Me._file = file
+
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, ByVal errors as DiagnosticInfo(), ByVal annotations as SyntaxAnnotation(), hashToken As InternalSyntax.PunctuationSyntax, loadKeyword As InternalSyntax.KeywordSyntax, file As InternalSyntax.StringLiteralTokenSyntax)
+            MyBase.New(kind, errors, annotations, hashToken)
+            Me.SlotCount = 3
+
+            AdjustFlagsAndWidth(loadKeyword)
+            Me._loadKeyword = loadKeyword
+            AdjustFlagsAndWidth(file)
+            Me._file = file
+
+        End Sub
+
+        Friend Overrides Function CreateRed(ByVal parent As SyntaxNode, ByVal startLocation As Integer) As SyntaxNode
+            Return new Microsoft.CodeAnalysis.VisualBasic.Syntax.LoadDirectiveTriviaSyntax(Me, parent, startLocation)
+        End Function
+
+        Friend ReadOnly Property LoadKeyword As InternalSyntax.KeywordSyntax
+            Get
+                Return Me._loadKeyword
+            End Get
+        End Property
+
+        Friend ReadOnly Property File As InternalSyntax.StringLiteralTokenSyntax
+            Get
+                Return Me._file
+            End Get
+        End Property
+
+        Friend Overrides Function GetSlot(i as Integer) as GreenNode
+            Select case i
+                Case 0
+                    Return Me._hashToken
+                Case 1
+                    Return Me._loadKeyword
+                Case 2
+                    Return Me._file
+                Case Else
+                    Debug.Assert(false, "child index out of range")
+                    Return Nothing
+            End Select
+        End Function
+
+
+        Friend Overrides Function SetDiagnostics(ByVal newErrors As DiagnosticInfo()) As GreenNode
+            Return new LoadDirectiveTriviaSyntax(Me.Kind, newErrors, GetAnnotations, _hashToken, _loadKeyword, _file)
+        End Function
+
+        Friend Overrides Function SetAnnotations(ByVal annotations As SyntaxAnnotation()) As GreenNode
+            Return new LoadDirectiveTriviaSyntax(Me.Kind, GetDiagnostics, annotations, _hashToken, _loadKeyword, _file)
+        End Function
+
+        Public Overrides Function Accept(ByVal visitor As VisualBasicSyntaxVisitor) As VisualBasicSyntaxNode
+            Return visitor.VisitLoadDirectiveTrivia(Me)
+        End Function
+
+    End Class
+
+    ''' <summary>
     ''' Represents an unrecognized pre-processing directive. This occurs when the
     ''' parser encounters a hash '#' token at the beginning of a physical line but does
     ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -29798,6 +29886,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             Return VisitDirectiveTrivia(node)
         End Function
         Public Overridable Function VisitReferenceDirectiveTrivia(ByVal node As ReferenceDirectiveTriviaSyntax) As VisualBasicSyntaxNode
+            Debug.Assert(node IsNot Nothing)
+            Return VisitDirectiveTrivia(node)
+        End Function
+        Public Overridable Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As VisualBasicSyntaxNode
             Debug.Assert(node IsNot Nothing)
             Return VisitDirectiveTrivia(node)
         End Function
@@ -33982,6 +34074,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
             If anyChanges Then
                 Return New ReferenceDirectiveTriviaSyntax(node.Kind, node.GetDiagnostics, node.GetAnnotations, newHashToken, newReferenceKeyword, newFile)
+            Else
+                Return node
+            End If
+        End Function
+
+        Public Overrides Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As VisualBasicSyntaxNode
+            Dim anyChanges As Boolean = False
+
+            Dim newHashToken = DirectCast(Visit(node.HashToken), PunctuationSyntax)
+            If node._hashToken IsNot newHashToken Then anyChanges = True
+            Dim newLoadKeyword = DirectCast(Visit(node.LoadKeyword), KeywordSyntax)
+            If node._loadKeyword IsNot newLoadKeyword Then anyChanges = True
+            Dim newFile = DirectCast(Visit(node.File), StringLiteralTokenSyntax)
+            If node._file IsNot newFile Then anyChanges = True
+
+            If anyChanges Then
+                Return New LoadDirectiveTriviaSyntax(node.Kind, node.GetDiagnostics, node.GetAnnotations, newHashToken, newLoadKeyword, newFile)
             Else
                 Return node
             End If
@@ -46048,6 +46157,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
 
         ''' <summary>
+        ''' Represents a #Load directive appearing in scripts.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Friend Shared Function LoadDirectiveTrivia(hashToken As PunctuationSyntax, loadKeyword As KeywordSyntax, file As StringLiteralTokenSyntax) As LoadDirectiveTriviaSyntax
+            Debug.Assert(hashToken IsNot Nothing AndAlso hashToken.Kind = SyntaxKind.HashToken)
+            Debug.Assert(loadKeyword IsNot Nothing AndAlso loadKeyword.Kind = SyntaxKind.LoadKeyword)
+            Debug.Assert(file IsNot Nothing AndAlso file.Kind = SyntaxKind.StringLiteralToken)
+            Return New LoadDirectiveTriviaSyntax(SyntaxKind.LoadDirectiveTrivia, hashToken, loadKeyword, file)
+        End Function
+
+
+        ''' <summary>
         ''' Represents an unrecognized pre-processing directive. This occurs when the
         ''' parser encounters a hash '#' token at the beginning of a physical line but does
         ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -58110,6 +58233,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             Debug.Assert(referenceKeyword IsNot Nothing AndAlso referenceKeyword.Kind = SyntaxKind.ReferenceKeyword)
             Debug.Assert(file IsNot Nothing AndAlso file.Kind = SyntaxKind.StringLiteralToken)
             Return New ReferenceDirectiveTriviaSyntax(SyntaxKind.ReferenceDirectiveTrivia, hashToken, referenceKeyword, file, _factoryContext)
+        End Function
+
+
+        ''' <summary>
+        ''' Represents a #Load directive appearing in scripts.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Friend Function LoadDirectiveTrivia(hashToken As PunctuationSyntax, loadKeyword As KeywordSyntax, file As StringLiteralTokenSyntax) As LoadDirectiveTriviaSyntax
+            Debug.Assert(hashToken IsNot Nothing AndAlso hashToken.Kind = SyntaxKind.HashToken)
+            Debug.Assert(loadKeyword IsNot Nothing AndAlso loadKeyword.Kind = SyntaxKind.LoadKeyword)
+            Debug.Assert(file IsNot Nothing AndAlso file.Kind = SyntaxKind.StringLiteralToken)
+            Return New LoadDirectiveTriviaSyntax(SyntaxKind.LoadDirectiveTrivia, hashToken, loadKeyword, file, _factoryContext)
         End Function
 
 

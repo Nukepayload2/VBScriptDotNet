@@ -4391,6 +4391,15 @@
   <data name="ERR_ReferenceDirectiveOnlyAllowedInScripts" xml:space="preserve">
     <value>#R is only allowed in scripts</value>
   </data>
+  <data name="ERR_LoadDirectiveOnlyAllowedInScripts" xml:space="preserve">
+    <value>#Load is only allowed in scripts</value>
+  </data>
+  <data name="ERR_PPLoadFollowsToken" xml:space="preserve">
+    <value>Cannot use #Load after first token in file</value>
+  </data>
+  <data name="ERR_PPReferenceFollowsToken" xml:space="preserve">
+    <value>Cannot use #r after first token in file</value>
+  </data>
   <data name="ERR_NamespaceNotAllowedInScript" xml:space="preserve">
     <value>You cannot declare Namespace in script code</value>
   </data>

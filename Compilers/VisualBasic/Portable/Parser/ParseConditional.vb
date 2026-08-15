@@ -19,7 +19,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
         ' Lines: 18978 - 18978
         ' .Parser::ParseConditionalCompilationStatement( [ bool SkippingMethodBody ] )
 
-        Friend Function ParseConditionalCompilationStatement() As DirectiveTriviaSyntax
+        Friend Function ParseConditionalCompilationStatement(Optional isFollowingToken As Boolean = False) As DirectiveTriviaSyntax
             ' # may be actually scanned as a date literal. This is an error.
             If CurrentToken.Kind = SyntaxKind.DateLiteralToken OrElse
                 CurrentToken.Kind = SyntaxKind.BadToken Then
@@ -80,7 +80,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                             statement = ParseWarningDirective(hashToken)
 
                         Case SyntaxKind.ReferenceKeyword
-                            statement = ParseReferenceDirective(hashToken)
+                            statement = ParseReferenceDirective(hashToken, isFollowingToken)
+
+                        Case SyntaxKind.LoadKeyword
+                            statement = ParseLoadDirective(hashToken, isFollowingToken)
 
                         Case Else
                             statement = ParseBadDirective(hashToken)
@@ -445,7 +448,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             Return statement
         End Function
 
-        Private Function ParseReferenceDirective(hashToken As PunctuationSyntax) As DirectiveTriviaSyntax
+        Private Function ParseReferenceDirective(hashToken As PunctuationSyntax, isFollowingToken As Boolean) As DirectiveTriviaSyntax
             Debug.Assert(CurrentToken.Kind = SyntaxKind.IdentifierToken AndAlso DirectCast(CurrentToken, IdentifierTokenSyntax).PossibleKeywordKind = SyntaxKind.ReferenceKeyword,
                          NameOf(ParseReferenceDirective) & " called with wrong token.")
 
@@ -455,12 +458,34 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
             If Not IsScript Then
                 referenceKeyword = AddError(referenceKeyword, ERRID.ERR_ReferenceDirectiveOnlyAllowedInScripts)
+            ElseIf isFollowingToken Then
+                referenceKeyword = AddError(referenceKeyword, ERRID.ERR_PPReferenceFollowsToken)
             End If
 
             Dim file As StringLiteralTokenSyntax = Nothing
             VerifyExpectedToken(SyntaxKind.StringLiteralToken, file)
 
             Return SyntaxFactory.ReferenceDirectiveTrivia(hashToken, referenceKeyword, file)
+        End Function
+
+        Private Function ParseLoadDirective(hashToken As PunctuationSyntax, isFollowingToken As Boolean) As DirectiveTriviaSyntax
+            Debug.Assert(CurrentToken.Kind = SyntaxKind.IdentifierToken AndAlso DirectCast(CurrentToken, IdentifierTokenSyntax).PossibleKeywordKind = SyntaxKind.LoadKeyword,
+                         NameOf(ParseLoadDirective) & " called with wrong token.")
+
+            Dim identifier = DirectCast(CurrentToken, IdentifierTokenSyntax)
+            GetNextToken()
+            Dim loadKeyword = _scanner.MakeKeyword(identifier)
+
+            If Not IsScript Then
+                loadKeyword = AddError(loadKeyword, ERRID.ERR_LoadDirectiveOnlyAllowedInScripts)
+            ElseIf isFollowingToken Then
+                loadKeyword = AddError(loadKeyword, ERRID.ERR_PPLoadFollowsToken)
+            End If
+
+            Dim file As StringLiteralTokenSyntax = Nothing
+            VerifyExpectedToken(SyntaxKind.StringLiteralToken, file)
+
+            Return SyntaxFactory.LoadDirectiveTrivia(hashToken, loadKeyword, file)
         End Function
 
         Private Shared Function ParseBadDirective(hashToken As PunctuationSyntax) As BadDirectiveTriviaSyntax

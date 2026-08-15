@@ -134,6 +134,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
                 SyntaxKind.RaiseEventKeyword, None,
                 SyntaxKind.ReadOnlyKeyword, None,
                 SyntaxKind.ReferenceKeyword, None,
+                SyntaxKind.LoadKeyword, None,
                 SyntaxKind.ReDimKeyword, None,
                 SyntaxKind.REMKeyword, CanFollowExpr,
                 SyntaxKind.RemoveHandlerKeyword, None,

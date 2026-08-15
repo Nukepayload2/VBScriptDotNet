@@ -434,7 +434,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End If
 
             If fieldOrProperty.ContainingType.IsScriptClass AndAlso Not TypeOf containingBinder Is TopLevelCodeBinder Then
-                containingBinder = New TopLevelCodeBinder(fieldOrProperty.ContainingType.GetScriptInitializer(), containingBinder)
+                containingBinder = New TopLevelCodeBinder(fieldOrProperty.ContainingType.GetScriptInitializer(), declarationSyntax.SyntaxTree.GetRoot(), containingBinder)
             End If
 
             Return New DeclarationInitializerBinder(fieldOrProperty, additionalFieldsOrProperties, containingBinder, declarationSyntax)

@@ -178,7 +178,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                 Case NodeUsage.TopLevelExecutableStatement
                     Debug.Assert(TypeOf containingBinder Is NamedTypeBinder AndAlso containingBinder.ContainingType.IsScriptClass)
-                    Return New TopLevelCodeBinder(containingBinder.ContainingType.GetScriptInitializer(), containingBinder)
+                    Return New TopLevelCodeBinder(containingBinder.ContainingType.GetScriptInitializer(), node.SyntaxTree.GetRoot(), containingBinder)
 
                 Case NodeUsage.ImportsStatement
                     Return BinderBuilder.CreateBinderForSourceFileImports(_sourceModule, _tree)

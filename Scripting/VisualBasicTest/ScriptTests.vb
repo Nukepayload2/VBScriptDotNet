@@ -2,10 +2,14 @@
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
+Imports System.Collections.Generic
 Imports System.IO
+Imports System.Linq
 Imports System.Text
 Imports System.Threading.Tasks
+Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Scripting
+Imports Microsoft.CodeAnalysis.Text
 Imports Xunit
 
 Public Class ScriptTests
@@ -463,6 +467,230 @@ Return Count").
     Private Shared Sub AssertDiagnosticsContainAny(diagnostics As IEnumerable(Of Diagnostic), ParamArray expectedIds() As String)
         Assert.Contains(diagnostics, Function(d) expectedIds.Contains(d.Id))
     End Sub
+
+    Private NotInheritable Class InMemorySourceReferenceResolver
+        Inherits SourceReferenceResolver
+
+        Private ReadOnly _files As IReadOnlyDictionary(Of String, String)
+
+        Public Sub New(files As IReadOnlyDictionary(Of String, String))
+            _files = files
+        End Sub
+
+        Public Overrides Function NormalizePath(path As String, baseFilePath As String) As String
+            Return If(ResolveReference(path, baseFilePath), path)
+        End Function
+
+        Public Overrides Function ResolveReference(path As String, baseFilePath As String) As String
+            If _files.ContainsKey(path) Then
+                Return path
+            End If
+            If baseFilePath IsNot Nothing Then
+                Dim dir = IO.Path.GetDirectoryName(baseFilePath)
+                Dim combined = IO.Path.Combine(If(dir, ""), path)
+                If _files.ContainsKey(combined) Then
+                    Return combined
+                End If
+            End If
+            Return Nothing
+        End Function
+
+        Public Overrides Function OpenRead(resolvedPath As String) As Stream
+            Return New MemoryStream(Encoding.UTF8.GetBytes(_files(resolvedPath)))
+        End Function
+
+        Public Overrides Function ReadText(resolvedPath As String) As SourceText
+            Return SourceText.From(_files(resolvedPath))
+        End Function
+
+        Public Overrides Function Equals(other As Object) As Boolean
+            Return ReferenceEquals(Me, other)
+        End Function
+
+        Public Overrides Function GetHashCode() As Integer
+            Return _files.Count
+        End Function
+    End Class
+
+    Private Shared Function CreateScriptWithLoadDirective(mainCode As String, files As IReadOnlyDictionary(Of String, String)) As Script
+        Dim options = s_defaultOptions.WithFilePath("C:\scripts\main.vbx").WithSourceResolver(New InMemorySourceReferenceResolver(files))
+        Return VisualBasicScript.Create(mainCode, options)
+    End Function
+
+    Private Shared Function GetLineNumber(diagnostic As Diagnostic) As Integer
+        Return diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1
+    End Function
+
+    <Fact>
+    Public Sub TestLoadDirectiveDoesNotShiftDiagnosticSpan()
+        ' Issue #01: main.vbx line 3 has Print(undefinedVar); loaded.vbx is 5 lines.
+        ' The bug inlined loaded.vbx into main.vbx and reported line 7; it must report line 3.
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Dim a As Integer = 1" & vbCrLf &
+                                       "Dim b As Integer = 2" & vbCrLf &
+                                       "Function LoadedValue() As Integer" & vbCrLf &
+                                       "    Return 42" & vbCrLf &
+                                       "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf &
+                                     "? LoadedValue()" & vbCrLf &
+                                     "Print(undefinedVar)"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim diagnostics = script.GetCompilation().GetDiagnostics()
+        Dim undefinedVar = diagnostics.Single(Function(d) d.Id = "BC30451" AndAlso d.GetMessage().Contains("undefinedVar"))
+        Dim lineSpan = undefinedVar.Location.GetLineSpan()
+
+        Assert.Equal("C:\scripts\main.vbx", lineSpan.Path)
+        Assert.Equal(3, lineSpan.StartLinePosition.Line + 1)
+    End Sub
+
+    <Fact>
+    Public Sub TestLoadedFileDiagnosticsUseRealFileAndLine()
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Dim a As Integer = 1" & vbCrLf &
+                                       "Function Bad() As Integer" & vbCrLf &
+                                       "    Return undefinedInLoaded" & vbCrLf &
+                                       "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf &
+                                     "? Bad()"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim diagnostics = script.GetCompilation().GetDiagnostics()
+        Dim undefinedLoaded = diagnostics.Single(Function(d) d.Id = "BC30451" AndAlso d.GetMessage().Contains("undefinedInLoaded"))
+        Dim lineSpan = undefinedLoaded.Location.GetLineSpan()
+
+        Assert.Equal("C:\scripts\loaded.vbx", lineSpan.Path)
+        Assert.Equal(3, lineSpan.StartLinePosition.Line + 1)
+    End Sub
+
+    <Fact>
+    Public Async Function TestMissingLoadDirectiveFileReportsAtLoadLine() As Task
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\main.vbx", "#Load ""nope.vbx""" & vbCrLf & "? 1"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Try
+            Await script.RunAsync()
+            Assert.True(False, "Expected CompilationErrorException")
+        Catch ex As CompilationErrorException
+            Dim diagnostic = ex.Diagnostics.Single()
+            Assert.Equal("C:\scripts\main.vbx", diagnostic.Location.GetLineSpan().Path)
+            Assert.Equal(1, GetLineNumber(diagnostic))
+        End Try
+    End Function
+
+    <Fact>
+    Public Async Function TestNestedLoadDirective() As Task
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\leaf.vbx", "Function Leaf() As Integer" & vbCrLf & "    Return 7" & vbCrLf & "End Function"},
+            {"C:\scripts\mid.vbx", "#Load ""leaf.vbx""" & vbCrLf &
+                                   "Function Mid() As Integer" & vbCrLf & "    Return Leaf() + 1" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""mid.vbx""" & vbCrLf & "? Mid()"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(8, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Async Function TestLoadDirectiveCycleReportsAtLoadLine() As Task
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\main.vbx", "#Load ""mid.vbx""" & vbCrLf & "? 1"},
+            {"C:\scripts\mid.vbx", "#Load ""main.vbx""" & vbCrLf &
+                                   "Function F() As Integer" & vbCrLf & "    Return 1" & vbCrLf & "End Function"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Try
+            Await script.RunAsync()
+            Assert.True(False, "Expected CompilationErrorException")
+        Catch ex As CompilationErrorException
+            Dim diagnostic = ex.Diagnostics.Single()
+            ' The cycle is detected at mid.vbx's #Load line.
+            Assert.Equal("C:\scripts\mid.vbx", diagnostic.Location.GetLineSpan().Path)
+            Assert.Equal(1, GetLineNumber(diagnostic))
+        End Try
+    End Function
+
+    <Fact>
+    Public Async Function TestLoadedFileSeesMetadataReferences() As Task
+        ' A #Load'ed file resolves types from the script's references (shared across trees).
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Function AbsValue(x As Integer) As Integer" & vbCrLf & "    Return System.Math.Abs(x)" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "? AbsValue(-5)"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(5, state.ReturnValue)
+    End Function
+
+    <Fact>
+    Public Sub TestLoadDirectiveAfterFirstTokenReportsDiagnostic()
+        ' A #Load after code follows the first token and must be reported, not silently ignored.
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Function LoadedValue() As Integer" & vbCrLf & "    Return 42" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "? 1" & vbCrLf & "#Load ""loaded.vbx"""}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim diagnostics = script.GetCompilation().GetDiagnostics()
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC36985")
+    End Sub
+
+    <Fact>
+    Public Sub TestReferenceDirectiveAfterFirstTokenReportsDiagnostic()
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\main.vbx", "? 1" & vbCrLf & "#r ""some.dll"""}
+        }
+
+        Dim options = s_defaultOptions.WithFilePath("C:\scripts\main.vbx").WithSourceResolver(New InMemorySourceReferenceResolver(files))
+        Dim script = VisualBasicScript.Create(files("C:\scripts\main.vbx"), options)
+        Dim diagnostics = script.GetCompilation().GetDiagnostics()
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC36984")
+    End Sub
+
+    <Fact>
+    Public Sub TestLoadDirectiveAtFirstTokenHasNoFollowsTokenDiagnostic()
+        ' A first-line #Load is legal: no follows-token diagnostic.
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Function LoadedValue() As Integer" & vbCrLf & "    Return 42" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "? LoadedValue()"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim diagnostics = script.GetCompilation().GetDiagnostics()
+        Assert.DoesNotContain(diagnostics, Function(d) d.Id = "BC36985")
+    End Sub
+
+    <Fact>
+    Public Async Function TestLoadDirectiveAtFirstTokenOfLoadedFileIsLegal() As Task
+        ' A #Load on the first line of a loaded file (per-tree position 0) is legal.
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\leaf.vbx", "Function Leaf() As Integer" & vbCrLf & "    Return 5" & vbCrLf & "End Function"},
+            {"C:\scripts\loaded.vbx", "#Load ""leaf.vbx""" & vbCrLf &
+                                     "Function L() As Integer" & vbCrLf & "    Return Leaf()" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "? L()"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(5, state.ReturnValue)
+    End Function
 
     ' TODO: port C# tests
 End Class

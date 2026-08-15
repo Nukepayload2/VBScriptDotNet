@@ -120,7 +120,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         parentBinder = BinderBuilder.CreateBinderForType(moduleSymbol, syntaxTree, symbol)
 
                         If scriptInitializerOpt IsNot Nothing Then
-                            parentBinder = New TopLevelCodeBinder(scriptInitializerOpt, parentBinder)
+                            parentBinder = New TopLevelCodeBinder(scriptInitializerOpt, syntaxTree.GetRoot(), parentBinder)
                         End If
                     Else
                         Debug.Assert(parentBinder.SyntaxTree Is syntaxTree, "sibling initializer array contains initializers from two different syntax trees.")

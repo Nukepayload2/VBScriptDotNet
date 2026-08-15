@@ -4,9 +4,7 @@
 
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
-Imports System.IO
 Imports System.Reflection
-Imports System.Text
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Text
@@ -51,114 +49,44 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Return SyntaxFactory.ParseSyntaxTree(text, If(parseOptions, s_defaultOptions), cancellationToken:=cancellationToken)
         End Function
 
-        Private Shared Function ExpandLoadDirectives(source As SourceText, options As ScriptOptions) As SourceText
-            Dim resolver = options.SourceResolver
-            Dim hasLoadDirectives = False
-            Dim expanded = ExpandLoadDirectives(source.ToString(), options.FilePath, resolver, New HashSet(Of String)(StringComparer.OrdinalIgnoreCase), hasLoadDirectives)
-            If Not hasLoadDirectives Then
-                Return source
-            End If
-
-            Return SourceText.From(expanded, source.Encoding)
-        End Function
-
-        Private Shared Function ExpandLoadDirectives(source As String, baseFilePath As String, resolver As SourceReferenceResolver, activeLoads As HashSet(Of String), ByRef hasLoadDirectives As Boolean) As String
-            Dim builder As New StringBuilder()
-
-            Using reader As New StringReader(source)
-                While True
-                    Dim line = reader.ReadLine()
-                    If line Is Nothing Then
-                        Exit While
-                    End If
-
-                    Dim loadedPath As String = Nothing
-                    If TryGetLoadDirectivePath(line, loadedPath) Then
-                        hasLoadDirectives = True
-                        Dim resolvedPath = resolver.ResolveReference(loadedPath, If(String.IsNullOrEmpty(baseFilePath), Nothing, baseFilePath))
-                        If resolvedPath Is Nothing Then
-                            ThrowLoadDirectiveError(Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, loadedPath))
-                        End If
-
-                        If Not activeLoads.Add(resolvedPath) Then
-                            ThrowLoadDirectiveError(Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, loadedPath))
-                        End If
-
-                        Dim loadedText = resolver.ReadText(resolvedPath)
-                        builder.AppendLine(ExpandLoadDirectives(loadedText.ToString(), resolvedPath, resolver, activeLoads, hasLoadDirectives))
-                        activeLoads.Remove(resolvedPath)
-                    Else
-                        builder.AppendLine(line)
-                    End If
-                End While
-            End Using
-
-            Return builder.ToString()
-        End Function
-
-        Private Shared Function TryGetLoadDirectivePath(line As String, ByRef path As String) As Boolean
-            Dim index = 0
-            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
-                index += 1
-            End While
-
-            If index >= line.Length OrElse line(index) <> "#"c Then
-                Return False
-            End If
-
-            index += 1
-            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
-                index += 1
-            End While
-
-            Const loadKeyword = "Load"
-            If index + loadKeyword.Length > line.Length OrElse
-                Not String.Equals(line.Substring(index, loadKeyword.Length), loadKeyword, StringComparison.OrdinalIgnoreCase) Then
-                Return False
-            End If
-
-            index += loadKeyword.Length
-            While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
-                index += 1
-            End While
-
-            If index >= line.Length OrElse line(index) <> """"c Then
-                Return False
-            End If
-
-            index += 1
-            Dim builder As New StringBuilder()
-            While index < line.Length
-                Dim ch = line(index)
-                If ch = """"c Then
-                    If index + 1 < line.Length AndAlso line(index + 1) = """"c Then
-                        builder.Append(""""c)
-                        index += 2
-                        Continue While
-                    End If
-
-                    index += 1
-                    While index < line.Length AndAlso Char.IsWhiteSpace(line(index))
-                        index += 1
-                    End While
-
-                    If index <> line.Length Then
-                        Return False
-                    End If
-
-                    path = builder.ToString()
-                    Return True
-                End If
-
-                builder.Append(ch)
-                index += 1
-            End While
-
-            Return False
-        End Function
-
         Private Shared Sub ThrowLoadDirectiveError(diagnostic As Diagnostic)
             Throw New CompilationErrorException(diagnostic.GetMessage(), ImmutableArray.Create(diagnostic))
+        End Sub
+
+        Private Shared Sub LoadReferencedTrees(
+            tree As SyntaxTree,
+            parseOptions As ParseOptions,
+            options As ScriptOptions,
+            loadedTrees As List(Of SyntaxTree),
+            activeLoads As HashSet(Of String))
+
+            Dim root = TryCast(tree.GetRoot(), CompilationUnitSyntax)
+            If root Is Nothing Then
+                Return
+            End If
+
+            Dim resolver = options.SourceResolver
+            For Each directive In root.GetLoadDirectives()
+                Dim path = directive.File.ValueText
+                If String.IsNullOrEmpty(path) Then
+                    Continue For
+                End If
+
+                Dim baseFilePath = If(String.IsNullOrEmpty(tree.FilePath), Nothing, tree.FilePath)
+                Dim resolvedPath = resolver.ResolveReference(path, baseFilePath)
+                If resolvedPath Is Nothing OrElse Not activeLoads.Add(resolvedPath) Then
+                    ThrowLoadDirectiveError(
+                        Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, path).WithLocation(directive.File.GetLocation()))
+                End If
+
+                Dim loadedText = resolver.ReadText(resolvedPath)
+                Dim loadedTree = SyntaxFactory.ParseSyntaxTree(loadedText, parseOptions, resolvedPath)
+
+                ' Depth-first so that nested #Load trees precede their referrer, matching execution order.
+                LoadReferencedTrees(loadedTree, parseOptions, options, loadedTrees, activeLoads)
+                activeLoads.Remove(resolvedPath)
+                loadedTrees.Add(loadedTree)
+            Next
         End Sub
 
         Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
@@ -225,8 +153,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             diagnostics.Free()
 
             ' parse:
-            Dim sourceText = ExpandLoadDirectives(script.SourceText, script.Options)
-            Dim tree = SyntaxFactory.ParseSyntaxTree(sourceText, If(script.Options.ParseOptions, s_defaultOptions), script.Options.FilePath)
+            Dim parseOptions = If(script.Options.ParseOptions, s_defaultOptions)
+            Dim tree = SyntaxFactory.ParseSyntaxTree(script.SourceText, parseOptions, script.Options.FilePath)
+
+            ' Each #Load file is parsed as its own tree so spans are preserved. Loaded trees come first
+            ' so their top-level code executes before the main file, matching the original text-inline behavior.
+            Dim trees = New List(Of SyntaxTree)()
+            Dim activeLoads = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            If Not String.IsNullOrEmpty(tree.FilePath) Then
+                Dim normalizedMainPath = script.Options.SourceResolver.NormalizePath(tree.FilePath, Nothing)
+                If normalizedMainPath IsNot Nothing Then
+                    activeLoads.Add(normalizedMainPath)
+                End If
+            End If
+            LoadReferencedTrees(tree, parseOptions, script.Options, trees, activeLoads)
+            trees.Add(tree)
 
             ' create compilation:
             Dim assemblyName As String = Nothing
@@ -237,7 +178,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
             Dim submission = VisualBasicCompilation.CreateScriptCompilation(
                 assemblyName,
-                tree,
+                trees,
                 references,
                 New VisualBasicCompilationOptions(
                     outputKind:=OutputKind.DynamicallyLinkedLibrary,
