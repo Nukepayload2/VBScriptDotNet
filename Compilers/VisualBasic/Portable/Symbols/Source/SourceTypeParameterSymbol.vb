@@ -3,6 +3,7 @@
 ' See the LICENSE file in the project root for more information.
 
 Imports System.Collections.Immutable
+Imports System.Threading
 Imports Microsoft.CodeAnalysis.PooledObjects
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Symbols
@@ -313,6 +314,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         Private ReadOnly _container As SourceMemberMethodSymbol
         Private ReadOnly _syntaxRef As SyntaxReference
+        Private _allowsRefLikeTypeInProgress As Integer
 
         Public Sub New(container As SourceMemberMethodSymbol,
                        ordinal As Integer,
@@ -382,26 +384,37 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         Public Overrides ReadOnly Property AllowsRefLikeType As Boolean
             Get
-                ' Pass through from the overridden method. Reading OverriddenMethod only does
-                ' signature matching (no constraint comparison), so this cannot recurse.
-                Dim overridden = _container.OverriddenMethod
-                If overridden IsNot Nothing AndAlso Ordinal < overridden.Arity Then
-                    Return overridden.TypeParameters(Ordinal).AllowsRefLikeType
+                ' Pass through from the overridden method. Reading OverriddenMethod forces signature
+                ' decoding of the containing method, which for a generic method overriding a generic
+                ' base method with a ByRef parameter of type T recurses back here. Guard the pass-through
+                ' and return False while it is being computed; the outer call still resolves the real value
+                ' once OverriddenMethod completes.
+                If Interlocked.CompareExchange(_allowsRefLikeTypeInProgress, 1, 0) <> 0 Then
+                    Return False
                 End If
 
-                ' Pass through from the explicitly implemented method, only once the
-                ' implements clause has been resolved to avoid reentrancy during binding.
-                ' Note (R4): implicit (name-matched) implements of a C# `allows ref struct`
-                ' generic method still reports BC30149; the interface map uses a constraint-
-                ' inclusive comparer and would need an interface-map lookup here to pass through.
-                If _container.AreExplicitInterfaceImplementationsResolved Then
-                    Dim impls = _container.ExplicitInterfaceImplementations
-                    If Not impls.IsEmpty AndAlso Ordinal < impls(0).Arity Then
-                        Return impls(0).TypeParameters(Ordinal).AllowsRefLikeType
+                Try
+                    Dim overridden = _container.OverriddenMethod
+                    If overridden IsNot Nothing AndAlso Ordinal < overridden.Arity Then
+                        Return overridden.TypeParameters(Ordinal).AllowsRefLikeType
                     End If
-                End If
 
-                Return False
+                    ' Pass through from the explicitly implemented method, only once the
+                    ' implements clause has been resolved to avoid reentrancy during binding.
+                    ' Note (R4): implicit (name-matched) implements of a C# `allows ref struct`
+                    ' generic method still reports BC30149; the interface map uses a constraint-
+                    ' inclusive comparer and would need an interface-map lookup here to pass through.
+                    If _container.AreExplicitInterfaceImplementationsResolved Then
+                        Dim impls = _container.ExplicitInterfaceImplementations
+                        If Not impls.IsEmpty AndAlso Ordinal < impls(0).Arity Then
+                            Return impls(0).TypeParameters(Ordinal).AllowsRefLikeType
+                        End If
+                    End If
+
+                    Return False
+                Finally
+                    Interlocked.Exchange(_allowsRefLikeTypeInProgress, 0)
+                End Try
             End Get
         End Property
 

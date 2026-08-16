@@ -130,6 +130,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim metadataReferences = New List(Of CommandLineReference)()
             Dim analyzers = New List(Of CommandLineAnalyzerReference)()
             Dim sdkPaths As New List(Of String)()
+            Dim noSdkPath As Boolean = False
+            Dim sdkPathExplicitlySpecified As Boolean = False
             Dim libPaths As New List(Of String)()
             Dim sourcePaths As New List(Of String)()
             Dim keyFileSearchPaths = New List(Of String)()
@@ -658,6 +660,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                             Continue For
 
                         Case "sdkpath"
+                            sdkPathExplicitlySpecified = True
                             If String.IsNullOrEmpty(value) Then
                                 AddDiagnostic(diagnostics, ERRID.ERR_ArgumentRequired, "sdkpath", ":<path>")
                                 Continue For
@@ -665,11 +668,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                             sdkPaths.Clear()
                             sdkPaths.AddRange(ParseSeparatedPaths(value))
+                            noSdkPath = False
                             Continue For
 
                         Case "nosdkpath"
                             sdkDirectory = Nothing
                             sdkPaths.Clear()
+                            noSdkPath = True
+                            sdkPathExplicitlySpecified = True
                             Continue For
 
                         Case "instrument"
@@ -1348,9 +1354,15 @@ lVbRuntimePlus:
                 End If
             End If
 
-            ' Prepare SDK PATH
-            If sdkDirectory IsNot Nothing AndAlso sdkPaths.Count = 0 Then
-                sdkPaths.Add(sdkDirectory)
+            ' Prepare SDK PATH. On .NET Core the host may pass no SDK directory; fall back to the
+            ' runtime directory where mscorlib.dll / System.Runtime.dll / Microsoft.VisualBasic.dll live,
+            ' unless the user explicitly controlled the SDK path via /sdkpath or /nosdkpath.
+            If Not noSdkPath AndAlso sdkPaths.Count = 0 Then
+                If sdkDirectory IsNot Nothing Then
+                    sdkPaths.Add(sdkDirectory)
+                ElseIf Not sdkPathExplicitlySpecified Then
+                    sdkPaths.Add(RuntimeEnvironment.GetRuntimeDirectory())
+                End If
             End If
 
             ' Locate default 'mscorlib.dll' or 'System.Runtime.dll', if any.
@@ -1577,6 +1589,17 @@ lVbRuntimePlus:
             ' mscorlib. 
             Dim msCorLibPath As String = FindFileInSdkPath(sdkPaths, "mscorlib.dll", baseDirectory)
             Dim systemRuntimePath As String = FindFileInSdkPath(sdkPaths, "System.Runtime.dll", baseDirectory)
+            Dim privateCoreLibPath As String = FindFileInSdkPath(sdkPaths, "System.Private.CoreLib.dll", baseDirectory)
+
+            ' On .NET Core the runtime mscorlib.dll / System.Runtime.dll are facades that forward the core
+            ' types to System.Private.CoreLib.dll.  Reference the real core library directly so the core
+            ' types (System.Object, System.Void, ...) resolve under /nostdlib.  Keep it out of the global
+            ' namespace (via a non-global alias): SPC defines the System namespace, and letting it merge
+            ' into the global namespace would change the /nostdlib "type not defined" error set (types
+            ' like System.ComponentModel.EditorBrowsable live in System.dll, which /nostdlib removes).
+            If privateCoreLibPath IsNot Nothing Then
+                Return New CommandLineReference(privateCoreLibPath, New MetadataReferenceProperties(MetadataImageKind.Assembly, aliases:=ImmutableArray.Create("RoslynCoreLibrary")))
+            End If
 
             If systemRuntimePath IsNot Nothing Then
                 If msCorLibPath Is Nothing Then

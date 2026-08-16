@@ -997,8 +997,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             ' reference, which boxes a value type. Shared methods capture no receiver and are legal.
             ' (Direct calls do not box: they use `constrained. callvirt`, so the direct-call check in
             ' Binder_Invocation.CreateBoundCallOrPropertyAccess stays narrower.)
+            ' A reduced extension method is reported IsShared=False but is still a Shared extension method:
+            ' the receiver is captured as a closure argument (reported by lambda-capture analysis as BC36640),
+            ' not boxed as a delegate target, so exclude it here.
             Dim delegateReceiverType As TypeSymbol = receiver?.Type
             If delegateReceiverType IsNot Nothing AndAlso Not targetMethod.IsShared AndAlso
+               reducedFromDefinition Is Nothing AndAlso
                delegateReceiverType.IsRefLikeOrAllowsRefLikeType() Then
                 ReportDiagnostic(diagnostics, addressOfExpression.Syntax, ERRID.ERR_RestrictedAccess, delegateReceiverType)
             End If

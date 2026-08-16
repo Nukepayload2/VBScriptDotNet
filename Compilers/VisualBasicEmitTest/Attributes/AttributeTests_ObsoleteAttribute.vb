@@ -2719,14 +2719,9 @@ End Module
 
             Dim vbCompilation = CreateCompilationWithMscorlib40AndVBRuntimeAndReferences(vbSource, {ref})
 
-            vbCompilation.AssertTheseDiagnostics((<![CDATA[
-BC30668: 'S' is obsolete: 'Types with embedded references are not supported in this version of your compiler.'.
-    Sub M(s As S)
-               ~
-]]>))
-            vbCompilation.VerifyDiagnostics(
-                Diagnostic(ERRID.ERR_UseOfObsoleteSymbol2, "S").WithArguments("S", "Types with embedded references are not supported in this version of your compiler.").WithLocation(2, 16)
-                )
+            ' The fork supports ref structs (byref-like), so consuming one is legal and no longer
+            ' reports the legacy obsolete 'embedded references' diagnostic.
+            vbCompilation.VerifyDiagnostics()
         End Sub
 
         <Fact(), WorkItem(858839, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/858839")>

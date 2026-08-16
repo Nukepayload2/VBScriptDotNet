@@ -232,8 +232,10 @@ Next
             Dim text = "1 + "
             Dim compilation = CreateSubmission(text)
 
+            ' "1 + " has no right operand: the fork parses a top-level "1 + 2" as a legal expression,
+            ' so an unterminated one reports ERR_ExpectedExpression at the missing operand position.
             compilation.VerifyDiagnostics(
-                Diagnostic(ERRID.ERR_ObsoleteLineNumbersAreLabels, "1 "))
+                Diagnostic(ERRID.ERR_ExpectedExpression, "").WithLocation(1, 5))
 
             Dim tree = compilation.SyntaxTrees.Single()
             Dim model = compilation.GetSemanticModel(tree)

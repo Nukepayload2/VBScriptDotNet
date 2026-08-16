@@ -1585,6 +1585,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_ResumablesCannotContainOnError = 36956
         ERR_FriendRefNotEqualToThis = 36957
         ERR_FriendRefSigningMismatch = 36958
+        ' Fork occupies an official intermediate gap. The official tree never back-fills such gaps,
+        ' so this is safe from the official front-edge growth band (next official 369xx error lands at 36984+).
+        ERR_PPReferenceFollowsToken = 36959
         ERR_FailureSigningAssembly = 36960
         ERR_SignButNoPrivateKey = 36961
         ERR_InvalidVersionFormat = 36962
@@ -1593,6 +1596,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_ReferenceDirectiveOnlyAllowedInScripts = 36964
         ERR_NamespaceNotAllowedInScript = 36965
         ERR_KeywordNotAllowedInScript = 36966
+
+        ' ---- Fork error-numbering policy ----
+        ' Fork-added errors use official intermediate gaps (36959, 36967, 37002 ...) that are surrounded by
+        ' already-used numbers on both sides. The official tree never back-fills such gaps, and it adds new
+        ' errors at the front edge of its growth band (next official 369xx error lands at 36984+), so the fork
+        ' never collides with upstream. Follow this pattern for future fork errors (e.g. #! shebang directives).
         ERR_LoadDirectiveOnlyAllowedInScripts = 36967
 
         ERR_ReservedAssemblyName = 36968
@@ -1616,10 +1625,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_InvalidAssemblyCulture = 36982
         ERR_EncUpdateFailedMissingSymbol = 36983
 
-        ERR_PPReferenceFollowsToken = 36984
-        ERR_PPLoadFollowsToken = 36985
-
         ERR_CantAwaitAsyncSub1 = 37001
+        ' 37002 sits at the front edge of the native reserved block (official async cluster grows at 37061+),
+        ' so the next official 37xxx error is unlikely to land here.
+        ERR_PPLoadFollowsToken = 37002
         ERR_ResumableLambdaInExpressionTree = 37050
         ERR_DllImportOnResumableMethod = 37051
         ERR_CannotLiftRestrictedTypeResumable1 = 37052

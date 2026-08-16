@@ -104,10 +104,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 Yield m.GlobalNamespace
             Next
 
-            For Each reference In extent.SourceModule.GetReferencedAssemblySymbols()
-                For Each m In reference.Modules
-                    Yield m.GlobalNamespace
-                Next
+            ' Metadata imported from aliased assemblies is not visible at the source level unless it is
+            ' exposed through the global alias.  This mirrors C# (extern aliases) and lets /nostdlib on
+            ' .NET Core reference the real core library (System.Private.CoreLib) without leaking its
+            ' entire type surface into the global namespace.
+            Dim referencedAssemblies = extent.SourceModule.GetReferencedAssemblySymbols()
+            Dim referenceManager = extent.GetBoundReferenceManager()
+            For i As Integer = 0 To referencedAssemblies.Length - 1 Step 1
+                If referenceManager.DeclarationsAccessibleWithoutAlias(i) Then
+                    For Each m In referencedAssemblies(i).Modules
+                        Yield m.GlobalNamespace
+                    Next
+                End If
             Next
         End Function
 

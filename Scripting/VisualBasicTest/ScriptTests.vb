@@ -646,7 +646,7 @@ Return Count").
 
         Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
         Dim diagnostics = script.GetCompilation().GetDiagnostics()
-        Assert.Contains(diagnostics, Function(d) d.Id = "BC36985")
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37002")
     End Sub
 
     <Fact>
@@ -659,7 +659,7 @@ Return Count").
         Dim options = s_defaultOptions.WithFilePath("C:\scripts\main.vbx").WithSourceResolver(New InMemorySourceReferenceResolver(files))
         Dim script = VisualBasicScript.Create(files("C:\scripts\main.vbx"), options)
         Dim diagnostics = script.GetCompilation().GetDiagnostics()
-        Assert.Contains(diagnostics, Function(d) d.Id = "BC36984")
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC36959")
     End Sub
 
     <Fact>
@@ -673,7 +673,7 @@ Return Count").
 
         Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
         Dim diagnostics = script.GetCompilation().GetDiagnostics()
-        Assert.DoesNotContain(diagnostics, Function(d) d.Id = "BC36985")
+        Assert.DoesNotContain(diagnostics, Function(d) d.Id = "BC37002")
     End Sub
 
     <Fact>
