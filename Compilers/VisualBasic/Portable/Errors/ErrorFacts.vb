@@ -1225,6 +1225,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                      ERRID.ERR_LoadDirectiveOnlyAllowedInScripts,
                      ERRID.ERR_PPReferenceFollowsToken,
                      ERRID.ERR_PPLoadFollowsToken,
+                     ERRID.ERR_ShebangDirectiveOnlyAllowedInScripts,
+                     ERRID.ERR_ShebangDirectiveNotOnFirstLine,
                      ERRID.ERR_NamespaceNotAllowedInScript,
                      ERRID.ERR_KeywordNotAllowedInScript,
                      ERRID.ERR_ReservedAssemblyName,

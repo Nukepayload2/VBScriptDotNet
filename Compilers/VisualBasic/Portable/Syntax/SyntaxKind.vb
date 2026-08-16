@@ -3047,6 +3047,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         LoadDirectiveTrivia = 751                ' LoadDirectiveTriviaSyntax : DirectiveTriviaSyntax : StructuredTriviaSyntax
         ''' <summary>
+        ''' Represents a #! shebang line appearing at the start of a script file.
+        ''' </summary>
+        ShebangDirectiveTrivia = 752             ' ShebangDirectiveTriviaSyntax : DirectiveTriviaSyntax : StructuredTriviaSyntax
+        ''' <summary>
         ''' Represents an unrecognized pre-processing directive. This occurs when the
         ''' parser encounters a hash '#' token at the beginning of a physical line but does
         ''' recognize the text that follows as a valid Visual Basic pre-processing

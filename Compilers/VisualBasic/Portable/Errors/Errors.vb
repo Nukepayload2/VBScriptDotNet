@@ -1629,6 +1629,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ' 37002 sits at the front edge of the native reserved block (official async cluster grows at 37061+),
         ' so the next official 37xxx error is unlikely to land here.
         ERR_PPLoadFollowsToken = 37002
+        ERR_ShebangDirectiveOnlyAllowedInScripts = 37003
+        ERR_ShebangDirectiveNotOnFirstLine = 37004
         ERR_ResumableLambdaInExpressionTree = 37050
         ERR_DllImportOnResumableMethod = 37051
         ERR_CannotLiftRestrictedTypeResumable1 = 37052

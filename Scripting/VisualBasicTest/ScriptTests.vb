@@ -10,6 +10,7 @@ Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Text
+Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Xunit
 
 Public Class ScriptTests
@@ -690,6 +691,66 @@ Return Count").
         Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
         Dim state = Await script.RunAsync()
         Assert.Equal(5, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' L3-1: A .vbx first-line #! shebang compiles with zero error diagnostics and the code
+    ''' (Dim x = 1) still has its normal semantics.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestShebangDirective_CompilesAndRuns() As Task
+        Dim script = VisualBasicScript.Create(
+            "#!/opt/vbi-n2fork/vbi" & vbCrLf &
+            "Dim x = 1" & vbCrLf &
+            "? x",
+            s_defaultOptions)
+
+        Assert.DoesNotContain(script.GetCompilation().GetDiagnostics(), Function(d) d.Severity = DiagnosticSeverity.Error)
+
+        Dim state = Await script.RunAsync()
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' L3-2: A #! shebang coexists with #R and #Load directives (in-memory source resolver); all
+    ''' three directive kinds parse and the loaded code runs.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestShebangDirective_CoexistsWithReferenceAndLoadDirectives() As Task
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {"C:\scripts\loaded.vbx", "Function LoadedValue() As Integer" & vbCrLf & "    Return 42" & vbCrLf & "End Function"},
+            {"C:\scripts\main.vbx", "#!shebang" & vbCrLf &
+                                   "#R """ & GetType(ScriptTests).Assembly.Location & """" & vbCrLf &
+                                   "#Load ""loaded.vbx""" & vbCrLf &
+                                   "? LoadedValue()"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(files("C:\scripts\main.vbx"), files)
+        Assert.DoesNotContain(script.GetCompilation().GetDiagnostics(), Function(d) d.Severity = DiagnosticSeverity.Error)
+
+        ' Loaded trees are added before the main tree; the shebang/#R/#Load live in the main tree.
+        Dim mainTree = script.GetCompilation().SyntaxTrees.Single(Function(t) t.FilePath = "C:\scripts\main.vbx")
+        Dim root = DirectCast(mainTree.GetRoot(), CompilationUnitSyntax)
+        Assert.Contains(root.GetDirectives(), Function(d) d.Kind = SyntaxKind.ShebangDirectiveTrivia)
+        Assert.Equal(1, root.GetReferenceDirectives().Count)
+        Assert.Equal(1, root.GetLoadDirectives().Count)
+
+        Dim state = Await script.RunAsync()
+        Assert.Equal(42, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' L3-3: A .vbx first-line #! followed by a trailing expression evaluates normally
+    ''' (script mode does not change its exit/return semantics).
+    ''' </summary>
+    <Fact>
+    Public Async Function TestShebangDirective_TrailingExpressionUnchanged() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            "#!/usr/bin/env -S python" & vbCrLf & "? 1 + 1",
+            s_defaultOptions)
+
+        Assert.Equal(2, state.ReturnValue)
     End Function
 
     ' TODO: port C# tests

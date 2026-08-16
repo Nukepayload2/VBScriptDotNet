@@ -38085,6 +38085,117 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
     End Class
 
     ''' <summary>
+    ''' Represents a #! shebang line appearing at the start of a script file.
+    ''' </summary>
+    ''' <remarks>
+    ''' <para>This node is associated with the following syntax kinds:</para>
+    ''' <list type="bullet">
+    ''' <item><description><see cref="SyntaxKind.ShebangDirectiveTrivia"/></description></item>
+    ''' </list>
+    ''' </remarks>
+    Public NotInheritable Class ShebangDirectiveTriviaSyntax
+        Inherits DirectiveTriviaSyntax
+
+
+        Friend Sub New(ByVal green As GreenNode, ByVal parent as SyntaxNode, ByVal startLocation As Integer)
+            MyBase.New(green, parent, startLocation)
+            Debug.Assert(green IsNot Nothing)
+            Debug.Assert(startLocation >= 0)
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, ByVal errors as DiagnosticInfo(), ByVal annotations as SyntaxAnnotation(), hashToken As InternalSyntax.PunctuationSyntax, exclamationToken As InternalSyntax.PunctuationSyntax)
+            Me.New(New Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.ShebangDirectiveTriviaSyntax(kind, errors, annotations, hashToken, exclamationToken), Nothing, 0)
+        End Sub
+
+        ''' <summary>
+        ''' The "#" token in a preprocessor directive.
+        ''' </summary>
+        Public Shadows ReadOnly Property HashToken As SyntaxToken
+            Get
+                return new SyntaxToken(Me, DirectCast(Me.Green, Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.ShebangDirectiveTriviaSyntax)._hashToken, Me.Position, 0)
+            End Get
+        End Property
+
+        Friend Overrides Function GetHashTokenCore() As SyntaxToken
+            Return Me.HashToken
+        End Function
+
+        Friend Overrides Function WithHashTokenCore(hashToken As SyntaxToken) As DirectiveTriviaSyntax
+            Return WithHashToken(hashToken)
+        End Function
+
+        ''' <summary>
+        ''' Returns a copy of this with the HashToken property changed to the specified
+        ''' value. Returns this instance if the specified value is the same as the current
+        ''' value.
+        ''' </summary>
+        Public Shadows Function WithHashToken(hashToken as SyntaxToken) As ShebangDirectiveTriviaSyntax
+            return Update(hashToken, Me.ExclamationToken)
+        End Function
+
+        Public ReadOnly Property ExclamationToken As SyntaxToken
+            Get
+                return new SyntaxToken(Me, DirectCast(Me.Green, Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax.ShebangDirectiveTriviaSyntax)._exclamationToken, Me.GetChildPosition(1), Me.GetChildIndex(1))
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Returns a copy of this with the ExclamationToken property changed to the
+        ''' specified value. Returns this instance if the specified value is the same as
+        ''' the current value.
+        ''' </summary>
+        Public Shadows Function WithExclamationToken(exclamationToken as SyntaxToken) As ShebangDirectiveTriviaSyntax
+            return Update(Me.HashToken, exclamationToken)
+        End Function
+
+        Friend Overrides Function GetCachedSlot(i as Integer) as SyntaxNode
+            Select case i
+                Case Else
+                    Return Nothing
+            End Select
+        End Function
+
+        Friend Overrides Function GetNodeSlot(i as Integer) as SyntaxNode
+            Select case i
+                Case Else
+                    Return Nothing
+            End Select
+        End Function
+
+        Public Overrides Function Accept(Of TResult)(ByVal visitor As VisualBasicSyntaxVisitor(Of TResult)) As TResult
+            Return visitor.VisitShebangDirectiveTrivia(Me)
+        End Function
+
+        Public Overrides Sub Accept(ByVal visitor As VisualBasicSyntaxVisitor)
+            visitor.VisitShebangDirectiveTrivia(Me)
+        End Sub
+
+
+        ''' <summary>
+        ''' Returns a copy of this with the specified changes. Returns this instance if
+        ''' there are no actual changes.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The value for the HashToken property.
+        ''' </param>
+        ''' <param name="exclamationToken">
+        ''' The value for the ExclamationToken property.
+        ''' </param>
+        Public Function Update(hashToken As SyntaxToken, exclamationToken As SyntaxToken) As ShebangDirectiveTriviaSyntax
+            If hashToken <> Me.HashToken OrElse exclamationToken <> Me.ExclamationToken Then
+                Dim newNode = SyntaxFactory.ShebangDirectiveTrivia(hashToken, exclamationToken)
+                Dim annotations = Me.GetAnnotations()
+                If annotations IsNot Nothing AndAlso annotations.Length > 0
+                    return newNode.WithAnnotations(annotations)
+                End If
+                Return newNode
+            End If
+            Return Me
+        End Function
+
+    End Class
+
+    ''' <summary>
     ''' Represents an unrecognized pre-processing directive. This occurs when the
     ''' parser encounters a hash '#' token at the beginning of a physical line but does
     ''' recognize the text that follows as a valid Visual Basic pre-processing

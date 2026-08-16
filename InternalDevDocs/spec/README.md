@@ -27,6 +27,7 @@
   - `Function Main` 退出码语义（`Return 42` → 退出码 42；裸 Return/无 Return → 0；**末尾表达式不再设退出码**）
 - **byref-like 类型安全（ref struct 支持，已实现）**：见 `spec-byref-like-safety.md`。
 - **REPL 裸表达式自动打印**（表达式开头 `?` 可选）：见 `spec-optional-question-prefix.md`。
+- **`.vbx` 首行 `#!` shebang 指令**（编译器语法层，已实现）：见 `spec-shebang-directive.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令。
 - **理论上和 C# REPL 不应该有功能差距**。
 - 注意：代码内产品版本号仍停在 `1.2.0-beta`，「2.0 beta」是当前里程碑叫法。

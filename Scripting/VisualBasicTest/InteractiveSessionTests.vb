@@ -6,6 +6,7 @@ Imports System.Reflection
 Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.VisualBasic
+Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Xunit
 
 Public Class InteractiveSessionTests
@@ -228,4 +229,55 @@ End Class
     Function lookupMember(c As Compilation, typeName As String, memberName As String) As ISymbol
         Return lookupType(c, typeName).GetMembers(memberName).Single()
     End Function
+
+    ''' <summary>
+    ''' L4-1: A REPL submission whose first line is a #! shebang is accepted and spins idly
+    ''' (no errors, no output, no return value), following C# csi.
+    ''' </summary>
+    <Fact>
+    Public Async Function Shebang_ReplFirstLine_IsAcceptedNoOp() As Task
+        Dim script = VisualBasicScript.Create("#!/usr/bin/env csi")
+        Assert.DoesNotContain(script.GetCompilation().GetDiagnostics(), Function(d) d.Severity = DiagnosticSeverity.Error)
+
+        Dim state = Await script.RunAsync()
+        Assert.Null(state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' L4-2: The Content API returns the shebang path text as a StringLiteralToken.
+    ''' </summary>
+    <Fact>
+    Public Sub Shebang_ContentApi_ReturnsPathText()
+        Dim tree = VisualBasicScript.Create("#!/usr/bin/env" & vbCrLf & "? 1").GetCompilation().SyntaxTrees.First()
+        Dim root = DirectCast(tree.GetRoot(), CompilationUnitSyntax)
+        Dim shebang = DirectCast(root.GetDirectives().Single(Function(d) d.Kind = SyntaxKind.ShebangDirectiveTrivia), ShebangDirectiveTriviaSyntax)
+
+        Assert.Equal("/usr/bin/env", shebang.Content.ToString())
+        Assert.Equal(SyntaxKind.StringLiteralToken, shebang.Content.Kind())
+    End Sub
+
+    ''' <summary>
+    ''' L4-3: A multi-line submission starting with #! runs normally; the shebang does not
+    ''' interfere with submission semantics.
+    ''' </summary>
+    <Fact>
+    Public Async Function Shebang_MultilineSubmission_DoesNotInterfere() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            "#!/usr/bin/env csi" & vbCrLf & "Dim x = 5" & vbCrLf & "? x * 2")
+        Assert.Equal(10, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' L4-4: WithContent rewrites the path and ToFullString() is consistent, preserving the
+    ''' trailing EndOfLineTrivia (the #! line is not merged with the following line).
+    ''' </summary>
+    <Fact>
+    Public Sub Shebang_WithContent_ToFullStringPreservesEndOfLine()
+        Dim tree = VisualBasicScript.Create("#!/usr/bin/env" & vbCrLf & "? 1").GetCompilation().SyntaxTrees.First()
+        Dim root = DirectCast(tree.GetRoot(), CompilationUnitSyntax)
+        Dim shebang = DirectCast(root.GetDirectives().Single(Function(d) d.Kind = SyntaxKind.ShebangDirectiveTrivia), ShebangDirectiveTriviaSyntax)
+
+        Dim rewritten = shebang.WithContent(SyntaxFactory.StringLiteralToken("/new/path", "/new/path"))
+        Assert.Equal("#!/new/path" & vbCrLf, rewritten.ToFullString())
+    End Sub
 End Class

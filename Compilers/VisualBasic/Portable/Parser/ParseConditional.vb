@@ -89,6 +89,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                             statement = ParseBadDirective(hashToken)
                     End Select
 
+                Case SyntaxKind.ExclamationToken
+                    statement = ParseShebangDirective(hashToken, isFollowingToken)
+
                 Case Else
                     statement = ParseBadDirective(hashToken)
 
@@ -486,6 +489,73 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             VerifyExpectedToken(SyntaxKind.StringLiteralToken, file)
 
             Return SyntaxFactory.LoadDirectiveTrivia(hashToken, loadKeyword, file)
+        End Function
+
+        Private Function ParseShebangDirective(hashToken As PunctuationSyntax, isFollowingToken As Boolean) As DirectiveTriviaSyntax
+            Debug.Assert(CurrentToken.Kind = SyntaxKind.ExclamationToken,
+                         NameOf(ParseShebangDirective) & " called with wrong token.")
+
+            Dim exclamation = DirectCast(CurrentToken, PunctuationSyntax)
+            GetNextToken()
+
+            ' #! is only allowed in scripts (mirrors ParseLoadDirective/ParseReferenceDirective gating).
+            If Not IsScript Then
+                exclamation = AddError(exclamation, ERRID.ERR_ShebangDirectiveOnlyAllowedInScripts)
+            End If
+
+            ' '#' must be the first character of the file, and must be immediately followed by '!'.
+            If _scanner.DirectiveHashPosition <> 0 OrElse
+               hashToken.HasTrailingTrivia OrElse
+               exclamation.HasLeadingTrivia Then
+
+                hashToken = AddError(hashToken, ERRID.ERR_ShebangDirectiveNotOnFirstLine)
+            End If
+
+            ' The rest of the line is the shebang path; swallow it so it does not remain as tokens.
+            exclamation = ConsumeShebangContentAsTrailingTrivia(exclamation)
+
+            Return SyntaxFactory.ShebangDirectiveTrivia(hashToken, exclamation)
+        End Function
+
+        Private Function ConsumeShebangContentAsTrailingTrivia(exclamation As PunctuationSyntax) As PunctuationSyntax
+            Dim tokens = Me._pool.Allocate(Of SyntaxToken)()
+
+            While CurrentToken.Kind <> SyntaxKind.StatementTerminatorToken AndAlso
+                  CurrentToken.Kind <> SyntaxKind.EndOfFileToken
+
+                tokens.Add(CurrentToken)
+                GetNextToken()
+            End While
+
+            If tokens.Count > 0 Then
+                ' The scanner attaches end-of-line trivia to the last token on the line. Keep the EOL
+                ' out of the skipped tokens so the SkippedTokensTrivia reproduces the path text exactly;
+                ' re-attach it after the skipped tokens so the directive span still covers the whole line.
+                Dim endOfLineTrivia As CodeAnalysis.Syntax.InternalSyntax.SyntaxList(Of GreenNode) = Nothing
+                Dim last = tokens(tokens.Count - 1)
+
+                If last.HasTrailingTrivia Then
+                    Dim trailing = New CodeAnalysis.Syntax.InternalSyntax.SyntaxList(Of VisualBasicSyntaxNode)(last.GetTrailingTrivia())
+                    For i = 0 To trailing.Count - 1
+                        If trailing.ItemUntyped(i).RawKind = SyntaxKind.EndOfLineTrivia Then
+                            endOfLineTrivia = trailing.GetEndOfTrivia(i)
+                            last = DirectCast(last.WithTrailingTrivia(trailing.GetStartOfTrivia(i).Node), SyntaxToken)
+                            tokens(tokens.Count - 1) = last
+                            Exit For
+                        End If
+                    Next
+                End If
+
+                Dim skipped = SyntaxFactory.SkippedTokensTrivia(tokens.ToList())
+                exclamation = exclamation.AddTrailingTrivia(New CodeAnalysis.Syntax.InternalSyntax.SyntaxList(Of GreenNode)(skipped))
+
+                If endOfLineTrivia.Node IsNot Nothing Then
+                    exclamation = exclamation.AddTrailingTrivia(endOfLineTrivia)
+                End If
+            End If
+
+            Me._pool.Free(tokens)
+            Return exclamation
         End Function
 
         Private Shared Function ParseBadDirective(hashToken As PunctuationSyntax) As BadDirectiveTriviaSyntax

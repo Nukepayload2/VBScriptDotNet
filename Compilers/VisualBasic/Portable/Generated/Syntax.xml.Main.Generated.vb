@@ -743,6 +743,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Public Overridable Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As TResult
             Return Me.DefaultVisit(node)
         End Function
+        Public Overridable Function VisitShebangDirectiveTrivia(ByVal node As ShebangDirectiveTriviaSyntax) As TResult
+            Return Me.DefaultVisit(node)
+        End Function
         Public Overridable Function VisitBadDirectiveTrivia(ByVal node As BadDirectiveTriviaSyntax) As TResult
             Return Me.DefaultVisit(node)
         End Function
@@ -1479,6 +1482,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Me.DefaultVisit(node) : Return
         End Sub
         Public Overridable Sub VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax)
+            Me.DefaultVisit(node) : Return
+        End Sub
+        Public Overridable Sub VisitShebangDirectiveTrivia(ByVal node As ShebangDirectiveTriviaSyntax)
             Me.DefaultVisit(node) : Return
         End Sub
         Public Overridable Sub VisitBadDirectiveTrivia(ByVal node As BadDirectiveTriviaSyntax)
@@ -5678,6 +5684,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If anyChanges Then
                 Return New LoadDirectiveTriviaSyntax(node.Kind, node.Green.GetDiagnostics, node.Green.GetAnnotations, newHashToken, newLoadKeyword, newFile)
+            Else
+                Return node
+            End If
+        End Function
+
+        Public Overrides Function VisitShebangDirectiveTrivia(ByVal node As ShebangDirectiveTriviaSyntax) As SyntaxNode
+            Dim anyChanges As Boolean = False
+
+            Dim newHashToken = DirectCast(VisitToken(node.HashToken).Node, InternalSyntax.PunctuationSyntax)
+            If node.HashToken.Node IsNot newHashToken Then anyChanges = True
+            Dim newExclamationToken = DirectCast(VisitToken(node.ExclamationToken).Node, InternalSyntax.PunctuationSyntax)
+            If node.ExclamationToken.Node IsNot newExclamationToken Then anyChanges = True
+
+            If anyChanges Then
+                Return New ShebangDirectiveTriviaSyntax(node.Kind, node.Green.GetDiagnostics, node.Green.GetAnnotations, newHashToken, newExclamationToken)
             Else
                 Return node
             End If
@@ -44024,6 +44045,35 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         Public Shared Function LoadDirectiveTrivia() As LoadDirectiveTriviaSyntax
             Return SyntaxFactory.LoadDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.HashToken), SyntaxFactory.Token(SyntaxKind.LoadKeyword), SyntaxFactory.Token(SyntaxKind.StringLiteralToken))
+        End Function
+
+
+        ''' <summary>
+        ''' Represents a #! shebang line appearing at the start of a script file.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Public Shared Function ShebangDirectiveTrivia(hashToken As SyntaxToken, exclamationToken As SyntaxToken) As ShebangDirectiveTriviaSyntax
+            Select Case hashToken.Kind()
+                Case SyntaxKind.HashToken
+                Case Else
+                    Throw new ArgumentException("hashToken")
+            End Select
+            Select Case exclamationToken.Kind()
+                Case SyntaxKind.ExclamationToken
+                Case Else
+                    Throw new ArgumentException("exclamationToken")
+            End Select
+            Return New ShebangDirectiveTriviaSyntax(SyntaxKind.ShebangDirectiveTrivia, Nothing, Nothing, DirectCast(hashToken.Node, InternalSyntax.PunctuationSyntax), DirectCast(exclamationToken.Node, InternalSyntax.PunctuationSyntax))
+        End Function
+
+
+        ''' <summary>
+        ''' Represents a #! shebang line appearing at the start of a script file.
+        ''' </summary>
+        Public Shared Function ShebangDirectiveTrivia() As ShebangDirectiveTriviaSyntax
+            Return SyntaxFactory.ShebangDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.HashToken), SyntaxFactory.Token(SyntaxKind.ExclamationToken))
         End Function
 
 

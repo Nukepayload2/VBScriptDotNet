@@ -6,7 +6,7 @@ Set-Location (Join-Path $PSScriptRoot '..')
 
 $gates = @(
     @{ Name = 'Phase2'; Project = 'Compilers\VisualBasicTest\Microsoft.CodeAnalysis.VisualBasic.UnitTests.vbproj'; Total = 143; Passed = 143; Skipped = 0; Failed = 0 }
-    @{ Name = 'Syntax'; Project = 'Compilers\VisualBasicSyntaxTest\Microsoft.CodeAnalysis.VisualBasic.Syntax.UnitTests.vbproj'; Total = 4034; Passed = 4031; Skipped = 3; Failed = 0 }
+    @{ Name = 'Syntax'; Project = 'Compilers\VisualBasicSyntaxTest\Microsoft.CodeAnalysis.VisualBasic.Syntax.UnitTests.vbproj'; Total = 4070; Passed = 4067; Skipped = 3; Failed = 0 }
     @{ Name = 'Symbol'; Project = 'Compilers\VisualBasicSymbolTest\Microsoft.CodeAnalysis.VisualBasic.Symbol.UnitTests.vbproj'; Total = 3388; Passed = 3364; Skipped = 24; Failed = 0 }
     @{ Name = 'Semantic'; Project = 'Compilers\VisualBasicSemanticTest\Microsoft.CodeAnalysis.VisualBasic.Semantic.UnitTests.vbproj'; Total = 5591; Passed = 5487; Skipped = 104; Failed = 0 }
     @{ Name = 'IOperation'; Project = 'Compilers\VisualBasicIOperationTest\Roslyn.Compilers.VisualBasic.IOperation.UnitTests.vbproj'; Total = 1574; Passed = 1566; Skipped = 8; Failed = 0 }

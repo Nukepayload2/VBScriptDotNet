@@ -107,6 +107,13 @@
 - **D4 依据**：**直接判入 P1（① C# 已照顾）**——对齐 C# `init`/`required`（M8），与 C# 生态同向、风险最低。
 - **落地**：命名按 VB 语义（InitOnly=init、MustInit=required），识别 C# 对应元数据属性以互操作。
 
+### 12. `.vbx` 首行 `#!` shebang 指令（产品原生提案，D4 ①）
+- **路径**：`..\proposals\proposal-shebang-directive.md` ↔ `..\meetings\meeting-shebang-directive.md`；设计任务 `shebang-directive\`（`../tasks/shebang-directive/`）
+- **要点**：脚本文件首行 `#!` shebang（如 `#!/opt/vbi-n2fork/vbi`）作**编译器指令 trivia**——仅 script 模式（`IsScript`）、位置 0（首字符、BOM 不能在前）、`#!` 后整行吞为 trivia、error severity、`Content`/`WithContent` API；支持 Linux/macOS 直接执行 `.vbx`，诊断行号不漂移。
+- **三态**：**Active**。
+- **D4 依据**：**直接判入 P1（① C# 已照顾）**——C# 14 `ignored-directives`（champion #8617，`#!`/`#:` ignored 指令）同向，非底层内存机制。
+- **状态**：**已实现**——M0（Syntax 节点 + 再生成 + Content API）、M1（派发 + `ParseShebangDirective` + 错误码 37003/37004）、M2（四层测试全绿）完成；能力规范 `..\spec\spec-shebang-directive.md`。
+
 ---
 
 ## 二、P1 排除说明

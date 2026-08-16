@@ -1,1 +1,18 @@
-
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Accept(Of TResult)(visitor As Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor(Of TResult)) -> TResult
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Accept(visitor As Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor) -> Void
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Content() -> Microsoft.CodeAnalysis.SyntaxToken
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.ExclamationToken() -> Microsoft.CodeAnalysis.SyntaxToken
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.HashToken() -> Microsoft.CodeAnalysis.SyntaxToken
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Update(hashToken As Microsoft.CodeAnalysis.SyntaxToken, exclamationToken As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.WithContent(content As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.WithExclamationToken(exclamationToken As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.WithHashToken(hashToken As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.ShebangDirectiveTrivia = 752 -> Microsoft.CodeAnalysis.VisualBasic.SyntaxKind
+Overridable Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor(Of TResult).VisitShebangDirectiveTrivia(node As Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax) -> TResult
+Overridable Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor.VisitShebangDirectiveTrivia(node As Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax) -> Void
+Overrides Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Accept(Of TResult)(visitor As Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor(Of TResult)) -> TResult
+Overrides Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax.Accept(visitor As Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxVisitor) -> Void
+Overrides Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxRewriter.VisitShebangDirectiveTrivia(node As Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax) -> Microsoft.CodeAnalysis.SyntaxNode
+Shared Microsoft.CodeAnalysis.VisualBasic.SyntaxFactory.ShebangDirectiveTrivia() -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Shared Microsoft.CodeAnalysis.VisualBasic.SyntaxFactory.ShebangDirectiveTrivia(hashToken As Microsoft.CodeAnalysis.SyntaxToken, exclamationToken As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax

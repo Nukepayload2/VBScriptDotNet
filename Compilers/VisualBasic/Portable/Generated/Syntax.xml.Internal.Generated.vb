@@ -28708,6 +28708,79 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
     End Class
 
     ''' <summary>
+    ''' Represents a #! shebang line appearing at the start of a script file.
+    ''' </summary>
+    Friend NotInheritable Class ShebangDirectiveTriviaSyntax
+        Inherits DirectiveTriviaSyntax
+
+        Friend ReadOnly _exclamationToken as PunctuationSyntax
+
+        Friend Sub New(ByVal kind As SyntaxKind, hashToken As InternalSyntax.PunctuationSyntax, exclamationToken As InternalSyntax.PunctuationSyntax)
+            MyBase.New(kind, hashToken)
+            Me.SlotCount = 2
+
+            AdjustFlagsAndWidth(exclamationToken)
+            Me._exclamationToken = exclamationToken
+
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, hashToken As InternalSyntax.PunctuationSyntax, exclamationToken As InternalSyntax.PunctuationSyntax, context As ISyntaxFactoryContext)
+            MyBase.New(kind, hashToken)
+            Me.SlotCount = 2
+            Me.SetFactoryContext(context)
+
+            AdjustFlagsAndWidth(exclamationToken)
+            Me._exclamationToken = exclamationToken
+
+        End Sub
+
+        Friend Sub New(ByVal kind As SyntaxKind, ByVal errors as DiagnosticInfo(), ByVal annotations as SyntaxAnnotation(), hashToken As InternalSyntax.PunctuationSyntax, exclamationToken As InternalSyntax.PunctuationSyntax)
+            MyBase.New(kind, errors, annotations, hashToken)
+            Me.SlotCount = 2
+
+            AdjustFlagsAndWidth(exclamationToken)
+            Me._exclamationToken = exclamationToken
+
+        End Sub
+
+        Friend Overrides Function CreateRed(ByVal parent As SyntaxNode, ByVal startLocation As Integer) As SyntaxNode
+            Return new Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax(Me, parent, startLocation)
+        End Function
+
+        Friend ReadOnly Property ExclamationToken As InternalSyntax.PunctuationSyntax
+            Get
+                Return Me._exclamationToken
+            End Get
+        End Property
+
+        Friend Overrides Function GetSlot(i as Integer) as GreenNode
+            Select case i
+                Case 0
+                    Return Me._hashToken
+                Case 1
+                    Return Me._exclamationToken
+                Case Else
+                    Debug.Assert(false, "child index out of range")
+                    Return Nothing
+            End Select
+        End Function
+
+
+        Friend Overrides Function SetDiagnostics(ByVal newErrors As DiagnosticInfo()) As GreenNode
+            Return new ShebangDirectiveTriviaSyntax(Me.Kind, newErrors, GetAnnotations, _hashToken, _exclamationToken)
+        End Function
+
+        Friend Overrides Function SetAnnotations(ByVal annotations As SyntaxAnnotation()) As GreenNode
+            Return new ShebangDirectiveTriviaSyntax(Me.Kind, GetDiagnostics, annotations, _hashToken, _exclamationToken)
+        End Function
+
+        Public Overrides Function Accept(ByVal visitor As VisualBasicSyntaxVisitor) As VisualBasicSyntaxNode
+            Return visitor.VisitShebangDirectiveTrivia(Me)
+        End Function
+
+    End Class
+
+    ''' <summary>
     ''' Represents an unrecognized pre-processing directive. This occurs when the
     ''' parser encounters a hash '#' token at the beginning of a physical line but does
     ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -29890,6 +29963,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             Return VisitDirectiveTrivia(node)
         End Function
         Public Overridable Function VisitLoadDirectiveTrivia(ByVal node As LoadDirectiveTriviaSyntax) As VisualBasicSyntaxNode
+            Debug.Assert(node IsNot Nothing)
+            Return VisitDirectiveTrivia(node)
+        End Function
+        Public Overridable Function VisitShebangDirectiveTrivia(ByVal node As ShebangDirectiveTriviaSyntax) As VisualBasicSyntaxNode
             Debug.Assert(node IsNot Nothing)
             Return VisitDirectiveTrivia(node)
         End Function
@@ -34091,6 +34168,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
             If anyChanges Then
                 Return New LoadDirectiveTriviaSyntax(node.Kind, node.GetDiagnostics, node.GetAnnotations, newHashToken, newLoadKeyword, newFile)
+            Else
+                Return node
+            End If
+        End Function
+
+        Public Overrides Function VisitShebangDirectiveTrivia(ByVal node As ShebangDirectiveTriviaSyntax) As VisualBasicSyntaxNode
+            Dim anyChanges As Boolean = False
+
+            Dim newHashToken = DirectCast(Visit(node.HashToken), PunctuationSyntax)
+            If node._hashToken IsNot newHashToken Then anyChanges = True
+            Dim newExclamationToken = DirectCast(Visit(node.ExclamationToken), PunctuationSyntax)
+            If node._exclamationToken IsNot newExclamationToken Then anyChanges = True
+
+            If anyChanges Then
+                Return New ShebangDirectiveTriviaSyntax(node.Kind, node.GetDiagnostics, node.GetAnnotations, newHashToken, newExclamationToken)
             Else
                 Return node
             End If
@@ -46171,6 +46263,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
 
         ''' <summary>
+        ''' Represents a #! shebang line appearing at the start of a script file.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Friend Shared Function ShebangDirectiveTrivia(hashToken As PunctuationSyntax, exclamationToken As PunctuationSyntax) As ShebangDirectiveTriviaSyntax
+            Debug.Assert(hashToken IsNot Nothing AndAlso hashToken.Kind = SyntaxKind.HashToken)
+            Debug.Assert(exclamationToken IsNot Nothing AndAlso exclamationToken.Kind = SyntaxKind.ExclamationToken)
+            Return New ShebangDirectiveTriviaSyntax(SyntaxKind.ShebangDirectiveTrivia, hashToken, exclamationToken)
+        End Function
+
+
+        ''' <summary>
         ''' Represents an unrecognized pre-processing directive. This occurs when the
         ''' parser encounters a hash '#' token at the beginning of a physical line but does
         ''' recognize the text that follows as a valid Visual Basic pre-processing
@@ -58247,6 +58352,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             Debug.Assert(loadKeyword IsNot Nothing AndAlso loadKeyword.Kind = SyntaxKind.LoadKeyword)
             Debug.Assert(file IsNot Nothing AndAlso file.Kind = SyntaxKind.StringLiteralToken)
             Return New LoadDirectiveTriviaSyntax(SyntaxKind.LoadDirectiveTrivia, hashToken, loadKeyword, file, _factoryContext)
+        End Function
+
+
+        ''' <summary>
+        ''' Represents a #! shebang line appearing at the start of a script file.
+        ''' </summary>
+        ''' <param name="hashToken">
+        ''' The "#" token in a preprocessor directive.
+        ''' </param>
+        Friend Function ShebangDirectiveTrivia(hashToken As PunctuationSyntax, exclamationToken As PunctuationSyntax) As ShebangDirectiveTriviaSyntax
+            Debug.Assert(hashToken IsNot Nothing AndAlso hashToken.Kind = SyntaxKind.HashToken)
+            Debug.Assert(exclamationToken IsNot Nothing AndAlso exclamationToken.Kind = SyntaxKind.ExclamationToken)
+            Return New ShebangDirectiveTriviaSyntax(SyntaxKind.ShebangDirectiveTrivia, hashToken, exclamationToken, _factoryContext)
         End Function
 
 

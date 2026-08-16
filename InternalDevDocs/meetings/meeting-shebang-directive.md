@@ -9,7 +9,7 @@ August 15, 2026
 
 ## Proposal: 脚本文件 `#!` shebang 指令（编译器语法层）
 
-_Related: `../proposals/proposal-shebang-directive.md`（主检对象）；`../proposals/proposal-vbscript-lsp.md`（甄别结论：`#!` 属编译器语法特性，非 LSP 范畴；本会议兑现该结论的编译器侧落点）；C# 参考实现 `Compilers\CSharp\Portable\Parser\DirectiveParser.cs:111-120, 687-695` 与 `CSharp.Generated.g4:1312`；VB 侧上游模板 `Compilers\VisualBasic\Portable\Parser\ParseConditional.vb`（`#R` 管道）_
+_Related: `../proposals/proposal-shebang-directive.md`（主检对象）；`../proposals/proposal-vbscript-lsp.md`（甄别结论：`#!` 属编译器语法特性，非 LSP 范畴；本会议兑现该结论的编译器侧落点）；C# 参考实现 `Compilers\CSharp\Portable\Parser\DirectiveParser.cs:111-120, 687-695` 与 `CSharp.Generated.g4:1404`；VB 侧 fork 内模板 `Compilers\VisualBasic\Portable\Parser\ParseConditional.vb`（`#R`/`#Load` 管道）_
 
 ### 场景与缺口
 
@@ -21,10 +21,11 @@ _Related: `../proposals/proposal-shebang-directive.md`（主检对象）；`../p
 
 #### C# 参考实现（本会议的行为基准）
 
-- **文法**：`shebang_directive_trivia : '#' '!' end_of_directive`（`Compilers\CSharp\Portable\Generated\CSharp.Generated.g4:1312`）。
+- **文法**：`shebang_directive_trivia : '#' '!'`（`Compilers\CSharp\Portable\Generated\CSharp.Generated.g4:1404`；行尾由 `ParseEndOfDirectiveWithOptionalPreprocessingMessage` 消费）。
 - **派发**：`#` 后下一 token 是 `ExclamationToken` 时**恒**按 shebang 解析；`hashPosition != 0 || hash.HasTrailingTrivia` 时报 `ERR_PPShebangNotOnFirstLine`（9378）（`DirectiveParser.cs:111-120`）。
-- **模式门控**：`SourceCodeKind != Script && !FileBasedProgram` 时报 `ERR_PPShebangInProjectBasedProgram`（9314）（`ParseShebangDirective`，`DirectiveParser.cs:687-695`）。
+- **模式门控**：`SourceCodeKind != Script && !FileBasedProgram` 时报 `ERR_PPShebangInProjectBasedProgram`（9314）（`ParseShebangDirective`，`DirectiveParser.cs:687-695`）。`FileBasedProgram` 是 **`-features:FileBasedProgram` 特性标志**（`CSharpParseOptions.cs:245`，对应 `dotnet run file.cs`）——C# 允许 shebang **双通道**（Script 或 FileBasedProgram）；VB 无对应概念，`.vbx` 恒为 Script。
 - **节点与行尾**：返回 `ShebangDirectiveTrivia(hash, exclamation, endOfDirective, isActive)`；`#!` 之后整行经 `ParseEndOfDirectiveWithOptionalPreprocessingMessage` 消费为 trivia——路径文本不解析、不参与任何语义（`:694`）。
+- **severity 与 spec 分歧 + 附加 API（2026-08-16 源码+测试核实）**：C# spec（`ignored-directives.md:63-69`）文字写 **warning**、且「project-based 报错可对 `#!` 豁免」；Roslyn **实现**两处均 `AddError`（`DirectiveParser.cs:116,691`），测试断言 `error CS9378/CS9314`（`ScriptParsingTests.cs` / `IgnoredDirectiveParsingTests.cs`）——**实现与 spec 不一致**，已定遵循实现（error）。路径在 **lexer 层**消费（`Lexer.cs:2485-2534`，作 `PreprocessingMessageTrivia` 挂 `EndOfDirectiveToken` 前导；VB 无此机制）；节点带 `Content`/`WithContent` 便利 API（`ShebangDirectiveTriviaSyntax.cs`，已定 VB 对等实现）。
 
 #### C# 对等语法的 LDM 决策链（引用来源）
 
@@ -40,11 +41,11 @@ C# 侧 shebang 的 LDM 会议纪要（`..\csharplang` 镜像逐字核实）：
 
 #### VB fork 落地表面（全部已核实）
 
-1. **`#R` 是上游已有指令管道，可直接作模板**。基线 `{{Roslyn}}` 的 VB 编译器自带完整 `#R`：`ReferenceDirectiveTriviaSyntax`（`Syntax.xml:9540`）、派发 `Case SyntaxKind.ReferenceKeyword`（`ParseConditional.vb:82-83`）、`ParseReferenceDirective`（`:448`）、script-only 门控 `If Not IsScript Then AddError(ERR_ReferenceDirectiveOnlyAllowedInScripts)`（`:456-458`）、错误码 `36964`（`Errors.vb:1593`）。`#!` 扩展的是**上游既有机制**，非 fork 发明。
+1. **`#R` 是上游已有指令管道，可直接作模板**。基线 `{{Roslyn}}` 的 VB 编译器自带完整 `#R`：`ReferenceDirectiveTriviaSyntax`（`Syntax.xml:9544`）、派发 `Case SyntaxKind.ReferenceKeyword`（`ParseConditional.vb:82-83`）、`ParseReferenceDirective`（`:451`）、script-only 门控 `If Not IsScript Then AddError(ERR_ReferenceDirectiveOnlyAllowedInScripts)`（`:459-460`）、错误码 `36964`（`Errors.vb:1596`）。`#!` 扩展的是**上游既有机制**，非 fork 发明。
 2. **词法无需改动**：`#` 经 `ScanDateLiteral`（`Scanner\Scanner.vb:1171-1173`）对 `#!` 失败（`!` 非日期字符）回退 `MakeHashToken`；`!` 单独词法化为 `ExclamationToken`（VB 字典访问符既有 token）。`#!` 正确产出 `HashToken` + `ExclamationToken` 序列。
 3. **`ConsumeStatementTerminatorAfterDirective` 会报行尾残留**：VB 解析器在 `TryScanDirective` 后调用它（`Scanner\Directives.vb:57`），对指令行遗留的多余 token 报 `ERR_ExpectedEOS`（`Parser\Parser.vb:5774-5793`）。含义：若 `ParseShebangDirective` 不显式吞行，`/opt/vbi-n2fork/vbi` 会被词法化为 `/`（除号）、`opt`、`vbi` 等 token 留下 → 触发 `ERR_ExpectedEOS`。**这是 VB 侧唯一新增机械件**，对应 C# `ParseEndOfDirectiveWithOptionalPreprocessingMessage`。
-4. **`#Load` 是宿主层预处理，不构成先例**：`#Load` 由 `Scripting\VisualBasic\VisualBasicScriptCompiler.vb` 的 `ExpandLoadDirectives`（`:54-158`）内联删除，不进编译器。`#R` 与 `#!` 是编译器级；`#Load` 留在宿主（执行期文件内联语义）。
-5. **脚本模式自动生效**：`vbi` 跑 `.vbx` 走 `VisualBasicScriptCompiler.CreateSubmission`（`:215`，`kind:=SourceCodeKind.Script`），编译器接受 `#!` 即零宿主改动生效。REPL 提交同为 `SourceCodeKind.Script`。
+4. **`#Load` 已升为编译器级指令，是比 `#R` 更完整的 fork 内模板**（2026-08-16 修正）：fork 已有 `LoadDirectiveTriviaSyntax`（`Syntax.xml:9552`）+ `ParseLoadDirective`（`ParseConditional.vb:471`，`IsScript` 门控 `ERR_LoadDirectiveOnlyAllowedInScripts` + `isFollowingToken` 检查）+ `GetLoadDirectives` 发现（`CompilationUnitSyntax.vb:33`）+ 宿主多树加载（`VisualBasicScriptCompiler.LoadReferencedTrees` @ `:56`，修复 `issue-vbx-load-span-shift`）。`#!` 与之唯一差异：`ExclamationToken` 裸路径无引号、需整行消费；其余机械件（节点、派发、门控、发现）模板同构。
+5. **脚本模式自动生效**：`vbi` 跑 `.vbx` 走 `VisualBasicScriptCompiler.CreateSubmission`（`:143`，`kind:=SourceCodeKind.Script`），编译器接受 `#!` 即零宿主改动生效。REPL 提交同为 `SourceCodeKind.Script`。
 
 ### 候选方案
 
@@ -64,23 +65,23 @@ C# 侧 shebang 的 LDM 会议纪要（`..\csharplang` 镜像逐字核实）：
 - **整行消费的实现细节？** 跳过 token 直到 `StatementTerminatorToken`，跳过的内容作为 `ExclamationToken` 的尾随 trivia。不做任何语义解释（路径是给内核看的，不是给编译器的）。
 - **与 LSP 提案的关系？** `proposal-vbscript-lsp.md` 把 `#!` 判为非 LSP 范畴；本提案兑现编译器侧，LSP 的 script mode 语义模型**自动继承** `#!`——Linux 上带 shebang 的 `.vbx` 在编辑器/LSP 零诊断，LSP 侧零工作。甄别闭环。
 - **REPL 里 `#!` 算什么？** 每个 REPL 提交也是 `SourceCodeKind.Script`；首字符 `#!` 按 trivia 接受（无害空转），与 C# `csi` 一致。不新增「非文件场景」诊断（见 OPEN QUESTIONS）。
-- **severity：非首行违规是 warning 还是 error？** C# spec（`ignored-directives.md`）写的是 **warning**——"report a warning if the `#!` directive is not placed at the first line and the first character in the file (not even a BOM marker can be in front of it), because otherwise shells won't recognize it"——语义是「代码本身无害，只是 shell 不认」。但 Roslyn 实现用 `ERR_PPShebangNotOnFirstLine`（`DirectiveParser.cs:116` 的 `AddError`，code 9378）。本会议倾向**镜像 Roslyn 实现（error）**：`.vbx` 里 `#!` 不在首行几乎必是用户错误，报 error 更干净；C# spec 的 warning 立场记入 OPEN QUESTIONS 供实现时复核。同样地，C# 对 project-based 报错**明确说过对 `#!` 可以豁免**——VB 侧沿用 `#R` 的 `ERR_ReferenceDirectiveOnlyAllowedInScripts`（error）更符合既有门控模式，但该豁免意图值得记录。
-- **编辑器渲染：`#!` 用预编译指令色还是注释色？** **注释色**。C# 落地先例（权威，源码核实）：`Workspaces\CSharp\Portable\Classification\Worker.cs:207-210` 把 `ShebangDirectiveTrivia` 与 `//`、`/* */` 注释**归为一组 → `ClassificationTypeNames.Comment`**（整行含路径）；对照 `#:` ignored 指令因带真实工具内容走 `PreprocessorKeyword`（`Worker_Preprocesser.cs:332-350`）。`REM` 先例同构：VB 里 `REM` 词法即 `CommentTrivia`（注释，非关键字），天然注释色——`#!` 整行是「语言不解释的忽略内容」，注释色最贴切。**VB 实现含义**：`Worker.ClassifyTrivia`（`Workspaces\VisualBasic\Portable\Classification\Worker.vb:115-150`）按 `HasStructure` 分派，新节点目前无 case 命中会不着色——必须新增 `Case SyntaxKind.ShebangDirectiveTrivia → Comment`（放注释组，不放指令组）。此代码在 Workspaces 层，是 LSP 提案复制该层时的**一个具体适配点**。
+- **severity：非首行违规是 warning 还是 error？** C# spec（`ignored-directives.md`）写的是 **warning**——"report a warning if the `#!` directive is not placed at the first line and the first character in the file (not even a BOM marker can be in front of it), because otherwise shells won't recognize it"——语义是「代码本身无害，只是 shell 不认」。但 Roslyn 实现用 `ERR_PPShebangNotOnFirstLine`（`DirectiveParser.cs:116` 的 `AddError`，code 9378）。本会议倾向**镜像 Roslyn 实现（error）**：`.vbx` 里 `#!` 不在首行几乎必是用户错误，报 error 更干净；C# spec 的 warning 立场记入 OPEN QUESTIONS 供实现时复核。同样地，C# 对 project-based 报错**明确说过对 `#!` 可以豁免**——VB 侧沿用 `#R` 的 `ERR_ReferenceDirectiveOnlyAllowedInScripts`（error）更符合既有门控模式，但该豁免意图值得记录。**已定（2026-08-16）：error（镜像 Roslyn 实现），spec 的 warning 文字与豁免意图均不采用。**
+- **编辑器渲染：`#!` 用预编译指令色还是注释色？** **注释色**。C# 落地先例（权威，源码核实）：`Workspaces\CSharp\Portable\Classification\Worker.cs:207-210` 把 `ShebangDirectiveTrivia` 与 `//`、`/* */` 注释**归为一组 → `ClassificationTypeNames.Comment`**（整行含路径）；对照 `#:` ignored 指令因带真实工具内容走 `PreprocessorKeyword`（`Worker_Preprocesser.cs:332-350`）。`REM` 先例同构：VB 里 `REM` 词法即 `CommentTrivia`（注释，非关键字），天然注释色——`#!` 整行是「语言不解释的忽略内容」，注释色最贴切。**VB 实现含义**：`Worker.ClassifyTrivia`（`Workspaces\VisualBasic\Portable\Classification\Worker.vb:115-150`）按 `HasStructure` 分派，新节点目前无 case 命中会不着色——必须新增 `Case SyntaxKind.ShebangDirectiveTrivia → Comment`（放注释组，不放指令组）。此代码在 Workspaces 层，是 LSP 提案复制该层时的**一个具体适配点**。**（2026-08-16 核实：`Worker.vb` 不在当前 fork 树——fork 的 `Workspaces` 仅含 `SharedUtilitiesAndExtensions\Compiler\Core\`，该代码随 LSP 复制 Workspaces 层时落地；共享层已有基线继承钩子 `ISyntaxKinds.ShebangDirectiveTrivia`（`int?`）＋ `IsShebangDirectiveTrivia` ＋ `AbstractFileBannerFacts` shebang 匹配，VB `SyntaxKinds` 需暴露新 kind——附加适配点。）**
 
 ### 深度追问：LDM 拷问清单
 
-1. **`#If False` 禁用区内的 `#!`？** C# 的 `ShebangDirectiveTriviaSyntax` 带 `IsActive`；禁用区 shebang 是否豁免首行错误需对齐 C# `IsActive` 语义。实现时对照（`DirectiveTriviaSyntax.cs:57` 的 DirectiveKind switch 同步更新）。
-2. **BOM / 编码与「位置 0」？** 文件首字符含 UTF-8 BOM 时 `#!` 是否仍算首行？C# 的 `hashPosition` 相对树起点，需在实现时核对 VB 解析器 token 偏移语义是否同构。
-3. **错误码命名？** 镜像 C# 语义命名（`ERR_ShebangDirective...`）还是沿用 `ERR_ReferenceDirectiveOnlyAllowedInScripts` 措辞风格（`ERR_ShebangDirectiveOnlyAllowedInScripts`）？倾向后者（VB 风格统一）。
+1. **`#If False` 禁用区内的 `#!`？** C# 的 `ShebangDirectiveTriviaSyntax` 带 `IsActive`；禁用区 shebang 是否豁免首行错误需对齐 C# `IsActive` 语义。实现时对照（`DirectiveTriviaSyntax.cs:57` 的 DirectiveKind switch 同步更新）。**已定（M2 实测收敛，2026-08-16）**：VB 禁用区内 `#!` 不被识别为指令（无节点、无诊断），位置/模式检查仅对被识别的指令（激活区）生效；该边界在 C# 侧无对等测试，VB 现状为不识别（test-plan L2-10）。
+2. **BOM / 编码与「位置 0」？** 文件首字符含 UTF-8 BOM 时 `#!` 是否仍算首行？C# 的 `hashPosition` 相对树起点，需在实现时核对 VB 解析器 token 偏移语义是否同构。**已定（M2 实测收敛，2026-08-16）**：文件读入层剥 BOM 时 `#` 仍位置 0 正常；BOM 作为字符（U+FEFF）留下时不被识别为指令（无节点、泛化解析错误 BC30037/BC30201，test-plan L2-9）。
+3. **错误码命名？** 镜像 C# 语义命名（`ERR_ShebangDirective...`）还是沿用 `ERR_ReferenceDirectiveOnlyAllowedInScripts` 措辞风格（`ERR_ShebangDirectiveOnlyAllowedInScripts`）？倾向后者（VB 风格统一）。**已定（2026-08-16）：fork 风格**——`ERR_ShebangDirectiveOnlyAllowedInScripts` + `ERR_ShebangDirectiveNotOnFirstLine`（对齐 `ERR_LoadDirectiveOnlyAllowedInScripts = 36967`）。
 4. **测试纪律？** 无副作用单测（CLAUDE.md 规约）：走 `Scripting\VisualBasicTest\`；不得发起网络/文件写入/进程启动/注册表写入。编译诊断测试复用编译器测试基类。
 
 ### RESOLUTION:
 
 1. **方向判定：采纳，Active（Proposed）。** `#!` shebang 在**编译器语法层**实现（镜像 C#）：新 `ShebangDirectiveTrivia` 指令 trivia 节点，`#!` 后整行吞为 trivia。理由：`#!` 消费者是所有解析文件的程序（vbi / LSP / 编辑器），语法树共享 + 行号不漂移；宿主剥行（PROPOSAL B）只修 `vbi` 且行号漂移，否决。
-2. **模式门控：仅 script 模式（`IsScript`）。** 常规 `.vb` 编译出现 `#!` 报错（镜像 C# `ERR_PPShebangInProjectBasedProgram`，复用上游 `#R` 的 `ERR_ReferenceDirectiveOnlyAllowedInScripts` 门控模式）。
-3. **位置规则：仅文件首字符。** 位置 0、`#` 无前导 trivia、**连 BOM 都不能在前**（镜像 C# 14 `ignored-directives.md`）；违规 severity 倾向镜像 Roslyn 实现的 error（`ERR_PPShebangNotOnFirstLine`），C# spec 的 warning 立场记入 OPEN QUESTIONS 复核。
+2. **模式门控：仅 script 模式（`IsScript`）——已定遵循 `#R` 先例。** 常规 `.vb` 编译出现 `#!` 报 `ERR_ShebangDirectiveOnlyAllowedInScripts`（error）。不引入 C# 的 `FileBasedProgram` 特性标志（VB 无该概念，`.vbx` 恒为 Script）。
+3. **位置规则：仅文件首字符——已定 error（镜像 Roslyn 实现）。** 位置 0、`#` 无前导 trivia、**连 BOM 都不能在前**（镜像 C# `hashPosition != 0 || hash.HasTrailingTrivia`）；违规报 `ERR_ShebangDirectiveNotOnFirstLine`（error）。C# spec 的 warning 文字不采用（实现与 spec 不一致，已定遵循实现）。即使违规仍解析为 shebang trivia——**例外（M2 实测）**：BOM 残留源码文本（`U+FEFF#!`）时不被识别为指令（无节点、泛化解析错误 BC30037/BC30201，test-plan L2-9）。
 4. **整行消费是唯一新增机械件。** `ParseShebangDirective` 显式把 `#!` 后路径吞为尾随 trivia，对应 C# `ParseEndOfDirectiveWithOptionalPreprocessingMessage`；否则撞 `ConsumeStatementTerminatorAfterDirective` 的 `ERR_ExpectedEOS`（`Parser.vb:5774-5793`）。路径是裸文本，不复用 `#R` 的字符串字面量模式。
-5. **指令三分不变**：`#R`（编译器）+ `#Load`（宿主预处理 `VisualBasicScriptCompiler.ExpandLoadDirectives`）+ `#!`（编译器）。`#Load` 留在宿主，`#!` 必须进编译器。
+5. **指令三分（现状，2026-08-16 修正）**：`#R`（编译器，上游）、`#Load`（**编译器指令 + 宿主多树加载**，fork 已实现）、`#!`（编译器，本提案）。`#Load` 已在编译器级，`#!` 加入后三个指令同为编译器指令 trivia。
 6. **跨提案：LSP 零工作。** `#!` 成为 script 模式语法树的一部分，`proposal-vbscript-lsp` 的语义模型自动继承——Linux 上带 shebang 的 `.vbx` 编辑器/LSP 零诊断。甄别闭环。
 7. **里程碑：M0（Syntax.xml 节点 + 重新生成 3 个生成文件）→ M1（`ParseConditional.vb` 派发 + `ParseShebangDirective` + 错误码）→ M2（测试 + BOM/REPL/`#If False` 边界 + 与 LSP script 树交叉验证）。**
 8. **编辑器渲染：`#!` 整行 → 注释色（对齐 C#）。** C# 把 `ShebangDirectiveTrivia` 与 `//`、`/* */` 归为一组 → `Comment`（`Worker.cs:207-210`），`#:` 才走 `PreprocessorKeyword`。VB 侧在 Workspaces 层 `Worker.ClassifyTrivia` 新增 `Case SyntaxKind.ShebangDirectiveTrivia → Comment`（放注释组）。**这同时是 LSP 提案复制 Workspaces 层时的一个已定位适配点**，纳入 LSP M0/M1 适配点清单。
@@ -93,16 +94,17 @@ C# 侧 shebang 的 LDM 会议纪要（`..\csharplang` 镜像逐字核实）：
 
 ### OPEN QUESTIONS / TODO / Follow-up
 
-- `OPEN QUESTIONS`：BOM 与「位置 0」语义（C# spec 明说「连 BOM 都不能在前」，实现时按此核对）；REPL 首行 `#!` 接受为无害 trivia vs 新增「非文件场景」诊断（倾向镜像 C#，接受并空转）；错误码命名（倾向 `ERR_ShebangDirectiveOnlyAllowedInScripts` / `ERR_ShebangDirectiveNotOnFirstLine`）；`#If False` 禁用区 shebang 的 `IsActive` 行为；**severity**——非首行按 C# spec 是 warning（shell 不认、代码无害）、按 Roslyn 实现是 error（`ERR_PPShebangNotOnFirstLine`），以及 C#「对 `#!` 的 project-based 报错可豁免」的意图——镜像 Roslyn（error）还是 spec（warning）？
-- `TODO`：M0——`Syntax.xml` 加 `ShebangDirectiveTriviaSyntax`（child: `ExclamationToken`）+ 重新生成 `Syntax.xml.Syntax/Main/Internal.Generated.vb`。
-- `TODO`：M1——`ParseConditional.vb` 加 `Case SyntaxKind.ExclamationToken` 派发 + `ParseShebangDirective`（`IsScript` 门控 + 首行检查 + 整行消费）+ `Errors.vb`/`ErrorFacts.vb` 错误码。
+- `OPEN QUESTIONS（2026-08-16 用户定案，全部关闭；M2 实测收敛）`：severity=**error（镜像 Roslyn 实现，spec 的 warning 文字与「豁免 project-based 报错」意图均不采用）**；错误码命名=**fork 风格**（`ERR_ShebangDirectiveOnlyAllowedInScripts` / `ERR_ShebangDirectiveNotOnFirstLine`）；模式门控=**仅 script（遵循 `#R`，不引入 FileBasedProgram 特性标志）**；Content API=**加**（镜像 C#）；REPL=**接受空转**；BOM=**实测**（`U+FEFF#!` 不被识别为指令、无节点、泛化错误 BC30037/BC30201，test-plan L2-9）；`#If False`=**实测**（禁用区不识别、无节点无诊断；位置/模式检查仅对被识别的指令生效，test-plan L2-10）——残留边界验证进 M2 测试。
+- `TODO`：M0——`Syntax.xml` 加 `ShebangDirectiveTriviaSyntax`（child: `ExclamationToken`）+ `Content`/`WithContent` 便利 API + 重新生成 `Syntax.xml.Syntax/Main/Internal.Generated.vb`。
+- `TODO`：M1——`ParseConditional.vb` 加 `Case SyntaxKind.ExclamationToken` 派发 + `ParseShebangDirective`（`IsScript` 门控 + 首行检查 + 整行消费）+ `Errors.vb`/`ErrorFacts.vb` 错误码（`ERR_ShebangDirectiveOnlyAllowedInScripts` / `ERR_ShebangDirectiveNotOnFirstLine`，fork 空隙段编号）。
 - `TODO`：M2——无副作用单测（首行通过、非首行报错、前置空白报错、常规模式报错、任意路径文本、与 `#R`/`#Load` 共存）+ BOM/`#If False` 边界 + LSP script 树交叉验证。
 - `TODO`：Workspaces 分类适配点——`Worker.ClassifyTrivia` 加 `Case SyntaxKind.ShebangDirectiveTrivia → ClassificationTypeNames.Comment`（对齐 C# `Worker.cs:207-210`）；随 LSP 提案复制 Workspaces 层时落地，进 LSP M0/M1 适配点清单。
 
 ### 状态
 
 - **LDM 状态**：**Active**。
-- **三态判定：Active（Proposed）**——方向成立（编译器语法层，镜像 C#）、全部方向问题定论（层级、门控、位置、行尾消费、`#Load` 分工、LSP 零工作）、实现表面源码证据充分（上游 `#R` 管道为模板、词法零改动、唯一新增机械件是整行消费、脚本模式零宿主改动）。归 active 根目录，进入实现规划（M0 → M1 → M2）。
+- **三态判定：Active（Proposed）**——方向成立（编译器语法层，镜像 C#）、全部方向问题定论（层级、门控、位置、行尾消费、`#Load` 分工、LSP 零工作）、**OPEN QUESTIONS 已由用户定案（2026-08-16：error severity / fork 错误码命名 / 仅 script 门控 / 加 Content API / REPL、BOM、`#If False`；其中 BOM 与 `#If False` 边界在 M2 按 VB 实测收敛——不识别、无节点无诊断，test-plan L2-9/L2-10）**、实现表面源码证据充分（fork `#Load` 管道为模板（比上游 `#R` 更完整）、词法零改动、唯一新增机械件是整行消费、脚本模式零宿主改动）。归 active 根目录，进入实现规划（M0 → M1 → M2）。
+- **实现状态（2026-08-16）**：M0-M2 完成，测试全绿——`VisualBasicSyntaxTest` 新增 18 个 `ShebangDirectiveParsingTests` 全过（Syntax 门 4070/4067/3/0）；`Scripting\VisualBasicTest` shebang 用例 7 个全过（L3 3 + L4 4）。实现细节见 `../tasks/shebang-directive/`，能力规范见 `../spec/spec-shebang-directive.md`。
 
 ---
 
@@ -110,10 +112,10 @@ C# 侧 shebang 的 LDM 会议纪要（`..\csharplang` 镜像逐字核实）：
 
 | 环节 | C#（参考基准） | VB fork（本提案落点） |
 |------|---------------|----------------------|
-| 文法/节点 | `shebang_directive_trivia`（`CSharp.Generated.g4:1312`）+ `ShebangDirectiveTriviaSyntax` | 新 `ShebangDirectiveTriviaSyntax`（`Syntax.xml`，child: `ExclamationToken`） |
+| 文法/节点 | `shebang_directive_trivia`（`CSharp.Generated.g4:1404`）+ `ShebangDirectiveTriviaSyntax` | 新 `ShebangDirectiveTriviaSyntax`（`Syntax.xml`，child: `ExclamationToken`） |
 | 派发 | `#` + `ExclamationToken` → `ParseShebangDirective`（`DirectiveParser.cs:111-120`） | `ParseConditional.vb` 的 `Select Case` 加 `Case SyntaxKind.ExclamationToken`（模板：`ReferenceKeyword` @ `:82-83`） |
-| 模式门控 | `ERR_PPShebangInProjectBasedProgram`（9314） | 复用 `IsScript` + `ERR_ReferenceDirectiveOnlyAllowedInScripts` 模式（`ParseConditional.vb:456-458`） |
-| 位置规则 | `ERR_PPShebangNotOnFirstLine`（9378） | 新增对等错误码（位置 0、无前导 trivia） |
-| 行尾消费 | `ParseEndOfDirectiveWithOptionalPreprocessingMessage`（`:694`） | 新增整行消费（否则撞 `ERR_ExpectedEOS`，`Parser.vb:5774-5793`） |
+| 模式门控 | `ERR_PPShebangInProjectBasedProgram`（9314，Script 或 `FileBasedProgram` 特性标志） | 已定仅 `IsScript` + `ERR_ShebangDirectiveOnlyAllowedInScripts`（error，fork 命名；不引入 FileBasedProgram） |
+| 位置规则 | `ERR_PPShebangNotOnFirstLine`（9378，error） | 已定对等错误码 `ERR_ShebangDirectiveNotOnFirstLine`（error，位置 0、无前导 trivia） |
+| 行尾消费 | `ParseEndOfDirectiveWithOptionalPreprocessingMessage`（`:694`，lexer 层 `PreprocessingMessageTrivia`） | 新增 parser 级整行消费（VB 无 `PreprocessingMessage` 机制；否则撞 `ERR_ExpectedEOS`，`Parser.vb:5774-5793`） |
 | 词法 | 语法内 `'#' '!'` | **零改动**（`ScanDateLiteral` 对 `#!` 失败回退 HashToken；`!` 词法化为 ExclamationToken） |
 | 宿主 | csi/dotnet-script 共享编译器树 | **零改动**（`vbi` 走 `CreateSubmission` Script 模式自动生效） |

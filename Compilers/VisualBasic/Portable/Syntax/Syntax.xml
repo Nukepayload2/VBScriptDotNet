@@ -9557,6 +9557,12 @@ Unify Enum declarations with other block type declarations.
       <child name="File" kind="StringLiteralToken"/>
     </node-structure>
 
+    <node-structure name="ShebangDirectiveTriviaSyntax" parent="DirectiveTriviaSyntax">
+      <description>Represents a #! shebang line appearing at the start of a script file.</description>
+      <node-kind name="ShebangDirectiveTrivia"></node-kind>
+      <child name="ExclamationToken" kind="ExclamationToken"></child>
+    </node-structure>
+
     <!-- ************************************************************************************************** -->
     <!-- **  ERROR NODES                                                                                 ** -->
     <!-- ************************************************************************************************** -->

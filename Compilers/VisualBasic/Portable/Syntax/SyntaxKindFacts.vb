@@ -538,6 +538,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     SyntaxKind.DisableWarningDirectiveTrivia,
                     SyntaxKind.ReferenceDirectiveTrivia,
                     SyntaxKind.LoadDirectiveTrivia,
+                    SyntaxKind.ShebangDirectiveTrivia,
                     SyntaxKind.BadDirectiveTrivia
                     Return True
                 Case Else

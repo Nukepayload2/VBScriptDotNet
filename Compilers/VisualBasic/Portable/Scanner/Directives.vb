@@ -21,10 +21,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
 
         Private _isScanningDirective As Boolean = False
         Protected _scannerPreprocessorState As PreprocessorState
+        Private _directiveHashPosition As Integer ' absolute position of '#' of the currently scanned directive
 
         Friend ReadOnly Property DirectiveIsFollowingToken As Boolean
             Get
                 Return _directiveIsFollowingToken
+            End Get
+        End Property
+
+        Friend ReadOnly Property DirectiveHashPosition As Integer
+            Get
+                Return _directiveHashPosition
             End Get
         End Property
 
@@ -40,6 +47,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                 Dim ws = ScanWhitespace()
                 tList.Add(ws)
             End If
+
+            ' Position of the '#' token. Used by #! to verify it is the first character of the file.
+            _directiveHashPosition = _lineBufferOffset
 
             ' SAVE the lookahead state and clear current token
             Dim restorePoint = CreateRestorePoint()
@@ -223,7 +233,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     SyntaxKind.EnableWarningDirectiveTrivia, 'TODO: Add support for processing #Enable and #Disable
                     SyntaxKind.DisableWarningDirectiveTrivia,
                     SyntaxKind.ReferenceDirectiveTrivia,
-                    SyntaxKind.LoadDirectiveTrivia
+                    SyntaxKind.LoadDirectiveTrivia,
+                    SyntaxKind.ShebangDirectiveTrivia
 
                     ' These directives require no processing
 

@@ -377,6 +377,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
                     SyntaxKind.DisableWarningDirectiveTrivia,
                     SyntaxKind.ReferenceDirectiveTrivia,
                     SyntaxKind.LoadDirectiveTrivia,
+                    SyntaxKind.ShebangDirectiveTrivia,
                     SyntaxKind.BadDirectiveTrivia
 
                     Return Not isTrailingTrivia
@@ -1220,6 +1221,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
             AddLinebreaksAfterTokenIfNeeded(node.GetLastToken(), 1)
 
             Return MyBase.VisitLoadDirectiveTrivia(node)
+        End Function
+
+        Public Overrides Function VisitShebangDirectiveTrivia(node As ShebangDirectiveTriviaSyntax) As SyntaxNode
+            AddLinebreaksAfterTokenIfNeeded(node.GetLastToken(), 1)
+
+            Return node
         End Function
 
         Public Overrides Function VisitBadDirectiveTrivia(node As BadDirectiveTriviaSyntax) As SyntaxNode

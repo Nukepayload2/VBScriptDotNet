@@ -4397,6 +4397,12 @@
   <data name="ERR_PPLoadFollowsToken" xml:space="preserve">
     <value>Cannot use #Load after first token in file</value>
   </data>
+  <data name="ERR_ShebangDirectiveOnlyAllowedInScripts" xml:space="preserve">
+    <value>'#!' directives can be only used in scripts</value>
+  </data>
+  <data name="ERR_ShebangDirectiveNotOnFirstLine" xml:space="preserve">
+    <value>'#!' must be the first characters on the first line of the file</value>
+  </data>
   <data name="ERR_PPReferenceFollowsToken" xml:space="preserve">
     <value>Cannot use #r after first token in file</value>
   </data>

@@ -20,7 +20,7 @@
 
 ---
 
-## Active（3 份，根目录）
+## Active（5 份，根目录）
 
 > RESOLUTION = Active 或 Consider。编号为产品提案序列号。Proposed 未定三态的提案暂列 active 根目录，判定待 LDM 会议评估。
 
@@ -30,6 +30,7 @@
 | 02 | `proposal-optional-question-prefix.md` | REPL 表达式开头问号 `?` 可选，对齐 C# REPL 自动打印表达式结果（Active） |
 | 03 | `proposal-vscode-extension-ise-repl-ui.md` | VS Code 扩展：在 VS Code 内置 REPL + 脚本编辑（仿 vscode-powershell 架构，宣传/触达 vs 内存/轻量，与 Avalonia 双路线互补）（Proposed，待 LDM 评估） |
 | 04 | `proposal-byref-like-safety.md` | byref-like 类型安全（对齐 C# `ref struct`）：识别 `IsByRefLikeAttribute` + suppress ref struct obsolete error + 移植 RefStructHelper BCX 规则进编译器 + REPL/脚本顶层约束；**对 vbx 与常规编译模式都生效**，追上 .NET 生态（`Span`/`allows ref struct` 接口）的重要一步（Proposed，设计来源 `meeting-byref-like-repl-safety.md`，服务于 p1 前置-1 D1） |
+| 05 | `proposal-shebang-directive.md` | `.vbx` 首行 `#!` shebang 指令（编译器语法层，镜像 C#；**已实现**，见 `../tasks/shebang-directive/`） |
 
 ---
 
