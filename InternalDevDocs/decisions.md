@@ -4,7 +4,7 @@
 
 - **本文件用途**：记录 VBScript.NET（.vbx）面对 C#/CLR/.NET 生态现实的设计决策，以及「C# 现实方向 → VBScript.NET 应对」映射。**本节原为 `csharplang-index.md` 第三节（M1–M8），按用户指示独立成文**——csharplang-index 只保留 C# interop 事实（T1–T8、文件索引、引用纪律），VBScript.NET 侧决策统一收敛到本文件。
 - **如何使用**：meeting agent 评估提案时，先读本文件「二、M1–M8」定位相关映射与决策；C# 事实（T1–T8、文件索引、引用纪律）见 `csharplang-index.md`；历史会议决策见 `modvb\meetings/`。
-- **相关文件**：`csharplang-index.md`（C# interop 事实索引）；`modvb\meetings/`（102 篇 LDM 会议纪要，其「附录：C# 生态与互操作考量」引用本文件 M1–M8）；`vblang\spec\types.md`（VB 受限类型规则）；`G:\Projects\RefStructHelper`（VB ref struct 分析器）。
+- **相关文件**：`csharplang-index.md`（C# interop 事实索引）；`modvb\meetings/`（102 篇 LDM 会议纪要，其「附录：C# 生态与互操作考量」引用本文件 M1–M8）；`vblang\spec\types.md`（VB 受限类型规则）；`{{VBRefStructHelper}}`（VB ref struct 分析器）。
 
 ---
 
@@ -15,7 +15,7 @@
 ### D1. ref struct 在 VB 的解法 = 自定义分析器（RefStructHelper）
 
 - **VB 规范已有受限类型分析规则**：`System.RuntimeArgumentHandle`、`System.ArgIterator`、`System.TypedReference` 一类受限类型的栈引用限制已写入 `vblang\spec\types.md`。
-- **`G:\Projects\RefStructHelper` 已把规则扩展为 BCX 系列错误码，实现 ref-safe**：BCX31394（转 Object/ValueType）、BCX31396（Nullable(Of T) / 泛型类型实参）、BCX32061（受限/特殊类型作泛型约束）、BCX36598（LINQ 装箱）、BCX36640（lambda 闭包装箱）、BCX37052（async/iterator 状态机装箱）、BCX31393（继承实例方法装箱）。
+- **`{{VBRefStructHelper}}` 已把规则扩展为 BCX 系列错误码，实现 ref-safe**：BCX31394（转 Object/ValueType）、BCX31396（Nullable(Of T) / 泛型类型实参）、BCX32061（受限/特殊类型作泛型约束）、BCX36598（LINQ 装箱）、BCX36640（lambda 闭包装箱）、BCX37052（async/iterator 状态机装箱）、BCX31393（继承实例方法装箱）。
 - **但编译器层面尚未做到 suppress ref struct obsolete error**。
 - **VBScript.NET 做法**：**移植 RefStructHelper 分析器进编译器内部，并在编译器层面 suppress ref struct obsolete error**——这是消费 C# 13 `ref struct` 接口类型（`allows ref struct` 反约束）的前提。
 - **影响**：修正旧表述「VB 基本不支持 ref struct」→「VB 通过自定义分析器实现 ref-safe；编译器层面待移植 suppress obsolete error」。
@@ -78,7 +78,7 @@
 
 ### M7 delegate-enhancements / interface-delegation / implicit-interface-implementation ↔ ref struct interfaces / DIM / extensions（T2, T8）
 - C# 现实：ref struct interfaces + `allows ref struct`（C# 13）、default interface methods（C# 8）、extensions（C# 14/15）。
-- 考量：**方向兼容**。VB 的接口委托/隐式实现需与 DIM、`[UnscopedRef]` 接口成员规则协调。**VB 侧 ref struct 的解法是自定义分析器（决策见 D1）**：VB 规范已有 TypedReference 类受限类型的分析规则（`vblang\spec\types.md`），`G:\Projects\RefStructHelper` 已扩展为 BCX 系列错误码实现 ref-safe；但编译器层面尚未 suppress ref struct obsolete error。vbscriptdotnet 应**移植 RefStructHelper 进编译器内部并在编译器层面 suppress 该 obsolete error**，才能消费 C# 13 的 ref struct 接口类型。
+- 考量：**方向兼容**。VB 的接口委托/隐式实现需与 DIM、`[UnscopedRef]` 接口成员规则协调。**VB 侧 ref struct 的解法是自定义分析器（决策见 D1）**：VB 规范已有 TypedReference 类受限类型的分析规则（`vblang\spec\types.md`），`{{VBRefStructHelper}}` 已扩展为 BCX 系列错误码实现 ref-safe；但编译器层面尚未 suppress ref struct obsolete error。vbscriptdotnet 应**移植 RefStructHelper 进编译器内部并在编译器层面 suppress 该 obsolete error**，才能消费 C# 13 的 ref struct 接口类型。
 
 ### M8 冲突/脱节点 明确提示
 - **unsafe 模型分裂**：unsafe-evolution 的 VB 章节明确「VB 不需要 requires-unsafe」（无指针、无 unsafe 上下文）。但 .NET 11 后 C# 指针会更多地在「非 unsafe 上下文」出现、成员会标 requires-unsafe——VB 编译器必须**认识这些新元数据属性**（RequiresUnsafeAttribute/MemorySafetyRulesAttribute），否则无法正确校验「调用 C# requires-unsafe 成员」的安全性。这是**必须桥接**的点。

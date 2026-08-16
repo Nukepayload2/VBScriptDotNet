@@ -46,7 +46,7 @@
 
 ### 2.3 BCX 规则移植（复用既有检查点，`VB\Binding\` / `VB\Symbols\Source\`）
 
-把独立分析器 `G:\Projects\RefStructHelper` 的 BCX 系列错误码移植进编译器内部，**触发条件从「三个特殊类型」改为「所有 `IsRefLikeType`」**——既有检查点全部走 `IsRestrictedType*` 谓词，改 `IsRestrictedType()` 定义即自动覆盖：
+把独立分析器 `{{VBRefStructHelper}}` 的 BCX 系列错误码移植进编译器内部，**触发条件从「三个特殊类型」改为「所有 `IsRefLikeType`」**——既有检查点全部走 `IsRestrictedType*` 谓词，改 `IsRestrictedType()` 定义即自动覆盖：
 
 - 字段：`SourceMemberFieldSymbol.vb:142-143`；返回/数组：`SourceMethodSymbol.vb:2346`、`Binder_Statements.vb:1158`；转换（装箱）：`Binder_Conversions.vb:121/248/508`；lambda：`Binder_Lambda.vb`（:46/:107/:269/:285/:804/:948/:963）；匿名类型：`Binder_AnonymousTypes.vb:32/:253`；泛型约束：`ConstraintsHelper.vb:661`；async/iterator 捕获：`IteratorAndAsyncCaptureWalker.vb`（:98/:113/:133）。
 - 字段限制对齐 C# `span-safety.md:266`；数组元素限制对齐 `:268`；装箱限制对齐 `:270-271`。

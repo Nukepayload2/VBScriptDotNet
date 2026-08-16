@@ -2,7 +2,7 @@
 
 > 状态：详细设计（F2）。依据链：`../../proposals/proposal-byref-like-safety.md`（Active/Proposed，Detailed design §1-§6）→ `../../meetings/meeting-byref-like-repl-safety.md`（RESOLUTION PROPOSAL A）→ `design-overview.md`（F1 概要，已通过）。
 > 本设计把概要落到「可被 D1 实施者直接照做」的代码级设计。
-> 源码事实均已用内置 Read/Grep 精读核实，引用以 `文件:行号` 给出；文件相对路径均相对仓库根 `G:\Projects\VBScriptDotNet\`，编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`）。
+> 源码事实均已用内置 Read/Grep 精读核实，引用以 `文件:行号` 给出；文件相对路径均相对仓库根，编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`）。
 
 ## 0. 核心判定原则（贯穿全文）
 

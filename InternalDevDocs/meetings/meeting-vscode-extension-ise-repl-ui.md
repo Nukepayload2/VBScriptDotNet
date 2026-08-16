@@ -21,7 +21,7 @@ _Related: `../proposals/proposal-vscode-extension-ise-repl-ui.md`（主检对象
 
 本次会议不重复先导会议的方案盘点，而是把两条技术路线的「运行机制地基」逐条核实清楚，作为候选方案（PROPOSAL A–D）的实证底座。以下事实均按**仓库相对路径**标注，已源码核实，直接作为提案 Detailed design 的参照。
 
-#### 路线一：vscode-powershell 一进程模式（`G:\Projects\vscode-powershell\`）
+#### 路线一：vscode-powershell 一进程模式（`{{VSCodePowershell}}`）
 
 - **单扩展**：`package.json`（main→`dist/extension.js`，esbuild 打包）；`src/extension.ts` 激活入口；`src/session.ts` `SessionManager`（找 pwsh、终端内拉 LSP、持 LanguageClient）；`src/process.ts` `PowerShellProcess`（包装 `vscode.Terminal` 跑 pwsh + Start-EditorServices，轮询会话详情 JSON）。
 - **集成控制台 PIC（Process In Console）**：真实 VS Code 集成终端（`vscode.window.createTerminal`，`src/process.ts:155-183`），pwsh 进程**就是**语言服务器，PSES 在**同一终端**内宿主 console REPL（`-EnableConsoleRepl`），输出原生渲染，PSReadLine 提供多行编辑/提示/历史。握手：PSES 写 `PSES-VSCode-<pid>-<id>.json`（含 `languageServicePipeName`/`debugServicePipeName`），`src/process.ts:288-350` 轮询。
@@ -31,7 +31,7 @@ _Related: `../proposals/proposal-vscode-extension-ise-repl-ui.md`（主检对象
 - **调试**：`DebugAdapterDescriptorFactory`（`src/features/DebugSession.ts:211/:386`）返回 `DebugAdapterNamedPipeServer(debugServicePipeName)`——调试适配器宿主在**已在跑的 PIC 进程内**，无独立 DAP 可执行文件。
 - **可复制模式总结**：一个进程 = REPL + LSP + DAP；内置终端当 REPL；真实编辑功能全在服务器；「运行选中」= evaluate、「运行脚本」= 调试会话；ISE 兼容 = settings toggle；调试器宿主在运行时进程内。
 
-#### 路线二：Zed 扩展机制（`G:\Projects\zed-powershell\` 与 `G:\Projects\zed-dotnet\`，本会议新加入的竞品维度）
+#### 路线二：Zed 扩展机制（`{{ZedPowershell}}` 与 `{{ZedDotnet}}`，本会议新加入的竞品维度）
 
 - **Zed 定位**：原生 Rust、GPU 加速编辑器，**本体内存占用很低**（对比 VS Code 是 Electron/Chromium 外壳，内存占用明显更高）。**支持标准 LSP**（语言服务器经 **stdio** 启动），因此理论上任何语言都能以「Zed 扩展」集成进去——vbx 也不例外。
 - **扩展形态（`zed-powershell` 实证）**：
@@ -118,7 +118,7 @@ _Related: `../proposals/proposal-vscode-extension-ise-repl-ui.md`（主检对象
 
 ## 附录：Zed 与 VS Code 生态对照
 
-> 依据：`G:\Projects\vscode-powershell\`、`G:\Projects\zed-powershell\`、`G:\Projects\zed-dotnet\`（均已源码核实）。产品事实以 `../spec/README.md` 与 `../compilers-index.md` 为准。
+> 依据：`{{VSCodePowershell}}`、`{{ZedPowershell}}`、`{{ZedDotnet}}`（均已源码核实）。产品事实以 `../spec/README.md` 与 `../compilers-index.md` 为准。
 
 | 维度 | VS Code 路线（vscode-powershell 实证） | Zed 路线（zed-powershell / zed-dotnet 实证） |
 |------|----------------------------------------|-----------------------------------------------|

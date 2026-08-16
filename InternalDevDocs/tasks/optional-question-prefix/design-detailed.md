@@ -2,7 +2,7 @@
 
 > 状态：详细设计（F2）。依据链：`../../proposals/proposal-optional-question-prefix.md`（Active）→ `../../meetings/meeting-optional-question-prefix.md`（Active，RESOLUTION #1-#5）→ `design-overview.md`（F1 概要，已通过）。
 > 本设计吸收 F1 验证问题清单 A-F 与 vortex 失败点 P-001/P-002/P-003，把概要落到「可被 F3 实施者直接照做」的代码级设计。
-> 源码事实均已用内置 Read 精读核实，引用以 `文件:行号` 给出；文件相对路径均相对仓库根 `G:\Projects\VBScriptDotNet\`，编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`）。
+> 源码事实均已用内置 Read 精读核实，引用以 `文件:行号` 给出；文件相对路径均相对仓库根，编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`）。
 
 ## 0. 核心判定原则（贯穿全文，防 P-001）
 

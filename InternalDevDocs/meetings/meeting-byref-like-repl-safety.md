@@ -34,7 +34,7 @@ August 12, 2026
 - **VB 编译器没有 ref-like 概念。** `ITypeSymbol.IsRefLikeType` 硬编码 `False`，注释「VB has no concept of ref-like types」（`Compilers\VisualBasic\Portable\Symbols\TypeSymbol.vb:587-590`）。
 - **受限类型分析只覆盖三个特殊类型**：`TypedReference` / `ArgIterator` / `RuntimeArgumentHandle`（`Symbols\SpecialTypeExtensions.vb:84-93` 的 `IsRestrictedType`）。`Span(Of Integer)` 这类任意 ref struct **不在覆盖内**——装箱到 Object、作字段、跨 Await 存活目前编译器都不拦。
 - **没有「suppress ref struct obsolete error」。** C# 侧对 ref-like 类型在元数据里的 `[Obsolete]` 做了过滤（`PENamedTypeSymbol.cs:998`：`filterObsoleteAttribute = IsRefLikeType && ObsoleteAttributeData is null`），VB 没有对应逻辑 → 今天在 VB 里直接用 `Span(Of Integer)` 会撞元数据上的 obsolete 错误。
-- **`G:\Projects\RefStructHelper` 是独立分析器**，把这套规则扩展到所有 ref struct：BCX31394（转 Object/ValueType）、BCX31396（Nullable / 泛型类型实参）、BCX32061（受限/特殊类型作泛型约束）、BCX36598（LINQ）、BCX36640（lambda）、BCX37052（async/iterator）、BCX31393（继承实例方法装箱）；未来项含 scoped/unscoped 返回流分析、`allows ref struct` 约束（README.md）。
+- **`{{VBRefStructHelper}}` 是独立分析器**，把这套规则扩展到所有 ref struct：BCX31394（转 Object/ValueType）、BCX31396（Nullable / 泛型类型实参）、BCX32061（受限/特殊类型作泛型约束）、BCX36598（LINQ）、BCX36640（lambda）、BCX37052（async/iterator）、BCX31393（继承实例方法装箱）；未来项含 scoped/unscoped 返回流分析、`allows ref struct` 约束（README.md）。
 
 ### 三个碰撞点
 

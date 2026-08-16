@@ -40,7 +40,7 @@ C# 侧 shebang 的 LDM 会议纪要（`..\csharplang` 镜像逐字核实）：
 
 #### VB fork 落地表面（全部已核实）
 
-1. **`#R` 是上游已有指令管道，可直接作模板**。基线 `C:\Users\james\Projects\roslyn` 的 VB 编译器自带完整 `#R`：`ReferenceDirectiveTriviaSyntax`（`Syntax.xml:9540`）、派发 `Case SyntaxKind.ReferenceKeyword`（`ParseConditional.vb:82-83`）、`ParseReferenceDirective`（`:448`）、script-only 门控 `If Not IsScript Then AddError(ERR_ReferenceDirectiveOnlyAllowedInScripts)`（`:456-458`）、错误码 `36964`（`Errors.vb:1593`）。`#!` 扩展的是**上游既有机制**，非 fork 发明。
+1. **`#R` 是上游已有指令管道，可直接作模板**。基线 `{{Roslyn}}` 的 VB 编译器自带完整 `#R`：`ReferenceDirectiveTriviaSyntax`（`Syntax.xml:9540`）、派发 `Case SyntaxKind.ReferenceKeyword`（`ParseConditional.vb:82-83`）、`ParseReferenceDirective`（`:448`）、script-only 门控 `If Not IsScript Then AddError(ERR_ReferenceDirectiveOnlyAllowedInScripts)`（`:456-458`）、错误码 `36964`（`Errors.vb:1593`）。`#!` 扩展的是**上游既有机制**，非 fork 发明。
 2. **词法无需改动**：`#` 经 `ScanDateLiteral`（`Scanner\Scanner.vb:1171-1173`）对 `#!` 失败（`!` 非日期字符）回退 `MakeHashToken`；`!` 单独词法化为 `ExclamationToken`（VB 字典访问符既有 token）。`#!` 正确产出 `HashToken` + `ExclamationToken` 序列。
 3. **`ConsumeStatementTerminatorAfterDirective` 会报行尾残留**：VB 解析器在 `TryScanDirective` 后调用它（`Scanner\Directives.vb:57`），对指令行遗留的多余 token 报 `ERR_ExpectedEOS`（`Parser\Parser.vb:5774-5793`）。含义：若 `ParseShebangDirective` 不显式吞行，`/opt/vbi-n2fork/vbi` 会被词法化为 `/`（除号）、`opt`、`vbi` 等 token 留下 → 触发 `ERR_ExpectedEOS`。**这是 VB 侧唯一新增机械件**，对应 C# `ParseEndOfDirectiveWithOptionalPreprocessingMessage`。
 4. **`#Load` 是宿主层预处理，不构成先例**：`#Load` 由 `Scripting\VisualBasic\VisualBasicScriptCompiler.vb` 的 `ExpandLoadDirectives`（`:54-158`）内联删除，不进编译器。`#R` 与 `#!` 是编译器级；`#Load` 留在宿主（执行期文件内联语义）。

@@ -12,7 +12,7 @@
 
 ### 前置-1. D1：移植 RefStructHelper + 编译器层 suppress ref struct obsolete error
 - **来源**：`..\decisions.md` D1 / M7。
-- **内容**：把 `G:\Projects\RefStructHelper` 的 BCX 系列错误码（BCX31394/31396/32061/36598/36640/37052/31393）移植进编译器内部，并在编译器层面 suppress ref struct obsolete error。
+- **内容**：把 `{{VBRefStructHelper}}` 的 BCX 系列错误码（BCX31394/31396/32061/36598/36640/37052/31393）移植进编译器内部，并在编译器层面 suppress ref struct obsolete error。
 - **D4 依据**：C# interop 用例（consume C#13 `allows ref struct` 接口类型）。P1 硬约束适用：obsolete 类误用 ref struct 由运行期 `InvalidProgramException` 改为正确编译报错 = **修错不算回归**。
 - **REPL/脚本侧语义契约**：`..\meetings\meeting-byref-like-repl-safety.md`（2026-08-12）——byref-like 提交内可用、不跨提交持久化；顶层 byref-like `Dim`（脚本类字段）、byref-like 结果（`?`/末尾表达式装箱到 Object）、跨顶层 `Await` 均编译错误；方法体局部/参数/返回值/`allows ref struct` 接口消费可用。D1 落地时按此补 REPL/脚本顶层拒绝与文案（错误码走 restricted-type 族 BC31393/31394/31396/…/37052）。
 - **产品提案**：`..\proposals\proposal-byref-like-safety.md`（2026-08-12，Active/Proposed）——byref-like 类型安全的产品化，**对 vbx 与常规编译模式都生效**；D1 实施按该提案 Detailed design（识别 IsRefLikeType + suppress obsolete + 移植 BCX 规则 + 模式特化 4a/4b）。

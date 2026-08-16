@@ -24,7 +24,7 @@
 
 ## 共享源码事实（所有 Vortex agent 以此为基准，不必重读全部源码）
 
-> 已核实（2026-08-12，本代理逐条 Read/Grep）。引用以 `文件:行号` 给出，如需深读请直接 Read 该文件该区域。编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`），文件相对路径均相对仓库根 `G:\Projects\VBScriptDotNet\`。
+> 已核实（2026-08-12，本代理逐条 Read/Grep）。引用以 `文件:行号` 给出，如需深读请直接 Read 该文件该区域。编译器部分统一前缀 `Compilers\VisualBasic\Portable\`（下文简写 `VB\`），文件相对路径均相对仓库根。
 
 ### 判定细化（改动点 1）
 

@@ -14,7 +14,7 @@
 - **并行提案（非 LSP 集成）**：[`proposal-avalonia-ise-repl-ui.md`](proposal-avalonia-ise-repl-ui.md) —— Avalonia ISE 是**单进程、纯代码直连** fork 编译器（直接调用编译器 API / 分类器，**不走 LSP、无 JSON-RPC 序列化/反序列化开销**），**不依赖本 LSP**。两条独立集成路径，共享同一执行核心与 `ObjectFormatter` 打印路径；本 LSP 只服务外部编辑器客户端，不为 avalonia 增加序列化层。
 - **潜在价值：完整版 VS** —— 本 LSP 复用的 IDE 栈（Workspaces / Features / LanguageServer）与完整版 VS 的 VB 语言服务**同源**（同一套 Roslyn 层），LSP 资产（补层机制、vbx script mode 接入）对完整版 VS 的 VB 支持是潜在复用点（未排期）。
 - **外部参照（成本基线）**：[vb-ls](https://github.com/CoolCoderSuper/vb-ls) —— fork 上游 Roslyn LSP + patch 支持 Visual Basic 的开源语言服务器。本提案的成本评估以它为基线，并说明为何不能直接照搬。
-- **本地基线（补层来源）**：`C:\Users\james\Projects\roslyn` —— 完整 Roslyn 源码树（`release/stable`，实测 ≈ 20724 files，含全部 `Workspaces` / `Features` / `LanguageServer` 层）。本仓库只复制了其中编译器部分（`Compilers\`）并做了产品修改；**未复制的 IDE 层项目就是未修改的基线源码**，需要时从这里原样拉取，无需网络 vendor。
+- **本地基线（补层来源）**：`{{Roslyn}}` —— 完整 Roslyn 源码树（`release/stable`，实测 ≈ 20724 files，含全部 `Workspaces` / `Features` / `LanguageServer` 层）。本仓库只复制了其中编译器部分（`Compilers\`）并做了产品修改；**未复制的 IDE 层项目就是未修改的基线源码**，需要时从这里原样拉取，无需网络 vendor。
 
 ## Summary
 [summary]: #summary
@@ -24,7 +24,7 @@
 1. **普通 VB 项目模式**（`.vbproj` / `.sln`）：用 MSBuild workspace 加载项目，提供完整 IDE 级能力。
 2. **VBX 脚本模式**（松散 `.vbx` 文件）：同一套 Features 栈，仅以 `SourceCodeKind.Script` 语义建立单文件（可经 `#Load` 扩展）脚本编译接入，提供补全 / hover / 诊断 / 格式化等脚本编辑能力。
 
-服务器按打开内容的根目录形态**自动切换模式**。两模式共用同一套「Roslyn LSP + Features」栈（从本地基线 `C:\Users\james\Projects\roslyn` 复制 IDE 栈项目进仓库、对齐 fork 构建），**唯一区别是 script mode**：普通 vb 项目用 MSBuild workspace 加载（`SourceCodeKind.Regular`），vbx 脚本用单文件脚本编译接入（`SourceCodeKind.Script`，`CreateScriptCompilation` + `#R` / `#Load` / `' Attribute TargetFramework` 引用语义）。模式一的实现路径已由 vb-ls 证明成本极低（约 1 行 + 1 个项目引用 + 1 个测试）；模式二是在此基础上把 vbx 作为 script-mode 松散文件接入（扩展名注册 + 脚本引用解析 + 修改语法适配）。本提案的核心价值是把「vb-ls 不可用的 vbx 脚本」补上，并让普通 VB 项目也能吃到 fork 编译器能力（如 [byref-like 安全](proposal-byref-like-safety.md) 对常规模式生效）。
+服务器按打开内容的根目录形态**自动切换模式**。两模式共用同一套「Roslyn LSP + Features」栈（从本地基线 `{{Roslyn}}` 复制 IDE 栈项目进仓库、对齐 fork 构建），**唯一区别是 script mode**：普通 vb 项目用 MSBuild workspace 加载（`SourceCodeKind.Regular`），vbx 脚本用单文件脚本编译接入（`SourceCodeKind.Script`，`CreateScriptCompilation` + `#R` / `#Load` / `' Attribute TargetFramework` 引用语义）。模式一的实现路径已由 vb-ls 证明成本极低（约 1 行 + 1 个项目引用 + 1 个测试）；模式二是在此基础上把 vbx 作为 script-mode 松散文件接入（扩展名注册 + 脚本引用解析 + 修改语法适配）。本提案的核心价值是把「vb-ls 不可用的 vbx 脚本」补上，并让普通 VB 项目也能吃到 fork 编译器能力（如 [byref-like 安全](proposal-byref-like-safety.md) 对常规模式生效）。
 
 ## Motivation
 [motivation]: #motivation
@@ -53,7 +53,7 @@
 - 上游编译器是原版 Roslyn：不认 `.vbx` 扩展名对应的 Script 语义、不懂 `#R` / `#Load` / `' Attribute TargetFramework` 注释、没有顶层 `Function Main` 退出码语义、不认识修改语法（如可选 `?` 前缀 `proposal-optional-question-prefix.md`、byref-like 约束）；
 - 上游 Features 层绑定原版语法树（`SyntaxKind` 枚举、语法节点层次），修改语法会破坏其遍历/匹配假设。
 
-**本项目与 vb-ls 的关键差异（决定不能直接照搬）**：`Compilers\` 是**剪枝过的 Roslyn 编译器树**（实测 ≈ 4763 files），只有编译器（Core/CSharp/VisualBasic/Shared/Test），**没有** `Workspaces` / `Features` / `LanguageServer` 层；`Workspaces\SharedUtilitiesAndExtensions\Compiler\` 只是 `CompilerExtensions` 的局部移植（`.shproj`，377 files），不是完整 Workspaces 层。**但缺的层不必从网络上 vendor**：本地基线 `C:\Users\james\Projects\roslyn` 是完整、未修改的 Roslyn 源码树，与 fork 同源同线（编译核心逐字一致，`LanguageVersion` 同为 `VisualBasic17_13`），**未复制的 IDE 项目就是基线原样**。因此「补层」= 从基线拉取未修改的 IDE 栈项目、对着 fork 编译器编译；IDE 层不需要为 fork 适配——唯一要回答的是「未修改的 IDE 项目能否对着已修改的 fork 编译器编译/运行」（M0 原型验证）。真正的成本在模式 B 的 `.vbx` 脚本接入（扩展名注册 + 脚本引用解析 + 修改语法适配），见 Alternatives。
+**本项目与 vb-ls 的关键差异（决定不能直接照搬）**：`Compilers\` 是**剪枝过的 Roslyn 编译器树**（实测 ≈ 4763 files），只有编译器（Core/CSharp/VisualBasic/Shared/Test），**没有** `Workspaces` / `Features` / `LanguageServer` 层；`Workspaces\SharedUtilitiesAndExtensions\Compiler\` 只是 `CompilerExtensions` 的局部移植（`.shproj`，377 files），不是完整 Workspaces 层。**但缺的层不必从网络上 vendor**：本地基线 `{{Roslyn}}` 是完整、未修改的 Roslyn 源码树，与 fork 同源同线（编译核心逐字一致，`LanguageVersion` 同为 `VisualBasic17_13`），**未复制的 IDE 项目就是基线原样**。因此「补层」= 从基线拉取未修改的 IDE 栈项目、对着 fork 编译器编译；IDE 层不需要为 fork 适配——唯一要回答的是「未修改的 IDE 项目能否对着已修改的 fork 编译器编译/运行」（M0 原型验证）。真正的成本在模式 B 的 `.vbx` 脚本接入（扩展名注册 + 脚本引用解析 + 修改语法适配），见 Alternatives。
 
 ### 期望结果
 
@@ -85,11 +85,11 @@ vbscript-ls（LanguageServer\，自包含 .NET 应用，单进程）
             └─ 补全 / hover / 诊断 / 格式化 等由同一套 Features 提供
 ```
 
-要点：两模式共用同一套「Roslyn LSP + Features」栈（IDE 层从本地基线 `C:\Users\james\Projects\roslyn` 复制进仓库、对着 fork 编译器对齐构建），**区别只有 script mode**：普通项目走 MSBuild workspace（`SourceCodeKind.Regular`），vbx 走松散文件脚本编译（`SourceCodeKind.Script`）。模式 A 的路径已由 vb-ls 证明成本几行 patch；模式 B 是在此基础上把 `.vbx` 作为 script-mode 松散文件接入（扩展名注册 + 脚本引用解析 + 修改语法适配）。
+要点：两模式共用同一套「Roslyn LSP + Features」栈（IDE 层从本地基线 `{{Roslyn}}` 复制进仓库、对着 fork 编译器对齐构建），**区别只有 script mode**：普通项目走 MSBuild workspace（`SourceCodeKind.Regular`），vbx 走松散文件脚本编译（`SourceCodeKind.Script`）。模式 A 的路径已由 vb-ls 证明成本几行 patch；模式 B 是在此基础上把 `.vbx` 作为 script-mode 松散文件接入（扩展名注册 + 脚本引用解析 + 修改语法适配）。
 
 ### 模式 A：普通 VB 项目（复用路径）
 
-- **实现**：从本地基线 `C:\Users\james\Projects\roslyn` 复制 IDE 栈项目（Workspaces / Features / LanguageServer / Protocol）进仓库，对着 fork 编译器对齐构建；套用 vb-ls 的两个 patch（VB Features 进 MEF、autoload `*.vbproj`）。机制与裁剪范围见「补层与构建机制」。
+- **实现**：从本地基线 `{{Roslyn}}` 复制 IDE 栈项目（Workspaces / Features / LanguageServer / Protocol）进仓库，对着 fork 编译器对齐构建；套用 vb-ls 的两个 patch（VB Features 进 MEF、autoload `*.vbproj`）。机制与裁剪范围见「补层与构建机制」。
 - **为什么用 fork 编译器而非基线原版（已定）**：**Decision: 普通项目模式用 fork 编译器**——普通项目也吃 VBScript.NET 增强（byref-like 安全 `spec-byref-like-safety.md` 对常规模式生效），单一编译器、双模式共享语义。
 - **风险**：fork 编译器相对基线有增值修改（如 `Binder_Expressions.vb` 的 host object 绑定与 `IsRefLikeOrAllowsRefLikeType`、`VisualBasicCompilation.vb` 的提交结果判定），未修改的 IDE 项目对着它编译/运行可能踩到 API 差异。**必须先做原型验证（M0）量化缺口**，见里程碑。
 
@@ -128,7 +128,7 @@ vbx 文档的 `Project.Language = VisualBasic` 与普通项目一致，**同一�
 
 ### 补层与构建机制（已调查定论）
 
-**决策：从本地基线复制 IDE 栈项目进仓库，裁剪 VS 专用依赖，对齐 fork 构建。** 源码已在本机（`C:\Users\james\Projects\roslyn`），缺的层直接复制进 fork——仓库自包含、构建只在 fork 内完成，不再依赖外部基线仓库。调查依据：
+**决策：从本地基线复制 IDE 栈项目进仓库，裁剪 VS 专用依赖，对齐 fork 构建。** 源码已在本机（`{{Roslyn}}`），缺的层直接复制进 fork——仓库自包含、构建只在 fork 内完成，不再依赖外部基线仓库。调查依据：
 
 - **复制范围**：`Workspaces`（Core + VisualBasic + MSBuild）、`Features`（Core + VisualBasic）、`LanguageServer`、`Protocol`、`Scripting`（fork 已有）——约 4000+ files。复制后 IDE 栈与 fork 编译器同仓库、同源同线，编译期引用一致。
 - **必须裁剪：Razor**（≈ 3279 files，VB 不需要）。LanguageServer 对 Razor/ExternalAccess 的**代码引用仅 4 处**（实测）：`LanguageServerProjectLoader.cs` 的 targets 路径字符串、`LanguageServerExportProviderBuilder.cs` 的 MEF DLL 声明、`CopilotCompletionResolveContextHandler.cs`、`Razor/TelemetryReporterWrapper.cs`——删除这 4 个引用点 + csproj 删 ProjectReference 即可。VS 专用薄壳 ExternalAccess（Copilot / AspNetCore / Xaml / TestDiscovery / VisualDiagnostics，共 ~100 files）一并裁掉。LanguageServer 对 CSharp.Features **无直接代码引用**（csproj 引用仅为 MEF 组合，vb-ls 的 patch 加 VB Features 同理）——CSharp.Features 是否裁留 M0 确认。

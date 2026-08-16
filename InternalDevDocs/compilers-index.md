@@ -2,7 +2,7 @@
 
 ## 用途
 
-为 `G:\Projects\VBScriptDotNet\Compilers` 目录编制一份「目录结构 + 关键词」索引。目标是：后续 VBScript.NET 实现与设计时，只读这份索引就能快速定位「某个功能/概念在编译器树的哪个目录」，再按需深入读源码，省去逐个目录摸索。
+为仓库根 `Compilers\` 目录编制一份「目录结构 + 关键词」索引。目标是：后续 VBScript.NET 实现与设计时，只读这份索引就能快速定位「某个功能/概念在编译器树的哪个目录」，再按需深入读源码，省去逐个目录摸索。
 
 ## 如何使用
 
@@ -22,6 +22,7 @@
 - 语言版本：C# **CSharp14**（`LanguageVersion.CurrentVersion`）；VB **VisualBasic17_13**（`Latest`）。
 - 目标框架：`netstandard2.0;net10.0`。
 - 来源：修剪/本地化的 Roslyn 编译器树，非完整上游镜像。
+- 上游基准：`{{Roslyn}}` 基准 commit 见 `upstream-merge.md`（一、上游基准）。
 
 ## VBScript 专项提示（本树已有修改）
 

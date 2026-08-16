@@ -1,7 +1,7 @@
 # Visual Basic Language Design Meeting
 August 15, 2026
 
-本次会议是 `proposal-vbscript-lsp` 的专用 1:1 会议。承接 `meeting-vscode-extension-ise-repl-ui.md`（2026-08-10，proposal-03 判 **Consider**，其 RESOLUTION #2 明确「LSP 宿主是两端共同的最大资产，必须先立起来」）。本次会议把「LSP 服务器」这条线从 proposal-03 单独展开：回到源码核实**补层机制**（本地基线 `C:\Users\james\Projects\roslyn` 复用 vs 自建 LSP 宿主——修正 proposal-03 会议「fork 编译器树无 Workspaces/LSP 层、宿主须自建」的旧假设），逐条拍板剩余方向问题（普通项目编译器语义、宿主形态、分发），给出三态判定。
+本次会议是 `proposal-vbscript-lsp` 的专用 1:1 会议。承接 `meeting-vscode-extension-ise-repl-ui.md`（2026-08-10，proposal-03 判 **Consider**，其 RESOLUTION #2 明确「LSP 宿主是两端共同的最大资产，必须先立起来」）。本次会议把「LSP 服务器」这条线从 proposal-03 单独展开：回到源码核实**补层机制**（本地基线 `{{Roslyn}}` 复用 vs 自建 LSP 宿主——修正 proposal-03 会议「fork 编译器树无 Workspaces/LSP 层、宿主须自建」的旧假设），逐条拍板剩余方向问题（普通项目编译器语义、宿主形态、分发），给出三态判定。
 
 ## Agenda
 
@@ -9,19 +9,19 @@ August 15, 2026
 
 ## Proposal: VBScript.NET LSP（普通 VB 项目 + VBX 脚本）
 
-_Related: `../proposals/proposal-vbscript-lsp.md`（主检对象）；姊妹 `../proposals/proposal-vscode-extension-ise-repl-ui.md`（Consider，其会议明确 LSP 宿主须先立起来）；`../proposals/proposal-byref-like-safety.md`（fork 编译器对常规模式生效，普通项目吃 fork 能力的硬理由）；`../proposals/proposal-optional-question-prefix.md`（`?` 前缀，修改语法适配点之一）；外部参照 `C:\Users\james\Projects\vb-ls`（成本基线）；本地基线 `C:\Users\james\Projects\roslyn`（补层来源）_
+_Related: `../proposals/proposal-vbscript-lsp.md`（主检对象）；姊妹 `../proposals/proposal-vscode-extension-ise-repl-ui.md`（Consider，其会议明确 LSP 宿主须先立起来）；`../proposals/proposal-byref-like-safety.md`（fork 编译器对常规模式生效，普通项目吃 fork 能力的硬理由）；`../proposals/proposal-optional-question-prefix.md`（`?` 前缀，修改语法适配点之一）；外部参照 `{{VbLs}}`（成本基线）；本地基线 `{{Roslyn}}`（补层来源）_
 
 ### 场景与缺口
 
 - **vbx 脚本编辑体验是产品最短板**：`.vbx` 无语法高亮、无补全、无 hover、无诊断；REPL 是控制台 `vbi.exe`。普通 `.vbproj` 项目用户同样无 IDE 级编辑能力，且 fork 编译器对常规模式也有增强（byref-like 安全），需要一个能用上这些增强的编辑前端。
-- **vb-ls 覆盖普通 VB 项目但不支持 `.vbx`**：`C:\Users\james\Projects\vb-ls`（成本基线）的做法是 vendor 整个上游 Roslyn + 打 2 个微型 patch（VB Features 进 MEF 组合、autoload `*.vbproj`）+ 28 行 launcher（spawn Roslyn LSP DLL）——**覆盖普通 VB 项目成本 ≈ 几行 patch**，因为上游 IDE 栈现成。但上游编译器不认 `.vbx` 扩展、`#R`/`#Load`/`' Attribute TargetFramework`、Script 语义与修改语法（`?` 前缀、byref-like），Features 层绑定原版 `SyntaxKind`，故 vb-ls 做不了 vbx。
+- **vb-ls 覆盖普通 VB 项目但不支持 `.vbx`**：`{{VbLs}}`（成本基线）的做法是 vendor 整个上游 Roslyn + 打 2 个微型 patch（VB Features 进 MEF 组合、autoload `*.vbproj`）+ 28 行 launcher（spawn Roslyn LSP DLL）——**覆盖普通 VB 项目成本 ≈ 几行 patch**，因为上游 IDE 栈现成。但上游编译器不认 `.vbx` 扩展、`#R`/`#Load`/`' Attribute TargetFramework`、Script 语义与修改语法（`?` 前缀、byref-like），Features 层绑定原版 `SyntaxKind`，故 vb-ls 做不了 vbx。
 - **本会议新增的场景维度**：本项目仓库的 fork 编译器树（`Compilers\`，剪枝自 Roslyn，仅编译器）**没有** Workspaces/Features/LanguageServer 层——补层是走「vendor 上游」还是「复用本地基线」，是本会议要核实的核心。
 
 ### 现状机制（源码核实）——本会议新增价值所在
 
 #### 基线澄清（修正 proposal-03 会议的旧假设）
 
-- `C:\Users\james\Projects\roslyn` 是**完整、未修改**的 Roslyn 源码树（`release/stable`，实测 ≈ 20724 files），含全部 `Workspaces` / `Features` / `LanguageServer` 层。本仓库只复制了其中编译器部分并做产品修改；**未复制的 IDE 层项目就是基线原样**——补层不必从网络 vendor，也不必「自建 LSP 宿主」（proposal-03 会议因当时未确认基线而写的「宿主须自建」假设**修正为：IDE 栈从本地基线复用**）。
+- `{{Roslyn}}` 是**完整、未修改**的 Roslyn 源码树（`release/stable`，实测 ≈ 20724 files），含全部 `Workspaces` / `Features` / `LanguageServer` 层。本仓库只复制了其中编译器部分并做产品修改；**未复制的 IDE 层项目就是基线原样**——补层不必从网络 vendor，也不必「自建 LSP 宿主」（proposal-03 会议因当时未确认基线而写的「宿主须自建」假设**修正为：IDE 栈从本地基线复用**）。
 - fork 与基线**同源同线**：`Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb` 逐字一致、`LanguageVersion` 同为 `VisualBasic17_13`、public API（`PublicAPI.Shipped/Unshipped.txt`）**逐字一致**——fork 只改内部实现。
 - fork 编译器相对基线的**增值修改**（源码 diff 核实）：`Binder_Expressions.vb` 的 host object 绑定（基线为 `TODO (tomat)` 注释）与 `IsRefLikeOrAllowsRefLikeType`、`SynthesizedSubmissionFields.vb` 的 host object 字段（基线注释掉）、`VisualBasicCompilation.vb` 的提交结果判定（method-group 意识 + `ReturnStatement`）。这些是 vbx 脚本语义（globals / 打印 / 退出码）的编译器侧实现，LSP 要的就是这套语义。
 
@@ -44,7 +44,7 @@ _Related: `../proposals/proposal-vbscript-lsp.md`（主检对象）；姊妹 `..
 
 **PROPOSAL B — 轻量自建 LSP 宿主。** 只建 LSP 宿主、fork 编译器直连、能力自研（proposal-03 会议的旧设想要找的路径）。但**标题即 LSP**——Roslyn LSP + Features 栈现成可用（基线），自研补全/分类/格式化纯属重复造轮子——**判定不需要**。
 
-**PROPOSAL C — 复制 IDE 栈项目进仓库 + 裁剪 VS 专用依赖（本提案定论）。** 从本地基线 `C:\Users\james\Projects\roslyn` 复制 `Workspaces`（Core + VisualBasic + MSBuild）、`Features`（Core + VisualBasic）、`LanguageServer`、`Protocol` 进 fork，对着 fork 编译器对齐构建；**裁剪 Razor**（≈ 3279 files，LanguageServer 对其代码引用仅 4 处：targets 路径字符串 / MEF DLL 声明 / `CopilotCompletionResolveContextHandler` / Razor `TelemetryReporterWrapper`，删除即可）+ VS 专用薄壳 ExternalAccess（Copilot / AspNetCore / Xaml / TestDiscovery / VisualDiagnostics，~100 files）；套用 vb-ls 两个 patch；在此之上把 `.vbx` 接入为 script-mode 松散文件（扩展名注册 + 脚本引用解析 + 修改语法适配）。仓库自包含、构建只在 fork 内完成。**判定：采纳。**
+**PROPOSAL C — 复制 IDE 栈项目进仓库 + 裁剪 VS 专用依赖（本提案定论）。** 从本地基线 `{{Roslyn}}` 复制 `Workspaces`（Core + VisualBasic + MSBuild）、`Features`（Core + VisualBasic）、`LanguageServer`、`Protocol` 进 fork，对着 fork 编译器对齐构建；**裁剪 Razor**（≈ 3279 files，LanguageServer 对其代码引用仅 4 处：targets 路径字符串 / MEF DLL 声明 / `CopilotCompletionResolveContextHandler` / Razor `TelemetryReporterWrapper`，删除即可）+ VS 专用薄壳 ExternalAccess（Copilot / AspNetCore / Xaml / TestDiscovery / VisualDiagnostics，~100 files）；套用 vb-ls 两个 patch；在此之上把 `.vbx` 接入为 script-mode 松散文件（扩展名注册 + 脚本引用解析 + 修改语法适配）。仓库自包含、构建只在 fork 内完成。**判定：采纳。**
 
 **两模式唯一区别是 script mode。** 普通项目走 MSBuild workspace（`SourceCodeKind.Regular`），vbx 走松散文件脚本编译（`SourceCodeKind.Script`，`CreateScriptCompilation` + `#R` / `#Load` / `' Attribute TargetFramework` 引用语义）。同一套 Features 栈，差异点收敛为：`SourceCodeKind`、引用来源、松散文件路由、修改语法适配。
 
@@ -78,7 +78,7 @@ _Related: `../proposals/proposal-vbscript-lsp.md`（主检对象）；姊妹 `..
 
 - **提案状态**：`../proposals/proposal-vbscript-lsp.md` 判 **Active**，归 active 根目录；`../proposals/README.md` 索引与提案文件状态行的更新由验证/调度阶段处理。
 - **对 proposal-03 的意义**：本提案 Active 消除了其升级闸门的不确定性来源——LSP 宿主（独立进程）是它的一进程壳（REPL+LSP+DAP）与 Zed stdio 壳共享的核心；本提案 M0/M1 通过后，proposal-03 可升级 Active。**本提案不重复实现 proposal-03 的 TS 客户端 / REPL / DAP，只做服务器。**
-- **仓库结构**：新根目录项目 `LanguageServer\`（`VBScriptDotNet.LanguageServer\` LSP 宿主 + 双模式路由；`VBScriptDotNet.Scripting.Server\` vbx 脚本编译接入：扩展名注册 + 引用解析；`VBScriptDotNet.Server.Test\` 无副作用单测）。IDE 栈构建在本地基线 `C:\Users\james\Projects\roslyn`（不拷贝进 fork 仓库，保持"剪枝"）。
+- **仓库结构**：新根目录项目 `LanguageServer\`（`VBScriptDotNet.LanguageServer\` LSP 宿主 + 双模式路由；`VBScriptDotNet.Scripting.Server\` vbx 脚本编译接入：扩展名注册 + 引用解析；`VBScriptDotNet.Server.Test\` 无副作用单测）。IDE 栈构建在本地基线 `{{Roslyn}}`（不拷贝进 fork 仓库，保持"剪枝"）。
 - **最小原型（M0，串行第一步）**：从基线复制 IDE 栈项目进 fork → 裁剪 Razor/VS 专用依赖 → 对齐 fork 构建（路径 / Arcade 属性 / MEF 验证）→ 跑通最小 LSP（一个 `.vbx` 松散文档 + 一个 `.vbproj`）→ 实测补全/诊断/hover，定位修改语法与 Features 的适配点。
 
 ### OPEN QUESTIONS / TODO / Follow-up
@@ -100,7 +100,7 @@ _Related: `../proposals/proposal-vbscript-lsp.md`（主检对象）；姊妹 `..
 | 维度 | vb-ls（外部参照） | 本项目（proposal-vbscript-lsp） |
 |------|------------------|-------------------------------|
 | 编译器 | vendored 上游 Roslyn 原版 | fork 编译器（`Compilers\`，增值：host object / 提交结果 / byref-like / `?` 前缀） |
-| IDE 栈来源 | vendor 完整上游（网络） | 本地基线 `C:\Users\james\Projects\roslyn`（复制项目进仓库） |
+| IDE 栈来源 | vendor 完整上游（网络） | 本地基线 `{{Roslyn}}`（复制项目进仓库） |
 | IDE 栈接入 | 原样构建 | 复制 + **裁剪 Razor/VS 专用依赖** + 对齐 fork 构建（public API 一致保证兼容） |
 | 覆盖范围 | 普通 VB 项目（`.vbproj` / 松散 `.vb`） | 普通 VB 项目 + **vbx 脚本**（script mode 松散文件） |
 | 成本 | 2 个微型 patch + launcher | 复制 IDE 栈（~4000 files）+ 裁剪 + vb-ls 两 patch + `.vbx` 接入 |

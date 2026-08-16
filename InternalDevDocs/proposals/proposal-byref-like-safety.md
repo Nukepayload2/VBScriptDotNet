@@ -12,7 +12,7 @@
 
 1. **RestrictedType 判定细化**：ref struct 一律视为 **RestrictedType**（沿用既有受限类型概念，不引入用户可写的 `ref struct` 声明修饰符）；编译器认识 `IsByRefLikeAttribute`，`ITypeSymbol.IsRefLikeType` 不再硬编码 `False`，`IsRestrictedType()` 覆盖所有 ref-like。IDE tooltip 显示「ByRef Like Structure」修饰（仅显示、不可声明）。
 2. **suppress obsolete**：编译器层对 ref-like 类型抑制元数据里的 `[Obsolete]`，`Span(Of Integer)` 可直接使用。
-3. **ref-safe 规则移植**：把 `G:\Projects\RefStructHelper` 的 BCX 系列错误码移植进编译器内部，编译期拦截装箱 / `Nullable(Of T)` / 泛型参数 / LINQ / 闭包 / async 状态机 / 字段 / 数组元素等非法用法。
+3. **ref-safe 规则移植**：把 `{{VBRefStructHelper}}` 的 BCX 系列错误码移植进编译器内部，编译期拦截装箱 / `Nullable(Of T)` / 泛型参数 / LINQ / 闭包 / async 状态机 / 字段 / 数组元素等非法用法。
 4. **REPL/脚本模式特有约束**：顶层变量持久化（脚本类字段）与提交结果（打印）不得是 byref-like。
 
 ## Motivation
@@ -124,4 +124,4 @@
 - 会议：`../meetings/meeting-byref-like-repl-safety.md`（REPL/脚本表面语义来源，RESOLUTION PROPOSAL A）
 - 任务：`../tasks/p1-immediate.md` 前置-1（D1）、前置-2（M8 元数据识别）
 - 决策：`../decisions.md` D1 / D4 / M3 / M7 / M8
-- 参考来源：`G:\Projects\RefStructHelper`（BCX 系列分析器）；`../csharplang\proposals\csharp-7.2\span-safety.md`；`../csharplang\meetings\2020\LDM-2020-02-26.md`
+- 参考来源：`{{VBRefStructHelper}}`（BCX 系列分析器）；`../csharplang\proposals\csharp-7.2\span-safety.md`；`../csharplang\meetings\2020\LDM-2020-02-26.md`
