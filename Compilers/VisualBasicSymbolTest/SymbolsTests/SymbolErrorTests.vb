@@ -20649,7 +20649,12 @@ Module Program
     End Sub
 End Module
     ]]></file>
-    </compilation>).VerifyDiagnostics()
+    </compilation>).AssertTheseDiagnostics(
+        <expected>
+BC31393: Expression has the type 'TypedReference' which is a restricted type and cannot be used to access members inherited from 'Object' or 'ValueType'.
+        Dim t = tr.GetType()
+                ~~~~~~~~~~~~
+        </expected>)
         End Sub
 
         ' Check that errors are reported for import statements in a single file.

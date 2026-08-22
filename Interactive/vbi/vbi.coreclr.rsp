@@ -29,6 +29,7 @@
 /r:System
 /r:Microsoft.VisualBasic
 /r:Microsoft.VisualBasic.Core
+/r:System.Private.Xml.Linq
 # extra references
 /r:System.Dynamic.Runtime
 /r:System.Linq

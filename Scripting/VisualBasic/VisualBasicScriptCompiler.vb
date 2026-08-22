@@ -4,6 +4,8 @@
 
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
+Imports System.IO
+Imports System.Linq
 Imports System.Reflection
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.Scripting
@@ -20,6 +22,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
         Private Shared ReadOnly s_defaultOptions As New VisualBasicParseOptions(kind:=SourceCodeKind.Script, languageVersion:=LanguageVersion.Latest)
         Private Shared ReadOnly s_vbRuntimeReference As MetadataReference = MetadataReference.CreateFromAssemblyInternal(GetType(Strings).GetTypeInfo().Assembly)
+
+        ' On .NET Core (10.x) System.Xml.Linq types live in System.Private.Xml.Linq. Roslyn's
+        ' IncludeInternalXmlHelper embeds the XML helper tree whenever these types are reachable through
+        ' referenced facades (e.g. System.Xml.XDocument), but the embedded tree only binds when the
+        ' containing assembly is a direct reference. Reference it by default so script XML literals/imports
+        ' compile even with /nostdlib reference sets.
+        Private Shared ReadOnly s_xmlLinqReference As MetadataReference = MetadataReference.CreateFromFile(
+            Path.Combine(Path.GetDirectoryName(GetType(Object).Assembly.Location), "System.Private.Xml.Linq.dll"))
 
         Private Sub New()
         End Sub
@@ -148,6 +158,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
             Dim diagnostics = DiagnosticBag.GetInstance()
             Dim references = script.GetReferencesForCompilation(MessageProvider.Instance, diagnostics, s_vbRuntimeReference)
+
+            If File.Exists(s_xmlLinqReference.Display) AndAlso
+               Not references.Any(Function(r) String.Equals(r.Display, s_xmlLinqReference.Display, StringComparison.OrdinalIgnoreCase)) Then
+                references = references.Add(s_xmlLinqReference)
+            End If
 
             '  TODO report Diagnostics
             diagnostics.Free()

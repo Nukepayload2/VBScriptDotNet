@@ -766,27 +766,54 @@ BC37329: A value of type 'System.Threading.Lock' is not supported in SyncLock. C
 Block[B0] - Entry
     Statements (0)
     Next (Regular) Block[B1]
-Block[B1] - Block
-    Predecessors: [B0]
-    Statements (2)
-        IExpressionStatementOperation (OperationKind.ExpressionStatement, Type: null, IsInvalid) (Syntax: 'SyncLock l ... nd SyncLock')
-          Expression:
-            IInvalidOperation (OperationKind.Invalid, Type: null, IsInvalid, IsImplicit) (Syntax: 'l')
-              Children(1):
-                  IParameterReferenceOperation: l (OperationKind.ParameterReference, Type: System.Threading.Lock, IsInvalid) (Syntax: 'l')
-        IExpressionStatementOperation (OperationKind.ExpressionStatement, Type: null) (Syntax: 'System.Cons ... ite("Body")')
-          Expression:
-            IInvocationOperation (Sub System.Console.Write(value As System.String)) (OperationKind.Invocation, Type: System.Void) (Syntax: 'System.Cons ... ite("Body")')
-              Instance Receiver:
-                null
-              Arguments(1):
-                  IArgumentOperation (ArgumentKind.Explicit, Matching Parameter: value) (OperationKind.Argument, Type: null) (Syntax: '"Body"')
-                    ILiteralOperation (OperationKind.Literal, Type: System.String, Constant: "Body") (Syntax: '"Body"')
-                    InConversion: CommonConversion (Exists: True, IsIdentity: True, IsNumeric: False, IsReference: False, IsUserDefined: False) (MethodSymbol: null)
-                    OutConversion: CommonConversion (Exists: True, IsIdentity: True, IsNumeric: False, IsReference: False, IsUserDefined: False) (MethodSymbol: null)
-    Next (Regular) Block[B2]
-Block[B2] - Exit
-    Predecessors: [B1]
+        Entering: {R1}
+.locals {R1}
+{
+    CaptureIds: [0]
+    Block[B1] - Block
+        Predecessors: [B0]
+        Statements (1)
+            IFlowCaptureOperation: 0 (OperationKind.FlowCapture, Type: null, IsInvalid, IsImplicit) (Syntax: 'l')
+              Value:
+                IInvocationOperation ( Function System.Threading.Lock.EnterScope() As System.Threading.Lock.Scope) (OperationKind.Invocation, Type: System.Threading.Lock.Scope, IsInvalid, IsImplicit) (Syntax: 'l')
+                  Instance Receiver:
+                    IParameterReferenceOperation: l (OperationKind.ParameterReference, Type: System.Threading.Lock, IsInvalid) (Syntax: 'l')
+                  Arguments(0)
+        Next (Regular) Block[B2]
+            Entering: {R2} {R3}
+    .try {R2, R3}
+    {
+        Block[B2] - Block
+            Predecessors: [B1]
+            Statements (1)
+                IExpressionStatementOperation (OperationKind.ExpressionStatement, Type: null) (Syntax: 'System.Cons ... ite("Body")')
+                  Expression:
+                    IInvocationOperation (Sub System.Console.Write(value As System.String)) (OperationKind.Invocation, Type: System.Void) (Syntax: 'System.Cons ... ite("Body")')
+                      Instance Receiver:
+                        null
+                      Arguments(1):
+                          IArgumentOperation (ArgumentKind.Explicit, Matching Parameter: value) (OperationKind.Argument, Type: null) (Syntax: '"Body"')
+                            ILiteralOperation (OperationKind.Literal, Type: System.String, Constant: "Body") (Syntax: '"Body"')
+                            InConversion: CommonConversion (Exists: True, IsIdentity: True, IsNumeric: False, IsReference: False, IsUserDefined: False) (MethodSymbol: null)
+                            OutConversion: CommonConversion (Exists: True, IsIdentity: True, IsNumeric: False, IsReference: False, IsUserDefined: False) (MethodSymbol: null)
+            Next (Regular) Block[B4]
+                Finalizing: {R4}
+                Leaving: {R3} {R2} {R1}
+    }
+    .finally {R4}
+    {
+        Block[B3] - Block
+            Predecessors (0)
+            Statements (1)
+                IInvocationOperation ( Sub System.Threading.Lock.Scope.Dispose()) (OperationKind.Invocation, Type: System.Void, IsInvalid, IsImplicit) (Syntax: 'l')
+                  Instance Receiver:
+                    IFlowCaptureReferenceOperation: 0 (OperationKind.FlowCaptureReference, Type: System.Threading.Lock.Scope, IsInvalid, IsImplicit) (Syntax: 'l')
+                  Arguments(0)
+            Next (StructuredExceptionHandling) Block[null]
+    }
+}
+Block[B4] - Exit
+    Predecessors: [B2]
     Statements (0)
 ]]>.Value
 

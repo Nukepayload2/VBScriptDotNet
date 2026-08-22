@@ -12,5 +12,6 @@
 | # | 文件 | 问题 | 状态 |
 |---|------|------|------|
 | 01 | `issue-vbx-load-span-shift.md` | vbx `#Load` 文本内联导致后续 TextSpan 漂移（预期：与 C# `#load` 一样零漂移，独立树合并） | **Open** |
+| 02 | `issue-scripting-xml-linq-reference.md` | Scripting 63 失败：net10.0 把 Xml.Linq 移到 `System.Private.Xml.Linq`，`IncludeInternalXmlHelper` 嵌入 helper 树但绑定缺直接引用 → 每个脚本提交 24 个 BC30002 | **Fixed**（2026-08-20） |
 
 > 状态约定：**Open**（待修复）/ **In Progress**（已认领）/ **Fixed**（已验证修复，注明 commit）。
