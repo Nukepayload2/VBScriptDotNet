@@ -216,11 +216,43 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' Collect extension methods with the given name that are in scope in this binder.
         ''' The passed in ArrayBuilder must be empty. Extension methods from the same containing type
         ''' must be grouped together.
+        ''' 'extensionMembers' is a parallel bucket for C# 14 extension members (methods, properties
+        ''' and operators found inside &lt;G&gt;$ extension grouping types); it must also be empty.
         ''' </summary>
         Protected Overridable Sub CollectProbableExtensionMethodsInSingleBinder(name As String,
                                                                         methods As ArrayBuilder(Of MethodSymbol),
+                                                                        extensionMembers As ArrayBuilder(Of Symbol),
                                                                         originalBinder As Binder)
             Debug.Assert(methods.Count = 0)
+            Debug.Assert(extensionMembers.Count = 0)
+        End Sub
+
+        ''' <summary>
+        ''' Collects C# 14 extension members (from &lt;G&gt;$ extension grouping types) with the given
+        ''' name from this binder and all containing binders. The operator-resolution path
+        ''' (OverloadResolution.CollectUserDefinedOperators) is not part of the Binder class
+        ''' hierarchy and therefore cannot call
+        ''' <see cref="CollectProbableExtensionMethodsInSingleBinder"/> directly; this helper
+        ''' exposes the same binder-chain walk through a Friend entry point.
+        ''' </summary>
+        Friend Sub CollectExtensionMembersFromBinders(name As String, members As ArrayBuilder(Of Symbol), originalBinder As Binder)
+            Dim currentBinder As Binder = Me
+
+            Do
+                Dim methods = ArrayBuilder(Of MethodSymbol).GetInstance()
+                Dim extensionMembers = ArrayBuilder(Of Symbol).GetInstance()
+
+                currentBinder.CollectProbableExtensionMethodsInSingleBinder(name, methods, extensionMembers, originalBinder)
+
+                If extensionMembers.Count > 0 Then
+                    members.AddRange(extensionMembers)
+                End If
+
+                methods.Free()
+                extensionMembers.Free()
+
+                currentBinder = currentBinder.m_containingBinder
+            Loop While currentBinder IsNot Nothing
         End Sub
 
         ''' <summary>
@@ -947,7 +979,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' can be reported at a later stage.
         ''' Also, check runtime/language support for the symbol.
         ''' </summary>
-        Friend Sub ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics As BindingDiagnosticBag, symbol As Symbol, node As SyntaxNode)
+        Friend Sub ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics As BindingDiagnosticBag, symbol As Symbol, node As SyntaxNode, Optional receiverIsTypeParameter As Boolean = False)
             If Not Me.SuppressObsoleteDiagnostics Then
                 ReportDiagnosticsIfObsolete(diagnostics, Me.ContainingMember, symbol, node)
             End If
@@ -958,7 +990,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                If(symbol.ContainingType?.IsInterface, False) Then
 
                 If symbol.IsShared AndAlso
-                   symbol.RequiresImplementation() Then
+                   symbol.RequiresImplementation() AndAlso
+                   Not receiverIsTypeParameter Then
                     ReportDiagnostic(diagnostics, node, ERRID.ERR_BadAbstractStaticMemberAccess)
 
                 ElseIf Not Compilation.Assembly.RuntimeSupportsDefaultInterfaceImplementation Then

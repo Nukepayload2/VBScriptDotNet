@@ -28,6 +28,8 @@
 - **byref-like 类型安全（ref struct 支持，已实现）**：见 `spec-byref-like-safety.md`。
 - **REPL 裸表达式自动打印**（表达式开头 `?` 可选）：见 `spec-optional-question-prefix.md`。
 - **`.vbx` 首行 `#!` shebang 指令**（编译器语法层，已实现）：见 `spec-shebang-directive.md`。
+- **消费 C# 扩展成员**（扩展属性/运算符，扩展方法本就可用，已实现）：见 `spec-consume-csharp-extension-members.md`。
+- **消费 C# 接口共享成员**（接口共享成员 SAIM，已实现）：见 `spec-consume-interface-shared-members.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令。
 - **理论上和 C# REPL 不应该有功能差距**。
 - 注意：代码内产品版本号仍停在 `1.2.0-beta`，「2.0 beta」是当前里程碑叫法。

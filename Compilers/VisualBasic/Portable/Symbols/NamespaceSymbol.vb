@@ -456,6 +456,19 @@ Done:
             appendThrough As NamespaceSymbol)
 
         ''' <summary>
+        ''' Add names of viable C# 14 extension members (methods, properties and operators)
+        ''' declared in this namespace to nameSet parameter, for IntelliSense completion.
+        ''' Parallel to AddExtensionMethodLookupSymbolsInfo.
+        ''' </summary>
+        Friend Overridable Sub AddExtensionMemberLookupSymbolsInfo(nameSet As LookupSymbolsInfo,
+                                                                   options As LookupOptions,
+                                                                   originalBinder As Binder)
+            For Each containedType As NamedTypeSymbol In Me.TypesToCheckForExtensionMethods
+                containedType.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
+            Next
+        End Sub
+
+        ''' <summary>
         ''' Populate the map with all probable extension methods declared within this namespace, so that methods from
         ''' the same type were grouped together within each bucket. 
         ''' </summary>
@@ -466,11 +479,22 @@ Done:
         End Sub
 
         ''' <summary>
-        ''' Gets all extension methods in this namespace given a method's name. 
+        ''' Gets all extension methods in this namespace given a method's name.
         ''' </summary>
         Friend Overridable Sub GetExtensionMethods(methods As ArrayBuilder(Of MethodSymbol), name As String)
             For Each containedType As NamedTypeSymbol In Me.TypesToCheckForExtensionMethods
                 containedType.GetExtensionMethods(methods, appendThrough:=Me, Name:=name)
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' Gets all C# 14 extension members (methods, properties and operators) in this namespace
+        ''' given a member's name. Parallel to GetExtensionMethods but collects into an
+        ''' ArrayBuilder(Of Symbol).
+        ''' </summary>
+        Friend Overridable Sub GetExtensionMembers(members As ArrayBuilder(Of Symbol), name As String)
+            For Each containedType As NamedTypeSymbol In Me.TypesToCheckForExtensionMethods
+                containedType.GetExtensionMembers(members, appendThrough:=Me, Name:=name)
             Next
         End Sub
 
@@ -523,6 +547,15 @@ Done:
                     BuildExtensionMethodsMapBucket(bucket, method)
                 End If
             End If
+        End Sub
+
+        ''' <summary>
+        ''' Adds a C# 14 extension member (already filtered to IsExtensionMember by the caller)
+        ''' to the parallel ArrayBuilder(Of Symbol) bucket. Overridable so RetargetingNamespaceSymbol
+        ''' can retarget the symbol before it enters the bucket.
+        ''' </summary>
+        Friend Overridable Sub AddExtensionMember(bucket As ArrayBuilder(Of Symbol), member As Symbol)
+            bucket.Add(member)
         End Sub
 
         ''' <summary>

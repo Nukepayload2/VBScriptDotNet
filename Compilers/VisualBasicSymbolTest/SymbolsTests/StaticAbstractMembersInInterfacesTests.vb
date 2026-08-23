@@ -270,7 +270,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         I1.M01()
@@ -303,7 +304,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Sub() T.M01(), System.Linq.Expressions.Expression(Of System.Action))
                             ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        I1.M01()
+        ~~~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.M01()
+        ~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        x.M01()
+        ~~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.M04()
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.M03()
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.M04()
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.M00()
+        ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        T.M05()
+        ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Sub() T.M01(), System.Linq.Expressions.Expression(Of System.Action))
+                            ~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -353,7 +387,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC32098: Type parameters cannot be used as qualifiers.
         s = nameof(T.M01)
@@ -370,9 +405,26 @@ BC32098: Type parameters cannot be used as qualifiers.
 BC32098: Type parameters cannot be used as qualifiers.
         s = nameof(T.M05)
                    ~~~~~
-
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC32098: Type parameters cannot be used as qualifiers.
+        s = nameof(T.M03)
+                   ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        s = nameof(T.M04)
+                   ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        s = nameof(T.M00)
+                   ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        s = nameof(T.M05)
+                     ~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -424,7 +476,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _d = AddressOf I1.M01
@@ -457,7 +510,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Function() AddressOf T.M01, System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
                                            ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = AddressOf I1.M01
+                       ~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = AddressOf x.M01
+             ~~~~~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = AddressOf x.M01
+                       ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = AddressOf x.M04
+             ~~~~~~~~~~~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = AddressOf T.M03
+                       ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = AddressOf T.M04
+                       ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = AddressOf T.M00
+                       ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        _d = AddressOf T.M05
+                       ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() AddressOf T.M01, System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
+                                 ~~~~~~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -509,7 +595,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _d = DirectCast(AddressOf I1.M01, System.Action)
@@ -542,7 +629,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Function() DirectCast(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
                                                       ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = DirectCast(AddressOf I1.M01, System.Action)
+                                  ~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = DirectCast(AddressOf x.M01, System.Action)
+                        ~~~~~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = DirectCast(AddressOf x.M01, System.Action)
+                                  ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = DirectCast(AddressOf x.M04, System.Action)
+                        ~~~~~~~~~~~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = DirectCast(AddressOf T.M03, System.Action)
+                                  ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = DirectCast(AddressOf T.M04, System.Action)
+                                  ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = DirectCast(AddressOf T.M00, System.Action)
+                                  ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        _d = DirectCast(AddressOf T.M05, System.Action)
+                                  ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() DirectCast(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
+                                            ~~~~~~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -594,7 +714,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _d = TryCast(AddressOf I1.M01, System.Action)
@@ -627,7 +748,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Function() TryCast(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
                                                    ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = TryCast(AddressOf I1.M01, System.Action)
+                               ~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = TryCast(AddressOf x.M01, System.Action)
+                     ~~~~~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = TryCast(AddressOf x.M01, System.Action)
+                               ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = TryCast(AddressOf x.M04, System.Action)
+                     ~~~~~~~~~~~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = TryCast(AddressOf T.M03, System.Action)
+                               ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = TryCast(AddressOf T.M04, System.Action)
+                               ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = TryCast(AddressOf T.M00, System.Action)
+                               ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        _d = TryCast(AddressOf T.M05, System.Action)
+                               ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() TryCast(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
+                                         ~~~~~~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -679,7 +833,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _d = CType(AddressOf I1.M01, System.Action)
@@ -712,7 +867,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Function() CType(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
                                                  ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = CType(AddressOf I1.M01, System.Action)
+                             ~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = CType(AddressOf x.M01, System.Action)
+                   ~~~~~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = CType(AddressOf x.M01, System.Action)
+                             ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = CType(AddressOf x.M04, System.Action)
+                   ~~~~~~~~~~~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = CType(AddressOf T.M03, System.Action)
+                             ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = CType(AddressOf T.M04, System.Action)
+                             ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = CType(AddressOf T.M00, System.Action)
+                             ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        _d = CType(AddressOf T.M05, System.Action)
+                             ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() CType(AddressOf T.M01, System.Action), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
+                                       ~~~~~~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -764,7 +952,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _d = New System.Action(AddressOf I1.M01)
@@ -797,7 +986,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Function() New System.Action(AddressOf T.M01), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
                                                              ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = New System.Action(AddressOf I1.M01)
+                                         ~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = New System.Action(AddressOf x.M01)
+                               ~~~~~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _d = New System.Action(AddressOf x.M01)
+                                         ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _d = New System.Action(AddressOf x.M04)
+                               ~~~~~~~~~~~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = New System.Action(AddressOf T.M03)
+                                         ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = New System.Action(AddressOf T.M04)
+                                         ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _d = New System.Action(AddressOf T.M00)
+                                         ~~~~~
+BC30390: 'I1.Sub M05()' is not accessible in this context because it is 'Protected'.
+        _d = New System.Action(AddressOf T.M05)
+                                         ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() New System.Action(AddressOf T.M01), System.Linq.Expressions.Expression(Of System.Func(Of System.Action)))
+                                                   ~~~~~~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Fact>
@@ -1044,7 +1266,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         _i = I1.P01
@@ -1077,7 +1300,40 @@ BC32098: Type parameters cannot be used as qualifiers.
         Dim x = CType(Sub() T.P01.ToString(), System.Linq.Expressions.Expression(Of System.Action))
                             ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _i = I1.P01
+             ~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        _i = x.P01
+             ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _i = x.P01
+             ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        _i = x.P04
+             ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _i = T.P03
+             ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _i = T.P04
+             ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _i = T.P00
+             ~~~~~
+BC30389: 'I1.P05' is not accessible in this context because it is 'Protected'.
+        _i = T.P05
+             ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Sub() T.P01.ToString(), System.Linq.Expressions.Expression(Of System.Action))
+                            ~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -1123,7 +1379,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         I1.P01 = 1
@@ -1159,7 +1416,40 @@ BC36534: Expression cannot be converted into an expression tree.
         Dim x = CType(Sub() T.P01 = 1, System.Linq.Expressions.Expression(Of System.Action))
                             ~~~~~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        I1.P01 = 1
+        ~~~~~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.P01 = 1
+        ~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        x.P01 = 1
+        ~~~~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.P04 = 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P03 = 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P04 = 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P00 = 1
+        ~~~~~
+BC30389: 'I1.P05' is not accessible in this context because it is 'Protected'.
+        T.P05 = 1
+        ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Sub() T.P01 = 1, System.Linq.Expressions.Expression(Of System.Action))
+                            ~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -1205,7 +1495,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         I1.P01 += 1
@@ -1247,7 +1538,49 @@ BC36534: Expression cannot be converted into an expression tree.
         Dim x = CType(Sub() T.P01 += 1, System.Linq.Expressions.Expression(Of System.Action))
                             ~~~~~~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        I1.P01 += 1
+        ~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        I1.P01 += 1
+        ~~~~~~~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        x.P01 += 1
+        ~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.P01 += 1
+        ~~~~~
+BC37314: A shared abstract or virtual interface member cannot be accessed.
+        x.P01 += 1
+        ~~~~~~~~~~
+BC42025: Access of shared member, constant member, enum member or nested type through an instance; qualifying expression will not be evaluated.
+        x.P04 += 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P03 += 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P04 += 1
+        ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        T.P00 += 1
+        ~~~~~
+BC30389: 'I1.P05' is not accessible in this context because it is 'Protected'.
+        T.P05 += 1
+        ~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Sub() T.P01 += 1, System.Linq.Expressions.Expression(Of System.Action))
+                            ~~~~~
+BC36534: Expression cannot be converted into an expression tree.
+        Dim x = CType(Sub() T.P01 += 1, System.Linq.Expressions.Expression(Of System.Action))
+                            ~~~~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -1293,7 +1626,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC32098: Type parameters cannot be used as qualifiers.
         _s = nameof(T.P01)
@@ -1311,7 +1645,25 @@ BC32098: Type parameters cannot be used as qualifiers.
         _s = nameof(T.P05)
                     ~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC32098: Type parameters cannot be used as qualifiers.
+        _s = nameof(T.P03)
+                    ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _s = nameof(T.P04)
+                    ~~~~~
+BC32098: Type parameters cannot be used as qualifiers.
+        _s = nameof(T.P00)
+                    ~~~~~
+BC30389: 'I1.P05' is not accessible in this context because it is 'Protected'.
+        _s = nameof(T.P05)
+                      ~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Fact>
@@ -1417,18 +1769,6 @@ BC37314: A shared abstract or virtual interface member cannot be accessed.
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         x.Item(0) += 1
         ~~~~~~~~~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        _i = T.Item(0)
-             ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        T.Item(0) = 1
-        ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        T.Item(0) += 1
-        ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        _s = nameof(T.Item)
-                    ~~~~~~
 </errors>
             )
 
@@ -1670,18 +2010,6 @@ BC37314: A shared abstract or virtual interface member cannot be accessed.
 BC37314: A shared abstract or virtual interface member cannot be accessed.
         x.Item(0) += 1
         ~~~~~~~~~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        _i = T.Item(0)
-             ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        T.Item(0) = 1
-        ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        T.Item(0) += 1
-        ~~~~~~
-BC32098: Type parameters cannot be used as qualifiers.
-        _s = nameof(T.Item)
-                    ~~~~~~
 </errors>
             )
         End Sub
@@ -2342,7 +2670,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC30487: Operator '-' is not defined for type 'I1'.
         _o = -x
@@ -2357,7 +2686,19 @@ BC30487: Operator '-' is not defined for type 'T'.
         _o = -z
              ~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC30487: Operator '-' is not defined for type 'I1'.
+        _o = -x
+             ~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() -y, System.Linq.Expressions.Expression(Of System.Func(Of Object)))
+                                 ~~
+</errors>
+                )
+            End If
         End Sub
 
         <Theory>
@@ -2403,7 +2744,8 @@ End Class
 </compilation>
 
             Dim comp1 = CreateCompilation(source1, targetFramework:=_supportingFramework, references:={csCompilation})
-            comp1.AssertTheseDiagnostics(
+            If isVirtual Then
+                comp1.AssertTheseDiagnostics(
 <errors>
 BC30452: Operator '-' is not defined for types 'I1' and 'I1'.
         _o = x1 - x2
@@ -2418,7 +2760,19 @@ BC30452: Operator '-' is not defined for types 'T' and 'T'.
         _o = z1 - z2
              ~~~~~~~
 </errors>
-            )
+                )
+            Else
+                comp1.AssertTheseDiagnostics(
+<errors>
+BC30452: Operator '-' is not defined for types 'I1' and 'I1'.
+        _o = x1 - x2
+             ~~~~~~~
+BC37340: An expression tree may not contain an access of static virtual or abstract interface member.
+        Dim x = CType(Function() y1 - y2, System.Linq.Expressions.Expression(Of System.Func(Of Object)))
+                                 ~~~~~~~
+</errors>
+                )
+            End If
         End Sub
 
         <Fact>

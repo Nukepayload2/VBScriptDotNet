@@ -5,6 +5,7 @@
 Imports System.Globalization
 Imports System.IO
 Imports System.Reflection
+Imports Microsoft.CodeAnalysis.CSharp
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
 Imports Microsoft.CodeAnalysis.VisualBasic
@@ -57,6 +58,30 @@ Public Class CommandLineRunnerTests
             {syntaxTree},
             references,
             New VisualBasicCompilationOptions(OutputKind.DynamicallyLinkedLibrary, rootNamespace:=""))
+
+        Dim result = compilation.Emit(assemblyPath)
+        Assert.True(result.Success, String.Join(Environment.NewLine, result.Diagnostics))
+        Return assemblyPath
+    End Function
+
+    ''' <summary>
+    ''' Builds a C# 14 extension-member library (extension properties/operators, SAIM) in-memory with the
+    ''' in-repo C# compiler (LanguageVersion.Preview) and emits it to the given isolated temp directory.
+    ''' Used by the R-series tests; no dependency on an external ExternLib.dll artifact.
+    ''' </summary>
+    Private Shared Function CreateCSharpLibraryAssembly(directory As String, assemblyName As String, source As String) As String
+        Dim assemblyPath = Path.Combine(directory, assemblyName + ".dll")
+        Dim parseOptions = CSharp.CSharpParseOptions.Default.WithLanguageVersion(CSharp.LanguageVersion.Preview)
+        Dim syntaxTree = CSharp.CSharpSyntaxTree.ParseText(source, parseOptions)
+        Dim references = {
+            MetadataReference.CreateFromFile(GetType(Object).Assembly.Location)
+        }
+
+        Dim compilation = CSharp.CSharpCompilation.Create(
+            assemblyName,
+            {syntaxTree},
+            references,
+            New CSharp.CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
 
         Dim result = compilation.Emit(assemblyPath)
         Assert.True(result.Success, String.Join(Environment.NewLine, result.Diagnostics))
@@ -1188,6 +1213,153 @@ End Sub")
 > ? 42
 42
 >", runner.Console.Out.ToString())
+    End Sub
+
+#End Region
+
+#Region "Consume C# 14 extension members - L2 REPL/scripts (test-plan section 4, R1-R4/R9)"
+
+    Private Const _extensionCsLibrary As String = "
+using System;
+namespace ExternLib
+{
+    public static class ClassicExt { public static int Twice(this int value) => value * 2; }
+    public static class NewExt
+    {
+        extension(string s)
+        {
+            public int CharCount => s.Length;
+            public string Shout() => s.ToUpperInvariant();
+        }
+    }
+    public interface IHasZero<T> where T : IHasZero<T>
+    {
+        static abstract T Zero { get; }
+        static abstract T Add(T a, T b);
+    }
+    public struct MyNum : IHasZero<MyNum>
+    {
+        public int Value;
+        public MyNum(int v) { Value = v; }
+        public static MyNum Zero => new MyNum(0);
+        public static MyNum Add(MyNum a, MyNum b) => new MyNum(a.Value + b.Value);
+    }
+}
+public static class VecExt
+{
+    extension(MyVec v)
+    {
+        public static MyVec operator +(MyVec a, MyVec b) => new MyVec(a.X + b.X, a.Y + b.Y);
+    }
+}
+public struct MyVec
+{
+    public int X;
+    public int Y;
+    public MyVec(int x, int y) { X = x; Y = y; }
+    public override string ToString() => $""({X},{Y})"";
+}
+"
+
+    ''' <summary>
+    ''' R1: .vbx script consumes a C# 14 extension property ("hello".CharCount -> 5) via #r.
+    ''' </summary>
+    <Fact>
+    Public Sub TestExtensionPropertyInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libPath = CreateCSharpLibraryAssembly(directory, "ExternLib", _extensionCsLibrary)
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "#r """ & libPath & """
+Imports ExternLib
+Print(""hello"".CharCount)")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        Assert.Contains("5", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R2: .vbx script consumes a C# 14 extension operator (MyVec + MyVec -> (11,22)).
+    ''' NOTE: the operands must be typed MyVec. In a script the interactive host defaults to
+    ''' Option Infer Off, so "Dim a = New MyVec(...)" would type `a` as Object and `a + b` would
+    ''' fall back to a late-bound AddObject at runtime; explicit "As MyVec" forces early binding.
+    ''' </summary>
+    <Fact>
+    Public Sub TestExtensionOperatorInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libPath = CreateCSharpLibraryAssembly(directory, "ExternLib", _extensionCsLibrary)
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "#r """ & libPath & """
+Imports ExternLib
+Dim a As MyVec = New MyVec(1, 2) : Dim b As MyVec = New MyVec(10, 20)
+Print((a + b).ToString())")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        Assert.Contains("(11,22)", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R3: .vbx script runs the T.Zero/T.Add generic algorithm (VBSum(Of MyNum) -> 30).
+    ''' </summary>
+    <Fact>
+    Public Sub TestTypeParameterSharedMembersInScriptFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libPath = CreateCSharpLibraryAssembly(directory, "ExternLib", _extensionCsLibrary)
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "#r """ & libPath & """
+Imports ExternLib
+Function VBSum(Of T As IHasZero(Of T))(items() As T) As T
+    Dim result As T = T.Zero
+    For Each item In items
+        result = T.Add(result, item)
+    Next
+    Return result
+End Function
+Print(VBSum(Of MyNum)({New MyNum(10), New MyNum(20)}).Value)")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(0, runner.RunInteractive())
+        Assert.Contains("30", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R4: .vbx and Regular share the same compiler: without Imports ExternLib the extension property
+    ''' reports BC30456 in a script file, matching the L1 S11/Regular diagnostic.
+    ''' </summary>
+    <Fact>
+    Public Sub TestExtensionPropertyScriptFileNoImportsReportsBC30456()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libPath = CreateCSharpLibraryAssembly(directory, "ExternLib", _extensionCsLibrary)
+        File.WriteAllText(Path.Combine(directory, "main.vbx"), "#r """ & libPath & """
+Print(""hello"".CharCount)")
+
+        Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+        Assert.Equal(1, runner.RunInteractive())
+        Assert.Contains("BC30456", runner.Console.Error.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' R9: interactive Imports scope -- without Imports ExternLib the extension property errors (BC30456);
+    ''' after submitting Imports ExternLib it resolves to 5.
+    ''' </summary>
+    <Fact>
+    Public Sub TestExtensionPropertyInteractiveImportsScope()
+        Dim directory = CreateIsolatedTempDirectory()
+        Dim libPath = CreateCSharpLibraryAssembly(directory, "ExternLib", _extensionCsLibrary)
+
+        ' No Imports: extension member out of scope.
+        Dim runner1 = CreateRunner(input:="#r """ & libPath & """" & vbCrLf & "? ""hello"".CharCount")
+        runner1.RunInteractive()
+        Dim output1 = runner1.Console.Out.ToString()
+        Assert.Contains("«Red»", output1)
+        Assert.Contains("BC30456", output1)
+
+        ' With Imports ExternLib in the same session: resolves to 5.
+        Dim runner2 = CreateRunner(input:="#r """ & libPath & """" & vbCrLf & "Imports ExternLib" & vbCrLf & "? ""hello"".CharCount")
+        runner2.RunInteractive()
+        Assert.Contains("5", runner2.Console.Out.ToString())
     End Sub
 
 #End Region

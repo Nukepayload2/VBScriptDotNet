@@ -479,6 +479,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.CodeGen
 
             If isStatic Then
                 _builder.EmitNullConstant()
+
+                ' C# 11 static abstract interface member (SAIM) consumed through a constrained type
+                ' parameter (e.g. AddressOf T.Add where T is constrained to the declaring interface):
+                ' emit 'constrained.' + 'ldftn' so the JIT dispatches on the actual type argument.
+                ' Mirror of the C# emitter's EmitDelegateCreation (CSharp EmitConversion.cs).
+                If method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType() AndAlso
+                   receiver IsNot Nothing AndAlso receiver.Kind = BoundKind.TypeExpression AndAlso
+                   receiver.Type IsNot Nothing AndAlso receiver.Type.TypeKind = TypeKind.TypeParameter Then
+                    _builder.EmitOpCode(ILOpCode.Constrained)
+                    EmitSymbolToken(receiver.Type, receiver.Syntax)
+                End If
             Else
                 EmitExpression(receiver, True)
                 If Not IsVerifierReference(receiver.Type) Then
@@ -982,6 +993,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.CodeGen
             [Call]
             CallVirt
             ConstrainedCallVirt
+            ConstrainedCall
         End Enum
 
         Private Sub EmitCallExpression([call] As BoundCall, useKind As UseKind)
@@ -1006,7 +1018,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.CodeGen
             Dim tempOpt As LocalDefinition = Nothing
 
             If method.IsShared Then
-                callKind = CallKind.Call
+                If method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType() AndAlso
+                   receiver IsNot Nothing AndAlso receiver.Kind = BoundKind.TypeExpression AndAlso
+                   receiver.Type.TypeKind = TypeKind.TypeParameter Then
+                    ' C# 11 static abstract interface member consumed through a constrained type
+                    ' parameter (e.g. T.Zero / T.Add where T is constrained to the declaring
+                    ' interface): emit 'constrained.' + 'call' so the JIT dispatches on the actual
+                    ' type argument. Mirror of the C# emitter's EmitStaticCallExpression.
+                    callKind = CallKind.ConstrainedCall
+                Else
+                    callKind = CallKind.Call
+                End If
             Else
                 stackBehavior = stackBehavior - 1
                 Dim receiverType = receiver.Type
@@ -1112,6 +1134,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.CodeGen
                     _builder.EmitOpCode(ILOpCode.Constrained)
                     EmitSymbolToken(receiver.Type, receiver.Syntax)
                     _builder.EmitOpCode(ILOpCode.Callvirt, stackBehavior)
+
+                Case CallKind.ConstrainedCall
+                    _builder.EmitOpCode(ILOpCode.Constrained)
+                    EmitSymbolToken(receiver.Type, receiver.Syntax)
+                    _builder.EmitOpCode(ILOpCode.Call, stackBehavior)
 
             End Select
 

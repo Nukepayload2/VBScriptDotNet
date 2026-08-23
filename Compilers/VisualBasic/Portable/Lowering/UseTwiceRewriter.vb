@@ -311,7 +311,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             If receiverOpt Is Nothing Then
                 receiver = New Result(Nothing, Nothing)
             ElseIf node.PropertySymbol.IsShared Then
-                receiver = New Result(receiverOpt, Nothing)
+                If receiverOpt.Kind = BoundKind.TypeExpression AndAlso receiverOpt.Type.TypeKind = TypeKind.TypeParameter Then
+                    ' C# 11 static abstract interface member (SAIM) accessed through a constrained
+                    ' type parameter: the type-parameter receiver is required on BOTH the get and
+                    ' set access for the 'constrained.' + 'call' emission. Dropping it on the second
+                    ' (get) access would emit a plain 'call' to an abstract static member, which is
+                    ' invalid IL. Mirrors EmitExpression's ConstrainedCall condition.
+                    receiver = New Result(receiverOpt, receiverOpt)
+                Else
+                    receiver = New Result(receiverOpt, Nothing)
+                End If
             ElseIf receiverOpt.IsLValue AndAlso receiverOpt.Type.IsReferenceType Then
                 Dim boundTemp As BoundLocal = Nothing
                 receiver = New Result(CaptureInATemp(containingMember, receiverOpt.MakeRValue(), arg, boundTemp), boundTemp)

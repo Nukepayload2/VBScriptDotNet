@@ -607,6 +607,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
             End Get
         End Property
 
+        Friend Overrides ReadOnly Property IsExtensionMember As Boolean
+            Get
+                ' A C# 14 extension member: a property inside an extension grouping type (<G>$<hash>)
+                ' carrying an [ExtensionMarker] attribute (emitted on the property symbol, not on a
+                ' separately marked accessor).
+                Dim markerName As String = Nothing
+                Return _containingType.IsExtensionGroupingType AndAlso
+                       _containingType.ContainingPEModule.Module.HasExtensionMarkerAttribute(_handle, markerName)
+            End Get
+        End Property
+
         Friend Overrides ReadOnly Property IsMyGroupCollectionProperty As Boolean
             Get
                 Return False

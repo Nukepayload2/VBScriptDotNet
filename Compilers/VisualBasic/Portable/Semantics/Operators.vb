@@ -2853,8 +2853,15 @@ Next_i:
             name2Opt As String,
             name2InfoOpt As OperatorInfo,
             opSet As ArrayBuilder(Of MethodSymbol),
-            <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
+            <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol),
+            Optional binder As Binder = Nothing
         )
+            ' Keep the original operand types: GetTypeToLookForOperatorsIn replaces a type parameter
+            ' with its non-interface constraint, but C# 11 static abstract operators are found through
+            ' the operand's interface constraints (their effective interface set).
+            Dim originalType1 As TypeSymbol = type1
+            Dim originalType2 As TypeSymbol = type2
+
             type1 = GetTypeToLookForOperatorsIn(type1, useSiteInfo)
 
             If type2 IsNot Nothing Then
@@ -2900,7 +2907,190 @@ Next_i:
                 Loop While current IsNot Nothing
             End If
 
+            ' Append C# 11 static abstract operators (SAIM operators) declared on the interface
+            ' constraints of a type parameter operand (e.g. a + b where a and b are T and T is
+            ' constrained to IV(Of T) declaring 'static abstract T operator +(T, T)'). These are
+            ' found through the operand's effective interface set (interface constraints + their
+            ' AllInterfaces), independent of binder scope. SAIM operators land as MethodKind.Ordinary
+            ' in the PE symbol model, so they are identified by their shared+abstract+interface shape.
+            If opKind = MethodKind.UserDefinedOperator Then
+                CollectInterfaceConstraintSharedOperators(originalType1, originalType2, name1, name1Info, name2Opt, name2InfoOpt, opSet, useSiteInfo)
+            End If
+
+            ' Append C# 14 extension operators in scope: after the type-hierarchy collection is
+            ' complete, add extension operators collected from <G>$ grouping types. type1/type2
+            ' here are the operand types as resolved by GetTypeToLookForOperatorsIn; the extension
+            ' operator's receiver (first operand) must match one of them.
+            If binder IsNot Nothing AndAlso opKind = MethodKind.UserDefinedOperator Then
+                CollectExtensionUserDefinedOperators(binder, type1, type2, name1, opSet, useSiteInfo)
+
+                If name2Opt IsNot Nothing Then
+                    CollectExtensionUserDefinedOperators(binder, type1, type2, name2Opt, opSet, useSiteInfo)
+                End If
+            End If
+
         End Sub
+
+        ''' <summary>
+        ''' Collects C# 14 extension operators (declared in &lt;G&gt;$ extension grouping types) with the
+        ''' given operator name that are in scope at the binder, reduces each against the operand
+        ''' types (the receiver must match one of them), and appends the reduced operators to opSet.
+        ''' The reduced operators are presented with MethodKind.UserDefinedOperator and keep all of
+        ''' their operands, so they flow through the existing operator-resolution machinery unchanged.
+        ''' </summary>
+        Private Shared Sub CollectExtensionUserDefinedOperators(
+            binder As Binder,
+            type1 As TypeSymbol,
+            type2 As TypeSymbol,
+            opName As String,
+            opSet As ArrayBuilder(Of MethodSymbol),
+            <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
+        )
+            Dim extensionMembers = ArrayBuilder(Of Symbol).GetInstance()
+            binder.CollectExtensionMembersFromBinders(opName, extensionMembers, binder)
+
+            ' Deduplicate reductions of the same operator (e.g. the same grouping type reachable
+            ' through several binder scopes, or a receiver matching both operands).
+            Dim seen As New HashSet(Of MethodSymbol)()
+
+            For Each member In extensionMembers
+                If member.Kind <> SymbolKind.Method Then
+                    Continue For
+                End If
+
+                Dim method = DirectCast(member, MethodSymbol)
+                If Not method.IsExtensionMember Then
+                    Continue For
+                End If
+
+                ' Extension operators land as MethodKind.Ordinary in the PE symbol model (the
+                ' grouping type is not an operand type, so ValidateOverloadedOperator fails), so
+                ' identify them by their op_ name rather than by MethodKind.
+                If OverloadResolution.GetOperatorInfo(method.Name).ParamCount = 0 Then
+                    Continue For
+                End If
+
+                Dim reduced As MethodSymbol = Nothing
+
+                If type1 IsNot Nothing Then
+                    reduced = TryCast(ReducedExtensionMemberReducer.ReduceExtensionMember(
+                        type1, method, useSiteInfo, binder.Compilation.LanguageVersion, proximity:=0), MethodSymbol)
+                End If
+
+                If reduced Is Nothing AndAlso type2 IsNot Nothing Then
+                    reduced = TryCast(ReducedExtensionMemberReducer.ReduceExtensionMember(
+                        type2, method, useSiteInfo, binder.Compilation.LanguageVersion, proximity:=0), MethodSymbol)
+                End If
+
+                If reduced IsNot Nothing AndAlso seen.Add(reduced) Then
+                    opSet.Add(reduced)
+                End If
+            Next
+
+            extensionMembers.Free()
+        End Sub
+
+        ''' <summary>
+        ''' Collects C# 11 static abstract interface operators (SAIM operators, e.g.
+        ''' 'static abstract T operator +(T, T)') declared on the effective interface set of a type
+        ''' parameter operand. When either operand is a type parameter constrained to interfaces that
+        ''' declare such operators, the operators are appended to opSet so that 'a + b' can resolve to
+        ''' the interface's shared operator (later emitted as 'constrained.' + 'call').
+        ''' </summary>
+        Private Shared Sub CollectInterfaceConstraintSharedOperators(
+            type1 As TypeSymbol,
+            type2 As TypeSymbol,
+            name1 As String,
+            name1Info As OperatorInfo,
+            name2Opt As String,
+            name2InfoOpt As OperatorInfo,
+            opSet As ArrayBuilder(Of MethodSymbol),
+            <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
+        )
+            Dim seen As New HashSet(Of MethodSymbol)()
+
+            If type1 IsNot Nothing Then
+                CollectInterfaceConstraintSharedOperators(type1, name1, name1Info, name2Opt, name2InfoOpt, seen, opSet, useSiteInfo)
+            End If
+
+            If type2 IsNot Nothing Then
+                CollectInterfaceConstraintSharedOperators(type2, name1, name1Info, name2Opt, name2InfoOpt, seen, opSet, useSiteInfo)
+            End If
+        End Sub
+
+        Private Shared Sub CollectInterfaceConstraintSharedOperators(
+            type As TypeSymbol,
+            name1 As String,
+            name1Info As OperatorInfo,
+            name2Opt As String,
+            name2InfoOpt As OperatorInfo,
+            seen As HashSet(Of MethodSymbol),
+            opSet As ArrayBuilder(Of MethodSymbol),
+            <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
+        )
+            If type Is Nothing OrElse type.Kind <> SymbolKind.TypeParameter Then
+                Return
+            End If
+
+            Dim typeParameter = DirectCast(type, TypeParameterSymbol)
+            Dim interfaces = ArrayBuilder(Of NamedTypeSymbol).GetInstance()
+
+            Try
+                ' Effective interface set = interface constraints + their AllInterfaces
+                ' (aligns with the C# 11 spec for user-defined operators considered over S_i/T_i).
+                For Each constraint In typeParameter.ConstraintTypesWithDefinitionUseSiteDiagnostics(useSiteInfo)
+                    If constraint.IsInterfaceType() Then
+                        Dim iface = DirectCast(constraint, NamedTypeSymbol)
+                        interfaces.Add(iface)
+                        interfaces.AddRange(iface.AllInterfacesWithDefinitionUseSiteDiagnostics(useSiteInfo))
+                    End If
+                Next
+
+                For Each iface In interfaces
+                    CollectSharedOperatorsOnInterface(iface, name1, name1Info, seen, opSet)
+
+                    If name2Opt IsNot Nothing Then
+                        CollectSharedOperatorsOnInterface(iface, name2Opt, name2InfoOpt, seen, opSet)
+                    End If
+                Next
+            Finally
+                interfaces.Free()
+            End Try
+        End Sub
+
+        Private Shared Sub CollectSharedOperatorsOnInterface(
+            iface As NamedTypeSymbol,
+            opName As String,
+            opInfo As OperatorInfo,
+            seen As HashSet(Of MethodSymbol),
+            opSet As ArrayBuilder(Of MethodSymbol)
+        )
+            For Each member In iface.GetMembers(opName)
+                Dim method As MethodSymbol = TryCast(member, MethodSymbol)
+
+                If method Is Nothing Then
+                    Continue For
+                End If
+
+                ' SAIM operators land as MethodKind.Ordinary in the PE symbol model (the interface is
+                ' not one of the operand types, so ValidateOverloadedOperator fails), so identify them by
+                ' the shared+abstract+interface shape rather than by MethodKind. The parameter count must
+                ' match the operator shape being resolved (1 for unary, 2 for binary). No reduction is
+                ' needed: on the constructed interface (IV(Of U)) the operator already has the operand
+                ' types (U, U) substituted in.
+                If method.ParameterCount <> opInfo.ParamCount OrElse Not IsStaticAbstractInterfaceOperator(method) Then
+                    Continue For
+                End If
+
+                If seen.Add(method) Then
+                    opSet.Add(method)
+                End If
+            Next
+        End Sub
+
+        Private Shared Function IsStaticAbstractInterfaceOperator(method As MethodSymbol) As Boolean
+            Return method.IsShared AndAlso method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType()
+        End Function
 
         ''' <summary>
         ''' Returns True if we should stop climbing inheritance hierarchy.
@@ -2955,7 +3145,7 @@ Next_i:
             CollectUserDefinedOperators(argument.Type, Nothing, MethodKind.UserDefinedOperator,
                                         WellKnownMemberNames.TrueOperatorName, New OperatorInfo(UnaryOperatorKind.IsTrue),
                                         Nothing, Nothing,
-                                        opSet, useSiteInfo)
+                                        opSet, useSiteInfo, binder)
 
             Dim result = OperatorInvocationOverloadResolution(opSet, argument, Nothing, binder, lateBindingIsAllowed:=False, includeEliminatedCandidates:=False,
                                                               useSiteInfo:=useSiteInfo)
@@ -2969,7 +3159,7 @@ Next_i:
             CollectUserDefinedOperators(argument.Type, Nothing, MethodKind.UserDefinedOperator,
                                         WellKnownMemberNames.FalseOperatorName, New OperatorInfo(UnaryOperatorKind.IsFalse),
                                         Nothing, Nothing,
-                                        opSet, useSiteInfo)
+                                        opSet, useSiteInfo, binder)
 
             Dim result = OperatorInvocationOverloadResolution(opSet, argument, Nothing, binder, lateBindingIsAllowed:=False, includeEliminatedCandidates:=False,
                                                               useSiteInfo:=useSiteInfo)
@@ -2992,17 +3182,17 @@ Next_i:
                     CollectUserDefinedOperators(argument.Type, Nothing, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.OnesComplementOperatorName, opInfo,
                                                 WellKnownMemberNames.LogicalNotOperatorName, opInfo,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case UnaryOperatorKind.Minus
                     CollectUserDefinedOperators(argument.Type, Nothing, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.UnaryNegationOperatorName, New OperatorInfo(UnaryOperatorKind.Minus),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case UnaryOperatorKind.Plus
                     CollectUserDefinedOperators(argument.Type, Nothing, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.UnaryPlusOperatorName, New OperatorInfo(UnaryOperatorKind.Minus),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case Else
                     Throw ExceptionUtilities.UnexpectedValue(opKind)
             End Select
@@ -3028,107 +3218,107 @@ Next_i:
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.AdditionOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Subtract
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.SubtractionOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Multiply
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.MultiplyOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Divide
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.DivisionOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.IntegerDivide
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.IntegerDivisionOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Modulo
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.ModulusOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Power
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.ExponentOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Equals
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.EqualityOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.NotEquals
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.InequalityOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.LessThan
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.LessThanOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.GreaterThan
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.GreaterThanOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.LessThanOrEqual
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.LessThanOrEqualOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.GreaterThanOrEqual
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.GreaterThanOrEqualOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Like
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.LikeOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Concatenate
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.ConcatenateOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.And, BinaryOperatorKind.AndAlso
                     Dim opInfo As New OperatorInfo(opKind)
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.BitwiseAndOperatorName, opInfo,
                                                 WellKnownMemberNames.LogicalAndOperatorName, opInfo,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
 
                 Case BinaryOperatorKind.Or, BinaryOperatorKind.OrElse
                     Dim opInfo As New OperatorInfo(opKind)
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.BitwiseOrOperatorName, opInfo,
                                                 WellKnownMemberNames.LogicalOrOperatorName, opInfo,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.Xor
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.ExclusiveOrOperatorName, New OperatorInfo(opKind),
                                                 Nothing, Nothing,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.LeftShift
                     Dim opInfo As New OperatorInfo(opKind)
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.LeftShiftOperatorName, opInfo,
                                                 WellKnownMemberNames.UnsignedLeftShiftOperatorName, opInfo,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case BinaryOperatorKind.RightShift
                     Dim opInfo As New OperatorInfo(opKind)
                     CollectUserDefinedOperators(left.Type, right.Type, MethodKind.UserDefinedOperator,
                                                 WellKnownMemberNames.RightShiftOperatorName, opInfo,
                                                 WellKnownMemberNames.UnsignedRightShiftOperatorName, opInfo,
-                                                opSet, useSiteInfo)
+                                                opSet, useSiteInfo, binder)
                 Case Else
                     Throw ExceptionUtilities.UnexpectedValue(opKind)
             End Select

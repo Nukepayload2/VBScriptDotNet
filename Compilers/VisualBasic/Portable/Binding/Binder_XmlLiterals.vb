@@ -1526,12 +1526,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
         Private ReadOnly _originalDefinition As PropertySymbol
 
+        ' When set (a C# 14 extension property imported from a <G>$ grouping type), the extension
+        ' receiver is not an explicit parameter of the original property -- it lives on the
+        ' grouping type's <Extension>$(receiver) marker method. When Nothing (the classic
+        ' InternalXmlHelper.Value shape), the receiver is the original property's first parameter.
+        Private ReadOnly _receiverType As TypeSymbol
+
         Public Sub New(originalDefinition As PropertySymbol)
+            Me.New(originalDefinition, receiverType:=Nothing)
+        End Sub
+
+        Public Sub New(originalDefinition As PropertySymbol, receiverType As TypeSymbol)
             Debug.Assert(originalDefinition IsNot Nothing)
-            Debug.Assert(originalDefinition.IsShared)
-            Debug.Assert(originalDefinition.ParameterCount = 1)
+
+            If receiverType Is Nothing Then
+                ' Classic extension-property shape: the receiver is the (only) parameter.
+                Debug.Assert(originalDefinition.IsShared)
+                Debug.Assert(originalDefinition.ParameterCount = 1)
+            End If
 
             _originalDefinition = originalDefinition
+            _receiverType = receiverType
         End Sub
 
         Friend Overrides ReadOnly Property ReducedFrom As PropertySymbol
@@ -1546,8 +1561,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End Get
         End Property
 
+        ''' <summary>
+        ''' True when the extension receiver is an explicit type (a C# 14 extension property
+        ''' imported from a &lt;G&gt;$ grouping type, where the receiver lives on the grouping type's
+        ''' &lt;Extension&gt;$(receiver) marker method rather than as a parameter of the property).
+        ''' False for the classic InternalXmlHelper.Value shape, where the receiver is the
+        ''' property's first parameter.
+        ''' </summary>
+        Friend ReadOnly Property HasExplicitReceiverType As Boolean
+            Get
+                Return _receiverType IsNot Nothing
+            End Get
+        End Property
+
         Friend Overrides ReadOnly Property ReceiverType As TypeSymbol
             Get
+                If _receiverType IsNot Nothing Then
+                    Return _receiverType
+                End If
                 Return _originalDefinition.Parameters(0).Type
             End Get
         End Property
@@ -1737,6 +1768,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Friend Overrides ReadOnly Property CallsiteReducedFromMethod As MethodSymbol
                 Get
+                    ' For a C# 14 extension property (explicit receiver type on the associated
+                    ' property), the grouping-type accessor is an instance method of the grouping
+                    ' type; the actual callable is the top-level static shim that takes the
+                    ' receiver as an explicit parameter.
+                    If _associatedProperty._receiverType IsNot Nothing Then
+                        Dim shim = ReducedExtensionMemberReducer.FindTopLevelShim(_originalDefinition)
+                        If shim IsNot Nothing Then
+                            Return shim
+                        End If
+                    End If
                     Return _originalDefinition
                 End Get
             End Property
@@ -1933,6 +1974,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Friend Overrides ReadOnly Property ParameterCount As Integer
                 Get
+                    ' For a C# 14 extension property (explicit receiver type on the associated
+                    ' property) the receiver is not a parameter of the accessor, so nothing to strip.
+                    If _associatedProperty._receiverType IsNot Nothing Then
+                        Return _originalDefinition.ParameterCount
+                    End If
                     Return _originalDefinition.ParameterCount - 1
                 End Get
             End Property
@@ -1940,7 +1986,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Public Overrides ReadOnly Property Parameters As ImmutableArray(Of ParameterSymbol)
                 Get
                     If _lazyParameters.IsDefault Then
-                        ImmutableInterlocked.InterlockedInitialize(_lazyParameters, ReducedAccessorParameterSymbol.MakeParameters(Me, _originalDefinition.Parameters))
+                        Dim skipReceiver As Boolean = _associatedProperty._receiverType Is Nothing
+                        ImmutableInterlocked.InterlockedInitialize(_lazyParameters, ReducedAccessorParameterSymbol.MakeParameters(Me, _originalDefinition.Parameters, skipReceiver))
                     End If
                     Return _lazyParameters
                 End Get
@@ -2012,18 +2059,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Private NotInheritable Class ReducedAccessorParameterSymbol
             Inherits ReducedParameterSymbolBase
 
-            Public Shared Function MakeParameters(propertyOrAccessor As Symbol, originalParameters As ImmutableArray(Of ParameterSymbol)) As ImmutableArray(Of ParameterSymbol)
+            Public Shared Function MakeParameters(propertyOrAccessor As Symbol, originalParameters As ImmutableArray(Of ParameterSymbol), Optional skipReceiver As Boolean = True) As ImmutableArray(Of ParameterSymbol)
                 Dim n = originalParameters.Length
 
-                If n <= 1 Then
-                    Debug.Assert(n = 1)
-                    Return ImmutableArray(Of ParameterSymbol).Empty
+                If skipReceiver Then
+                    If n <= 1 Then
+                        Debug.Assert(n = 1)
+                        Return ImmutableArray(Of ParameterSymbol).Empty
+                    Else
+                        Dim parameters(n - 2) As ParameterSymbol
+                        For i = 0 To n - 2
+                            parameters(i) = New ReducedAccessorParameterSymbol(propertyOrAccessor, originalParameters(i + 1))
+                        Next
+                        Return parameters.AsImmutableOrNull()
+                    End If
                 Else
-                    Dim parameters(n - 2) As ParameterSymbol
-                    For i = 0 To n - 2
-                        parameters(i) = New ReducedAccessorParameterSymbol(propertyOrAccessor, originalParameters(i + 1))
-                    Next
-                    Return parameters.AsImmutableOrNull()
+                    If n = 0 Then
+                        Return ImmutableArray(Of ParameterSymbol).Empty
+                    Else
+                        Dim parameters(n - 1) As ParameterSymbol
+                        For i = 0 To n - 1
+                            parameters(i) = New ReducedAccessorParameterSymbol(propertyOrAccessor, originalParameters(i))
+                        Next
+                        Return parameters.AsImmutableOrNull()
+                    End If
                 End If
             End Function
 

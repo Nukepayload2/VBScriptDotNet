@@ -405,6 +405,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        ''' <summary>
+        ''' True if this property is a C# 14 extension member (an [ExtensionMarker]-marked
+        ''' property inside an extension grouping type). False for all source and non-PE
+        ''' symbols.
+        ''' </summary>
+        Friend Overridable ReadOnly Property IsExtensionMember As Boolean
+            Get
+                Return False
+            End Get
+        End Property
+
         Friend Overrides Function GetUseSiteInfo() As UseSiteInfo(Of AssemblySymbol)
             If Me.IsDefinition Then
                 Return New UseSiteInfo(Of AssemblySymbol)(PrimaryDependency)

@@ -277,7 +277,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         Public MustOverride ReadOnly Property MightContainExtensionMethods As Boolean Implements INamedTypeSymbol.MightContainExtensionMethods
 
         ''' <summary>
-        ''' Returns True if the type is marked by 'Microsoft.CodeAnalysis.Embedded' attribute. 
+        ''' True if this is a C# 14 extension grouping type (&lt;G&gt;$&lt;hash&gt;): a nested type
+        ''' inside an [Extension] container that is itself marked [Extension] and holds the
+        ''' [ExtensionMarker]-marked extension-member implementations (methods/properties/operators).
+        ''' Base implementation returns False; overridden by PENamedTypeSymbol which reads the
+        ''' metadata [Extension] attribute on nested types.
+        ''' </summary>
+        Friend Overridable ReadOnly Property IsExtensionGroupingType As Boolean
+            Get
+                Return False
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Returns True if the type is marked by 'Microsoft.CodeAnalysis.Embedded' attribute.
         ''' </summary>
         Friend MustOverride ReadOnly Property HasCodeAnalysisEmbeddedAttribute As Boolean
 
@@ -349,6 +362,112 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 Next
             End If
         End Sub
+
+        ''' <summary>
+        ''' True if the given symbol is a C# 14 extension member (an [ExtensionMarker]-marked
+        ''' method, property or operator inside an extension grouping type). Dispatches over
+        ''' MethodSymbol/PropertySymbol since IsExtensionMember is declared on those bases only.
+        ''' </summary>
+        Private Shared Function IsExtensionMemberSymbol(symbol As Symbol) As Boolean
+            If symbol.Kind = SymbolKind.Method Then
+                Return DirectCast(symbol, MethodSymbol).IsExtensionMember
+            ElseIf symbol.Kind = SymbolKind.Property Then
+                Return DirectCast(symbol, PropertySymbol).IsExtensionMember
+            End If
+            Return False
+        End Function
+
+        ''' <summary>
+        ''' Entry point for the Binder to collect probable C# 14 extension members (methods,
+        ''' properties and operators) with the given name declared within this named type's
+        ''' extension grouping types (&lt;G&gt;$&lt;hash&gt;). Collects into a parallel
+        ''' ArrayBuilder(Of Symbol) so the classic ArrayBuilder(Of MethodSymbol)
+        ''' extension-method path is left untouched.
+        ''' </summary>
+        Friend Overridable Sub AppendProbableExtensionMembers(name As String, members As ArrayBuilder(Of Symbol))
+            If Me.MightContainExtensionMethods Then
+                For Each nested As NamedTypeSymbol In Me.GetTypeMembers()
+                    If Not nested.IsExtensionGroupingType Then Continue For
+                    For Each member As Symbol In nested.GetMembers(name)
+                        If IsExtensionMemberSymbol(member) Then
+                            members.Add(member)
+                        End If
+                    Next
+                Next
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Gets all C# 14 extension members (methods, properties and operators) in this type
+        ''' given a member's name. Parallel to GetExtensionMethods but walks the extension
+        ''' grouping types and collects into an ArrayBuilder(Of Symbol). The 'appendThrough'
+        ''' parameter allows RetargetingNamespaceSymbol to retarget symbols (mirrors
+        ''' GetExtensionMethods' appendThrough chain).
+        ''' </summary>
+        Friend Overridable Sub GetExtensionMembers(
+            members As ArrayBuilder(Of Symbol),
+            appendThrough As NamespaceSymbol,
+            Name As String
+        )
+            If Me.MightContainExtensionMethods Then
+                For Each nested As NamedTypeSymbol In Me.GetTypeMembers()
+                    If Not nested.IsExtensionGroupingType Then Continue For
+                    For Each member As Symbol In nested.GetMembers(Name)
+                        If IsExtensionMemberSymbol(member) Then
+                            appendThrough.AddExtensionMember(members, member)
+                        End If
+                    Next
+                Next
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Add names of viable C# 14 extension members (methods, properties and operators)
+        ''' declared in this type's extension grouping types to nameSet parameter, for
+        ''' IntelliSense completion. Parallel to AddExtensionMethodLookupSymbolsInfo.
+        ''' </summary>
+        Friend Overridable Sub AddExtensionMemberLookupSymbolsInfo(nameSet As LookupSymbolsInfo,
+                                                                   options As LookupOptions,
+                                                                   originalBinder As Binder)
+            If Me.MightContainExtensionMethods Then
+                For Each nested As NamedTypeSymbol In Me.GetTypeMembers()
+                    If Not nested.IsExtensionGroupingType Then Continue For
+                    For Each member As Symbol In nested.GetMembers()
+                        If IsExtensionMemberSymbol(member) AndAlso IsNameableExtensionMember(member) AndAlso
+                           originalBinder.CanAddLookupSymbolInfo(member, options, nameSet, member.ContainingType) Then
+                            nameSet.AddSymbol(member, member.Name, member.GetArity())
+                        End If
+                    Next
+                Next
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Filters out property accessor methods (get_X/set_X) that are compiler details and
+        ''' should not surface as standalone IntelliSense completions; keeps ordinary methods,
+        ''' user-defined operators and properties.
+        ''' </summary>
+        Friend Shared Function IsNameableExtensionMember(symbol As Symbol) As Boolean
+            If symbol.Kind = SymbolKind.Property Then
+                Return True
+            End If
+            Dim method = TryCast(symbol, MethodSymbol)
+            If method Is Nothing Then
+                Return False
+            End If
+
+            ' Property accessors (get_/set_) are compiler details, not standalone completion
+            ' members. The PE model classifies them as PropertyGet/PropertySet; guard with
+            ' IsAccessor (AssociatedSymbol) too so a metadata shape that lands accessors as
+            ' MethodKind.Ordinary still excludes them.
+            If method.IsAccessor() OrElse
+               method.MethodKind = MethodKind.PropertyGet OrElse
+               method.MethodKind = MethodKind.PropertySet Then
+                Return False
+            End If
+
+            Return method.MethodKind = MethodKind.Ordinary OrElse method.MethodKind = MethodKind.UserDefinedOperator
+        End Function
 
         ''' <summary>
         ''' This is an entry point for the Binder. Its purpose is to add names of viable extension methods declared 

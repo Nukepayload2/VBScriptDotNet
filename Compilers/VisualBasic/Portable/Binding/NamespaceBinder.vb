@@ -84,15 +84,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         Protected Overrides Sub CollectProbableExtensionMethodsInSingleBinder(name As String,
                                                                       methods As ArrayBuilder(Of MethodSymbol),
+                                                                      extensionMembers As ArrayBuilder(Of Symbol),
                                                                       originalBinder As Binder)
             Debug.Assert(methods.Count = 0)
+            Debug.Assert(extensionMembers.Count = 0)
             _nsSymbol.AppendProbableExtensionMethods(name, methods)
+            _nsSymbol.GetExtensionMembers(extensionMembers, name)
         End Sub
 
         Protected Overrides Sub AddExtensionMethodLookupSymbolsInfoInSingleBinder(nameSet As LookupSymbolsInfo,
                                                                                    options As LookupOptions,
                                                                                    originalBinder As Binder)
             _nsSymbol.AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder)
+            _nsSymbol.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
         End Sub
 
         Friend Overrides Sub AddLookupSymbolsInfoInSingleBinder(nameSet As LookupSymbolsInfo, options As LookupOptions, originalBinder As Binder)

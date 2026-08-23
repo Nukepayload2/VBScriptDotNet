@@ -80,7 +80,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Debug.Assert(options.IsValid())
             Debug.Assert(lookupResult.IsClear)
             options = BinderSpecificLookupOptions(options)
-            MemberLookup.LookupForExtensionMethods(lookupResult, container, name, arity, options, Me, useSiteInfo)
+            MemberLookup.LookupForExtensionMethods(lookupResult, container, name, arity, options, Me, Nothing, useSiteInfo)
         End Sub
 
         Friend Sub LookupMemberInModules(lookupResult As LookupResult,
@@ -1166,8 +1166,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 End If
 
                 tempResult.Clear()
-                LookupForExtensionMethods(tempResult, container, name, arity, options, binder, useSiteInfo)
-                MergeInternalXmlHelperValueIfNecessary(tempResult, container, name, arity, options, binder, useSiteInfo)
+                Dim extensionMembers = ArrayBuilder(Of Symbol).GetInstance()
+                LookupForExtensionMethods(tempResult, container, name, arity, options, binder, extensionMembers, useSiteInfo)
+                MergeExtensionPropertiesIfNecessary(tempResult, extensionMembers, container, name, arity, options, binder, useSiteInfo)
+                extensionMembers.Free()
                 result.MergeOverloadedOrPrioritized(tempResult, checkIfCurrentHasOverloads:=False)
             End Sub
 
@@ -1185,6 +1187,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 arity As Integer,
                 options As LookupOptions,
                 binder As Binder,
+                ByRef extensionMembers As ArrayBuilder(Of Symbol),
                 <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
             )
                 Debug.Assert(lookupResult.IsClear)
@@ -1199,19 +1202,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Dim currentBinder = binder
 
                 Dim methods = ArrayBuilder(Of MethodSymbol).GetInstance()
+                Dim extensionMembersInScope = ArrayBuilder(Of Symbol).GetInstance()
                 Dim proximity As Integer = 0
 
-                ' We don't want to process the same methods more than once, but the same extension method 
+                ' We don't want to process the same methods more than once, but the same extension method
                 ' might be in scope in several different binders. For example, within a type, within
-                ' imported the same type, within imported namespace containing the type. 
-                ' So, taking into consideration the fact that CollectProbableExtensionMethodsInSingleBinder 
+                ' imported the same type, within imported namespace containing the type.
+                ' So, taking into consideration the fact that CollectProbableExtensionMethodsInSingleBinder
                 ' groups methods from the same containing type together, we will keep track of the types and
                 ' will process all the methods from the same containing type at once.
                 Dim seenContainingTypes As New HashSet(Of NamedTypeSymbol)()
 
                 Do
                     methods.Clear()
-                    currentBinder.CollectProbableExtensionMethodsInSingleBinder(name, methods, originalBinder)
+                    extensionMembersInScope.Clear()
+                    currentBinder.CollectProbableExtensionMethodsInSingleBinder(name, methods, extensionMembersInScope, originalBinder)
 
                     Dim i As Integer = 0
                     Dim count As Integer = methods.Count
@@ -1243,12 +1248,58 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         End If
                     End While
 
+                    If extensionMembersInScope.Count > 0 AndAlso extensionMembers IsNot Nothing Then
+                        extensionMembers.AddRange(extensionMembersInScope)
+                    End If
+
                     ' Continue to containing binders.
                     proximity += 1
                     currentBinder = currentBinder.m_containingBinder
                 Loop While currentBinder IsNot Nothing
 
                 methods.Free()
+                extensionMembersInScope.Free()
+            End Sub
+
+            ''' <summary>
+            ''' Merges C# 14 extension properties that are in scope (collected from &lt;G&gt;$
+            ''' extension grouping types by <see cref="LookupForExtensionMethods"/>) into the
+            ''' lookup result, and retains the InternalXmlHelper.Value special case for XML axis
+            ''' property access. Extension properties are merged at lower priority than instance
+            ''' members (see <see cref="LookupResult.MergePrioritized(SingleLookupResult)"/>).
+            ''' </summary>
+            Private Shared Sub MergeExtensionPropertiesIfNecessary(
+                lookupResult As LookupResult,
+                extensionMembers As ArrayBuilder(Of Symbol),
+                container As TypeSymbol,
+                name As String,
+                arity As Integer,
+                options As LookupOptions,
+                binder As Binder,
+                <[In], Out> ByRef useSiteInfo As CompoundUseSiteInfo(Of AssemblySymbol)
+            )
+                ' Keep the InternalXmlHelper.Value special case.
+                MergeInternalXmlHelperValueIfNecessary(lookupResult, container, name, arity, options, binder, useSiteInfo)
+
+                ' Merge C# 14 extension properties in scope.
+                If extensionMembers Is Nothing Then
+                    Return
+                End If
+
+                For Each member In extensionMembers
+                    If member.Kind <> SymbolKind.Property Then
+                        Continue For
+                    End If
+
+                    ' The receiver for a property access is the instance type (container).
+                    Dim reduced As Symbol = ReducedExtensionMemberReducer.ReduceExtensionMember(
+                        container, member, useSiteInfo, binder.Compilation.LanguageVersion, proximity:=0)
+
+                    If reduced IsNot Nothing Then
+                        Dim singleResult As SingleLookupResult = binder.CheckViability(reduced, arity, options, reduced.ContainingType, useSiteInfo)
+                        lookupResult.MergePrioritized(singleResult)
+                    End If
+                Next
             End Sub
 
             ''' <summary>
@@ -1301,7 +1352,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                     LookupForExtensionMethods(lookup, container, name, 0,
                                               LookupOptions.AllMethodsOfAnyArity Or LookupOptions.IgnoreAccessibility,
-                                              binder, useSiteInfo:=CompoundUseSiteInfo(Of AssemblySymbol).Discarded)
+                                              binder, Nothing, useSiteInfo:=CompoundUseSiteInfo(Of AssemblySymbol).Discarded)
 
                     If lookup.IsGood Then
                         For Each method As MethodSymbol In lookup.Symbols

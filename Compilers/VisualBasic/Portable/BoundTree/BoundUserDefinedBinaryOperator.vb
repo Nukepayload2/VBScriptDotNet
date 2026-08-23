@@ -38,7 +38,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If UnderlyingExpression.Kind = BoundKind.Call Then
                 Dim underlyingCall = DirectCast(UnderlyingExpression, BoundCall)
-                Debug.Assert(underlyingCall.Method.MethodKind = MethodKind.UserDefinedOperator AndAlso underlyingCall.Method.ParameterCount = 2)
+
+                ' SAIM operators (static abstract interface operators consumed through a type
+                ' parameter) land as MethodKind.Ordinary in the PE symbol model: the interface is not
+                ' an operand type, so ValidateOverloadedOperator fails. They are identified by the
+                ' shared + abstract + interface shape.
+                Dim underlyingMethod = underlyingCall.Method
+                Debug.Assert((underlyingMethod.MethodKind = MethodKind.UserDefinedOperator OrElse
+                              (underlyingMethod.MethodKind = MethodKind.Ordinary AndAlso
+                               underlyingMethod.IsShared AndAlso underlyingMethod.IsMustOverride AndAlso
+                               underlyingMethod.ContainingType.IsInterfaceType())) AndAlso
+                             underlyingMethod.ParameterCount = 2)
 
                 If (OperatorKind And BinaryOperatorKind.Lifted) <> 0 Then
                     For i As Integer = 0 To underlyingCall.Arguments.Length - 1

@@ -428,8 +428,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         End Property
 
         ''' <summary>
+        ''' True if this member is a C# 14 extension member (an [ExtensionMarker]-marked method
+        ''' or property inside an extension grouping type). Distinct from IsExtensionMethod,
+        ''' which recognizes the classic [Extension] attribute. False for all source and non-PE
+        ''' symbols.
+        ''' </summary>
+        Friend Overridable ReadOnly Property IsExtensionMember As Boolean
+            Get
+                Return False
+            End Get
+        End Property
+
+        ''' <summary>
         ''' Returns true if this method hides a base method by name and signature.
-        ''' The equivalent of the "hidebysig" flag in metadata. 
+        ''' The equivalent of the "hidebysig" flag in metadata.
         ''' </summary>
         ''' <remarks>
         ''' This property should not be confused with general method overloading in Visual Basic, and is not directly related. 

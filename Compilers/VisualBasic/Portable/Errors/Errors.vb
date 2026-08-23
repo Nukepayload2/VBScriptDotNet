@@ -1200,6 +1200,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_ClassInheritsBaseUnifiesWithInterfaces3 = 32131
         ERR_ClassInheritsInterfaceBaseUnifiesWithBase4 = 32132
         ERR_ClassInheritsInterfaceUnifiesWithBase3 = 32133
+        ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces = 32134
 
         ERR_ShadowingTypeOutsideClass1 = 32200
         ERR_PropertySetParamCollisionWithValue = 32201
@@ -1809,8 +1810,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_MethodImplAttributeAsyncCannotBeUsed = 37337
         ERR_AttributeCannotBeAppliedManually = 37338
         ERR_EncUpdateRequiresEmittingExplicitInterfaceImplementationNotSupportedByTheRuntime = 37339
+        ERR_ExpressionTreeContainsAbstractStaticMemberAccess = 37340
 
-        ERR_NextAvailable = 37340
+        ERR_NextAvailable = 37341
 
         '// WARNINGS BEGIN HERE
         WRN_UseOfObsoleteSymbol2 = 40000

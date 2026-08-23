@@ -1967,7 +1967,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                                                    InternalSyntax.Feature.InitOnlySettersUsage)
                         End If
 
-                        ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, setMethod, node)
+                        ' A C# 11 static abstract interface property setter consumed through a
+                        ' constrained type parameter (e.g. T.P = v) is legal and must not report
+                        ' BC37314 (abstract static access). Mirror of the getter RValue path.
+                        Dim receiverIsTypeParameter As Boolean = propertyAccess.ReceiverOpt IsNot Nothing AndAlso
+                            propertyAccess.ReceiverOpt.Kind = BoundKind.TypeExpression AndAlso
+                            propertyAccess.ReceiverOpt.Type IsNot Nothing AndAlso
+                            propertyAccess.ReceiverOpt.Type.TypeKind = TypeKind.TypeParameter
+
+                        ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, setMethod, node, receiverIsTypeParameter)
 
                         If ReportUseSite(diagnostics, op1.Syntax, setMethod) Then
                             isError = True

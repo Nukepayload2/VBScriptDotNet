@@ -263,6 +263,10 @@ lSelect:
                 GenerateDiagnostic(ERRID.ERR_RefReturningCallInExpressionTree, node)
             End If
 
+            If IsInExpressionLambda AndAlso IsStaticAbstractInterfaceMember(method) Then
+                GenerateDiagnostic(ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess, node)
+            End If
+
             Me.VisitList(node.Arguments)
             Return Nothing
         End Function
@@ -275,8 +279,41 @@ lSelect:
 
             CheckRefReturningPropertyAccess(node)
 
+            If IsInExpressionLambda AndAlso IsStaticAbstractInterfaceMember([property]) Then
+                GenerateDiagnostic(ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess, node)
+            End If
+
             Me.VisitList(node.Arguments)
             Return Nothing
+        End Function
+
+        Public Overrides Function VisitDelegateCreationExpression(node As BoundDelegateCreationExpression) As BoundNode
+            If IsInExpressionLambda AndAlso IsStaticAbstractInterfaceMember(node.Method) Then
+                GenerateDiagnostic(ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess, node)
+            End If
+
+            Return MyBase.VisitDelegateCreationExpression(node)
+        End Function
+
+        ''' <summary>
+        ''' Returns true if the symbol is a static abstract interface member (SAIM) accessible through
+        ''' a type parameter. Mirrors Binder.IsStaticAbstractInterfaceMember; a shared abstract/virtual
+        ''' interface member cannot be represented in an expression tree, so the expression tree
+        ''' rewriter must reject it (C# reports CS8927 for the same case).
+        ''' </summary>
+        Private Shared Function IsStaticAbstractInterfaceMember(symbol As Symbol) As Boolean
+            Dim method As MethodSymbol = TryCast(symbol, MethodSymbol)
+            If method IsNot Nothing Then
+                Return method.IsShared AndAlso method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType()
+            End If
+
+            Dim [property] As PropertySymbol = TryCast(symbol, PropertySymbol)
+            If [property] IsNot Nothing AndAlso [property].IsShared AndAlso [property].ContainingType.IsInterfaceType() Then
+                Return ([property].GetMethod IsNot Nothing AndAlso [property].GetMethod.IsMustOverride) OrElse
+                       ([property].SetMethod IsNot Nothing AndAlso [property].SetMethod.IsMustOverride)
+            End If
+
+            Return False
         End Function
 
         Private Sub CheckRefReturningPropertyAccess(node As BoundPropertyAccess)

@@ -20,7 +20,7 @@
 
 ---
 
-## Active（5 份，根目录）
+## Active（8 份，根目录）
 
 > RESOLUTION = Active 或 Consider。编号为产品提案序列号。Proposed 未定三态的提案暂列 active 根目录，判定待 LDM 会议评估。
 
@@ -31,6 +31,9 @@
 | 03 | `proposal-vscode-extension-ise-repl-ui.md` | VS Code 扩展：在 VS Code 内置 REPL + 脚本编辑（仿 vscode-powershell 架构，宣传/触达 vs 内存/轻量，与 Avalonia 双路线互补）（Proposed，待 LDM 评估） |
 | 04 | `proposal-byref-like-safety.md` | byref-like 类型安全（对齐 C# `ref struct`）：识别 `IsByRefLikeAttribute` + suppress ref struct obsolete error + 移植 RefStructHelper BCX 规则进编译器 + REPL/脚本顶层约束；**对 vbx 与常规编译模式都生效**，追上 .NET 生态（`Span`/`allows ref struct` 接口）的重要一步（Proposed，设计来源 `meeting-byref-like-repl-safety.md`，服务于 p1 前置-1 D1） |
 | 05 | `proposal-shebang-directive.md` | `.vbx` 首行 `#!` shebang 指令（编译器语法层，镜像 C#；**已实现**，见 `../tasks/shebang-directive/`） |
+| 06 | `proposal-consume-csharp-extension-and-interface-shared.md` | 消费 C# 扩展成员（扩展属性/运算符，扩展方法已可用）与接口共享成员（SAIM：`T.Zero`/`T.Add` 经类型参数）；**RESOLUTION Active（D4 P1 判入）**，见 `../meetings/meeting-consume-csharp-extension-and-interface-shared.md` |
+| 07 | `proposal-distribute-compiler-nuget-package-and-dotnet-tool.md` | 把 fork 编译器分发为 Toolset 风格 NuGet 包（`Nukepayload2.Compilers.VBScriptDotNet` 2.0.0-Beta，.vbproj 引用即用 fork VB 编译器；不含 csc、不替代 dotnet 工具链）与 `.net tool`（`Nukepayload2.Compilers.VBScriptDotNet.Cli`，`vbi` 命令：复用现有 vbi 二进制，批量编译 + `.vbx` 执行 + shebang 解释器；编译器 NuGet 包不是 vbi，tool 才是 vbi）；**RESOLUTION Active**（四条 Unresolved 闭合：隐式分派 / 不补 VBCSCompiler / v1 仅 .NET SDK / 双行版本），见 `../meetings/meeting-distribute-compiler-nuget-package-and-dotnet-tool.md` |
+| 08 | `proposal-script-optimization-level.md` | 脚本编译优化级别：`/optimize+` 对脚本生效（透传 `arguments.CompilationOptions.OptimizationLevel`，默认仍 Debug），服务高 CPU 脚本用例（Active，见 `../meetings/meeting-script-optimization-level.md`） |
 
 ---
 

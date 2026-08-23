@@ -1384,8 +1384,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Dim getMethod = propertyAccess.PropertySymbol.GetMostDerivedGetMethod()
                 Debug.Assert(getMethod IsNot Nothing)
 
+                ' A static abstract interface property (SAIM) consumed through a constrained type
+                ' parameter (e.g. T.Zero) is legal and must not report BC37314.
+                Dim receiverIsTypeParameter As Boolean = propertyAccess.ReceiverOpt IsNot Nothing AndAlso
+                    propertyAccess.ReceiverOpt.Kind = BoundKind.TypeExpression AndAlso
+                    propertyAccess.ReceiverOpt.Type IsNot Nothing AndAlso
+                    propertyAccess.ReceiverOpt.Type.TypeKind = TypeKind.TypeParameter
+
                 ReportUseSite(diagnostics, expr.Syntax, getMethod)
-                ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, getMethod, expr.Syntax)
+                ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, getMethod, expr.Syntax, receiverIsTypeParameter)
 
                 Select Case propertyAccess.AccessKind
                     Case PropertyAccessKind.Get
@@ -2911,6 +2918,61 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     type = DirectCast(left, BoundTypeExpression).Type
 
                     If type.TypeKind = TYPEKIND.TypeParameter Then
+                        If String.IsNullOrEmpty(rightName) Then
+                            ' Must have been a syntax error.
+                            Return BadExpression(node, left, ErrorTypeSymbol.UnknownResultType)
+                        End If
+
+                        ' C# 11 static abstract interface members (SAIM) can only be consumed through a
+                        ' constrained type parameter: e.g. T.Zero / T.Add where T is constrained to an
+                        ' interface declaring such members. Look through the type parameter's effective
+                        ' interface set (interface constraints + their AllInterfaces) for a shared
+                        ' member with the requested name. If none is found, maintain BC32098.
+                        Dim typeParameter = DirectCast(type, TypeParameterSymbol)
+
+                        For Each constraint In typeParameter.ConstraintTypesWithDefinitionUseSiteDiagnostics(useSiteInfo)
+                            If constraint.IsInterfaceType() Then
+                                Dim iface = DirectCast(constraint, NamedTypeSymbol)
+                                Dim baseInterfaces = iface.AllInterfacesWithDefinitionUseSiteDiagnostics(useSiteInfo)
+
+                                ' Check the interface itself and all interfaces it inherits.
+                                For i As Integer = -1 To baseInterfaces.Length - 1
+                                    Dim candidateIface As NamedTypeSymbol = If(i = -1, iface, baseInterfaces(i))
+                                    Dim candidate = LookupResult.GetInstance()
+
+                                    Try
+                                        LookupMember(candidate, candidateIface, rightName, rightArity, options Or LookupOptions.MustNotBeInstance, useSiteInfo)
+
+                                        If candidate.HasSymbol Then
+                                            ' Only static abstract interface members are accessible through the type parameter.
+                                            Dim allAreStaticAbstract As Boolean = True
+                                            For Each sym In candidate.Symbols
+                                                If Not IsStaticAbstractInterfaceMember(sym) Then
+                                                    allAreStaticAbstract = False
+                                                    Exit For
+                                                End If
+                                            Next
+
+                                            If allAreStaticAbstract Then
+                                                ' Runtime gating: the target runtime must support static abstract
+                                                ' interface members when the member comes from a referenced module.
+                                                If Not Me.Compilation.Assembly.SupportsRuntimeCapability(RuntimeCapability.VirtualStaticsInInterfaces) AndAlso
+                                                   candidate.Symbols(0).ContainingModule IsNot Me.Compilation.SourceModule Then
+                                                    Return ReportDiagnosticAndProduceBadExpression(diagnostics, node, ErrorFactory.ErrorInfo(ERRID.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces), left)
+                                                End If
+
+                                                lookupResult.SetFrom(candidate)
+                                                Return BindSymbolAccess(node, lookupResult, options, left, typeArguments, QualificationKind.QualifiedViaTypeName, diagnostics)
+                                            End If
+                                        End If
+                                    Finally
+                                        candidate.Free()
+                                    End Try
+                                Next
+                            End If
+                        Next
+
+                        ' No shared member found on the constraint interfaces; maintain BC32098.
                         Return ReportDiagnosticAndProduceBadExpression(diagnostics, node, ErrorFactory.ErrorInfo(ERRID.ERR_TypeParamQualifierDisallowed), left)
                     Else
                         If String.IsNullOrEmpty(rightName) Then
@@ -2973,8 +3035,29 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End Try
         End Function
 
-        ''' <summary> 
-        ''' Returns a bound node for left part of member access node with omitted left syntax. 
+        ''' <summary>
+        ''' Returns true if the given symbol is a C# 11 static abstract interface member (SAIM):
+        ''' a static abstract member declared directly on an interface. Such members can only be
+        ''' consumed through a constrained type parameter (e.g. T.Zero where T is constrained to
+        ''' the declaring interface). Works on any symbol shape (method or property accessor).
+        ''' </summary>
+        Private Shared Function IsStaticAbstractInterfaceMember(symbol As Symbol) As Boolean
+            Dim method As MethodSymbol = TryCast(symbol, MethodSymbol)
+            If method IsNot Nothing Then
+                Return method.IsShared AndAlso method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType()
+            End If
+
+            Dim [property] As PropertySymbol = TryCast(symbol, PropertySymbol)
+            If [property] IsNot Nothing AndAlso [property].IsShared AndAlso [property].ContainingType.IsInterfaceType() Then
+                Return ([property].GetMethod IsNot Nothing AndAlso [property].GetMethod.IsMustOverride) OrElse
+                       ([property].SetMethod IsNot Nothing AndAlso [property].SetMethod.IsMustOverride)
+            End If
+
+            Return False
+        End Function
+
+        ''' <summary>
+        ''' Returns a bound node for left part of member access node with omitted left syntax.
         ''' In particular it handles member access inside With statement.
         ''' 
         ''' By default the method delegates the work to it's containing binder or returns Nothing.

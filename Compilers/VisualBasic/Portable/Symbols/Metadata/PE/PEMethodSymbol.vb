@@ -710,6 +710,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
             End Get
         End Property
 
+        Friend Overrides ReadOnly Property IsExtensionMember As Boolean
+            Get
+                ' A C# 14 extension member: a method inside an extension grouping type (<G>$<hash>)
+                ' carrying an [ExtensionMarker] attribute. Distinct from IsExtensionMethod, which
+                ' recognizes the classic [Extension] attribute on top-level extension methods.
+                Dim markerName As String = Nothing
+                Return _containingType.IsExtensionGroupingType AndAlso
+                       _containingType.ContainingPEModule.Module.HasExtensionMarkerAttribute(Me._handle, markerName)
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property IsExternalMethod As Boolean
             Get
                 Return (_flags And MethodAttributes.PinvokeImpl) <> 0 OrElse
@@ -914,6 +925,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
         Public Overrides ReadOnly Property IsShared As Boolean
             Get
                 Return (_flags And MethodAttributes.Static) <> 0
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' True for a C# 11+ static abstract interface member (SAIM) imported from metadata:
+        ''' a static abstract member declared directly on an interface. Such members can only be
+        ''' consumed through a constrained type parameter (e.g. <c>T.Zero</c> where <c>T</c> is
+        ''' constrained to the declaring interface). See static-abstracts-in-interfaces.
+        ''' </summary>
+        Friend ReadOnly Property IsStaticAbstractInterfaceMember As Boolean
+            Get
+                Return Me.ContainingType.IsInterfaceType() AndAlso Me.IsShared AndAlso Me.IsMustOverride
             End Get
         End Property
 

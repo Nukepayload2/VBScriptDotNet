@@ -524,7 +524,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
             If this.Kind = SymbolKind.TypeParameter Then
                 For Each constraint In DirectCast(this, TypeParameterSymbol).ConstraintTypesWithDefinitionUseSiteDiagnostics(useSiteInfo)
-                    If CanContainUserDefinedOperators(constraint, useSiteInfo) Then
+                    ' An interface constraint may declare a C# 11 static abstract operator that is
+                    ' consumable through this type parameter (e.g. T + T where T As IV(Of T)); let
+                    ' operator resolution attempt it even though the interface itself is not an
+                    ' operand type (CanContainUserDefinedOperators returns False for interfaces).
+                    If constraint.IsInterfaceType() OrElse CanContainUserDefinedOperators(constraint, useSiteInfo) Then
                         Return True
                     End If
                 Next

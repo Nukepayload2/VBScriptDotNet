@@ -256,11 +256,26 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
             Next
         End Sub
 
+        Friend Overrides Sub GetExtensionMembers(members As ArrayBuilder(Of Symbol), name As String)
+            ' Delegate work to the types of the underlying namespace.
+            For Each underlyingContainedType As NamedTypeSymbol In _underlyingNamespace.TypesToCheckForExtensionMethods
+                underlyingContainedType.GetExtensionMembers(members, appendThrough:=Me, Name:=name)
+            Next
+        End Sub
+
         ''' <summary>
         ''' Make sure we retarget methods when types of the underlying namespace add them to the map.
         ''' </summary>
         Friend Overrides Sub BuildExtensionMethodsMapBucket(bucket As ArrayBuilder(Of MethodSymbol), method As MethodSymbol)
             bucket.Add(RetargetingTranslator.Retarget(method))
+        End Sub
+
+        ''' <summary>
+        ''' Make sure we retarget C# 14 extension members when types of the underlying namespace
+        ''' add them to the parallel ArrayBuilder(Of Symbol) bucket.
+        ''' </summary>
+        Friend Overrides Sub AddExtensionMember(bucket As ArrayBuilder(Of Symbol), member As Symbol)
+            bucket.Add(RetargetingTranslator.Retarget(member))
         End Sub
 
         ''' <summary>
@@ -272,6 +287,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
             ' Delegate work to the underlying namespace in order to take advantage of its
             ' map of extension methods.
             _underlyingNamespace.AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder, appendThrough:=Me)
+        End Sub
+
+        Friend Overrides Sub AddExtensionMemberLookupSymbolsInfo(nameSet As LookupSymbolsInfo,
+                                                                 options As LookupOptions,
+                                                                 originalBinder As Binder)
+            ' Delegate work to the types of the underlying namespace.
+            For Each underlyingContainedType As NamedTypeSymbol In _underlyingNamespace.TypesToCheckForExtensionMethods
+                underlyingContainedType.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
+            Next
         End Sub
 
         ''' <summary>

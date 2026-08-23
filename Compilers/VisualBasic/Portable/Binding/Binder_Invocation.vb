@@ -851,6 +851,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Dim receiver As BoundExpression = group.ReceiverOpt
 
+            ' A C# 11 static abstract interface member accessed through a constrained type parameter
+            ' (e.g. T.Zero / T.Add where T is constrained to the declaring interface). Such access is
+            ' legal and must keep its type-expression receiver so the emitter can generate the
+            ' 'constrained.' prefix; it also must not report BC37314 (abstract static access).
+            Dim isStaticAbstractViaTypeParameter As Boolean = False
+            If methodOrProperty.IsShared AndAlso receiver IsNot Nothing AndAlso receiver.Kind = BoundKind.TypeExpression Then
+                Dim recvType As TypeSymbol = receiver.Type
+                isStaticAbstractViaTypeParameter = recvType IsNot Nothing AndAlso
+                    recvType.TypeKind = TypeKind.TypeParameter AndAlso
+                    IsStaticAbstractInterfaceMember(methodOrProperty)
+            End If
+
             ' BC31393: a ref-like (or ref-like-capable) receiver cannot access members inherited
             ' from Object/ValueType (GetHashCode/ToString/Equals/GetType) — the runtime would box the
             ' receiver. C# reports CS0029 for the same scenario. Members overridden by the ref-like
@@ -867,7 +879,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 hasErrors = CheckSharedSymbolAccess(target, methodOrProperty.IsShared, receiver, group.QualificationKind, diagnostics)  ' give diagnostics if sharedness is wrong.
             End If
 
-            ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, methodOrProperty, node)
+            ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, methodOrProperty, node, isStaticAbstractViaTypeParameter)
 
             hasErrors = hasErrors Or group.HasErrors
 
@@ -877,7 +889,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Dim resolvedTypeOrValueReceiver As BoundExpression = Nothing
             If receiver IsNot Nothing AndAlso Not hasErrors Then
-                receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, methodOrProperty.IsShared, diagnostics, resolvedTypeOrValueReceiver)
+                ' A C# 11 static abstract interface member accessed through a constrained type
+                ' parameter (e.g. T.Zero) must keep its type-expression receiver so the emitter can
+                ' generate the 'constrained.' prefix. For every other shared member the receiver is
+                ' dropped (existing behavior).
+                If isStaticAbstractViaTypeParameter Then
+                    Dim qualKind As QualificationKind = Nothing
+                    receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, methodOrProperty.IsShared, clearIfShared:=False, diagnostics, qualKind, resolvedTypeOrValueReceiver)
+                Else
+                    receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, methodOrProperty.IsShared, diagnostics, resolvedTypeOrValueReceiver)
+                End If
             End If
 
             If Not suppressAbstractCallDiagnostics AndAlso receiver IsNot Nothing AndAlso (receiver.IsMyBaseReference OrElse receiver.IsMyClassReference) Then
@@ -964,9 +985,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                 Debug.Assert(Not boundArguments.Any(Function(a) a.Kind = BoundKind.ByRefArgumentWithCopyBack))
 
+                ' For a C# 14 extension property (explicit receiver type, receiver is not a parameter
+                ' of the reduced-from property), keep the receiver as the instance but make it an
+                ' r-value: during lowering the receiver becomes the first argument of the top-level
+                ' shim, so it must be a value (mirrors the extension-method-group handling). Only the
+                ' classic InternalXmlHelper.Value shape (where the reduced-from property takes the
+                ' receiver as its single parameter) needs the extension-method-group receiver update.
+                Dim reducedExtensionProperty = TryCast([property], ReducedExtensionPropertySymbol)
+
                 If reducedFrom Is Nothing Then
                     If receiver IsNot Nothing AndAlso receiver.IsPropertyOrXmlPropertyAccess() Then
                         receiver = MakeRValue(receiver, diagnostics)
+                    End If
+                ElseIf reducedExtensionProperty IsNot Nothing AndAlso reducedExtensionProperty.HasExplicitReceiverType Then
+                    If receiver IsNot Nothing AndAlso receiver.Type IsNot Nothing AndAlso Not receiver.Type.IsErrorType() Then
+                        Dim useSiteInfo = GetNewCompoundUseSiteInfo(diagnostics)
+                        Dim conversion = Conversions.ClassifyConversion(receiver, [property].ReceiverType, Me, useSiteInfo)
+                        diagnostics.Add(receiver, useSiteInfo)
+                        receiver = PassArgumentByVal(receiver, conversion, [property].ReceiverType, diagnostics)
                     End If
                 Else
                     receiver = UpdateReceiverForExtensionMethodOrPropertyGroup(receiver, [property].ReceiverType, reducedFrom.Parameters(0), diagnostics)

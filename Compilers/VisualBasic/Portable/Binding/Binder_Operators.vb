@@ -598,12 +598,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If userDefinedOperator.BestResult.HasValue Then
                 Dim bestCandidate As OverloadResolution.CandidateAnalysisResult = userDefinedOperator.BestResult.Value
+                Dim operatorMethod = DirectCast(bestCandidate.Candidate.UnderlyingSymbol, MethodSymbol)
 
                 result = CreateBoundCallOrPropertyAccess(node, node, TypeCharacter.None,
                                                          New BoundMethodGroup(node, Nothing,
-                                                                              ImmutableArray.Create(Of MethodSymbol)(
-                                                                                  DirectCast(bestCandidate.Candidate.UnderlyingSymbol, MethodSymbol)),
-                                                                              LookupResultKind.Good, Nothing,
+                                                                              ImmutableArray.Create(Of MethodSymbol)(operatorMethod),
+                                                                              LookupResultKind.Good,
+                                                                              GetStaticAbstractOperatorReceiver(node, operatorMethod, left.Type),
                                                                               QualificationKind.Unqualified).MakeCompilerGenerated(),
                                                          ImmutableArray.Create(Of BoundExpression)(left, right),
                                                          bestCandidate,
@@ -1249,12 +1250,13 @@ Done:
 
             If userDefinedOperator.BestResult.HasValue Then
                 Dim bestCandidate As OverloadResolution.CandidateAnalysisResult = userDefinedOperator.BestResult.Value
+                Dim operatorMethod = DirectCast(bestCandidate.Candidate.UnderlyingSymbol, MethodSymbol)
 
                 result = CreateBoundCallOrPropertyAccess(node, node, TypeCharacter.None,
                                                          New BoundMethodGroup(node, Nothing,
-                                                                              ImmutableArray.Create(Of MethodSymbol)(
-                                                                                  DirectCast(bestCandidate.Candidate.UnderlyingSymbol, MethodSymbol)),
-                                                                              LookupResultKind.Good, Nothing,
+                                                                              ImmutableArray.Create(Of MethodSymbol)(operatorMethod),
+                                                                              LookupResultKind.Good,
+                                                                              GetStaticAbstractOperatorReceiver(node, operatorMethod, operand.Type),
                                                                               QualificationKind.Unqualified).MakeCompilerGenerated(),
                                                          ImmutableArray.Create(Of BoundExpression)(operand),
                                                          bestCandidate,
@@ -1272,6 +1274,22 @@ Done:
             End If
 
             Return New BoundUserDefinedUnaryOperator(node, opKind, result, result.Type)
+        End Function
+
+        ''' <summary>
+        ''' Returns a type-expression receiver carrying the type parameter for a C# 11 static abstract
+        ''' interface operator consumed through a type parameter operand (e.g. a + b where a and b are
+        ''' T constrained to an interface declaring 'static abstract T operator +(T, T)'). The receiver
+        ''' is required by the emitter to generate the 'constrained.' prefix (mirror of the F10
+        ''' T.Zero/T.Add SAIM call path); for every other operator Nothing is returned (existing shape).
+        ''' </summary>
+        Private Shared Function GetStaticAbstractOperatorReceiver(node As SyntaxNode, method As MethodSymbol, operandType As TypeSymbol) As BoundExpression
+            If method.IsShared AndAlso method.IsMustOverride AndAlso method.ContainingType.IsInterfaceType() AndAlso
+               operandType IsNot Nothing AndAlso operandType.TypeKind = TypeKind.TypeParameter Then
+                Return New BoundTypeExpression(node, operandType)
+            End If
+
+            Return Nothing
         End Function
 
         Private Shared Sub ReportUndefinedOperatorError(

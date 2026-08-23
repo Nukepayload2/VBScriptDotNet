@@ -13,6 +13,8 @@ Imports Microsoft.CodeAnalysis.PooledObjects
 Imports Microsoft.CodeAnalysis.VisualBasic.Emit
 Imports Microsoft.CodeAnalysis.VisualBasic.Symbols
 Imports FieldAttributes = System.Reflection.FieldAttributes
+Imports MethodAttributes = System.Reflection.MethodAttributes
+Imports MethodImplAttributes = System.Reflection.MethodImplAttributes
 Imports TypeAttributes = System.Reflection.TypeAttributes
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
@@ -943,6 +945,121 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
                 Return _lazyMightContainExtensionMethods = ThreeState.True
             End Get
         End Property
+
+        ''' <summary>
+        ''' True if this is a C# 14 extension grouping type (&lt;G&gt;$&lt;hash&gt;): a nested type
+        ''' inside an [Extension] container that is itself marked [Extension] and holds the
+        ''' actual extension-member implementations (methods/properties/operators) which are
+        ''' individually marked with [ExtensionMarker]. The collection layer iterates these
+        ''' to gather extension members.
+        ''' </summary>
+        Friend Overrides ReadOnly Property IsExtensionGroupingType As Boolean
+            Get
+                Return Me.ContainingType IsNot Nothing AndAlso
+                       ContainingPEModule.Module.HasExtensionAttribute(Me._handle, ignoreCase:=True)
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' True if this is a C# 14 extension marker type (&lt;M&gt;$&lt;hash&gt;): a nested
+        ''' SpecialName|static|public class deriving from Object, arity 0, no interfaces,
+        ''' with a single &lt;Extension&gt;$(receiver) marker method. The marker type identifies
+        ''' the extension block a grouping-type member belongs to (via its [ExtensionMarker]
+        ''' string value == the marker type's metadata name).
+        ''' </summary>
+        Friend ReadOnly Property IsExtensionMarkerType As Boolean
+            Get
+                If Me.ContainingType Is Nothing Then
+                    Return False
+                End If
+
+                If Not (Me.HasSpecialName AndAlso
+                        Me.IsMetadataAbstract AndAlso Me.IsMetadataSealed AndAlso
+                        Me.DeclaredAccessibility = Accessibility.Public AndAlso
+                        Me.TypeKind = TypeKind.Class AndAlso
+                        Me.Arity = 0) Then
+                    Return False
+                End If
+
+                Dim baseType = Me.BaseTypeNoUseSiteDiagnostics
+                If baseType Is Nothing OrElse Not baseType.IsObjectType() Then
+                    Return False
+                End If
+
+                If Not Me.InterfacesNoUseSiteDiagnostics.IsEmpty Then
+                    Return False
+                End If
+
+                Return Not TryGetExtensionMarkerMethod().IsNil
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Locates the single &lt;Extension&gt;$(receiver) marker method of an extension marker
+        ''' type, mirroring C# PENamedTypeSymbol.TryGetExtensionMarkerMethod. Returns the default
+        ''' handle when there is no unique marker method.
+        ''' </summary>
+        Friend Function TryGetExtensionMarkerMethod() As MethodDefinitionHandle
+            Dim [module] = ContainingPEModule.Module
+
+            Try
+                Dim foundMarkerMethod As MethodDefinitionHandle = Nothing
+
+                For Each methodHandle In [module].GetMethodsOfTypeOrThrow(Me._handle)
+                    Dim methodName As String = Nothing
+                    Dim implFlags As MethodImplAttributes
+                    Dim flags As MethodAttributes
+                    Dim rva As Integer
+                    [module].GetMethodDefPropsOrThrow(methodHandle, methodName, implFlags, flags, rva)
+
+                    If (flags And (MethodAttributes.SpecialName Or MethodAttributes.Static)) = (MethodAttributes.SpecialName Or MethodAttributes.Static) AndAlso
+                       methodName = WellKnownMemberNames.ExtensionMarkerMethodName Then
+                        If Not foundMarkerMethod.IsNil Then
+                            Return Nothing
+                        End If
+
+                        foundMarkerMethod = methodHandle
+                    End If
+                Next
+
+                Return foundMarkerMethod
+            Catch mrEx As BadImageFormatException
+                Return Nothing
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Returns the extension receiver type for this C# 14 extension grouping type
+        ''' (&lt;G&gt;$&lt;hash&gt;), i.e. the single parameter type of the &lt;Extension&gt;$(receiver)
+        ''' marker method in the nested &lt;M&gt;$ marker type. For a generic extension block
+        ''' (extension(Of T)(value)) this is the grouping type's own type parameter; for a
+        ''' non-generic block it is the concrete receiver type (e.g. String). Returns Nothing
+        ''' when this is not an extension grouping type or no marker method is found.
+        ''' </summary>
+        Friend Function GetExtensionReceiverType() As TypeSymbol
+            If Not Me.IsExtensionGroupingType Then
+                Return Nothing
+            End If
+
+            For Each nested As NamedTypeSymbol In Me.GetTypeMembers()
+                Dim nestedPe = TryCast(nested, PENamedTypeSymbol)
+                If nestedPe Is Nothing OrElse Not nestedPe.IsExtensionMarkerType Then
+                    Continue For
+                End If
+
+                Dim markerMethodHandle As MethodDefinitionHandle = nestedPe.TryGetExtensionMarkerMethod()
+                If markerMethodHandle.IsNil Then
+                    Continue For
+                End If
+
+                Dim markerMethod As New PEMethodSymbol(Me.ContainingPEModule, nestedPe, markerMethodHandle)
+                If markerMethod.ParameterCount = 1 Then
+                    Return markerMethod.Parameters(0).Type
+                End If
+            Next
+
+            Return Nothing
+        End Function
 
         Friend Overrides ReadOnly Property HasCodeAnalysisEmbeddedAttribute As Boolean
             Get

@@ -65,14 +65,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         Protected Overrides Sub CollectProbableExtensionMethodsInSingleBinder(name As String,
                                                                       methods As ArrayBuilder(Of MethodSymbol),
+                                                                      extensionMembers As ArrayBuilder(Of Symbol),
                                                                       originalBinder As Binder)
             Debug.Assert(methods.Count = 0)
+            Debug.Assert(extensionMembers.Count = 0)
 
             For Each importedSym In _importedSymbols
                 If importedSym.NamespaceOrType.IsNamespace Then
                     Dim count = methods.Count
-                    DirectCast(importedSym.NamespaceOrType, NamespaceSymbol).AppendProbableExtensionMethods(name, methods)
-                    If methods.Count <> count AndAlso Not originalBinder.IsSemanticModelBinder Then
+                    Dim extensionCount = extensionMembers.Count
+                    Dim nsSymbol = DirectCast(importedSym.NamespaceOrType, NamespaceSymbol)
+                    nsSymbol.AppendProbableExtensionMethods(name, methods)
+                    nsSymbol.GetExtensionMembers(extensionMembers, name)
+                    If (methods.Count <> count OrElse extensionMembers.Count <> extensionCount) AndAlso Not originalBinder.IsSemanticModelBinder Then
                         Me.Compilation.MarkImportDirectiveAsUsed(Me.SyntaxTree, importedSym.ImportsClausePosition)
                     End If
                 End If
@@ -84,7 +89,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                                                                    originalBinder As Binder)
             For Each importedSym In _importedSymbols
                 If importedSym.NamespaceOrType.IsNamespace Then
-                    DirectCast(importedSym.NamespaceOrType, NamespaceSymbol).AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder)
+                    Dim nsSymbol = DirectCast(importedSym.NamespaceOrType, NamespaceSymbol)
+                    nsSymbol.AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder)
+                    nsSymbol.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
                 End If
             Next
         End Sub

@@ -206,6 +206,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
             Next
         End Sub
 
+        ''' <summary>
+        ''' This method is called directly by a Binder when it uses this type.
+        ''' </summary>
+        Friend Overrides Sub AppendProbableExtensionMembers(name As String, members As ArrayBuilder(Of Symbol))
+            Dim oldCount As Integer = members.Count
+
+            ' Delegate work to the underlying type.
+            _underlyingType.AppendProbableExtensionMembers(name, members)
+
+            ' Retarget all member symbols appended by the underlying type.
+            For i As Integer = oldCount To members.Count - 1
+                members(i) = RetargetingTranslator.Retarget(members(i))
+            Next
+        End Sub
+
         Friend Overrides Sub BuildExtensionMethodsMap(
             map As Dictionary(Of String, ArrayBuilder(Of MethodSymbol)),
             appendThrough As NamespaceSymbol
@@ -217,6 +232,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
             Throw ExceptionUtilities.Unreachable
         End Sub
 
+        Friend Overrides Sub GetExtensionMembers(members As ArrayBuilder(Of Symbol), appendThrough As NamespaceSymbol, Name As String)
+            Throw ExceptionUtilities.Unreachable
+        End Sub
+
         ''' <summary>
         ''' This method is called directly by a Binder when it uses this type.
         ''' </summary>
@@ -224,6 +243,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Retargeting
                                                                   options As LookupOptions,
                                                                   originalBinder As Binder)
             _underlyingType.AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder, appendThrough:=Me)
+        End Sub
+
+        Friend Overrides Sub AddExtensionMemberLookupSymbolsInfo(nameSet As LookupSymbolsInfo,
+                                                                 options As LookupOptions,
+                                                                 originalBinder As Binder)
+            _underlyingType.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
         End Sub
 
         ''' <summary>

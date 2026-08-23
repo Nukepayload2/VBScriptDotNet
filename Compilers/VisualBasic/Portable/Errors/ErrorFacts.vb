@@ -920,6 +920,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                      ERRID.ERR_ClassInheritsBaseUnifiesWithInterfaces3,
                      ERRID.ERR_ClassInheritsInterfaceBaseUnifiesWithBase4,
                      ERRID.ERR_ClassInheritsInterfaceUnifiesWithBase3,
+                     ERRID.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces,
                      ERRID.ERR_ShadowingTypeOutsideClass1,
                      ERRID.ERR_PropertySetParamCollisionWithValue,
                      ERRID.ERR_SxSIndirectRefHigherThanDirectRef3,
@@ -1556,7 +1557,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                      ERRID.ERR_MethodImplAttributeAsyncCannotBeUsed,
                      ERRID.ERR_AttributeCannotBeAppliedManually,
                      ERRID.ERR_StructLayoutAndExtendedLayout,
-                     ERRID.ERR_RuntimeDoesNotSupportExtendedLayoutTypes
+                     ERRID.ERR_RuntimeDoesNotSupportExtendedLayoutTypes,
+                     ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess
                     Return False
                 Case Else
                     ' NOTE: All error codes must be explicitly handled in the below select case statement

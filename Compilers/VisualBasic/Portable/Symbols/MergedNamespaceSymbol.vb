@@ -586,6 +586,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 Next
             End Sub
 
+            Friend Overrides Sub GetExtensionMembers(members As ArrayBuilder(Of Symbol), name As String)
+                For Each nsSym As NamespaceSymbol In _namespacesToMerge
+                    nsSym.GetExtensionMembers(members, name)
+                Next
+            End Sub
+
+            Friend Overrides Sub AddExtensionMemberLookupSymbolsInfo(nameSet As LookupSymbolsInfo,
+                                                                     options As LookupOptions,
+                                                                     originalBinder As Binder)
+                For Each nsSym As NamespaceSymbol In _namespacesToMerge
+                    nsSym.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
+                Next
+            End Sub
+
             Friend Overrides ReadOnly Property TypesToCheckForExtensionMethods As ImmutableArray(Of NamedTypeSymbol)
                 Get
                     ' We should override all callers of this function and go through implementation

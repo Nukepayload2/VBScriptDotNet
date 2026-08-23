@@ -318,7 +318,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     methodConversions = methodConversions Or MethodConversionKind.Error_Unspecified
                 End If
 
-                addressOfExpression.Binder.ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, fromMethod, addressOfExpression.MethodGroup.Syntax)
+                ' A C# 11 static abstract interface method consumed through a constrained type
+                ' parameter (e.g. AddressOf T.Add) is legal and must not report BC37314.
+                Dim receiverIsTypeParameter As Boolean = addressOfExpression.MethodGroup.ReceiverOpt IsNot Nothing AndAlso
+                    addressOfExpression.MethodGroup.ReceiverOpt.Kind = BoundKind.TypeExpression AndAlso
+                    addressOfExpression.MethodGroup.ReceiverOpt.Type IsNot Nothing AndAlso
+                    addressOfExpression.MethodGroup.ReceiverOpt.Type.TypeKind = TypeKind.TypeParameter
+
+                addressOfExpression.Binder.ReportDiagnosticsIfObsoleteOrNotSupported(diagnostics, fromMethod, addressOfExpression.MethodGroup.Syntax, receiverIsTypeParameter)
             End If
 
             Dim delegateConversions As ConversionKind = Conversions.DetermineDelegateRelaxationLevel(methodConversions)
@@ -987,7 +994,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Not addressOfExpression.HasErrors AndAlso
                 Not delegateResolutionResult.Diagnostics.Diagnostics.HasAnyErrors Then
 
-                receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, targetMethod.IsShared, diagnostics, resolvedTypeOrValueReceiver)
+                ' A C# 11 static abstract interface method consumed through a constrained type
+                ' parameter (e.g. AddressOf T.Add) must keep its type-expression receiver so the
+                ' emitter can generate the 'constrained.' + 'ldftn' delegate-creation pattern
+                ' (mirror of EmitDelegateCreation in the C# emitter). Every other shared member
+                ' drops the receiver (existing behavior).
+                Dim isStaticAbstractViaTypeParameter As Boolean = targetMethod.IsShared AndAlso
+                    receiver.Kind = BoundKind.TypeExpression AndAlso
+                    receiver.Type IsNot Nothing AndAlso
+                    receiver.Type.TypeKind = TypeKind.TypeParameter AndAlso
+                    IsStaticAbstractInterfaceMember(targetMethod)
+
+                If isStaticAbstractViaTypeParameter Then
+                    Dim qualKind As QualificationKind = Nothing
+                    receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, targetMethod.IsShared, clearIfShared:=False, diagnostics, qualKind, resolvedTypeOrValueReceiver)
+                Else
+                    receiver = AdjustReceiverTypeOrValue(receiver, receiver.Syntax, targetMethod.IsShared, diagnostics, resolvedTypeOrValueReceiver)
+                End If
             End If
 
             ' BC31393: AddressOf on a ref-like (or ref-like-capable) receiver targeting ANY instance

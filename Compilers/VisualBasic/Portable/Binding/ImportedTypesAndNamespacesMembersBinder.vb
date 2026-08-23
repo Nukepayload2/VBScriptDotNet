@@ -129,14 +129,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ''' </summary>
         Protected Overrides Sub CollectProbableExtensionMethodsInSingleBinder(name As String,
                                                                       methods As ArrayBuilder(Of MethodSymbol),
+                                                                      extensionMembers As ArrayBuilder(Of Symbol),
                                                                       originalBinder As Binder)
             Debug.Assert(methods.Count = 0)
+            Debug.Assert(extensionMembers.Count = 0)
 
             For Each importedSym In _importedSymbols
                 If importedSym.NamespaceOrType.Kind = SymbolKind.NamedType Then
-                    DirectCast(importedSym.NamespaceOrType, NamedTypeSymbol).AppendProbableExtensionMethods(name, methods)
+                    Dim typeSymbol = DirectCast(importedSym.NamespaceOrType, NamedTypeSymbol)
+                    typeSymbol.AppendProbableExtensionMethods(name, methods)
+                    typeSymbol.AppendProbableExtensionMembers(name, extensionMembers)
 
-                    If methods.Count <> 0 AndAlso Not originalBinder.IsSemanticModelBinder Then
+                    If (methods.Count <> 0 OrElse extensionMembers.Count <> 0) AndAlso Not originalBinder.IsSemanticModelBinder Then
                         Me.Compilation.MarkImportDirectiveAsUsed(Me.SyntaxTree, importedSym.ImportsClausePosition)
                     End If
                 End If
@@ -148,8 +152,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                                                                    originalBinder As Binder)
             For Each importedSym In _importedSymbols
                 If importedSym.NamespaceOrType.Kind = SymbolKind.NamedType Then
-                    DirectCast(importedSym.NamespaceOrType, NamedTypeSymbol).AddExtensionMethodLookupSymbolsInfo(
-                        nameSet, options, originalBinder)
+                    Dim typeSymbol = DirectCast(importedSym.NamespaceOrType, NamedTypeSymbol)
+                    typeSymbol.AddExtensionMethodLookupSymbolsInfo(nameSet, options, originalBinder)
+                    typeSymbol.AddExtensionMemberLookupSymbolsInfo(nameSet, options, originalBinder)
                 End If
             Next
         End Sub
