@@ -25,7 +25,7 @@
 | tool 名 | `vbi`（复用现有二进制）；`.Cli` 后缀为 GUI 留分层 | 第 3 节 |
 | 模式分发 | 隐式——`.vbx` 无 `/out:` 执行、`.vb` 或带 `/out:` 编译 | 第 3 节 |
 | VBCSCompiler | 不做，`UseSharedCompilation=false` 进程内 | 第 2 节 |
-| `vbi --version` | 双行（自版本 + Roslyn 上游），用现有 `PrintLogo` | 第 3 节 |
+| `vbi /version` | 双行（自版本 + Roslyn 上游），用现有 `PrintVersion`（`Vbi.vb:39-42`） | 第 3 节 |
 
 ## 2. 总体架构：Part A Toolset 编译器 NuGet 包
 
@@ -63,7 +63,7 @@
 
 ## 3. 总体架构：Part B `vbi` .net tool
 
-**核心观察**：`vbi` 二进制已存在（`Interactive\vbi\vbi.vbproj`，net10.0 TFM），脚本执行核心已被 vbi 使用（`Vbi.vb:57` → `VisualBasicScript.RunInteractiveAsync`，`VisualBasicScript.vb:150-170`）；`vbi --version` 链路已就位（`Vbi.vb:31-50`）。**缺的是 tool 打包声明 + 编译模式 + 版本号**。
+**核心观察**：`vbi` 二进制已存在（`Interactive\vbi\vbi.vbproj`，net10.0 TFM），脚本执行核心已被 vbi 使用（`Vbi.vb:57` → `VisualBasicScript.RunInteractiveAsync`，`VisualBasicScript.vb:150-170`）；`vbi /version` 链路已就位（`Vbi.vb:31-50`）。**缺的是 tool 打包声明 + 编译模式 + 版本号**。
 
 ### 3.1 tool 打包（`vbi.vbproj` 增补，无需新项目）
 
@@ -77,7 +77,7 @@
 | `.vbx` 文件且无 `/out:`/`/target:` | **执行**脚本 | `VisualBasicScript.RunInteractiveAsync`（`VisualBasicScript.vb:150-170`，即 `Vbi.vb:57` 现有路径） |
 | `.vb` 或带 `/out:`/`/target:` | **编译**到程序集 | `Vbc.Run` 进程内（`C\Shared\Vbc.cs:22-29`），或经 `BuildClient.Run`（`vbc\Program.cs:39`）；编译+Emit 主流程 `CommonCompiler.Run`（`CommonCompiler.cs:747`） |
 | 无参数 | 交互 REPL（既有能力，顺带保留） | `Vbi.vb:57` |
-| `/i` / `/?` / `--version` | 强制交互 / 帮助 / 版本 | 现有 `PrintLogo`（`Vbi.vb:31-50`） |
+| `/i` / `/?` / `/version` | 强制交互 / 帮助 / 版本 | 现有 `PrintLogo`（`Vbi.vb:31-50`） |
 
 > 编译模式为**新增**；执行/REPL 为 vbi 既有能力。隐式分派延申 `CommandLineRunner.cs:118-152` 的参数判定，不引入子命令。
 
@@ -85,13 +85,13 @@
 
 - shebang：`#!/usr/bin/env vbi` 直接可执行——`#!` 已在编译器语法层实现（`proposal-shebang-directive.md` done），`vbi` 作为解释器读取脚本首行。
 - rsp：**`vbi.rsp` 随 tool 打包**——tool 运行依赖它加载默认 imports/references（`Vbi.vb:20` `InteractiveResponseFileName="vbi.rsp"`）；`vbi.coreclr.rsp` 已 Link 为 `vbi.rsp`（`vbi.vbproj:21-24`）。**不是 `vbc.rsp`**（那是 net472 桌面 `vbc.exe` 的 netfx `/r:` 引用文件，与 vbi 工具无关）。
-- 版本：`vbi --version` 双行——`LogoLine1` 自版本（`AssemblyInformationalVersion` 落 `2.0.0-Beta`）+ `LogoLine2` Roslyn 上游（`GetRoslynVersion`，`Vbi.vb:48-50`）；Logo 文案已「不提及 Microsoft」（`VBScriptingResources.resx:120-159`）。
+- 版本：`vbi /version` 双行——`LogoLine1` 自版本（`AssemblyInformationalVersion` 落 `2.0.0-Beta`）+ `LogoLine2` Roslyn 上游（`GetRoslynVersion`，`Vbi.vb:48-50`）；Logo 文案已「不提及 Microsoft」（`VBScriptingResources.resx:120-159`）。
 
 ### 3.4 目标状态
 
 ```bash
 $ dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli
-$ vbi --version                                  # 2.0.0-Beta / Based on Roslyn 5.9.0
+$ vbi /version                                   # 2.0.0-Beta / Based on Roslyn 5.9.0
 $ vbi src.vb /out:app.dll                        # 批量编译（新增，仅 VB 面）
 $ vbi script.vbx -- arg1 arg2                    # 脚本执行（既有）
 $ ./script.vbx                                   # shebang 解释器
@@ -105,7 +105,7 @@ $ ./script.vbx                                   # shebang 解释器
 | 同一解决方案 C# 项目 | 用 SDK 自带 csc | **不变**（不注册 `Csc` 任务，C# 仍走 SDK） |
 | `vbi src.vb /out:app.dll` | 无法编译（vbi 只执行/REPL） | **编译到 app.dll**（新增 `Vbc.Run`/`BuildClient.Run` 路径） |
 | `vbi script.vbx` | 执行（既有） | **不变**（`VisualBasicScript.RunInteractiveAsync`） |
-| `vbi --version` | 双行已实现，版本为 Roslyn 上游 | **自版本 `2.0.0-Beta` + Roslyn 上游**（`AssemblyInformationalVersion` 落产品版本） |
+| `vbi /version` | 双行已实现，版本为 Roslyn 上游 | **自版本 `2.0.0-Beta` + Roslyn 上游**（`AssemblyInformationalVersion` 落产品版本） |
 | net472（VS 桌面老式项目） | — | **允许缺失**（v1 只发 netcore；SDK 项目 VS 里可用） |
 | 包描述 | — | 「基于 .NET Foundation 的 Roslyn 编译器改造而来」，不提及 Microsoft |
 

@@ -8,6 +8,9 @@
     <RootNamespace></RootNamespace>
     <AssemblyName>vbi</AssemblyName>
     <ApplicationManifest>..\..\Interactive\vbi\app.manifest</ApplicationManifest>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\..\Compilers\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   
   <ItemGroup>

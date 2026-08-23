@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Toolset 编译器包 build props（design-detailed.md A4 :105-124）。
+  对齐上游 {{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\build\Microsoft.Net.Compilers.Toolset.props:9-41，
+  fork 差异：只注册 Vbc、UseSharedCompilation=false、RoslynAssembliesPath→bincore、不含 _UseRoslynBridgeTask（netfx 桥 v1 不覆盖）。
+  文件名按包 ID 命名（Nukepayload2.Compilers.VBScriptDotNet.props），NuGet 引用包时自动导入（test-plan.md L2-3）。
+-->
+<Project>
+  <PropertyGroup>
+    <RoslynCompilerType>Custom</RoslynCompilerType>
+    <RoslynAssembliesPath>$(MSBuildThisFileDirectory)..\tasks\netcore\bincore\</RoslynAssembliesPath>
+    <RoslynTasksAssembly>$(MSBuildThisFileDirectory)..\tasks\netcore\Microsoft.Build.Tasks.CodeAnalysis.dll</RoslynTasksAssembly>
+    <UseSharedCompilation Condition="'$(UseSharedCompilation)' == ''">false</UseSharedCompilation>
+  </PropertyGroup>
+  <UsingTask TaskName="Microsoft.CodeAnalysis.BuildTasks.Vbc" AssemblyFile="$(RoslynTasksAssembly)" />
+  <!-- 只注册 Vbc：不含 csc，不替代 dotnet 工具链 -->
+</Project>

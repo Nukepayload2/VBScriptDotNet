@@ -32,7 +32,7 @@
 - **消费 C# 接口共享成员**（接口共享成员 SAIM，已实现）：见 `spec-consume-interface-shared-members.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令。
 - **理论上和 C# REPL 不应该有功能差距**。
-- 注意：代码内产品版本号仍停在 `1.2.0-beta`，「2.0 beta」是当前里程碑叫法。
+- 代码内产品版本号已落 `2.0.0-Beta`（2026-08-23 用户裁决：Scripting 库版本 `Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj:8-9` 由 `1.2.0/beta` 改为 `2.0.0/Beta`，`vbi --version` 显示 `2.0.0-Beta`）。
 
 ## 架构链（稳定结构事实）
 

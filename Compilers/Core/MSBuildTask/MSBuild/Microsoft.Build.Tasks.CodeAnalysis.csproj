@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Microsoft.CodeAnalysis.BuildTasks</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- 只 net10.0（对齐 fork 编译器 net10.0-only）；上游 $(NetRoslynSourceBuild);net472 的 net472 留后续 -->
+    <DefineConstants>$(DefineConstants);MICROSOFT_CODEANALYSIS_CONTRACTS_NO_VALUE_TASK</DefineConstants>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CA1819</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    外部共享源文件（fork 已有）。对齐上游 MSBuildTask\Directory.Build.props:26-31
+    + NuGet\Microsoft.CodeAnalysis.BuildClient.Package\Microsoft.CodeAnalysis.BuildClient.targets。
+    注：BuildServerConnection/BuildProtocol/CompilerServerLogger/NamedPipeUtil/NativeMethods/RuntimeHostInfo
+    提供 Microsoft.CodeAnalysis.CommandLine 命名空间（ManagedCompiler/ManagedToolTask/TaskCompilerServerLogger 依赖）；
+    RoslynString/UnicodeCharacterUtilities/Debug/PlatformInformation 提供 Roslyn.Utilities 类型
+    （Vbc/Csc/ValidateBootstrap/GenerateMSBuildEditorConfig 依赖）。fork 均已有且与上游逐字节一致。
+  -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\ConsoleUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\BuildProtocol.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\BuildServerConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\CompilerServerLogger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\NamedPipeUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\NativeMethods.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\Shared\RuntimeHostInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\CommandLineUtilities.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\CompilerOptionParseUtilities.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\ReflectionUtilities.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\RoslynString.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\UnicodeCharacterUtilities.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\Debug.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\InternalUtilities\PlatformInformation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Portable\CommitHashAttribute.cs" />
+  </ItemGroup>
+
+  <!-- MSBuildTask 目录源文件（对齐上游 Directory.Build.props:32-53）。Csc.cs 保留但不注册任务（F7 props 只注册 Vbc） -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\CanonicalError.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\CommandLineBuilderExtension.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\CopyRefAssembly.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\Csc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\Csi.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\GenerateMSBuildEditorConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\IAnalyzerConfigFilesHostObject.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ICompilerOptionsHostObject.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ICscHostObject5.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\InteractiveCompiler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\IVbcHostObject6.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ManagedCompiler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ManagedToolTask.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\MapSourceRoots.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\MvidReader.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\PropertyDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\RCWForCurrentContext.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ShowMessageForImplicitlySkipAnalyzers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\TaskCompilerServerLogger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\Utilities.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\ValidateBootstrap.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\Vbc.cs" />
+  </ItemGroup>
+
+  <!-- 资源 + 随任务 DLL 铺包的 targets（对齐上游 Directory.Build.props:54-61） -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\ErrorString.resx" GenerateSource="true" />
+    <Content Include="$(MSBuildThisFileDirectory)..\Microsoft.*.targets">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <BuildAction>None</BuildAction>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <PackagePath>contentFiles\any\any</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <!-- NuGet 依赖（对齐上游 MSBuildTask\Directory.Build.targets:5-6；fork 无中央包管理，版本显式填，取上游 eng\Packages.props:40-44 非 net472 分支 17.11.48） -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.11.48" ExcludeAssets="Runtime" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.11.48" ExcludeAssets="Runtime" />
+  </ItemGroup>
+
+  <!-- 生成 Microsoft.Managed.Core.CurrentVersions.targets（Microsoft.Managed.Core.targets:16 导入它；对齐上游 Directory.Build.targets:9-32） -->
+  <ItemGroup>
+    <CompilerVersionTargetsFile Include="$(IntermediateOutputPath)Microsoft.Managed.Core.CurrentVersions.targets" />
+  </ItemGroup>
+  <Target Name="GenerateCompilerVersionTargets" BeforeTargets="AssignTargetPaths" DependsOnTargets="GenerateCompilerVersionTargetsFile">
+    <ItemGroup>
+      <Content Include="@(CompilerVersionTargetsFile)">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <!-- fork 的 $(IntermediateOutputPath) 是相对路径（无 Arcade），TargetPath 强制落到输出根，供 F7 _GetFiles 的 publish\Microsoft.*.targets 通配收集 -->
+        <TargetPath>%(Filename)%(Extension)</TargetPath>
+        <Pack>true</Pack>
+        <BuildAction>None</BuildAction>
+        <PackageCopyToOutput>true</PackageCopyToOutput>
+        <PackagePath>contentFiles\any\any</PackagePath>
+      </Content>
+    </ItemGroup>
+  </Target>
+  <Target Name="GenerateCompilerVersionTargetsFile" Outputs="@(CompilerVersionTargetsFile)">
+    <PropertyGroup>
+      <_CompilerApiVersion>$([System.Version]::Parse($(VersionPrefix)).Major).$([System.Version]::Parse($(VersionPrefix)).Minor)</_CompilerApiVersion>
+      <_CompilerVersionTargetsFileContent><![CDATA[<Project>
+  <PropertyGroup>
+    <CompilerApiVersion>roslyn$(_CompilerApiVersion)</CompilerApiVersion>
+  </PropertyGroup>
+</Project>]]></_CompilerVersionTargetsFileContent>
+    </PropertyGroup>
+    <WriteLinesToFile File="@(CompilerVersionTargetsFile)" Lines="$(_CompilerVersionTargetsFileContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- 4 层 ..：csproj 在 Compilers\Core\MSBuildTask\MSBuild\（距仓库根 4 层）；对齐上游 csproj:15 -->
+  <Import Project="..\..\..\..\Dependencies\Contracts\Microsoft.CodeAnalysis.Contracts.projitems" Label="Shared" />
+</Project>

@@ -50,7 +50,7 @@
 | # | 命令 | 预期 |
 |---|------|------|
 | L3-1 | `dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli` | 安装成功，命令名 `vbi` |
-| L3-2 | `vbi --version` | 双行：`Nukepayload2's fork of Visual Basic Interactive Compiler [Version 2.0.0-Beta]` + `Based on Roslyn [Version 5.9.0]`（`Vbi.vb:31-50`） |
+| L3-2 | `vbi /version` | 双行：`Nukepayload2's fork of Visual Basic Interactive Compiler [Version 2.0.0-Beta]` + `Based on Roslyn [Version 5.9.0]`（`Vbi.vb:39-42` `PrintVersion`） |
 | L3-3 | `vbi src.vb /out:app.dll` | 编译到 `app.dll`（新增编译模式，走 `Vbc.Run`/`BuildClient.Run`） |
 | L3-4 | `vbi script.vbx -- arg1 arg2` | 脚本执行，`Args` 收到 `arg1 arg2`（`VisualBasicScript.RunInteractiveAsync`） |
 | L3-5 | `./script.vbx`（首行 `#!/usr/bin/env vbi`，Linux） | shebang 解释器执行（`proposal-shebang-directive.md` done 衔接） |
@@ -72,3 +72,34 @@
 - L2/L3 集成验证：用户手动跑，预期全部符合（打包产物核对、tool 命令面、shebang 衔接）。
 - 七门 gate 全绿（`scripts\verify-vb-compiler-tests.ps1`）。
 - 测不了的部分（L2/L3 集成副作用）向用户说明并询问，不静默跳过。
+
+## 实际执行结果（2026-08-23 回填）
+
+### 七门 gate（`scripts\verify-vb-compiler-tests.ps1`，net10.0）
+
+| 门 | 实际 total/passed/skipped/failed | 脚本基线（已更新） | 判定 |
+|----|------|--------|------|
+| Phase2 | 143/143/0/0 | 143/143/0/0 | PASS |
+| Syntax | 4070/4067/3/0 | 4070/4067/3/0 | PASS |
+| Symbol | 3399/3375/24/0 | 3399/3375/24/0 | PASS |
+| Semantic | 5747/5643/104/0 | 5747/5643/104/0 | PASS |
+| IOperation | 1574/1566/8/0 | 1574/1566/8/0 | PASS |
+| Emit | 4330/4227/103/0 | 4330/4227/103/0 | PASS |
+| CommandLine | 475/468/7/0 | 475/468/7/0 | PASS |
+
+七门全 0 失败、exit 0。Symbol/Semantic 为脚本基线漂移（实际 +1/+2 通过：Symbol 3398→3399、Semantic 5745→5747），非本任务引入；用户裁决将脚本基线更新到实际值（本次 F15 落地）。F15 全量重跑验证基线后不再 throw。
+
+> 注（环境级 flake，非基线/回归）：Symbol 门 `RetargetCustomAttributes.Test01_NamedTypeAttribute` 在 F15 首跑偶发 NRE（测试构造器 `RetargetingCustomAttributes.vb:80`，`c1MscorLibAssemblyRef` 为 Nothing），单门重跑与全量重跑均 0 失败。基线 3399/3375/24/0 与稳定通过态一致。
+
+### Scripting 回归（`Scripting\VisualBasicTest`，Debug net10.0，直接跑程序集 `-automated`）
+
+**183/183 通过，0 失败，0 跳过**（含 `VbiCompileModeTests` 17 用例 + `PrintVersion` 用例）。
+
+### L2/L3 集成验证（沙盒实测，2026-08-23）
+
+- **deps.json 首要确认项通过**：`dotnet build -v:diag` 无 MSB4062，MSBuild 直接加载包内 `Microsoft.Build.Tasks.CodeAnalysis.dll`，`RoslynAssembliesPath` → 包内 `tasks/netcore/bincore`（F7 遗留 deps.json fallback 不需要）。
+- **demo VB（fork vbc）/ C#（SDK csc）/ 混合（demo-mixed.slnx）构建全部成功**，EXIT 0。
+- **默认 imports 生效**：MSBuild `Vbc` 任务直接传 `/imports:` 开关（不依赖 rsp）。
+- **`vbi` tool 命令面**：`dotnet tool install` 成功；编译（`vbi src.vb /out:`）、脚本执行（`vbi script.vbx -- args`）、REPL、shebang 全部通过。
+- **`vbi /version` 两行**：`Nukepayload2's fork of Visual Basic Interactive Compiler [Version 2.0.0-Beta]` + `Based on Roslyn [Version 5.9.0]`（`PrintVersion`，无 Microsoft 文案）。
+- **NU5039 已解决**：README 打包进 nupkg（`PackageReadmeFile` + `<None Pack="true">`），pack 无 NU 警告。

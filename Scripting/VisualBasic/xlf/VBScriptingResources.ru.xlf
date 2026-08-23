@@ -3,13 +3,13 @@
   <file datatype="xml" source-language="en" target-language="ru" original="../VBScriptingResources.resx">
     <body>
       <trans-unit id="LogoLine1">
-        <source>Microsoft (R) Visual Basic Interactive Compiler version {0}</source>
-        <target state="translated">Интерактивный компилятор Microsoft (R) Visual Basic версии {0}</target>
+        <source>Nukepayload2's fork of Visual Basic Interactive Compiler [Version {0}]</source>
+        <target state="translated">Форк интерактивного компилятора Visual Basic от Nukepayload2 [Версия {0}]</target>
         <note />
       </trans-unit>
       <trans-unit id="LogoLine2">
-        <source>Copyright (C) Microsoft Corporation. All rights reserved.</source>
-        <target state="translated">© Корпорация Майкрософт (Microsoft Corporation). Все права защищены.</target>
+        <source>Based on Roslyn [Version {0}]. </source>
+        <target state="translated">На основе Roslyn [Версия {0}]. </target>
         <note />
       </trans-unit>
       <trans-unit id="InteractiveHelp">

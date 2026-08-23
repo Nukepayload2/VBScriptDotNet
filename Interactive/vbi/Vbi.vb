@@ -54,6 +54,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 ' Note that AppContext.BaseDirectory isn't necessarily the directory containing vbi.exe.
                 ' For example, when executed via corerun it's the directory containing corerun.
                 Dim vbiDirectory = Path.GetDirectoryName(GetType(Vbi).GetTypeInfo().Assembly.ManifestModule.FullyQualifiedName)
+
+                If VbiCompileMode.IsCompileInvocation(args) Then
+                    Return VbiCompileMode.Run(args, vbiDirectory)
+                End If
+
                 Dim retVal = Await VisualBasicScript.RunInteractiveAsync(args, vbiDirectory, InteractiveResponseFileName)
 
                 If retVal <> 0 Then

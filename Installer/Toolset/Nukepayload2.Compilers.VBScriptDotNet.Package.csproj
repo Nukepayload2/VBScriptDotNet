@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fork 的 Toolset 编译器 NuGet 包项目（design-detailed.md A3 :55-103）。
+  对齐上游 {{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\Microsoft.Net.Compilers.Toolset.Package.csproj:30-64。
+  与设计/上游的偏离（证据见 tmp/vortex-logs/distribute-toolset-f07.log.md）：
+  - NuspecPackageId → PackageId：SDK pack（NuGet.Build.Tasks.Pack.targets:29）用 $(PackageId)（默认=$(AssemblyName)），
+    NuspecPackageId 不被 SDK 消费（上游经 Arcade 基建映射；fork 无 Arcade）。设 PackageId 使 nupkg 名正确。
+  - 增加 <TargetFramework>net10.0</TargetFramework>：pack 与 $(IntermediateOutputPath) 解析（obj\Release\net10.0\）需要。
+  - 增加 build\**\*.* 与 buildMultiTargeting\**\*.* Content（对齐上游 csproj:46-49）：A4 props 进包。
+  - props 文件按包 ID 命名（build\Nukepayload2.Compilers.VBScriptDotNet.props），NuGet 才自动导入（L2-3 消费模型）。
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <PackageId>Nukepayload2.Compilers.VBScriptDotNet</PackageId>
+    <NuspecPackageId>Nukepayload2.Compilers.VBScriptDotNet</NuspecPackageId>
+    <Version>2.0.0-Beta</Version>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <PackageDescription>基于 .NET Foundation 的 Roslyn 编译器改造而来，专注 Visual Basic 的编译器包。</PackageDescription>
+    <Authors>Nukepayload2</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFiles</TargetsForTfmSpecificContentInPackage>
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 两个 ProjectReference 都设 Targets="Publish" + ReferenceOutputAssembly="false"，publish 产物经 PublishDir 落到统一中间目录。
+         PublishDir 用 $(MSBuildThisFileDirectory) 绝对化：相对路径会按「被引用项目目录」解析（MSBuild 内建 target 的 Copy/MakeDir 基准），
+         导致产物落到 vbc/MSBuildTask 自己的 obj（设计 A3 的 $(IntermediateOutputPath)vbc-publish\ 相对写法在项目异目录时失效，实测修正）。 -->
+    <ProjectReference Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj"
+                      PrivateAssets="All" Targets="Publish" ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=net10.0"
+                      AdditionalProperties="PublishDir=$(MSBuildThisFileDirectory)$(IntermediateOutputPath)vbc-publish\;SelfContained=false" />
+    <ProjectReference Include="..\..\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj"
+                      PrivateAssets="All" Targets="Publish" ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=net10.0"
+                      AdditionalProperties="PublishDir=$(MSBuildThisFileDirectory)$(IntermediateOutputPath)msbuildtask-publish\;SelfContained=false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A4 props 进包（对齐上游 csproj:46-49） -->
+    <Content Include="build\**\*.*" PackagePath="build\" />
+    <Content Include="buildMultiTargeting\**\*.*" PackagePath="buildMultiTargeting\" />
+    <!-- 英文 README 进包根（消 NU5039；PackageReadmeFile 须与打包路径一致） -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <Target Name="_GetFiles" DependsOnTargets="Build">
+    <ItemGroup>
+      <!-- tasks/netcore/（来自 MSBuildTask publish 产物） -->
+      <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.Build.Tasks.CodeAnalysis.dll" TargetDir="tasks/netcore" />
+      <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.*.targets" TargetDir="tasks/netcore" />
+      <!-- tasks/netcore/bincore/（来自 vbc publish 产物） -->
+      <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.dll" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.deps.json" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.runtimeconfig.json" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\Microsoft.CodeAnalysis.dll" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\Microsoft.CodeAnalysis.VisualBasic.dll" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\**\Microsoft.CodeAnalysis.resources.dll" TargetDir="tasks/netcore/bincore" />
+      <_File Include="$(IntermediateOutputPath)vbc-publish\**\Microsoft.CodeAnalysis.VisualBasic.resources.dll" TargetDir="tasks/netcore/bincore" />
+      <TfmSpecificPackageFile Include="@(_File)" PackagePath="%(_File.TargetDir)/%(_File.RecursiveDir)%(_File.FileName)%(_File.Extension)" />
+    </ItemGroup>
+  </Target>
+</Project>

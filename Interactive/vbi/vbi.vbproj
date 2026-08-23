@@ -8,13 +8,38 @@
     <RootNamespace></RootNamespace>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Sign with the shared Roslyn key so the compiler internals (VisualBasicCompiler, BuildPaths, ...)
+         are visible to this assembly via the InternalsVisibleTo declarations that carry its PublicKey. -->
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\..\Compilers\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
+    <Authors>Nukepayload2</Authors>
+    <PackageDescription>VBScriptDotNet vbi interactive compiler and .vbx script runner (fork based on Roslyn).</PackageDescription>
+    <!-- The dotnet tool embeds all of its runtime dependencies under tools/ (SuppressDependenciesWhenPacking is
+         otherwise only applied to net10.0 via PackTool.targets, which would leave phantom dependency groups for
+         the non-tool TFMs in the nuspec). -->
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)'!='net10.0'">
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+  <!-- .NET tool packaging: only net10.0 is shipped as the cross-platform dotnet tool.
+       The outer cross-targeting build (TargetFramework is empty) must also see PackAsTool=true so the
+       DotnetTool PackageType is emitted and TFM-specific tool content is gathered (PackTool.targets import
+       is conditioned on PackAsTool=='true' in Microsoft.NET.Sdk.CrossTargeting.targets:18). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == ''">
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>vbi</ToolCommandName>
+    <PackageId>Nukepayload2.Compilers.VBScriptDotNet.Cli</PackageId>
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionSuffix>Beta</VersionSuffix>
+  </PropertyGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 多目标项目（cross-targeting）导入同一份 build props（对齐上游 buildMultiTargeting\Microsoft.Net.Compilers.Toolset.props:3） -->
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\build\$(MSBuildThisFile)" />
+</Project>

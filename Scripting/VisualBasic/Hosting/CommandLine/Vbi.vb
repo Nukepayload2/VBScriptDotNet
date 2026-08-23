@@ -36,6 +36,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             consoleOutput.WriteLine()
         End Sub
 
+        Public Overrides Sub PrintVersion(consoleOutput As TextWriter)
+            consoleOutput.WriteLine(VBScriptingResources.LogoLine1, GetSelfVersion())
+            consoleOutput.WriteLine(VBScriptingResources.LogoLine2, GetRoslynVersion())
+        End Sub
+
         Private Function GetSelfVersion() As String
             Return GetType(VisualBasicInteractiveCompiler).Assembly.
                 GetCustomAttribute(Of AssemblyInformationalVersionAttribute).InformationalVersion

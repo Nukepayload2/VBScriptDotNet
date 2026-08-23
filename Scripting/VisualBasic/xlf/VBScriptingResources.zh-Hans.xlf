@@ -3,13 +3,13 @@
   <file datatype="xml" source-language="en" target-language="zh-Hans" original="../VBScriptingResources.resx">
     <body>
       <trans-unit id="LogoLine1">
-        <source>Microsoft (R) Visual Basic Interactive Compiler version {0}</source>
-        <target state="translated">Microsoft (R) Visual Basic 交互式编译器版本 {0}</target>
+        <source>Nukepayload2's fork of Visual Basic Interactive Compiler [Version {0}]</source>
+        <target state="translated">Nukepayload2 的 Visual Basic 交互式编译器修改版 [版本 {0}]</target>
         <note />
       </trans-unit>
       <trans-unit id="LogoLine2">
-        <source>Copyright (C) Microsoft Corporation. All rights reserved.</source>
-        <target state="translated">版权所有(C) Microsoft Corporation。保留所有权利。</target>
+        <source>Based on Roslyn [Version {0}]. </source>
+        <target state="translated">基于 Roslyn [版本 {0}]. </target>
         <note />
       </trans-unit>
       <trans-unit id="InteractiveHelp">

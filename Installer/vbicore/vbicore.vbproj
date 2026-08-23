@@ -10,6 +10,9 @@
     <RootNamespace></RootNamespace>
     <AssemblyName>vbi</AssemblyName>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\..\Compilers\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
     <ApplicationManifest>..\..\Interactive\vbi\app.manifest</ApplicationManifest>
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>

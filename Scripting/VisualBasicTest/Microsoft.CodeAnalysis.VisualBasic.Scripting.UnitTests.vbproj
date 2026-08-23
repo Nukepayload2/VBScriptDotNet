@@ -12,6 +12,9 @@
     <!-- Needed by CommandLineRunnerTests to build a C# 14 extension-member library in-memory
          (test-plan §4 R-series; no external ExternLib.dll artifact). -->
     <ProjectReference Include="..\..\Compilers\CSharp\Portable\Microsoft.CodeAnalysis.CSharp.csproj" />
+    <!-- vbi compile-mode mode detection (VbiCompileMode.IsCompileInvocation) is exercised by
+         VbiCompileModeTests via the InternalsVisibleTo granted by Interactive\vbi\vbi.vbproj. -->
+    <ProjectReference Include="..\..\Interactive\vbi\vbi.vbproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting.Desktop.UnitTests" />

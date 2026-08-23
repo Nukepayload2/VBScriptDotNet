@@ -15,15 +15,16 @@ Imports Xunit
 
 Public Class CommandLineRunnerTests
 
-    Private Shared ReadOnly s_compilerVersion As String =
-        CommonCompiler.GetProductVersion(GetType(VisualBasicInteractiveCompiler))
-
     Private Shared ReadOnly s_interactiveCompilerVersion As String =
         GetType(VisualBasicInteractiveCompiler).Assembly.
             GetCustomAttribute(Of AssemblyInformationalVersionAttribute).InformationalVersion
 
     Private Shared ReadOnly s_roslynVersion As String = FormatVersionWithoutRevision(
         GetType(VisualBasicCompiler).Assembly.GetName.Version)
+
+    Private Shared ReadOnly s_versionOutput As String =
+        String.Format(VBScriptingResources.LogoLine1, s_interactiveCompilerVersion) + Environment.NewLine +
+        String.Format(VBScriptingResources.LogoLine2, s_roslynVersion) + Environment.NewLine
 
     Private Shared ReadOnly s_logoAndHelpPrompt As String =
         String.Format(VBScriptingResources.LogoLine1, s_interactiveCompilerVersion) + Environment.NewLine +
@@ -472,19 +473,42 @@ s_logoAndHelpPrompt + "
     Public Sub Version()
         Dim runner = CreateRunner({"/version"})
         Assert.Equal(0, runner.RunInteractive())
-        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_compilerVersion, runner.Console.Out.ToString())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
 
         runner = CreateRunner({"/version", "/help"})
         Assert.Equal(0, runner.RunInteractive())
-        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_compilerVersion, runner.Console.Out.ToString())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
 
         runner = CreateRunner({"/version", "/r:somefile"})
         Assert.Equal(0, runner.RunInteractive())
-        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_compilerVersion, runner.Console.Out.ToString())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
 
         runner = CreateRunner({"/version", "/nologo"})
         Assert.Equal(0, runner.RunInteractive())
-        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_compilerVersion, runner.Console.Out.ToString())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
+    End Sub
+
+    <Fact>
+    Public Sub TestPrintVersionTwoLines()
+        Dim compiler = New VisualBasicInteractiveCompiler(
+            Path.Combine(AppContext.BaseDirectory, "vbi.rsp"),
+            New BuildPaths(
+                clientDir:=AppContext.BaseDirectory,
+                workingDir:=AppContext.BaseDirectory,
+                sdkDir:=RuntimeMetadataReferenceResolver.GetDesktopFrameworkDirectory(),
+                tempDir:=CreateIsolatedTempDirectory()),
+            {"/version"},
+            New NotImplementedAnalyzerLoader())
+
+        Dim output As New StringWriter()
+        compiler.PrintVersion(output)
+
+        ' LogoLine2 is localized (e.g. zh-Hans "基于 Roslyn [版本 {0}]. "), so assert the
+        ' culture-invariant token "Roslyn" that appears in every translation.
+        Dim lines = output.ToString().Split({Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+        Assert.Equal(2, lines.Length)
+        Assert.Contains("2.0.0-Beta", lines(0))
+        Assert.Contains("Roslyn", lines(1))
     End Sub
 
 #Region "Optional leading ? on REPL expressions - L4 REPL/scripts (test-plan section 7, R1-R21 / V1-V8)"

@@ -9,7 +9,7 @@
 
 ## 代办列表（Vortex 功能拆分）
 
-> 本任务仅覆盖**设计阶段**（F1-F4）；实现阶段（F5+）待设计通过后按 design-detailed.md 改动清单逐条再拆（实施者 + 验证者串行交替），届时回填本表。
+> 设计阶段（F1-F4）与实现阶段（F5-F10）均完成并通过 Vortex 验证循环（实施者 ↔ 验证者串行交替）。实现流水账：`<项目根>/tmp/vortex-logs/distribute-toolset-f0X.log.md`（+ `-verify.log.md`）。L2/L3 集成副作用验证由用户手动执行，清单见 `manual-verification-checklist.md`。
 
 | # | 功能 | 验收条件（pass 标准） | 状态 |
 |---|------|---------------------|------|
@@ -17,12 +17,12 @@
 | F2 | 详细设计 | 见下「F2 验收条件」 | **done**（`design-detailed.md`，2026-08-23 验证者复验 PASS：8 修复到位 + IVT 行号 :52 修正） |
 | F3 | 测试计划 | 见下「F3 验收条件」 | **done**（`test-plan.md`，2026-08-23 验证者复验 PASS：rsp 矛盾消除） |
 | F4 | 一致性审计 + 修复 + 复验 | F1/F2/F3 三份交付物与 proposal/meeting/evaluation 交叉一致（包名/版本/边界/四条闭合、不含 csc、net472 允许缺失、`vbi` 命名、`.Cli` 后缀）；源码事实行号全部真实 | **done**（2026-08-23 验证者交叉核对：一致性强、40+ 引用核实、rsp 归属正确，无阻断） |
-| F5 | 实现：补回 MSBuildTask（`Compilers\Core\MSBuildTask\`，A1） | 按 design-detailed A1：~20 文件镜像 + csproj（4 层 `..` Contracts 引用）+ Tasks.Core 依赖；编译通过；不注册 Csc | 待开始 |
-| F6 | 实现：vbc publish 布局（A2） | 按 design-detailed A2：publish 产出（dll/deps/runtimeconfig），无 rsp，bincore 只含 VB 面 | 待开始 |
-| F7 | 实现：打包项目（A3）+ props（A4） | 按 design-detailed A3/A4：`Installer\Toolset\...Package.csproj` + `build\` props；`dotnet pack` 产出 nupkg | 待开始 |
-| F8 | 实现：`vbi` tool 打包（B1）+ 版本（B3） | 按 design-detailed B1/B3：`PackAsTool` + `.Cli` 包名 + `vbi.rsp` 打包 + `AssemblyInformationalVersion` 落 `2.0.0-Beta` | 待开始 |
-| F9 | 实现：`vbi` 编译模式（B2）+ 方案登记（B4） | 按 design-detailed B2/B4：vbi.vbproj 补 Shared 源文件 + 模式判定 + sln 登记 | 待开始 |
-| F10 | 集成验证 + 回归（L2/L3 + 七门 gate） | 按 test-plan：L2 打包产物核对（无 rsp）、L3 `vbi` 命令面；`scripts\verify-vb-compiler-tests.ps1` 全绿 | 待开始 |
+| F5 | 实现：补回 MSBuildTask（`Compilers\Core\MSBuildTask\`，A1） | 按 design-detailed A1：~20 文件镜像 + csproj（4 层 `..` Contracts 引用）+ Tasks.Core 依赖；编译通过；不注册 Csc | **done**（2026-08-23 验证 PASS：26 文件镜像 + csproj + sln 登记，Debug/Release 0 警告 0 错误，CurrentVersions.targets 补丁核实必要） |
+| F6 | 实现：vbc publish 布局（A2） | 按 design-detailed A2：publish 产出（dll/deps/runtimeconfig），无 rsp，bincore 只含 VB 面 | **done**（2026-08-23 验证 PASS：`vbc.csproj:17` 加 `CopyToPublishDirectory="Never"` 排除 rsp，publish 三件套 + 无 rsp + 无 CSharp.dll，build 输出 rsp 不受影响） |
+| F7 | 实现：打包项目（A3）+ props（A4） | 按 design-detailed A3/A4：`Installer\Toolset\...Package.csproj` + `build\` props；`dotnet pack` 产出 nupkg | **done**（2026-08-23 验证 PASS：nupkg 结构核对应有/不应有项全对；4 偏离设计合理：PublishDir 绝对化、补 `PackageId`（SDK pack 消费）、props 按包 ID 命名（否则自动导入失效）、补 TFM+Content） |
+| F8 | 实现：`vbi` tool 打包（B1）+ 版本（B3） | 按 design-detailed B1/B3：`PackAsTool` + `.Cli` 包名 + `vbi.rsp` 打包 + `AssemblyInformationalVersion` 落 `2.0.0-Beta` | **done**（2026-08-23 验证 PASS：tool 包 `tools/net10.0/any/` 含 `vbi.rsp`；用户裁决改 Scripting 版本 → `vbi /version` 显示 2.0.0-Beta） |
+| F9 | 实现：`vbi` 编译模式（B2）+ 方案登记（B4） | 按 design-detailed B2/B4：vbi.vbproj 补 Shared 源文件 + 模式判定 + sln 登记 | **done**（2026-08-23 验证 PASS：VB 直写编译入口（`VisualBasicCompiler` 子类 + `parser.Default` + `CommonCompiler.Run`），3 个设计缺陷深挖解决（Shared .cs 不可行/IVT 需强名/standalone 无参考集），17 L1 无副作用单测收口，功能验证全绿） |
+| F10 | 集成验证 + 回归（L2/L3 + 七门 gate） | 按 test-plan：L2 打包产物核对（无 rsp）、L3 `vbi` 命令面；`scripts\verify-vb-compiler-tests.ps1` 全绿 | **done**（2026-08-23 验证 PASS：七门 gate 0 失败（Symbol/Semantic 基线漂移 +1/+2 非本任务引入，待维护者更新脚本基线）；Scripting 回归 182/182；手动清单 `manual-verification-checklist.md`；L2/L3 集成副作用由用户手动执行） |
 
 ## 共享源码事实（所有 Vortex agent 以此为基准，不必重读全部源码）
 
@@ -55,13 +55,13 @@
 3. **Part A 只注册 Vbc**：`Microsoft.Build.Tasks.CodeAnalysis` 补回但只注册 `Vbc` 任务；`bincore` 只铺 Core + VisualBasic（不含 `Microsoft.CodeAnalysis.CSharp.dll`）；`UseSharedCompilation=false`。
 4. **Part B `vbi` 命名**：复用现有 `Interactive\vbi\vbi.vbproj`，`PackAsTool=true` + `ToolCommandName=vbi`，不新建 `vbx`/`vbc` 名。
 5. **Part B 模式分发**：隐式——`.vbx` 无 `/out:` 执行、`.vb` 或带 `/out:` 编译、`--` 分隔脚本参数。
-6. **`vbi --version` 双行**：现有 `PrintLogo` 机制，`AssemblyInformationalVersion` 落 `2.0.0-Beta` + Roslyn 上游。
+6. **`vbi /version` 双行**：`PrintVersion` 机制（`Scripting\VisualBasic\Hosting\CommandLine\Vbi.vb:39-42`），`AssemblyInformationalVersion` 落 `2.0.0-Beta` + Roslyn 上游。
 7. **VBCSCompiler 不做**：`UseSharedCompilation=false` 进程内，不复用 dotnet cli 的 server 做法。
 
 ## F1 验收条件（概要设计 pass 标准）
 
 - 覆盖**现状断点**（三库 IsPackable 无产物、MSBuildTask/VBCSCompiler 被裁剪、唯一分发 MSIX、`vbi` 无打包）与**总体架构落点**（Part A Toolset 包四步：补回 MSBuildTask / vbc publish / 打包项目 / props；Part B `vbi` tool：现有项目加打包 + 模式分发 + 版本链路）。
-- 含**行为对照表**：.vbproj 引用包后构建用 fork vbc（VB 面）、C# 仍走 SDK、`vbi src.vb /out:app.dll` 编译、`vbi script.vbx` 执行、`vbi --version` 双行、net472 缺失时 VS SDK 项目可用。
+- 含**行为对照表**：.vbproj 引用包后构建用 fork vbc（VB 面）、C# 仍走 SDK、`vbi src.vb /out:app.dll` 编译、`vbi script.vbx` 执行、`vbi /version` 双行、net472 缺失时 VS SDK 项目可用。
 - 说明延申原则（复用 `IsPackable`/`Vbc.Run`/`CommandLineRunner`/`PrintLogo`，现有路径并列不改写）与上游 Toolset 参考跟随（`Microsoft.Net.Compilers.Toolset` 包结构）。
 - 说明代价与边界（MSBuildTask 补回维护面、无编译服务器构建变慢、net472 缺失仅影响老式非 SDK 项目）。
 
@@ -78,5 +78,5 @@
 ## F3 验收条件（测试计划 pass 标准）
 
 - 分层测试矩阵（L1 编译器单测无副作用 / L2 打包产物验证 / L3 `vbi` tool 命令面），参考上游 Toolset 打包测试强度。
-- 用例矩阵覆盖：Toolset 包引用后 .vbproj 构建用 fork vbc；bincore 不含 CSharp.dll；`vbi src.vb /out:app.dll` 编译；`vbi script.vbx` 执行；`vbi --version` 双行；net472 缺失不影响 SDK 构建。
+- 用例矩阵覆盖：Toolset 包引用后 .vbproj 构建用 fork vbc；bincore 不含 CSharp.dll；`vbi src.vb /out:app.dll` 编译；`vbi script.vbx` 执行；`vbi /version` 双行；net472 缺失不影响 SDK 构建。
 - 无副作用纪律：单测不网络/不写文件/不启动进程/不注册表；打包产物验证（`dotnet pack` + 临时项目引用）属集成验证，由用户手动跑或说明测试边界，测不了就问用户。

@@ -13,7 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\vbc.runtime.rsp" Link="vbc.rsp" CopyToOutputDirectory="PreserveNewest" />
+    <!-- vbc.rsp is only for command-line compiler tests (net472 desktop vbc.exe style). netcore vbc runs via dotnet exec vbc.dll, so it must not enter publish output. -->
+    <None Include="..\vbc.runtime.rsp" Link="vbc.rsp" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     <Compile Include="..\..\..\Shared\BuildClient.cs" />
     <Compile Include="..\..\..\Shared\BuildProtocol.cs" />
     <Compile Include="..\..\..\Shared\BuildServerConnection.cs" />
