@@ -521,6 +521,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                             sourcePaths.AddRange(ParseSeparatedPaths(value))
                             Continue For
+
+                        Case "optimize", "optimize+"
+                            If value IsNot Nothing Then
+                                AddDiagnostic(diagnostics, ERRID.ERR_SwitchNeedsBool, "optimize")
+                                Continue For
+                            End If
+
+                            optimize = True
+                            Continue For
+
+                        Case "optimize-"
+                            If value IsNot Nothing Then
+                                AddDiagnostic(diagnostics, ERRID.ERR_SwitchNeedsBool, "optimize")
+                                Continue For
+                            End If
+
+                            optimize = False
+                            Continue For
                     End Select
                 Else
                     Select Case name

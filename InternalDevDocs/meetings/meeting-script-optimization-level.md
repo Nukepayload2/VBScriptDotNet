@@ -81,6 +81,18 @@ _Related: [`../proposals/proposal-script-optimization-level.md`](../proposals/pr
 10. **不引入 `-c Release`**：脚本宿主不用 MSBuild 配置概念，用编译器开关惯例 `/optimize+`。
 11. **编译运行模式推迟**：`/out:` 形态与 `vbx` tool 编译路径统一规划，不并线本提案。
 
+### 勘误（2026-08-24）
+
+实现阶段证据核实推翻了「断点只有一行」的核心前提：`/optimize`、`/debug` 解析位于 `VisualBasicCommandLineParser.vb` **非脚本分支**（`Else` 分支 `Select Case`：`/optimize` :824-840、`/debug` :789-822）；脚本模式解析器（`IsScriptCommandLineParser`，`VisualBasicCommandLineParser.vb:33`）的脚本专属分支（:475-524）**原不解析**它们——脚本模式传 `/optimize+` 原落 `WRN_BadSwitch`（BC2007 警告），optimize 保持 False（`:97`）。上文「开关已被解析只差透传」仅对普通编译器（vbc）成立。
+
+**方案 A 已定案（用户 2026-08-24）**：
+- **C1b**：扩展 VB 脚本解析器——脚本专属分支新增 `Case "optimize", "optimize+"`（optimize=True）与 `Case "optimize-"`（optimize=False），现 :525-541；复用 :97 `optimize` 布尔、:1514 `optimizationLevel:=If(optimize, ...)` 构造。
+- **C1**：`CommandLineRunner.cs:177` 透传 `optimizationLevel: arguments.CompilationOptions.OptimizationLevel`。
+- `/debug` 保持不透传（RESOLUTION #8）：脚本模式仍被拒为 BC2007 警告，但 REPL 继续执行。
+- **csi 不自动受益**：C# 脚本解析器（`CSharpCommandLineParser.cs:308-357` 脚本分支）同构不解析 `/optimize`（C# 非脚本分支 :859-869），共享 `CommandLineRunner.cs` 只让 vbi 受益；方案 A 不扩展 C# 侧。
+
+测试已实现：A1/A2 + H1-H9 共 11 用例全绿，`Scripting\VisualBasicTest` 194 全量 0 失败。
+
 ### 状态
 
 - **LDM 状态**：**Active**。

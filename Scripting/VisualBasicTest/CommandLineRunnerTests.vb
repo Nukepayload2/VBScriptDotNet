@@ -9,6 +9,7 @@ Imports Microsoft.CodeAnalysis.CSharp
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
 Imports Microsoft.CodeAnalysis.VisualBasic
+Imports Microsoft.CodeAnalysis.VisualBasic.Scripting
 Imports Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 Imports My.Resources
 Imports Xunit
@@ -127,6 +128,166 @@ Public Class CommandLineRunnerTests
 10
 >", runner.Console.Out.ToString())
     End Sub
+
+#Region "script optimization level - /optimize passthrough (test-plan A1/A2, H1-H9)"
+
+    ''' <summary>
+    ''' A1: The VB script API consumer compiles with Debug optimization by default
+    ''' (ScriptOptions.Default -> VisualBasicCompilationOptions.OptimizationLevel).
+    ''' </summary>
+    <Fact>
+    Public Sub TestScriptCompilationDefaultOptimizationLevelIsDebug()
+        Dim script = VisualBasicScript.Create("x = 1", ScriptOptions.Default)
+
+        Assert.Equal(OptimizationLevel.Debug, script.GetCompilation().Options.OptimizationLevel)
+    End Sub
+
+    ''' <summary>
+    ''' A2: ScriptOptions.WithOptimizationLevel(Release) flows into the script compilation options.
+    ''' </summary>
+    <Fact>
+    Public Sub TestScriptCompilationWithOptimizationLevelRelease()
+        Dim script = VisualBasicScript.Create("x = 1", ScriptOptions.Default.WithOptimizationLevel(OptimizationLevel.Release))
+
+        Assert.Equal(OptimizationLevel.Release, script.GetCompilation().Options.OptimizationLevel)
+    End Sub
+
+    ''' <summary>
+    ''' H1: No /optimize switch keeps the default Debug compilation option.
+    ''' </summary>
+    <Fact>
+    Public Sub TestDefaultOptimizationLevelIsDebug()
+        Dim runner = CreateRunner(args:={"/R:System"})
+
+        Assert.Equal(OptimizationLevel.Debug, runner.Compiler.Arguments.CompilationOptions.OptimizationLevel)
+    End Sub
+
+    ''' <summary>
+    ''' H2: /optimize+ on the command line selects Release.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptimizePlusArgumentSetsRelease()
+        Dim runner = CreateRunner(args:={"/optimize+", "/R:System"})
+
+        Assert.Equal(OptimizationLevel.Release, runner.Compiler.Arguments.CompilationOptions.OptimizationLevel)
+    End Sub
+
+    ''' <summary>
+    ''' H3: /optimize- on the command line keeps Debug.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptimizeMinusArgumentSetsDebug()
+        Dim runner = CreateRunner(args:={"/optimize-", "/R:System"})
+
+        Assert.Equal(OptimizationLevel.Debug, runner.Compiler.Arguments.CompilationOptions.OptimizationLevel)
+    End Sub
+
+    ''' <summary>
+    ''' H4: /optimize+ from a response file selects Release.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptimizePlusResponseFileSetsRelease()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            Dim responseFile = Path.Combine(directory, "custom.vbi.rsp")
+            File.WriteAllText(responseFile,
+                File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "vbi.rsp")) & Environment.NewLine & "/optimize+")
+
+            Dim runner = CreateRunner(args:={"/R:System"}, responseFile:=responseFile)
+
+            Assert.Equal(OptimizationLevel.Release, runner.Compiler.Arguments.CompilationOptions.OptimizationLevel)
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H5: A response file without /optimize keeps the default Debug.
+    ''' </summary>
+    <Fact>
+    Public Sub TestResponseFileWithoutOptimizeKeepsDebug()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            Dim responseFile = Path.Combine(directory, "custom.vbi.rsp")
+            File.WriteAllText(responseFile,
+                File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "vbi.rsp")))
+
+            Dim runner = CreateRunner(args:={"/R:System"}, responseFile:=responseFile)
+
+            Assert.Equal(OptimizationLevel.Debug, runner.Compiler.Arguments.CompilationOptions.OptimizationLevel)
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H6: REPL smoke with /optimize+: "? 1 + 2" still prints 3 with no error.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptimizePlusReplSmoke()
+        Dim runner = CreateRunner(args:={"/optimize+", "/R:System"}, input:="? 1 + 2")
+
+        runner.RunInteractive()
+
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_logoAndHelpPrompt + "
+> ? 1 + 2
+3
+>", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' H7: Script-file smoke with /optimize+: main.vbx runs, prints 3, exit code 0.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptimizePlusScriptFileSmoke()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(3 + 0)")
+
+            Dim runner = CreateRunner(args:={"/optimize+", "main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("3", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H8: Default (no switch) REPL smoke: "? 1 + 2" prints 3 (existing behavior preserved).
+    ''' </summary>
+    <Fact>
+    Public Sub TestDefaultReplSmoke()
+        Dim runner = CreateRunner(input:="? 1 + 2")
+
+        runner.RunInteractive()
+
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_logoAndHelpPrompt + "
+> ? 1 + 2
+3
+>", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' H9: /debug:portable is not accepted as a VB script compilation switch: the script command-line
+    ''' parser reports WRN_BadSwitch (BC2007). It is a parse-time warning, not a compile error, so the
+    ''' REPL still runs and "? 1 + 2" prints 3. The warning is tee'd to both the error and output
+    ''' streams by TestConsoleIO, so a full-logo output match would not hold; assert the essential
+    ''' behavior instead.
+    ''' </summary>
+    <Fact>
+    Public Sub TestDebugPortableReplBehaviorUnchanged()
+        Dim runner = CreateRunner(args:={"/debug:portable", "/R:System"}, input:="? 1 + 2")
+
+        runner.RunInteractive()
+
+        Assert.False(runner.Compiler.Arguments.Errors.IsEmpty, "A bad switch must be reported in Arguments.Errors.")
+        Assert.Contains(runner.Compiler.Arguments.Errors, Function(d) d.Id = "BC2007")
+        Assert.Contains("BC2007", runner.Console.Error.ToString())
+        Assert.Contains("3", runner.Console.Out.ToString())
+    End Sub
+
+#End Region
 
     <Fact>
     Public Sub TestImportArgument()

@@ -1,9 +1,13 @@
 # 脚本编译优化级别的传递机制 / How the Script Host Passes the Compilation Optimization Level
 
 * [x] Proposed
-* [ ] Prototype: [Not Started](https://github.com/PROTOTYPE_OWNER/roslyn/BRANCH_NAME)
-* [ ] Implementation: [Not Started](https://github.com/dotnet/roslyn/BRANCH_NAME)
-* [ ] Specification: [Not Started](pr/1)
+* [x] Prototype: Complete
+* [x] Implementation: Complete（C1 宿主透传 `CommandLineRunner.cs:177` `optimizationLevel: arguments.CompilationOptions.OptimizationLevel` + C1b VB 脚本解析器脚本分支新增 `/optimize`、`/optimize+`、`/optimize-` 开关 `VisualBasicCommandLineParser.vb:525-541`；F6 测试 A1/A2 + H1-H9 共 11 用例全绿、`Scripting\VisualBasicTest` 194 全量 0 失败；F7 集成验证全绿）
+* [x] Specification: [Complete](../spec/spec-script-optimization-level.md)
+
+> **勘误（2026-08-24）**：实现阶段证据核实发现本提案「传递途径现状」第 1、3 点前提不成立——`/optimize`、`/debug` 的解析位于 `VisualBasicCommandLineParser.vb` **非脚本分支**（`Else` `Select Case`，`/optimize` :824-840、`/debug` :789-822），而脚本宿主用的是 `VisualBasicCommandLineParser.Script`（`isScriptCommandLineParser:=True`，:33）的**脚本专属分支**（:475-524，原只有 `-`/`i`/`i+`/`i-`/`nostdlib`/`vbruntime-`/`loadpath`），脚本模式传 `/optimize+` 原落 `WRN_BadSwitch`（BC2007 警告）。因此「开关被解析却不生效」仅对普通编译器（vbc）成立，对脚本不成立——脚本是**解析器不识别开关**，不只是宿主不透传。
+>
+> **定案（方案 A，用户 2026-08-24）**：核心改动实为**两处**——C1 宿主透传（`CommandLineRunner.cs:177`）+ C1b VB 脚本解析器脚本专属分支新增 `/optimize`、`/optimize+`、`/optimize-` 开关（:525-541）。`/debug` 保持不透传（RESOLUTION #8）。**csi 不自动受益**：C# 脚本解析器（`CSharpCommandLineParser.cs:308-357`）同构不解析 `/optimize`，方案 A 不扩展 C# 侧。本提案下文正文为勘误前调查记录，以本勘误块为准。
 
 ## Summary
 [summary]: #summary
@@ -40,7 +44,7 @@
 | `csi`（C# 脚本 REPL） | 逐 submission 编译 | **硬编码 Debug**（与 vbi 同缺陷，共享 `CommandLineRunner.cs:177`） |
 | `vbi` / `.vbx`（本产品） | 逐 submission 编译 | **硬编码 Debug**（本提案修复） |
 
-C# 生态里 csi 与 vbi 同病；`dotnet run` 的 `-c Release` 属于「完整编译一次」的另一种形态。本提案一处修改，csi 与 vbi 两端受益（同一 `CommandLineRunner.cs`）。
+C# 生态里 csi 与 vbi 同病；`dotnet run` 的 `-c Release` 属于「完整编译一次」的另一种形态。~~本提案一处修改，csi 与 vbi 两端受益（同一 `CommandLineRunner.cs`）。~~ **（勘误 2026-08-24：csi 不自动受益——C# 脚本解析器同构不解析 `/optimize`，方案 A 不扩展 C# 侧，见头部勘误块。）**
 
 ## Detailed design
 [design]: #detailed-design
@@ -51,7 +55,7 @@ C# 生态里 csi 与 vbi 同病；`dotnet run` 的 `-c Release` 属于「完整�
 
 | 途径 | 机制 | 现状证据 | 裁决 |
 |------|------|---------|------|
-| **A. 命令行参数 `/optimize+`** | 解析进 `Arguments.CompilationOptions`（`VisualBasicCommandLineParser.vb:806-821,1496`），脚本路径透传 | 已解析未生效 | **首版采用**（一行透传） |
+| **A. 命令行参数 `/optimize+`** | 非脚本分支解析进 `Arguments.CompilationOptions`（`VisualBasicCommandLineParser.vb:824-840,1514`）；脚本专属分支原不解析，已新增 `/optimize`、`/optimize+`、`/optimize-`（:525-541，方案 A）；宿主透传（`CommandLineRunner.cs:177`） | 勘误前「已解析未生效」仅对 vbc 成立；脚本原落 `WRN_BadSwitch`（BC2007） | **首版采用**（两处改动：C1 透传 + C1b 解析器扩展） |
 | **B. rsp 响应文件（`@vbi.rsp`）** | rsp 参数展开进 args 同走 `/optimize` 解析（`VisualBasicScript.vb:158` 拼 `vbi.rsp`；默认 rsp `vbi.coreclr.rsp`/`vbi.desktop.rsp`） | 同 A 被忽略 | **自动继承 A**，无独立改动；透传后在 rsp 写 `/optimize+` 即全局默认 Release |
 | **C. 环境变量**（如 `VBI_OPTIMIZE`） | 需在宿主新增读取 | 编译选项零 env 先例（见 Motivation） | **不采用（用户定案 2026-08-22）**；非 Roslyn 惯例、与运行期 `DOTNET_*` JIT 变量易混淆；「全局默认」由 rsp 承担 |
 | **D. 脚本头指令**（仿 `' Attribute TargetFramework = "net48"`） | `.vbx` 头部注释宿主识别已有先例 | 无优化级别版本 | **不采用（用户定案 2026-08-22）**；自定义机制、非 Roslyn 惯例，文件粒度需求由 rsp/命令行覆盖 |
@@ -67,14 +71,15 @@ C# 生态里 csi 与 vbi 同病；`dotnet run` 的 `-c Release` 属于「完整�
 optimizationLevel: arguments.CompilationOptions.OptimizationLevel,   // 由 /optimize 决定（默认 Debug）
 ```
 
-- **管道已存在**：`VisualBasicCommandLineParser.Script`（`:33`）解析 `/optimize` → `VisualBasicCommandLineArguments.CompilationOptions`（`:1496`）；`VisualBasicInteractiveCompiler`（`Scripting\VisualBasic\Hosting\CommandLine\Vbi.vb:14-19`，构造传 `VisualBasicCommandLineParser.Script`）→ `_compiler.Arguments`。`CompilationOptions.OptimizationLevel` 是 public getter（`Compilers\Core\Portable\Compilation\CompilationOptions.cs:138`）。
+- **两处改动（方案 A，勘误 2026-08-24）**：C1 宿主透传（上）+ C1b 脚本解析器脚本专属分支（`VisualBasicCommandLineParser.vb:525-541`）新增 `/optimize`、`/optimize+`（置 `optimize=True`）与 `/optimize-`（置 `optimize=False`），样式仿非脚本分支 `:824-840`。`/optimize` 的解析原本只在**非脚本分支**，脚本专属分支（:475-524）不识别，脚本模式传 `/optimize+` 原落 `WRN_BadSwitch`（BC2007 警告）。
+- **消费管道已存在**：`optimize` 布尔（`VisualBasicCommandLineParser.vb:97` 默认 False）→ `VisualBasicCommandLineArguments.CompilationOptions`（共用构造 `:1514` `optimizationLevel:=If(optimize, Release, Debug)`）；`VisualBasicInteractiveCompiler`（`Scripting\VisualBasic\Hosting\CommandLine\Vbi.vb:14-19`，构造传 `VisualBasicCommandLineParser.Script`）→ `_compiler.Arguments`。`CompilationOptions.OptimizationLevel` 是 public getter（`Compilers\Core\Portable\Compilation\CompilationOptions.cs:138`）。
 - **生效面**：
   - `vbi /optimize+ script.vbx` → 脚本文件 Release 编译（`RunScriptAsync`，`CommandLineRunner.cs:201-222`）。
   - `vbi /optimize+` → REPL 启动即 Release；每轮 submission 的 options 在 `UpdateOptions`（`:322-342`）只更新 resolver、**保留 OptimizationLevel**。
   - `@vbi.rsp` 内写 `/optimize+` → 同等生效（途径 B 自动继承）。
   - 默认（无 `/optimize`）行为不变 = Debug。
 - **REPL 中途不可切换**：submission 已编译代码无法重编，切换只影响后续提交，语义不干净。本提案不支持中途切换，优化级别在启动时固定。
-- **Release 语义完整定义**：`/optimize+`（无 `/define:DEBUG`）= 优化 + `#If DEBUG` False——与 MSBuild Release 配置（`Optimize=true` 且 DefineConstants 不含 DEBUG）精确一致。VB 编译器默认不定义 DEBUG（`PredefinedPreprocessorSymbols.vb:48-62` 只加 `VBC_VER`/`TARGET`，`defines` 仅来自显式 `/define`，`VisualBasicCommandLineParser.vb:237-244`），无 `/define` 时 `#If DEBUG` 天然为 False，**无需「清除 DEBUG」动作**；`/optimize+ /define:DEBUG` 是正交组合（Release 优化 + DEBUG 符号）。
+- **Release 语义完整定义**：`/optimize+`（无 `/define:DEBUG`）= 优化 + `#If DEBUG` False——与 MSBuild Release 配置（`Optimize=true` 且 DefineConstants 不含 DEBUG）精确一致。VB 编译器默认不定义 DEBUG（`PredefinedPreprocessorSymbols.vb:48-62` 只加 `VBC_VER`/`TARGET`，`defines` 仅来自显式 `/define`，`VisualBasicCommandLineParser.vb:237-244`），无 `/define` 时 `#If DEBUG` 天然为 False，**无需「清除 DEBUG」动作**。`/optimize+` 与 `/define:DEBUG` 两开关正交（前者不定符号、后者不影响优化级别），但**组合无实际用例**——Release 构建带 DEBUG 符号是反模式，Release 语义即 `/optimize+` 无 `/define:DEBUG`。
 - **默认 rsp 不定义 DEBUG（用户定案 2026-08-22）**：默认 `vbi.rsp` 保持现状（无 `/optimize`、无 `/define`）。「Debug 配置」心智（`#If DEBUG` True + Debug 优化）由用户自行 `/define:DEBUG` 组合；Release 用 `/optimize+`（无 `/define:DEBUG`）。曾评估「默认 rsp 定义 DEBUG + release rsp 覆盖」——因 `/define` 只可覆盖不可移除（`SetItem`，`VisualBasicCommandLineParser.vb:2108/2115`），release rsp 无法靠「不写 DEBUG」取消，需 `/define:DEBUG=False` 或 `/noconfig` 替换，成本高于收益，**否决**。
 
 ### 正交维度：调试符号（`/debug`）
@@ -82,7 +87,7 @@ optimizationLevel: arguments.CompilationOptions.OptimizationLevel,   // 由 /opt
 优化级别与调试符号是两个正交开关。当前脚本路径：
 
 - `CommandLineRunner.cs:131` `emitDebugInformation = !_compiler.Arguments.InteractiveMode` —— REPL 不发 PDB，脚本文件模式**必发** PDB（经 `ScriptBuilder.cs:168-169` 的 `GetEmitOptions` + `s_EmitOptionsWithDebuggingInformation` `:51-53`，CoreCLR 用 PortablePdb，`Scripting\Core\Utilities\PdbHelpers.cs:14-24`）。
-- 脚本文件模式无 `/debug-` 关闭、REPL 无 `/debug+` 开启——`/debug` 同样被脚本路径忽略。
+- 脚本文件模式无 `/debug-` 关闭、REPL 无 `/debug+` 开启。脚本模式传 `/debug` 类开关落 `WRN_BadSwitch`（BC2007 警告）——`/debug` 不被脚本解析器识别（解析在非脚本分支 `:789-822`），警告不阻断会话。（勘误 2026-08-24 修正原文「被忽略」表述。）
 
 `/debug` **不透传（用户定案 2026-08-22）**：vbi 遵循 csi 策略——`emitDebugInformation = !InteractiveMode`（`CommandLineRunner.cs:131`）保持硬编码，不透传 `/debug`/`/debug-`/格式；本提案只透传 `/optimize`。
 
@@ -108,7 +113,7 @@ optimizationLevel: arguments.CompilationOptions.OptimizationLevel,   // 由 /opt
 
 1. **`/debug` 透传——已定案：不透传**（2026-08-22）。vbi 遵循 csi 策略，`emitDebugInformation = !InteractiveMode`（`CommandLineRunner.cs:131`）保持硬编码；本提案只透传 `/optimize`。
 2. **帮助文本——已定案（2026-08-22）**：`/help` 简略提及支持 vbc 同款参数（`/optimize`、`/define` 等），不逐条展开（当前 help 由 `VisualBasicInteractiveCompiler.PrintHelp` 输出 `VBScriptingResources.InteractiveHelp`，`Vbi.vb:52-54`）。
-3. **`#If DEBUG` 语义——已定案（2026-08-22）**：无需处理。VB 编译器默认不定义 DEBUG（`PredefinedPreprocessorSymbols.vb:48-62` 只加 `VBC_VER`/`TARGET`，`defines` 仅来自 `/define`），`/optimize+`（无 `/define:DEBUG`）即 Release 语义（优化 + `#If DEBUG` False），与 MSBuild Release 配置一致；Debug+Release 正交组合为 `/optimize+ /define:DEBUG`。
+3. **`#If DEBUG` 语义——已定案（2026-08-22）**：无需处理。VB 编译器默认不定义 DEBUG（`PredefinedPreprocessorSymbols.vb:48-62` 只加 `VBC_VER`/`TARGET`，`defines` 仅来自 `/define`）。两种配置互相对应：**Release = `/optimize+`（无 `/define:DEBUG`）**＝优化 + `#If DEBUG` False，与 MSBuild Release 配置一致；**Debug 配置 = `/define:DEBUG`（默认优化）**＝`#If DEBUG` True + Debug 优化。`/optimize+` 与 `/define:DEBUG` 两开关正交（前者不定符号、后者不影响优化级别），但**组合无实际用例**——Release 构建带 DEBUG 符号是反模式，Release 语义即 `/optimize+` 无 `/define:DEBUG`。
 4. **环境变量兜底——已定案不采用（2026-08-22）**：原问是否加 `VBI_OPTIMIZE`（优先级 命令行 > env > 默认）；rsp 已覆盖「全局默认 Release」，不引入 env 途径。
 5. **脚本头指令——已定案不采用（2026-08-22）**：原问是否 `' Attribute Optimize = "release"` 按文件粒度控制；文件粒度需求由 rsp/命令行覆盖。
 

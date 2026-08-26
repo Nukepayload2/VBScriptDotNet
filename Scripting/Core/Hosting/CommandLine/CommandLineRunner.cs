@@ -174,7 +174,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 sourceResolver: sourceResolver,
                 emitDebugInformation: emitDebugInformation,
                 fileEncoding: null,
-                optimizationLevel: OptimizationLevel.Debug,
+                optimizationLevel: arguments.CompilationOptions.OptimizationLevel,
                 allowUnsafe: true,
                 checkOverflow: false,
                 warningLevel: 4,

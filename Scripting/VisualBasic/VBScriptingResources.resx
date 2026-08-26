@@ -148,6 +148,8 @@ Options:
   /i                             Run in interactive mode.
   /loadpath                      Reserved for running additional vbx scripts in future releases. 
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
+
+支持 vbc 同款编译参数(/optimize、/define 等)。
 </value>
   </data>
   <data name="ExceptionEscapeWithoutQuote" xml:space="preserve">

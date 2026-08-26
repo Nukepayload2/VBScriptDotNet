@@ -15,11 +15,11 @@
 | F2 | 详细设计 | 见下「F2 验收条件」 | pending（`design-detailed.md`） |
 | F3 | 测试计划 | 见下「F3 验收条件」 | pending（`test-plan.md`） |
 | F4 | 设计验证 + 一致性 | 三份交付物交叉一致、源码锚点真实、无副作用纪律 | pending |
-| F5 | 宿主实现（`CommandLineRunner.cs:177` 透传） | 见「实现阶段（F5+）」 | pending（**plan 阶段不执行**） |
-| F6 | 测试实现 + 修复轮 | 见「实现阶段（F5+）」 | pending（**plan 阶段不执行**） |
+| F5 | 宿主实现（`CommandLineRunner.cs:177` 透传 + `VisualBasicCommandLineParser.vb` 脚本分支新增 `/optimize` 开关） | 见「实现阶段（F5+）」 | completed |
+| F6 | 测试实现 + 修复轮 | 见「实现阶段（F5+）」 | completed（11 用例全绿、194 全量 0 失败） |
 | F7 | 集成验证 + spec | 全量构建、测试全绿、`../..\spec\spec-script-optimization-level.md` | pending（**plan 阶段不执行**） |
 
-> 本任务当前为 **plan 阶段**（F1–F4）。实现（F5–F7）按 Vortex 循环另起，实施者/验证者 background agent 串行交替。
+> 本任务当前为 **plan 阶段**（F1–F4）；实现阶段 F5（宿主实现）与 F6（测试实现）已完成（F6 测试 11 用例全绿、`Scripting\VisualBasicTest` 194 全量 0 失败），F7（集成验证 + spec）待执行。
 
 ## 共享源码事实（所有 Vortex agent 以此为基准，不必重读全部源码）
 
@@ -34,14 +34,14 @@
 
 ### 命令行解析（`Compilers\VisualBasic\Portable\CommandLine\`）
 
-- `/optimize` 解析：`VisualBasicCommandLineParser.vb:806-821`（布尔 `optimize`，默认 False）；`:1496` `optimizationLevel:=If(optimize, OptimizationLevel.Release, OptimizationLevel.Debug)` 进 `VisualBasicCommandLineArguments.CompilationOptions`（类型见 `VisualBasicCommandLineArguments.vb:29`）。
+- `/optimize`、`/debug` 解析位于**非脚本分支**（`VisualBasicCommandLineParser.vb` `Else` 分支 `Select Case`：`/optimize` :824-840、`/debug` :789-822；改动前行号原引 :806-821/:771）。脚本专属分支（`IsScriptCommandLineParser` 的 `Select Case`，:475-524）**原不解析**——脚本模式传 `/optimize+` 原落 `WRN_BadSwitch`（BC2007 警告），optimize 保持 False（`:97`）。**已按方案 A 新增** `Case "optimize", "optimize+"`（optimize=True）与 `Case "optimize-"`（optimize=False），现 :525-541。`:1514` `optimizationLevel:=If(optimize, OptimizationLevel.Release, OptimizationLevel.Debug)` 进 `VisualBasicCommandLineArguments.CompilationOptions`（类型见 `VisualBasicCommandLineArguments.vb:29`）。
 - `CompilationOptions.OptimizationLevel` public getter：`Compilers\Core\Portable\Compilation\CompilationOptions.cs:138`——`arguments.CompilationOptions.OptimizationLevel` 可读。
 - 脚本宿主接线：`Scripting\VisualBasic\Hosting\CommandLine\Vbi.vb:14-19`（`VisualBasicInteractiveCompiler` 用 `VisualBasicCommandLineParser.Script`）→ `_compiler.Arguments`。
 - 默认 rsp：`vbi.vbproj:21-26`（`vbi.coreclr.rsp`/`vbi.desktop.rsp` 经 `<Link>vbi.rsp</Link>`），内容无 `/optimize`、无 `/define`（`vbi.coreclr.rsp`、`vbi.desktop.rsp` 已核）。rsp 经 `CommonCompiler.cs:130-132` 前置拼入 args。
 
 ### 编译消费端（`Scripting\VisualBasic\VisualBasicScriptCompiler.vb`）
 
-- `:209` `optimizationLevel:=script.Options.OptimizationLevel` 透传进 `VisualBasicCompilationOptions`（**已就位**，断点只在宿主 `:177`）。
+- `:209` `optimizationLevel:=script.Options.OptimizationLevel` 透传进 `VisualBasicCompilationOptions`（**已就位**；改动面为 C1 宿主透传 + C1b 解析器脚本分支新增 `/optimize` 开关，方案 A）。
 - 上游 C# 同：`{{Roslyn}}src\Scripting\CSharp\CSharpScriptCompiler.cs:61`。
 
 ### DEBUG 符号（不引入 configuration）
@@ -53,28 +53,28 @@
 ## 关键设计决策（源自 meeting RESOLUTION #1-#11，设计文档必须吸收）
 
 1. **传递途径 = 命令行参数 + rsp**（RESOLUTION #6）：`/optimize` 由命令行或 `@vbi.rsp` 展开进 args，经 `GetScriptOptions` 透传；环境变量、脚本头指令不采用（#4/#5）。
-2. **核心改动一处**：`CommandLineRunner.cs:177` 改 `optimizationLevel: arguments.CompilationOptions.OptimizationLevel`，默认仍 Debug。
+2. **核心改动两处（方案 A）**：C1 宿主透传——`CommandLineRunner.cs:177` 改 `optimizationLevel: arguments.CompilationOptions.OptimizationLevel`（默认仍 Debug）；C1b VB 脚本解析器脚本分支新增 `/optimize` 开关（`VisualBasicCommandLineParser.vb:525-541`）。
 3. **`/debug` 硬编码不透传**（#8）：`emitDebugInformation = !InteractiveMode`（`:131`）保持，遵循 csi 策略；本特性只透传 `/optimize`。
 4. **默认 rsp 不加 DEBUG**（#7）：保持现状；「Debug 配置」由用户自行 `/define:DEBUG`。
 5. **Release 语义**（proposal Unresolved #3 已定案；meeting RESOLUTION #3 是 `/debug` 正交，勿混淆）：`/optimize+`（无 `/define:DEBUG`）= 优化 + `#If DEBUG` False，与 MSBuild Release 配置一致；VB 默认无 DEBUG 符号，无需「清除 DEBUG」。
 6. **REPL 中途不可切**（#2）：优化级别启动时固定（`UpdateOptions` 保留），不引入运行时切换指令。
 7. **help 简略提及 vbc 同款参数**（#9）：`/help` 注明支持 vbc 同款编译参数（`/optimize`、`/define` 等），不逐条展开（当前 help 由 `Vbi.vb:52-54` `PrintHelp` → `VBScriptingResources.InteractiveHelp`）。
-8. **csi 同步受益**：同一 `CommandLineRunner.cs`，对 csi 是行为变化（今天也硬编码 Debug）。
+8. **csi 不自动受益**：C# 脚本解析器（`CSharpCommandLineParser.cs:308-357` 脚本分支）同样不解析 `/optimize`（C# 非脚本分支 `/optimize` :859-869、`/debug` :810-850），共享 `CommandLineRunner.cs:177` 只让 vbi 受益（csi 仍硬编码 Debug）。方案 A 不扩展 C# 侧（定案）。
 
 ## F1 验收条件（概要设计 pass 标准）
 
-- 覆盖三层（解析 / 宿主 / 编译消费端）与唯一断点（`CommandLineRunner.cs:177`）。
+- 覆盖三层（解析 / 宿主 / 编译消费端）与两处核心改动（C1 宿主透传 `CommandLineRunner.cs:177` + C1b 解析器脚本分支新增 `/optimize` 开关，方案 A）。
 - 含行为对照表（默认 / `/optimize+` / `/optimize-` / rsp `/optimize+`，交互 vs 脚本）。
 - 说明 `/debug` 不透传、`emitDebugInformation` 不变（RESOLUTION #8）。
 - 说明 Release 语义（`/optimize+` 无 `/define:DEBUG` = `#If DEBUG` False）与默认 rsp 不加 DEBUG。
-- 说明 REPL 启动时定、中途不可切；csi 同步受益（行为变化）。
+- 说明 REPL 启动时定、中途不可切；csi 不自动受益（C# 脚本解析器同构不解析 `/optimize`，方案 A 不扩展）。
 
 ## F2 验收条件（详细设计 pass 标准）
 
-- 逐条给出**改动文件 + 函数 + 行号 + 改动形状**，可被实施者直接照做（预期仅 `CommandLineRunner.cs:177` 一行）。
-- 确认 `arguments.CompilationOptions.OptimizationLevel` 类型可达（`CompilationOptions.cs:138` public getter）与默认 Debug（`optimize` 布尔默认 False，`VisualBasicCommandLineParser.vb:97/806-821`）。
+- 逐条给出**改动文件 + 函数 + 行号 + 改动形状**，可被实施者直接照做（C1 宿主透传 `CommandLineRunner.cs:177` 一行 + C1b 解析器脚本分支新增 `/optimize` 开关，方案 A）。
+- 确认 `arguments.CompilationOptions.OptimizationLevel` 类型可达（`CompilationOptions.cs:138` public getter）与默认 Debug（`optimize` 布尔默认 False，`VisualBasicCommandLineParser.vb:97`；脚本分支新增 case :525-541、非脚本分支 :824-840）。
 - 无副作用测试矩阵（REPL 与脚本模式），含解析断言（`runner.Compiler.Arguments.CompilationOptions.OptimizationLevel`）与冒烟。
-- 边界与迁移影响（REPL 中途不可切、csi 行为变化、/debug 不变、rsp 继承）。
+- 边界与迁移影响（REPL 中途不可切、csi 不自动受益、/debug 不变、rsp 继承）。
 
 ## F3 验收条件（测试计划 pass 标准）
 
@@ -84,6 +84,6 @@
 
 ## 实现阶段（F5+，plan 阶段不执行）
 
-- **F5 宿主实现**：`CommandLineRunner.cs:177` 改 `optimizationLevel: arguments.CompilationOptions.OptimizationLevel`（一处）。验收：`/optimize+` 脚本/REPL Release 编译、默认 Debug、`/debug` 不变、rsp 继承。
+- **F5 宿主实现**：`CommandLineRunner.cs:177` 改 `optimizationLevel: arguments.CompilationOptions.OptimizationLevel`（透传）+ `VisualBasicCommandLineParser.vb` 脚本分支新增 `/optimize` 开关（:525-541，方案 A）。验收：`/optimize+` 脚本/REPL Release 编译、默认 Debug、`/debug` 不变、rsp 继承。
 - **F6 测试实现**：按 `test-plan.md` 四层用例，无副作用。验收：全绿 + 回归面（`CommandLineRunnerTests` 既有用例不破）。
 - **F7 集成 + spec**：全量构建、测试全绿；`../..\spec\spec-script-optimization-level.md` 与 proposal/meeting RESOLUTION 一致；提案头部 `Specification` 进度更新。
