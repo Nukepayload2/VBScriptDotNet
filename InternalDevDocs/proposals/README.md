@@ -34,6 +34,7 @@
 | 06 | `proposal-consume-csharp-extension-and-interface-shared.md` | 消费 C# 扩展成员（扩展属性/运算符，扩展方法已可用）与接口共享成员（SAIM：`T.Zero`/`T.Add` 经类型参数）；**RESOLUTION Active（D4 P1 判入）**，见 `../meetings/meeting-consume-csharp-extension-and-interface-shared.md` |
 | 07 | `proposal-distribute-compiler-nuget-package-and-dotnet-tool.md` | 把 fork 编译器分发为 Toolset 风格 NuGet 包（`Nukepayload2.Compilers.VBScriptDotNet` 2.0.0-Beta，.vbproj 引用即用 fork VB 编译器；不含 csc、不替代 dotnet 工具链）与 `.net tool`（`Nukepayload2.Compilers.VBScriptDotNet.Cli`，`vbi` 命令：复用现有 vbi 二进制，批量编译 + `.vbx` 执行 + shebang 解释器；编译器 NuGet 包不是 vbi，tool 才是 vbi）；**RESOLUTION Active**（四条 Unresolved 闭合：隐式分派 / 不补 VBCSCompiler / v1 仅 .NET SDK / 双行版本），见 `../meetings/meeting-distribute-compiler-nuget-package-and-dotnet-tool.md` |
 | 08 | `proposal-script-optimization-level.md` | 脚本编译优化级别：`/optimize+` 对脚本生效（透传 `arguments.CompilationOptions.OptimizationLevel`，默认仍 Debug），服务高 CPU 脚本用例（Active，见 `../meetings/meeting-script-optimization-level.md`） |
+| 09 | `proposal-vbi-script-diag-mode.md` | vbi 脚本模式诊断检查 `/check`：只编译输出错误+全部警告、不执行不落盘（复用 `Script.Compile()`，对标 `cargo check`），服务 AI 开发 vbx / CI 编译门；**命名由 meeting RESOLUTION 从提案原 `/diag` 改为 `/check`**（AI 先验标准）（Active，见 `../meetings/meeting-vbi-script-diag-mode.md`） |
 
 ---
 
