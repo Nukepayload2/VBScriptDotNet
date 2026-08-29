@@ -144,6 +144,16 @@ spec 中**不得出现**以下任何内容：
 - [ ] 引用指向公开文档，文末锚点规范
 - [ ] 品质对标 `ref-struct-interfaces.md`
 
+### xlf 本地化规范（对齐原版 Roslyn VB 编译器）
+
+所有本地化 resx 及其 13 语言 xlf（`Scripting\VisualBasic\VBScriptingResources.resx`、`Scripting\Core\ScriptingResources.resx` 等）必须遵循原版 Roslyn VB 编译器的 xlf 规范与风格（基准：`src\Compilers\VisualBasic\Portable\xlf\VBResources.*.xlf`）：
+
+1. **结构**：XLIFF 1.2（`urn:oasis:names:tc:xliff:document:1.2`），`<file datatype="xml" source-language="en" target-language="<lang>" original="../VBScriptingResources.resx">`，`<trans-unit>` = `<source>` + `<target state="translated">` + `<note />`。
+2. **source 逐字节等于 resx**（XliffTasks 不变式）：resx 是唯一真值；改 resx 必须同步全部 13 个 xlf 的 source。
+3. **中性资源必须干净英文产品内容**：帮助/描述一律英文、正式、产品相关（2026-08-29 用户裁决）；禁止混入中文行、旧分支 URL、保留/未实现功能的宣传等与当前产品无关的内容。
+4. **target 行对行翻译**：开关名与占位符原样，仅译描述；`state="translated"`；开关帮助不额外加行。
+5. **维护流**：resx 改动 → XliffTasks（`UpdateXlfOnBuild`）同步 source → 各语言 target 补译/复核；不手工向 xlf 塞内容。
+
 ## 相关索引
 
 - `../proposals/README.md` —— VBScript.NET 产品提案（已发布版本能力见 `../proposals/vbscript-<版本>/` 归档）

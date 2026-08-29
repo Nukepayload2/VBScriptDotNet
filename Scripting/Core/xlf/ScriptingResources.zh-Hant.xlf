@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">鍵盤快速鍵:
   Enter         如果目前提交似乎已完成，會加以評估。否則會插入新行。
   Escape        清除目前的提交。
@@ -113,8 +114,9 @@ Script directives:
 REPL 命令:
   #help         顯示可用命令與金鑰繫結的說明。
 指令碼指示詞:
-  #r            將中繼資料參考加入指定的組件及其所有相依性中，例如 #r "myLib.dll"。
-  #load         載入指定的指令碼檔案並加以執行，例如 #load "myScript.csx"。</target>
+  #R            將中繼資料參考加入指定的組件及其所有相依性中，例如 #R "myLib.dll"。
+  #Load         載入指定的指令碼檔案並加以執行，例如 #Load "myScript.vbx"。
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

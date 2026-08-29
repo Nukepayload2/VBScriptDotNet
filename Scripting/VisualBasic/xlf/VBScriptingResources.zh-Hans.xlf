@@ -12,6 +12,16 @@
         <target state="translated">基于 Roslyn [版本 {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">这是一款预发布软件。如需了解已知问题，请参阅 https://github.com/Nukepayload2/VBScriptDotNet#known-issues</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">隐私声明：本软件不会收集您的数据，除非正在运行某个设计用于收集数据的脚本或命令。</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,10 +32,21 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">用法: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -36,10 +57,21 @@ Options:
   /version                       显示版本并退出
   /reference:&lt;alias&gt;=&lt;file&gt;      从使用给定别名的指定程序集文件引用元数据(缩写: /r)
   /reference:&lt;file list&gt;         从指定的程序集文件中引用元数据(缩写: /r)
-  /referencePath:&lt;path list&gt;     路径列表，在此处查找执行为非根路径的元数据引用。(缩写: /rp)
-  /using:&lt;namespace&gt;             定义使用(缩写: /u)的全局命名空间
+  /imports:&lt;namespace&gt;           定义全局命名空间 using(缩写: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     声明全局条件编译符号(缩写: /d)
-  @&lt;file&gt;                        读取响应文件以了解更多选项
+  /optionstrict[+ | - |:custom]  强制严格语言语义。
+  /optioncompare:{binary | text} 指定字符串比较应为二进制还是使用区域设置特定的文本语义。
+  /optionexplicit[+ | -]         强制显式声明变量。
+  /optioninfer[+ | -]            允许在变量声明中使用局部类型推断。
+  /codepage:id                   指定编译中所有源代码文件要使用的代码页。
+  /removeintchecks[+ | -]        禁用整数溢出检查。
+  /libpath:&lt;dir list&gt;            指定由 -reference 选项引用的程序集的位置。(缩写: /lib)
+  /-                             从重定向的输入流运行 vbx 脚本。
+  /i                             以交互模式运行。
+  /check                         仅编译，不运行且不产出文件（报告错误并输出全部警告）；与整数溢出开关 /removeintchecks 无关
+  /i /nostdlib /optimize+ /check 为裸开关；在 git-bash/MSYS 下请设置 MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      保留供将来版本运行附加 vbx 脚本使用。
+  @&lt;file&gt;                        读取响应文件以了解更多选项。默认文件为 vbi.rsp。
 </target>
         <note />
       </trans-unit>

@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">Skróty klawiaturowe:
   Enter           Jeśli wprowadzane dane są kompletne, przeprowadź dla nich obliczenia. W przeciwnym razie wstaw nowy wiersz.
   Escape          Wyczyść aktualnie wprowadzone dane.
@@ -113,8 +114,9 @@ Script directives:
 Polecenia REPL:
   #help           Wyświetl pomoc dla dostępnych poleceń i powiązań klawiszy.
 Dyrektywy skryptu:
-  #r              Dodaj odwołanie do metadanych do określonego zestawu i wszystkich jego zależności, np. #r "myLib.dll".
-  #load           Załaduj określony plik skryptu i wykonaj go, np. #load "myScript.csx".</target>
+  #R              Dodaj odwołanie do metadanych do określonego zestawu i wszystkich jego zależności, np. #R "myLib.dll".
+  #Load           Załaduj określony plik skryptu i wykonaj go, np. #Load "myScript.vbx".
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

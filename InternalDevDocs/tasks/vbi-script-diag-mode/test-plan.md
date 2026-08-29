@@ -17,9 +17,11 @@
 
 | # | 用例 | 断言 | 无副作用 |
 |---|------|------|---------|
-| A1 | `VisualBasicScript.Create("Console.WriteLine(1)")` → `script.Compile()`（干净脚本） | 无 Error 诊断（`HasAnyErrors` false） | 纯内存 |
-| A2 | `Create("Dim unusedVar As Integer")`（未使用变量，BC42104）→ `Compile()` | 含 Warning 诊断、无 Error | 纯内存 |
-| A3 | `Create("Console.WriteLine(notDeclared)")`（未声明，BC30451）→ `Compile()` | 含 Error 诊断、`HasAnyErrors` true | 纯内存 |
+| A1 | `VisualBasicScript.Create("System.Console.WriteLine(1)")` → `script.Compile()`（干净脚本） | 无 Error 诊断（`HasAnyErrors` false） | 纯内存 |
+| A2 | `Create("Sub S() : Dim unusedVar As Integer : End Sub")`（未使用局部变量，BC42024）→ `Compile()` | 含 Warning 诊断、无 Error | 纯内存 |
+| A3 | `Create("System.Console.WriteLine(notDeclared)")`（未声明，BC30451）→ `Compile()` | 含 Error 诊断、`HasAnyErrors` true | 纯内存 |
+
+> 实证修正（2026-08-29 F6）：顶层 `Dim unusedVar As Integer` 在脚本提交里被提升为提交类字段、零诊断；BC42104 是「赋值前使用」、BC42024 才是「未使用局部变量」，故 A2 用 Sub 内局部变量。纯 API 上下文 `ScriptOptions.Default` 无全局 Imports，裸 `Console` 报 BC30451，A1/A3 用全限定 `System.Console`。
 
 > 用途：证明 `Script.Compile()`（`Script.cs:231` → `CommonCompile` `:332-346`）成功仅警告、失败错误+警告、不抛异常——`/check` 宿主分支（C4）直接依赖此语义。命名空间 `Microsoft.CodeAnalysis.VisualBasic.Scripting`（`VisualBasicScript.vb:18`）。
 
@@ -30,7 +32,7 @@
 | # | 用例 | 输入 | 断言 | 无副作用 |
 |---|------|------|------|---------|
 | H1 | 默认 | `CreateRunner(args:={"/R:System"})` | `runner.Compiler.Arguments.Check = False` | 纯内存 |
-| H2 | `/check` | `CreateRunner(args:={"/check", "/R:System"})`（带脚本文件时） | `runner.Compiler.Arguments.Check = True` | 纯内存 |
+| H2 | `/check` | `CreateRunner(args:={"/check", "/R:System"})` | `runner.Compiler.Arguments.Check = True` | 纯内存 |
 
 > `runner.Compiler` internal（`CommandLineRunner.cs:46`），测试同程序集可访问。此层证明 `/check` 经脚本分支 `Case "check"`（C1）→ 基类 `CommandLineArguments.Check`（C2）的链路。**H1 默认路径不受改动影响；H2 依赖 C1/C2，修复后转绿。**
 
@@ -38,11 +40,12 @@
 
 | # | 用例 | 输入 | 断言 | 无副作用 |
 |---|------|------|------|---------|
-| H3 | `/check` 干净脚本 | 临时 `clean.vbx`（`Console.WriteLine("RAN")`）+ `CreateRunner(args:={"/check", "clean.vbx"}, workingDirectory:=dir)` | exit 0；**stderr 无诊断**（干净通过）；**stdout 不含 `RAN`**（未执行） | 临时 `.vbx` 文件（脚本用例必需） |
-| H4 | `/check` 有错误 | 临时 `err.vbx`（`Console.WriteLine(notDeclared)`）+ `/check` | exit 1；stderr 含 BC30451；**stdout 不含执行输出**（未执行） | 临时 `.vbx` 文件 |
-| H5 | `/check` 仅警告 | 临时 `warn.vbx`（`Dim unusedVar As Integer` + `Console.WriteLine("RAN")`）+ `/check` | exit 0；stderr 含 BC42104 警告；**stdout 不含 `RAN`**（未执行） | 临时 `.vbx` 文件 |
+| H3 | `/check` 干净脚本 | 临时 `clean.vbx`（`Print("RAN")`）+ `CreateRunner(args:={"/check", "clean.vbx"}, workingDirectory:=dir)` | exit 0；**stderr 无诊断**（干净通过）；**stdout 不含 `RAN`**（未执行） | 临时 `.vbx` 文件（脚本用例必需） |
+| H4 | `/check` 有错误 | 临时 `err.vbx`（`Print(notDeclared)`）+ `/check` | exit 1；stderr 含 BC30451；**stdout 不含执行输出**（未执行） | 临时 `.vbx` 文件 |
+| H5 | `/check` 仅警告 | 临时 `warn.vbx`（`Sub S() : Dim unusedVar As Integer : End Sub` + `Print("RAN")`）+ `/check` | exit 0；stderr 含 BC42024 警告；**stdout 不含 `RAN`**（未执行） | 临时 `.vbx` 文件 |
 
 > 冒烟断言核心：**`/check` 不执行**（stdout 无脚本输出）+ **全量显示警告**（H5，区别于现状成功路径吞警告）。仿既有脚本用例基建（`TestLoadDirectiveInScriptFile` `:248` 等）。
+> **脚本输出用 globals 方法 `Print`（写 `_console.Out`，TestConsoleIO 可捕获），不用 `Console.WriteLine`**——后者写真实控制台、不被 TestConsoleIO 捕获（实证注记 `CommandLineRunnerTests.vb:1161,1272`），否则「stdout 不含 RAN」断言空洞通过。
 
 ### 3.3 互斥与边界
 

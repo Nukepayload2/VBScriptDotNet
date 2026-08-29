@@ -12,6 +12,16 @@
         <target state="translated">Basato su Roslyn [Versione {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">Questo è un software in versione preliminare. Per i problemi noti, vedere https://github.com/Nukepayload2/VBScriptDotNet#known-issues</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">Informativa sulla privacy: Questo software non raccoglie i tuoi dati a meno che non stia eseguendo uno script o un comando progettato per raccogliere dati.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,24 +32,46 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Sintassi: vbi [options] [script-file.vbx] [-- script-arguments]
 
-Esegue lo script se è specificato un valore per file-script; in caso contrario, avvia un REPL (Read Eval Print Loop) interattivo.
+Esegue lo script se è specificato un valore per script-file; in caso contrario, avvia un REPL (Read Eval Print Loop) interattivo.
 
 Opzioni:
-  /help                          Visualizza questo messaggio relativo alla sintassi. Forma breve: -?
+  /help                          Visualizza questo messaggio relativo all'utilizzo. Forma breve: /?
   /version                       Visualizza la versione ed esce
   /reference:&lt;alias&gt;=&lt;file&gt;      Crea un riferimento ai metadati dal file di assembly specificato usando l'alias specificato. Forma breve: /r
-  /reference:&lt;elenco di file&gt;         Crea un riferimento ai metadati dai file di assembly specificati. Forma breve: /r
-  /referencePath:&lt;elenco di percorsi&gt;     Elenco di percorsi in cui cercare i riferimenti ai metadati specificati come percorsi non completi. Forma breve: /rp
-  /using:&lt;spazio dei nomi&gt;             Definisce lo spazio dei nomi globale using. Forma breve: /u
-  /define:&lt;nome&gt;=&lt;valore&gt;,...     Dichiara i simboli di compilazione condizionale globali. Forma breve: /d
-  @&lt;file&gt;                        Legge il file di risposta per altre opzioni
+  /reference:&lt;file list&gt;         Crea un riferimento ai metadati dai file di assembly specificati. Forma breve: /r
+  /imports:&lt;namespace&gt;           Definisce lo spazio dei nomi globale using. Forma breve: /import
+  /define:&lt;name&gt;=&lt;value&gt;,...     Dichiara i simboli di compilazione condizionale globali. Forma breve: /d
+  /optionstrict[+ | - |:custom]  Applica una semantica del linguaggio rigorosa.
+  /optioncompare:{binary | text} Specifica se i confronti tra stringhe devono essere binari o usare la semantica testuale specifica delle impostazioni locali.
+  /optionexplicit[+ | -]         Applica la dichiarazione esplicita delle variabili.
+  /optioninfer[+ | -]            Abilita l'uso dell'inferenza del tipo locale nelle dichiarazioni delle variabili.
+  /codepage:id                   Specifica la tabella codici da usare per tutti i file di codice sorgente della compilazione.
+  /removeintchecks[+ | -]        Disabilita il controllo degli overflow di numeri interi.
+  /libpath:&lt;dir list&gt;            Specifica la posizione degli assembly a cui fa riferimento l'opzione -reference. Forma breve: /lib
+  /-                             Esegue lo script vbx dal flusso di input reindirizzato.
+  /i                             Esegue in modalità interattiva.
+  /check                         Solo compilazione, senza eseguire o generare file (segnala errori più tutti gli avvisi); non correlato all'opzione di overflow di numeri interi /removeintchecks
+  /i /nostdlib /optimize+ /check sono opzioni senza valore; in git-bash/MSYS impostare MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Riservato per l'esecuzione di script vbx aggiuntivi nelle versioni future.
+  @&lt;file&gt;                        Legge il file di risposta per altre opzioni. Il file predefinito è vbi.rsp.
 </target>
         <note />
       </trans-unit>

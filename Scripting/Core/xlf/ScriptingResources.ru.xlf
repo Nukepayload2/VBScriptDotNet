@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">Сочетания клавиш
   Клавиша ВВОД         Если текущая отправка завершена, вычисляет ее. В противном случае добавляет новую строку.
   Клавиша ESC        Очищает текущую отправку.
@@ -113,8 +114,9 @@ Script directives:
 Команды цикла "Чтение — вычисление — печать":
   #help         Отображает справку по текущим командам и сочетаниям клавиш.
 Директивы скрипта
-  #r            Добавляет ссылку на метаданные в указанную сборку и все ее зависимости, например #r myLib.dll.
-  #load         Загружает указанный файл скрипта и выполняет его, например #load myScript.csx.</target>
+  #R            Добавляет ссылку на метаданные в указанную сборку и все ее зависимости, например #R myLib.dll.
+  #Load         Загружает указанный файл скрипта и выполняет его, например #Load myScript.vbx.
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

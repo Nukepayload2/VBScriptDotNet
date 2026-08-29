@@ -2,8 +2,8 @@
 
 * [x] Proposed
 * [ ] Prototype: [Not Started]
-* [ ] Implementation: [Not Started]
-* [ ] Specification: [Not Started]
+* [x] Implementation: Complete
+* [x] Specification: [Complete](../spec/spec-vbi-script-diag-mode.md)
 
 ## Summary
 [summary]: #summary

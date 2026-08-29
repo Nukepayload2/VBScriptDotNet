@@ -128,8 +128,6 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
-Code examples: https://github.com/Nukepayload2/VBScriptDotNet/tree/use-modified-roslyn/Samples
-
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
@@ -146,10 +144,10 @@ Options:
   /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
-  /loadpath                      Reserved for running additional vbx scripts in future releases. 
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
-
-支持 vbc 同款编译参数(/optimize、/define 等)。
 </value>
   </data>
   <data name="ExceptionEscapeWithoutQuote" xml:space="preserve">

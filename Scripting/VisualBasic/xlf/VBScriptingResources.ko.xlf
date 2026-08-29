@@ -12,6 +12,16 @@
         <target state="translated">Roslyn을 기반으로 함 [버전 {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">이것은 시험판 소프트웨어입니다. 알려진 문제는 https://github.com/Nukepayload2/VBScriptDotNet#known-issues 를 참조하세요</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">개인정보 처리방침: 이 소프트웨어는 데이터를 수집하도록 설계된 스크립트 또는 명령을 실행 중인 경우를 제외하고 사용자의 데이터를 수집하지 않습니다.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,10 +32,21 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">사용법: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -36,10 +57,21 @@ script-file이 지정되면 스크립트를 실행하고, 그렇지 않으면 �
   /version                       버전을 표시하고 종료합니다.
   /reference:&lt;alias&gt;=&lt;file&gt;      지정한 어셈블리 파일에서 해당 별칭을 사용하여 메타데이터를 참조합니다. (약식: /r)
   /reference:&lt;file list&gt;         지정한 어셈블리 파일에서 메타데이터를 참조합니다. (약식: /r)
-  /referencePath:&lt;path list&gt;     루트가 아닌 경로로 지정된 메타데이터 참조를 찾을 경로의 목록입니다. (약식: /rp)
-  /using:&lt;namespace&gt;             전역 네임스페이스 using을 정의합니다. (약식: /u)
+  /imports:&lt;namespace&gt;           전역 네임스페이스 using을 정의합니다. (약식: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     전역 조건부 컴파일 기호를 선언합니다. (약식: /d)
-  @&lt;file&gt;                        추가 옵션을 위해 지시 파일을 읽습니다.
+  /optionstrict[+ | - |:custom]  엄격한 언어 의미 체계를 적용합니다.
+  /optioncompare:{binary | text} 문자열 비교가 이진이어야 하는지 또는 로캘별 텍스트 의미 체계를 사용해야 하는지 지정합니다.
+  /optionexplicit[+ | -]         변수의 명시적 선언을 적용합니다.
+  /optioninfer[+ | -]            변수 선언에서 로컬 형식 유추를 사용하도록 설정합니다.
+  /codepage:id                   컴파일의 모든 소스 코드 파일에 사용할 코드 페이지를 지정합니다.
+  /removeintchecks[+ | -]        정수 오버플로 검사를 사용하지 않도록 설정합니다.
+  /libpath:&lt;dir list&gt;            -reference 옵션에서 참조하는 어셈블리의 위치를 지정합니다. (약식: /lib)
+  /-                             리디렉션된 입력 스트림에서 vbx 스크립트를 실행합니다.
+  /i                             대화형 모드로 실행합니다.
+  /check                         컴파일만 수행하고 실행하지 않으며 파일을 생성하지 않습니다(오류와 모든 경고를 보고). 정수 오버플로 스위치 /removeintchecks와 관련이 없습니다
+  /i /nostdlib /optimize+ /check 는 베어 스위치입니다. git-bash/MSYS에서는 MSYS2_ARG_CONV_EXCL='*'를 설정하세요
+  /loadpath                      향후 릴리스에서 추가 vbx 스크립트를 실행하도록 예약되어 있습니다.
+  @&lt;file&gt;                        추가 옵션을 위해 지시 파일을 읽습니다. 기본 파일은 vbi.rsp입니다.
 </target>
         <note />
       </trans-unit>

@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">Klavye kısayolları:
   Enter         Geçerli gönderim tamamlanmış görünüyorsa değerlendir. Aksi takdirde, yeni bir satır ekle.
   Escape        Geçerli gönderimi sil.
@@ -113,8 +114,9 @@ Script directives:
 REPL komutları:
   #help         Kullanılabilir komutlarda ve anahtar bağlamalarında yardımı görüntüle.
 Betik yönergeleri:
-  #r            Belirtilen bütünleştirilmiş koda ve tüm bağımlılıklarına bir meta veri başvurusu ekle, ör. #r "myLib.dll".
-  #load         Belirtilen betik dosyasını yükle ve çalıştır, ör. #load "myScript.csx".</target>
+  #R            Belirtilen bütünleştirilmiş koda ve tüm bağımlılıklarına bir meta veri başvurusu ekle, ör. #R "myLib.dll".
+  #Load         Belirtilen betik dosyasını yükle ve çalıştır, ör. #Load "myScript.vbx".
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

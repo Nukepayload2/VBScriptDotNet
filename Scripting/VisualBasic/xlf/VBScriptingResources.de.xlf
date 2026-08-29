@@ -12,6 +12,16 @@
         <target state="translated">Basiert auf Roslyn [Version {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">Dies ist eine Vorabversion der Software. Bekannte Probleme finden Sie unter https://github.com/Nukepayload2/VBScriptDotNet#known-issues</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">Datenschutzerklärung: Diese Software erfasst Ihre Daten nur, wenn ein Skript oder Befehl ausgeführt wird, der zum Erfassen von Daten entwickelt wurde.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,10 +32,21 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Syntax: vbi [optionen] [script-file.vbx] [-- script-arguments]
 
@@ -34,12 +55,23 @@ Bei Angabe von script-file wird das Skript ausgeführt. Andernfalls wird eine in
 Optionen:
   /help                          Anzeige dieser Syntaxmeldung (Kurzform: /?)
   /version                       Anzeige der Version und Beendigung
-  /reference:&lt;alias&gt;=&lt;datei&gt;      Verweis auf Metadaten aus der angegebenen Assemblydatei über den angegebenen Alias (Kurzform: /r)
-  /reference:&lt;dateiliste&gt;         Verweis auf Metadaten aus den angegebenen Assemblydateien (Kurzform: /r)
-  /referencePath:&lt;pfadliste&gt;     Liste von Pfaden, in denen nach Metadatenverweisen gesucht wird, ohne Angabe des Stammverzeichnisses (Kurzform: /rp)
-  /using:&lt;namespace&gt;             Definition eines globalen Namespace mit "using" (Kurzform: /u)
-  /define:&lt;name&gt;=&lt;wert&gt;,...     Deklaration globaler Symbole für die bedingte Kompilierung (Kurzform: /d)
-  @&lt;datei&gt;                        Lesen der Antwortdatei mit weiteren Optionen
+  /reference:&lt;alias&gt;=&lt;file&gt;      Verweis auf Metadaten aus der angegebenen Assemblydatei über den angegebenen Alias (Kurzform: /r)
+  /reference:&lt;file list&gt;         Verweis auf Metadaten aus den angegebenen Assemblydateien (Kurzform: /r)
+  /imports:&lt;namespace&gt;           Definition eines globalen Namespace mit "using" (Kurzform: /import)
+  /define:&lt;name&gt;=&lt;value&gt;,...     Deklaration globaler Symbole für die bedingte Kompilierung (Kurzform: /d)
+  /optionstrict[+ | - |:custom]  Erzwingt strikte Sprachsemantik.
+  /optioncompare:{binary | text} Gibt an, ob Zeichenfolgenvergleiche binär erfolgen oder die gebietsschemaspezifische Textsemantik verwenden sollen.
+  /optionexplicit[+ | -]         Erzwingt die explizite Deklaration von Variablen.
+  /optioninfer[+ | -]            Aktiviert die Verwendung des lokalen Typrückschlusses bei Variablendeklarationen.
+  /codepage:id                   Gibt die für alle Quellcodedateien in der Kompilierung zu verwendende Codepage an.
+  /removeintchecks[+ | -]        Deaktiviert die Überprüfung auf ganzzahligen Überlauf.
+  /libpath:&lt;dir list&gt;            Gibt den Speicherort der Assemblys an, auf die die Option -reference verweist. (Kurzform: /lib)
+  /-                             Führt das vbx-Skript aus dem umgeleiteten Eingabestream aus.
+  /i                             Im interaktiven Modus ausführen.
+  /check                         Nur kompilieren, ohne Ausführung oder Erzeugung von Dateien (meldet Fehler plus alle Warnungen); nicht bezogen auf den Schalter für ganzzahligen Überlauf /removeintchecks
+  /i /nostdlib /optimize+ /check sind nackte Schalter; setzen Sie unter git-bash/MSYS MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserviert für die Ausführung weiterer vbx-Skripte in zukünftigen Versionen.
+  @&lt;file&gt;                        Antwortdatei für weitere Optionen lesen. Die Standarddatei ist vbi.rsp.
 </target>
         <note />
       </trans-unit>

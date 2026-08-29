@@ -31,6 +31,11 @@ namespace Microsoft.CodeAnalysis
         public bool InteractiveMode { get; internal set; }
 
         /// <summary>
+        /// Compile the script and report diagnostics without running it.
+        /// </summary>
+        public bool Check { get; internal set; }
+
+        /// <summary>
         /// Directory used to resolve relative paths stored in the arguments.
         /// </summary>
         /// <remarks>

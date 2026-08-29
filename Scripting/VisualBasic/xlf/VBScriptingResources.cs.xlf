@@ -12,6 +12,16 @@
         <target state="translated">Založeno na Roslyn [Verze {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">Toto je předběžná verze softwaru. Známé problémy najdete na adrese https://github.com/Nukepayload2/VBScriptDotNet#known-issues</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">Prohlášení o ochraně osobních údajů: Tento software neshromažďuje vaše údaje, pokud nespouští skript nebo příkaz určený ke shromažďování údajů.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,24 +32,46 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Použití: vbi [options] [script-file.vbx] [-- script-arguments]
 
 Pokud se zadá script-file, provede skript, jinak spustí interaktivní REPL (Read Eval Print Loop).
 
 Možnosti:
-  /help                          Zobrazí tuto zprávu o použití (krátký tvar: /?).
-  /version                       Zobrazí verzi a ukončí se.
-  /reference:&lt;alias&gt;=&lt;soubor&gt;      Odkazuje na metadata ze zadaného souboru sestavení pomocí zadaného aliasu (krátký tvar: /r).
-  /reference:&lt;seznam souborů&gt;         Odkazuje na metadata ze zadaných souborů sestavení (krátký tvar: /r).
-  /referencePath:&lt;seznam cest&gt;     Seznam cest, kde se mají hledat odkazy na metadata zadané jako cesty bez kořene (krátký tvar: /rp).
-  /using:&lt;obor názvů&gt;             Definuje globální using oboru názvů (krátký tvar: /u).
-  /define:&lt;název&gt;=&lt;hodnota&gt;,...     Deklaruje globální symboly podmíněné kompilace (krátký tvar: /d).
-  @&lt;soubor&gt;                        Přečte další možnosti ze souboru odpovědi.
+  /help                          Zobrazí tuto zprávu o použití (krátký tvar: /?)
+  /version                       Zobrazí verzi a ukončí se
+  /reference:&lt;alias&gt;=&lt;file&gt;      Odkazuje na metadata ze zadaného souboru sestavení pomocí zadaného aliasu (krátký tvar: /r)
+  /reference:&lt;file list&gt;         Odkazuje na metadata ze zadaných souborů sestavení (krátký tvar: /r)
+  /imports:&lt;namespace&gt;           Definuje globální použití oboru názvů (krátký tvar: /import)
+  /define:&lt;name&gt;=&lt;value&gt;,...     Deklaruje globální symboly podmíněné kompilace (krátký tvar: /d)
+  /optionstrict[+ | - |:custom]  Vynucuje přísnou sémantiku jazyka.
+  /optioncompare:{binary | text} Určuje, zda mají být porovnání řetězců binární, nebo mají používat textovou sémantiku specifickou pro národní prostředí.
+  /optionexplicit[+ | -]         Vynucuje explicitní deklaraci proměnných.
+  /optioninfer[+ | -]            Umožňuje použití odvození místního typu v deklaracích proměnných.
+  /codepage:id                   Určuje znakovou stránku, která se má použít pro všechny soubory zdrojového kódu v kompilaci.
+  /removeintchecks[+ | -]        Zakazuje kontrolu přetečení celých čísel.
+  /libpath:&lt;dir list&gt;            Určuje umístění sestavení, na která odkazuje možnost -reference. (krátký tvar: /lib)
+  /-                             Spustí skript vbx z přesměrovaného vstupního proudu.
+  /i                             Spustí v interaktivním režimu.
+  /check                         Pouze zkompiluje, nespustí a nevyprodukuje žádné soubory (hlásí chyby plus všechna upozornění); nesouvisí s přepínačem kontroly přetečení celých čísel /removeintchecks
+  /i /nostdlib /optimize+ /check jsou holé přepínače; v git-bash/MSYS nastavte MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Vyhrazeno pro spouštění dalších skriptů vbx v budoucích verzích.
+  @&lt;file&gt;                        Přečte soubor odpovědí pro další možnosti. Výchozí soubor je vbi.rsp.
 </target>
         <note />
       </trans-unit>

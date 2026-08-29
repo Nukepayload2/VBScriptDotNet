@@ -95,6 +95,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim displayLangVersions As Boolean = False
             Dim outputLevel As OutputLevel = OutputLevel.Normal
             Dim optimize As Boolean = False
+            Dim check As Boolean = False
             Dim checkOverflow As Boolean = True
             Dim concurrentBuild As Boolean = True
             Dim deterministic As Boolean = False
@@ -538,6 +539,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                             End If
 
                             optimize = False
+                            Continue For
+
+                        Case "check"
+                            If value IsNot Nothing Then
+                                AddDiagnostic(diagnostics, ERRID.ERR_SwitchNeedsBool, "check")
+                                Continue For
+                            End If
+                            check = True
                             Continue For
                     End Select
                 Else
@@ -1539,7 +1548,11 @@ lVbRuntimePlus:
 
             ' Enable interactive mode if either `\i` option is passed in or no arguments are specified (`vbi`, `vbi script.vbx \i`).
             ' If the script is passed without the `\i` option simply execute the script (`vbi script.vbx`).
-            interactiveMode = interactiveMode Or (IsScriptCommandLineParser AndAlso sourceFiles.Count = 0)
+            interactiveMode = interactiveMode Or (IsScriptCommandLineParser AndAlso sourceFiles.Count = 0 AndAlso Not check)
+
+            If check AndAlso sourceFiles.Count = 0 Then
+                AddDiagnostic(diagnostics, ERRID.ERR_ExpectedSingleScript)
+            End If
 
             pathMap = SortPathMap(pathMap)
 
@@ -1547,6 +1560,7 @@ lVbRuntimePlus:
             {
                 .IsScriptRunner = IsScriptCommandLineParser,
                 .InteractiveMode = interactiveMode,
+                .Check = check,
                 .BaseDirectory = baseDirectory,
                 .Errors = diagnostics.AsImmutable(),
                 .Utf8Output = utf8output,

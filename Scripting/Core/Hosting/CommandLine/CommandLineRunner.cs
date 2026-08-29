@@ -141,6 +141,12 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
             var cancellationToken = new CancellationToken();
 
+            if (_compiler.Arguments.Check)
+            {
+                // /check 优先于 /i: 强制脚本路径，不进 REPL(无文件错误已在解析器层产出)
+                return await RunScriptAsync(scriptOptions, code, errorLogger, cancellationToken);
+            }
+
             if (_compiler.Arguments.InteractiveMode)
             {
                 await RunInteractiveLoopAsync(scriptOptions, code?.ToString(), cancellationToken);
@@ -204,6 +210,16 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             globals.Args.AddRange(_compiler.Arguments.ScriptArguments);
 
             var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
+
+            if (_compiler.Arguments.Check)
+            {
+                // /check: 只编译拿诊断，不执行不落盘;退出码 0 = 无编译错误(可有警告)，1 = 有错误
+                var diagnostics = script.Compile(cancellationToken);
+                return _compiler.ReportDiagnostics(diagnostics, _console.Error, errorLogger, compilation: null)
+                    ? CommonCompiler.Failed
+                    : CommonCompiler.Succeeded;
+            }
+
             try
             {
                 return (await script.RunAsync(globals, cancellationToken)).ReturnValue;

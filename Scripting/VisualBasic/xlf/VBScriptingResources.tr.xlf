@@ -12,6 +12,16 @@
         <target state="translated">Roslyn tabanlı [Sürüm {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">Bu, ön sürüm bir yazılımdır. Bilinen sorunlar için https://github.com/Nukepayload2/VBScriptDotNet#known-issues adresine bakın</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">Gizlilik bildirimi: Bu yazılım, veri toplamak üzere tasarlanmış bir betik veya komut çalıştırmadığı sürece verilerinizi toplamaz.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,10 +32,21 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Kullanım: vbi [seçenekler] [betik-dosyası.vbx] [-- betik-bağımsız-değişkenleri]
 
@@ -34,12 +55,23 @@ betik-dosyası belirtilirse betiği yürütür, aksi takdirde etkileşimli bir R
 Seçenekler:
   /help                          Bu kullanım iletisini görüntüle (Kısa biçim: /?)
   /version                       Sürümü görüntüle ve çıkış yap
-  /reference:&lt;diğer ad&gt;=&lt;dosya&gt;      Verilen kısa biçimi kullanarak belirtilen derlemeden meta verilere başvur (Kısa biçim: /r)
-  /reference:&lt;dosya listesi&gt;         Belirtilen bütünleştirilmiş kod dosyalarından meta verilere başvur (Kısa biçim: /r)
-  /referencePath:&lt;yol listesi&gt;     Kökü belirtilmemiş yollar olarak belirtilen meta veri başvurularının aranacağı yolların listesi. (Kısa biçim: /rp)
-  /using:&lt;ad alanı&gt;             Genel ad alanı kullanımını tanımla (Kısa biçim: /u)
-  /define:&lt;ad&gt;=&lt;değer&gt;,...     Genel koşullu derleme sembollerini bildir (Kısa biçim: /d)
-  @&lt;dosya&gt;                        Daha fazla seçenek için yanıt dosyasını okuyun
+  /reference:&lt;alias&gt;=&lt;file&gt;      Verilen diğer adı kullanarak belirtilen bütünleştirilmiş koddan meta verilere başvur (Kısa biçim: /r)
+  /reference:&lt;file list&gt;         Belirtilen bütünleştirilmiş kod dosyalarından meta verilere başvur (Kısa biçim: /r)
+  /imports:&lt;namespace&gt;           Genel ad alanı using tanımını belirle (Kısa biçim: /import)
+  /define:&lt;name&gt;=&lt;value&gt;,...     Genel koşullu derleme simgelerini bildir (Kısa biçim: /d)
+  /optionstrict[+ | - |:custom]  Katı dil semantiğini zorlar.
+  /optioncompare:{binary | text} Dize karşılaştırmalarının ikili olmasını mı yoksa yerel ayara özgü metin semantiğini mi kullanacağını belirtir.
+  /optionexplicit[+ | -]         Değişkenlerin açıkça bildirilmesini zorlar.
+  /optioninfer[+ | -]            Değişken bildirimlerinde yerel tür çıkarımının kullanılmasını sağlar.
+  /codepage:id                   Derlemedeki tüm kaynak kod dosyaları için kullanılacak kod sayfasını belirtir.
+  /removeintchecks[+ | -]        Tamsayı taşması denetimini devre dışı bırakır.
+  /libpath:&lt;dir list&gt;            -reference seçeneğinin başvurduğu bütünleştirilmiş kodların konumunu belirtir. (Kısa biçim: /lib)
+  /-                             Yeniden yönlendirilen giriş akışından vbx betiğini çalıştırın.
+  /i                             Etkileşimli modda çalıştırın.
+  /check                         Yalnızca derler, çalıştırmadan veya dosya üretmeden (hataları ve tüm uyarıları raporlar); tamsayı taşması anahtarı /removeintchecks ile ilgisi yoktur
+  /i /nostdlib /optimize+ /check çıplak anahtarlardır; git-bash/MSYS altında MSYS2_ARG_CONV_EXCL='*' ayarlayın
+  /loadpath                      Gelecek sürümlerde ek vbx betiklerini çalıştırmak için ayrılmıştır.
+  @&lt;file&gt;                        Daha fazla seçenek için yanıt dosyasını okuyun. Varsayılan dosya vbi.rsp'tir.
 </target>
         <note />
       </trans-unit>

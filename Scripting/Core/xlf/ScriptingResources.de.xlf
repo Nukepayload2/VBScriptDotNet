@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">Tastaturkurzbefehle:
   EINGABETASTE         Wertet die aktuelle Übermittlung aus, wenn diese abgeschlossen zu sein scheint. Fügt andernfalls eine neue Zeile ein.
   ESC-TASTE        Löscht die aktuelle Übermittlung.
@@ -113,8 +114,9 @@ Script directives:
 REPL-Befehle:
   "#help"         Zeigt Hilfe zu den verfügbaren Befehlen und Tastenzuordnungen an.
 Skriptdirektiven:
-  #r            Fügt einer angegebenen Assembly und allen ihren Abhängigkeiten einen Metadatenverweis hinzu. Beispiel: #r "myLib.dll".
-  #load         Lädt die angegebene Skriptdatei und führt sie aus. Beispiel: #load "myScript.csx".</target>
+  #R            Fügt einer angegebenen Assembly und allen ihren Abhängigkeiten einen Metadatenverweis hinzu. Beispiel: #R "myLib.dll".
+  #Load         Lädt die angegebene Skriptdatei und führt sie aus. Beispiel: #Load "myScript.vbx".
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

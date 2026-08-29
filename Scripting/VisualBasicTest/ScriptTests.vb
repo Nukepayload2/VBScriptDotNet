@@ -753,5 +753,47 @@ Return Count").
         Assert.Equal(2, state.ReturnValue)
     End Function
 
+    ''' <summary>
+    ''' A1: A clean script compiles with no error diagnostics. /check's success path relies on this
+    ''' (Script.Compile returns warnings only on success). Fully-qualified System.Console because
+    ''' ScriptOptions.Default has no global imports.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCompileCleanScriptHasNoErrors()
+        Dim diagnostics = VisualBasicScript.Create("System.Console.WriteLine(1)", s_defaultOptions).Compile()
+
+        Assert.False(diagnostics.HasAnyErrors())
+        Assert.DoesNotContain(diagnostics, Function(d) d.Severity = DiagnosticSeverity.Error)
+    End Sub
+
+    ''' <summary>
+    ''' A2: A script with only a warning compiles successfully and reports the warning, no error.
+    ''' A top-level "Dim unusedVar As Integer" becomes a submission field and is NOT flagged; an unused
+    ''' local inside a method is the canonical BC42024 warning.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCompileWarningScriptHasWarningNoError()
+        Dim diagnostics = VisualBasicScript.Create(
+            "Sub S()" & vbCrLf &
+            "    Dim unusedVar As Integer" & vbCrLf &
+            "End Sub",
+            s_defaultOptions).Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC42024" AndAlso d.Severity = DiagnosticSeverity.Warning)
+        Assert.False(diagnostics.HasAnyErrors())
+        Assert.DoesNotContain(diagnostics, Function(d) d.Severity = DiagnosticSeverity.Error)
+    End Sub
+
+    ''' <summary>
+    ''' A3: A script with an error reports it and HasAnyErrors is true. /check's failure path relies on this.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCompileErrorScriptHasError()
+        Dim diagnostics = VisualBasicScript.Create("System.Console.WriteLine(notDeclared)", s_defaultOptions).Compile()
+
+        Assert.True(diagnostics.HasAnyErrors())
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC30451")
+    End Sub
+
     ' TODO: port C# tests
 End Class

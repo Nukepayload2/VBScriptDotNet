@@ -180,8 +180,6 @@ REPL commands:
 Script directives:
   #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
   #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
-Code examples:
-  https://github.com/Nukepayload2/VBScriptDotNet/tree/use-modified-roslyn/Samples
 </value>
   </data>
   <data name="AssemblyAlreadyLoaded" xml:space="preserve">

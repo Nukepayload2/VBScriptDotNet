@@ -102,8 +102,9 @@
 REPL commands:
   #help         Display help on available commands and key bindings.
 Script directives:
-  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r "myLib.dll".
-  #load         Load specified script file and execute it, e.g. #load "myScript.csx".</source>
+  #R            Add a metadata reference to specified assembly and all its dependencies, e.g. #R "myLib.dll".
+  #Load         Load specified script file and execute it, e.g. #Load "myScript.vbx".
+</source>
         <target state="translated">바로 가기 키:
   Enter         현재 제출이 완료된 것으로 보이는 경우 평가하고 그렇지 않으면 새 줄을 삽입합니다.
   Esc        현재 제출을 지웁니다.
@@ -113,8 +114,9 @@ Script directives:
 REPL 명령:
   #help         사용 가능한 명령 및 키 바인딩에 대한 도움말을 표시합니다.
 스크립트 지시문:
-  #r            지정한 어셈블리 및 모든 해당 종속성에 대한 메타데이터 참조를 추가합니다(예: #r "myLib.dll").
-  #load         지정한 스크립트 파일을 로드하고 실행합니다(예: #load "myScript.csx").</target>
+  #R            지정한 어셈블리 및 모든 해당 종속성에 대한 메타데이터 참조를 추가합니다(예: #R "myLib.dll").
+  #Load         지정한 스크립트 파일을 로드하고 실행합니다(예: #Load "myScript.vbx").
+</target>
         <note />
       </trans-unit>
       <trans-unit id="AssemblyAlreadyLoaded">

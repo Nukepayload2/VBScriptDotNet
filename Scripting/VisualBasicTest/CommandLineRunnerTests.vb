@@ -1549,5 +1549,149 @@ Print(""hello"".CharCount)")
 
 #End Region
 
+#Region "vbi /check - L4 REPL/scripts (test-plan H1-H9)"
+
+    ''' <summary>
+    ''' H1: Without /check the parsed arguments leave Check at its default (False).
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckFlagDefault()
+        Dim runner = CreateRunner(args:={"/R:System"})
+
+        Assert.False(runner.Compiler.Arguments.Check)
+    End Sub
+
+    ''' <summary>
+    ''' H2: The /check switch flows through the VB script parser into CommandLineArguments.Check.
+    ''' Pure in-memory: the parser's script-branch Case "check" sets the flag regardless of source files.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckFlagSetBySwitch()
+        Dim runner = CreateRunner(args:={"/check", "/R:System"})
+
+        Assert.True(runner.Compiler.Arguments.Check)
+    End Sub
+
+    ''' <summary>
+    ''' H3: /check on a clean script exits 0, prints no diagnostics, and does not execute the script.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckCleanScriptSmoke()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(""RAN"")")
+
+            Dim runner = CreateRunner(args:={"/check", "main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            Assert.Equal("", runner.Console.Error.ToString())
+            Assert.DoesNotContain("RAN", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H4: /check on a script with an error exits 1, reports BC30451, and does not execute.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckErrorScriptSmoke()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(notDeclared)")
+
+            Dim runner = CreateRunner(args:={"/check", "main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(1, runner.RunInteractive())
+            Assert.Contains("BC30451", runner.Console.Error.ToString())
+            Assert.DoesNotContain("RAN", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H5: /check shows warnings in full on the success path (exit 0) and still does not execute.
+    ''' A top-level "Dim unusedVar As Integer" becomes a submission field (no warning); an unused local
+    ''' inside a method is the canonical BC42024 warning.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckWarningScriptSmoke()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"),
+                "Sub S()" & vbCrLf &
+                "    Dim unusedVar As Integer" & vbCrLf &
+                "End Sub" & vbCrLf &
+                "Print(""RAN"")")
+
+            Dim runner = CreateRunner(args:={"/check", "main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            Assert.Contains("BC42024", runner.Console.Error.ToString())
+            Assert.DoesNotContain("RAN", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H6: /check takes priority over /i: the script is compiled (BC30451) and the REPL prompt never appears.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckWithInteractiveFlag()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(notDeclared)")
+
+            Dim runner = CreateRunner(args:={"/check", "/i", "main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(1, runner.RunInteractive())
+            Assert.Contains("BC30451", runner.Console.Error.ToString())
+            Assert.DoesNotContain(">", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' H7: /check without a source file reports ERR_ExpectedSingleScript (BC36963) at parse time and
+    ''' does not enter the REPL. The logo is printed to stdout, which is expected.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckWithoutFile()
+        Dim runner = CreateRunner(args:={"/check", "/R:System"})
+
+        Assert.Equal(1, runner.RunInteractive())
+        Assert.Contains(runner.Compiler.Arguments.Errors, Function(d) d.Id = "BC36963")
+        Assert.DoesNotContain(">", runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' H8: /check with a .vb source: the script parser marks .vb as non-script and the runner reports
+    ''' ERR_ExpectedSingleScript (BC36963) without reading the file.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckWithVbExtension()
+        Dim runner = CreateRunner(args:={"/check", "t.vb"})
+
+        Assert.Equal(1, runner.RunInteractive())
+        Assert.Contains("BC36963", runner.Console.Error.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' H9: Default REPL behavior is unchanged: "? 1 + 2" prints 3.
+    ''' </summary>
+    <Fact>
+    Public Sub TestCheckDefaultRegression()
+        Dim runner = CreateRunner(input:="? 1 + 2")
+
+        runner.RunInteractive()
+
+        Assert.Contains("3", runner.Console.Out.ToString())
+    End Sub
+
+#End Region
+
 End Class
 

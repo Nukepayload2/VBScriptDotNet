@@ -12,6 +12,16 @@
         <target state="translated">Roslyn をベースにしています [バージョン {0}]. </target>
         <note />
       </trans-unit>
+      <trans-unit id="LogoLine3">
+        <source>This is a pre-release software. For known issues, see https://github.com/Nukepayload2/VBScriptDotNet#known-issues</source>
+        <target state="translated">これはプレリリース版ソフトウェアです。既知の問題については、https://github.com/Nukepayload2/VBScriptDotNet#known-issues を参照してください</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LogoLine4">
+        <source>Privacy statement: This software doesn't collect your data unless it's running a script or a command that is designed to collect your data.</source>
+        <target state="translated">プライバシーに関する声明: このソフトウェアは、データ収集用に設計されたスクリプトまたはコマンドを実行している場合を除き、お客様のデータを収集しません。</target>
+        <note />
+      </trans-unit>
       <trans-unit id="InteractiveHelp">
         <source>Usage: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -22,10 +32,21 @@ Options:
   /version                       Display the version and exit
   /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
-  /referencePath:&lt;path list&gt;     List of paths where to look for metadata references specified as unrooted paths. (Short form: /rp)
-  /using:&lt;namespace&gt;             Define global namespace using (Short form: /u)
+  /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
-  @&lt;file&gt;                        Read response file for more options
+  /optionstrict[+ | - |:custom]  Enforces strict language semantics.
+  /optioncompare:{binary | text} Specifies whether string comparisons should be binary or use locale-specific text semantics.
+  /optionexplicit[+ | -]         Enforces explicit declaration of variables.
+  /optioninfer[+ | -]            Enables the use of local type inference in variable declarations.
+  /codepage:id                   Specifies the code page to use for all source code files in the compilation.
+  /removeintchecks[+ | -]        Disables integer overflow checking.
+  /libpath:&lt;dir list&gt;            Specifies the location of assemblies referenced by the -reference option. (Short form: /lib)
+  /-                             Run vbx script from redirected input stream.
+  /i                             Run in interactive mode.
+  /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
+  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
+  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">使用法: vbi [options] [script-file.vbx] [-- script-arguments]
 
@@ -34,12 +55,23 @@ script-file を指定するとスクリプトが実行されます。指定し�
 オプション:
   /help                          この使用法に関するメッセージを表示します (短い形式: /?)
   /version                       バージョンを表示して終了します
-  /reference:&lt;alias&gt;=&lt;file&gt;      指定されたエイリアスを使用して、指定されたアセンブリ ファイルのメタデータを参照します (短い形式: /?)
+  /reference:&lt;alias&gt;=&lt;file&gt;      指定されたエイリアスを使用して、指定されたアセンブリ ファイルのメタデータを参照します (短い形式: /r)
   /reference:&lt;file list&gt;         指定されたアセンブリ ファイルのメタデータを参照します (短い形式: /r)
-  /referencePath:&lt;path list&gt;     ルートされていないパスとして指定されたメタデータの参照を検索するパスの一覧。(短い形式: /rp)
-  /using:&lt;namespace&gt;             グローバル名前空間の使用を定義します (短い形式: /u)
+  /imports:&lt;namespace&gt;           グローバル名前空間の using を定義します (短い形式: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     条件付きコンパイル シンボルをグローバルに宣言します (短い形式: /d)
-  @&lt;file&gt;                        その他のオプションを、応答ファイルから読み取ります
+  /optionstrict[+ | - |:custom]  厳密な言語セマンティクスを強制します。
+  /optioncompare:{binary | text} 文字列比較がバイナリであるべきか、ロケール固有のテキスト セマンティクスを使用するべきかを指定します。
+  /optionexplicit[+ | -]         変数の明示的な宣言を強制します。
+  /optioninfer[+ | -]            変数宣言でのローカル型推論の使用を有効にします。
+  /codepage:id                   コンパイル内のすべてのソース コード ファイルで使用するコード ページを指定します。
+  /removeintchecks[+ | -]        整数オーバーフロー チェックを無効にします。
+  /libpath:&lt;dir list&gt;            -reference オプションによって参照されるアセンブリの場所を指定します。(短い形式: /lib)
+  /-                             リダイレクトされた入力ストリームから vbx スクリプトを実行します。
+  /i                             対話モードで実行します。
+  /check                         コンパイルのみで、実行やファイルの生成は行いません (エラーとすべての警告を報告)。整数オーバーフロー スイッチ /removeintchecks とは無関係です
+  /i /nostdlib /optimize+ /check はベア スイッチです。git-bash/MSYS では MSYS2_ARG_CONV_EXCL='*' を設定してください
+  /loadpath                      将来のリリースで追加の vbx スクリプトを実行するために予約されています。
+  @&lt;file&gt;                        その他のオプションについては、応答ファイルを読み取ります。既定のファイルは vbi.rsp です。
 </target>
         <note />
       </trans-unit>
