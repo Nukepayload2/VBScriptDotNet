@@ -82,6 +82,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Private Shared Sub PromptScriptError()
 #If WINDOWS7_0_OR_GREATER Or NETFRAMEWORK Then
+            ' 输出被调用方捕获(管道/文件/无控制台)时不弹窗，横幅直接写 stderr，避免阻塞自动化调用方
+            If Console.IsErrorRedirected OrElse Console.IsOutputRedirected Then
+                Console.Error.WriteLine("The script has error. See the output for more information.")
+                Return
+            End If
             MsgBox("The script has error. See the output window for more information.", vbExclamation, "Script Error")
 #Else
             Console.Error.WriteLine("The script has error. See the output for more information.")
