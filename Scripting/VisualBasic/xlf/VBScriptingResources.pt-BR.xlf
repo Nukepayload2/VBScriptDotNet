@@ -44,7 +44,6 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
   /loadpath                      Reserved for running additional vbx scripts in future releases.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
@@ -69,7 +68,6 @@ Opções:
   /-                             Executa o script vbx do fluxo de entrada redirecionado.
   /i                             Executar no modo interativo.
   /check                         Somente compila, sem executar nem emitir arquivos (relata erros mais todos os avisos); não relacionado ao comutador de estouro de inteiros /removeintchecks
-  /i /nostdlib /optimize+ /check são comutadores sem valor; no git-bash/MSYS defina MSYS2_ARG_CONV_EXCL='*'
   /loadpath                      Reservado para executar scripts vbx adicionais em versões futuras.
   @&lt;file&gt;                        Ler arquivo de resposta para obter mais opções. O arquivo padrão é vbi.rsp.
 </target>

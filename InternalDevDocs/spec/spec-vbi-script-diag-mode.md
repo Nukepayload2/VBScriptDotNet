@@ -109,10 +109,6 @@ The strictness of a check is determined by the file content. `Option Strict On` 
 
 `/check` is a compile gate: it compiles and reports diagnostics without running. `/removeintchecks` — and the C# compiler's `/checked` — control runtime integer-overflow checking in the emitted code. The two are unrelated, and the help text says so explicitly. A source-level `Option Checked` statement for overflow checking is a separate, future language feature and is not required for this one; should it ever be introduced, the source-level `Option` statement and the command-line switches live in two namespaces and do not interact.
 
-### MSYS bare switches
-
-`/check` joins the family of bare script switches — `/i`, `/nostdlib`, `/optimize+`, `/check` — that a git-bash/MSYS shell rewrites into filesystem paths. The documented remedy is to set `MSYS2_ARG_CONV_EXCL='*'` before invoking the host. The help text states this once for the whole family rather than once per switch. No code change addresses the rewriting.
-
 ### Memory emission: no disk, no execution
 
 `Script.Compile()` builds the submission executor through the script engine's standard path, which emits the submission assembly in memory through the same in-memory assembly loader the interactive window uses. "Compile-only" therefore means no file is written and no code runs; it is not "zero compilation". A script that `#load`s preceding scripts has those preceding scripts compiled in memory as well. The wording used throughout this specification is "no disk, no execution".
@@ -126,7 +122,6 @@ The strictness of a check is determined by the file content. `Option Strict On` 
 
 - **No severity escalation.** Without `/warnaserror`, a gate that must fail on warnings cannot be expressed with `/check` alone. Mitigation: the full warning set is now visible, and per-file strictness is available through `Option Strict`; escalation is deferred to a future analyzer surface.
 - **Memory emission is not literal "zero compile".** The submission assembly is emitted in memory through the standard script-engine path. The observable contract — no disk, no execution, no side effects — is unaffected.
-- **MSYS path rewriting.** As a bare switch, `/check` needs the `MSYS2_ARG_CONV_EXCL='*'` workaround from a git-bash/MSYS shell. This is a platform quirk shared with the existing bare switches, not a new cost.
 - **`/check` is not honored for `.vb` sources.** A user who wants a diagnostics-only gate over a `.vb` file must use the ordinary compiler; `/check` degrades to an unrecognized-option warning there. This is intentional — the switch belongs to script mode.
 
 ## Alternatives

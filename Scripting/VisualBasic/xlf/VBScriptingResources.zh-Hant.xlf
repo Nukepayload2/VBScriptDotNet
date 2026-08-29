@@ -44,7 +44,6 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
   /loadpath                      Reserved for running additional vbx scripts in future releases.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
@@ -69,7 +68,6 @@ Options:
   /-                             從重新導向的輸入資料流執行 vbx 指令碼。
   /i                             以互動模式執行。
   /check                         僅編譯，不執行且不產出檔案（報告錯誤並輸出全部警告）；與整數溢位開關 /removeintchecks 無關
-  /i /nostdlib /optimize+ /check 為裸開關；在 git-bash/MSYS 下請設定 MSYS2_ARG_CONV_EXCL='*'
   /loadpath                      保留供未來版本執行其他 vbx 指令碼使用。
   @&lt;file&gt;                        讀取回應檔以取得更多選項。預設檔案為 vbi.rsp。
 </target>

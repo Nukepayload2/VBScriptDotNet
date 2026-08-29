@@ -44,7 +44,6 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /i /nostdlib /optimize+ /check are bare switches; under git-bash/MSYS set MSYS2_ARG_CONV_EXCL='*'
   /loadpath                      Reserved for running additional vbx scripts in future releases.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
@@ -69,7 +68,6 @@ script-file이 지정되면 스크립트를 실행하고, 그렇지 않으면 �
   /-                             리디렉션된 입력 스트림에서 vbx 스크립트를 실행합니다.
   /i                             대화형 모드로 실행합니다.
   /check                         컴파일만 수행하고 실행하지 않으며 파일을 생성하지 않습니다(오류와 모든 경고를 보고). 정수 오버플로 스위치 /removeintchecks와 관련이 없습니다
-  /i /nostdlib /optimize+ /check 는 베어 스위치입니다. git-bash/MSYS에서는 MSYS2_ARG_CONV_EXCL='*'를 설정하세요
   /loadpath                      향후 릴리스에서 추가 vbx 스크립트를 실행하도록 예약되어 있습니다.
   @&lt;file&gt;                        추가 옵션을 위해 지시 파일을 읽습니다. 기본 파일은 vbi.rsp입니다.
 </target>
