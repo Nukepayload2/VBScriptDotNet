@@ -9,68 +9,8 @@ A patched VB interactive that runs with stable releases of Roslyn.
 
 Store page: https://www.microsoft.com/store/productId/9N210C9TDZ95?ocid=pdpshare
 
-### Run with Visual Studio
-- Ensure that you've installed the latest Visual Studio 2022, .NET desktop workload and .NET 6 SDK.
-- Open `VBInteractive.sln`
-- Set [vbi](Interactive\vbi\vbi.vbproj) as start project.
-- Change target framework to `net8.0-windows`.
-- Run
-
-### Run with .NET 8 SDK
-- cd `Interactive\vbi`
-- Run interactively with `dotnet run --framework net8.0`
-- Run interactively on Windows with `dotnet run --framework net8.0-windows`
-- Run in script mode with `dotnet run --framework net8.0 -- <path-to-vbx-file>`
-- Run in script mode on Windows with `dotnet run --framework net8.0-windows -- <path-to-vbx-file>`
-
-## Available features
-
-### Configure script compilation with `vbi.rsp`
-- Use `/r:` to reference assemblies.
-- Use `/imports:` to import namespaces and XML namespaces.
-- For default settings, see [vbi.rsp](Interactive\vbi\vbi.coreclr.rsp).
-- For more descriptions, run `vbi` with `/?` option.
-
-### #R Directive
-The following code calls `Newtonsoft.Json 13.0.3` stored in Windows NuGet package cache to serialize a number to JSON and prints the value in VB format.
-```vbnet
-#R "C:\Users\<your user name>\.nuget\packages\newtonsoft.json\13.0.3\lib\net8.0\Newtonsoft.Json.dll"
-Newtonsoft.Json.JsonConvert.SerializeObject(1)
-```
-
-### ? Directive
-Prints a value in VB format.
-The following code prints `vbCrLf` or `vbLf` depends on which OS you're using.
-```vbnet
-? Environment.NewLine
-```
-
-### Top-level code
-You can use `Dim`, `Sub` and `Function` without wrapping them explicitly.
-The following code prints Fibonacci sequence without declaring a class or module.
-```vbnet
-Function Fibonacci(n As Integer) As Integer
-    If n <= 1 Then
-        Return n
-    Else
-        Return Fibonacci(n - 1) + Fibonacci(n - 2)
-    End If
-End Function
-
-Sub PrintFibonacci(count As Integer)
-    Console.WriteLine(String.Join(",",
-        From i In Enumerable.Range(1, count)
-        Select Fibonacci(i)))
-End Sub
-
-Dim count = 10
-PrintFibonacci(count)
-```
-
-## Known issues
-Significant problems:
-- `Imports` doesn't work in interactive mode.
-- `Await` can't be used in top-level code.
-- `.vbx` files can't be run with the original version of Roslyn.
-
-For more information, see https://github.com/Nukepayload2/VBScriptDotNet/issues
+## Branches
+- main: The baseline. Roslyn is unmodified. This branch is not actively maintained.
+- [minimum-modified-roslyn](https://github.com/Nukepayload2/VBScriptDotNet/tree/minimum-modified-roslyn) Roslyn has been slightly modified to enable basic `.vbx` scripting features.
+- [use-modified-roslyn](https://github.com/Nukepayload2/VBScriptDotNet/tree/use-modified-roslyn) Roslyn has been modified to fix critical bugs. You're able to use `Await`, `AddHandler` and `RemoveHandler` in this branch.
+- [with-modified-vbsyntax](https://github.com/Nukepayload2/VBScriptDotNet/tree/with-modified-vbsyntax) Roslyn has been heavily modified. The `.vbx` script is able to interop with high performance APIs, such as `ref struct` and `allows ref struct`.
