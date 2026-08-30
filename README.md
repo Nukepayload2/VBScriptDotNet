@@ -102,7 +102,7 @@ The Microsoft Store build is version 1.2. The current development version in thi
 ## How to run
 
 ### Run with Visual Studio
-- Ensure that you've installed the latest Visual Studio 2022, the .NET desktop workload and the .NET 10 SDK.
+- Ensure that you've installed the latest Visual Studio 2026, the .NET desktop workload and the .NET 10 SDK.
 - Open `VBInteractive.sln`.
 - Set [vbi](Interactive\vbi\vbi.vbproj) as the start project.
 - Change the target framework to `net10.0-windows`.
