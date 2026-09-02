@@ -714,7 +714,7 @@ before")
 
     ''' <summary>
     ''' R3: A bare arithmetic expression 1 + 2 prints 3.
-    ''' Note: the top-level IntegerLiteralToken dispatch gap in F9 was fixed (root cause 1, see Parser.vb ParseDeclarationStatementInternal).
+    ''' Note: the top-level IntegerLiteralToken dispatch case is handled in Parser.vb ParseDeclarationStatementInternal.
     ''' </summary>
     <Fact>
     Public Sub TestBareArithmeticExpressionPrints()
@@ -822,7 +822,7 @@ MySub")
     End Sub
 
     ''' <summary>
-    ''' R9: The explicit ? regression: ? Now output matches current behavior (a date-literal value line).
+    ''' R9: A bare explicit-? expression Now prints a date-literal value line, without an error block.
     ''' </summary>
     <Fact>
     Public Sub TestExplicitQuestionStillPrints()
@@ -856,10 +856,8 @@ False
 
     ''' <summary>
     ''' R11: Malformed input still errors; it neither prints nor swallows the error.
-    ''' Note: the test-plan originally used "Now +" (a missing right operand). Under the current implementation "Now +" is
-    ''' recognized as an incomplete submission (the REPL waits for a continuation line, neither compiling nor reporting),
-    ''' which disagrees with the design expectation of a syntax error; "Now x" (two identifiers) is used instead to trigger a
-    ''' real BC30800 syntax error and cover the "malformed input still errors" intent.
+    ''' Note: "Now +" is recognized as an incomplete submission (the REPL waits for a continuation line, neither compiling nor reporting);
+    ''' "Now x" (two identifiers) triggers a real BC30800 syntax error, covering the "malformed input still errors" intent.
     ''' </summary>
     <Fact>
     Public Sub TestRealSyntaxErrorStillErrors()
@@ -878,7 +876,7 @@ False
 
     ''' <summary>
     ''' R12: A non-final bare expression 1 + 2 : x = 5 reports BC31003 with no print.
-    ''' Note: the top-level IntegerLiteralToken dispatch gap in F9 was fixed (root cause 1, see Parser.vb ParseDeclarationStatementInternal).
+    ''' Note: the top-level IntegerLiteralToken dispatch case is handled in Parser.vb ParseDeclarationStatementInternal.
     ''' </summary>
     <Fact>
     Public Sub TestNonFinalBareExpressionInSubmissionStillErrors()
@@ -903,7 +901,7 @@ False
 
     ''' <summary>
     ''' R14: A multi-line continuation ending in 1 + 2 _ (the whole submission) prints 3.
-    ''' Note: the top-level IntegerLiteralToken dispatch gap in F9 was fixed (root cause 1, see Parser.vb ParseDeclarationStatementInternal).
+    ''' Note: the top-level IntegerLiteralToken dispatch case is handled in Parser.vb ParseDeclarationStatementInternal.
     ''' </summary>
     <Fact>
     Public Sub TestMultiLineContinuationBareExpressionPrints()
@@ -918,12 +916,8 @@ False
 
     ''' <summary>
     ''' R15: Late binding (a member call on an Object receiver): compilation fails with BC30491 (ERR_VoidValue) and no value prints.
-    ''' Note: the test-plan originally used "New X() : o.Prop" as a placeholder; an undefined X would report BC30002, so a real type
-    ''' is used here to cover the "Object-receiver call" intent. The design section 4 decision table (LateMemberAccess -> no diagnostics,
-    ''' no print) disagrees with the current compiler, which actually reports BC30491 (compilation fails, so no value prints).
-    ''' This is pre-existing behavior (the same statement inside a Regular Sub only warns BC42104 and does not report BC30491;
-    ''' BC30491 fires only on the script submission-result path), not a regression from F9/F10. This test records the actual
-    ''' behavior (root cause 3, see log entry 19).
+    ''' Note: a real (defined) receiver type covers the "Object-receiver call" intent, so no undefined-type error (BC30002) is reported;
+    ''' BC30491 fires on the script submission-result path, while the same statement inside a Regular Sub only warns BC42104.
     ''' </summary>
     <Fact>
     Public Sub TestLateBoundMemberAccessDoesNotPrint()
@@ -955,7 +949,7 @@ False
 
     ''' <summary>
     ''' R17: Interactive state persists across submissions: declare, assign, then read back (independent trees via ContinueWith).
-    ''' Note: the test-plan originally assigned "before = 1" directly; interactive Option Explicit defaults to On, so a Dim comes first.
+    ''' Note: interactive Option Explicit defaults to On, so the variable is declared with Dim before it is assigned.
     ''' </summary>
     <Fact>
     Public Sub TestInteractiveStatePersistsAcrossSubmissions()
@@ -1059,7 +1053,7 @@ Dim sb As New System.Text.StringBuilder() : With sb : .Append(""x"") : End With"
 
     ''' <summary>
     ''' V1: A bare expression 1 + 2 in a script file is a silent no-op: exit code 0, no output.
-    ''' Note: the top-level IntegerLiteralToken dispatch gap in F9 was fixed (root cause 1, see Parser.vb ParseDeclarationStatementInternal).
+    ''' Note: the top-level IntegerLiteralToken dispatch case is handled in Parser.vb ParseDeclarationStatementInternal.
     ''' </summary>
     <Fact>
     Public Sub TestBareExpressionInScriptFileIsSilentNoOp()
@@ -1175,7 +1169,7 @@ End Function
 
     ''' <summary>
     ''' R5: A ByVal Span parameter is usable; a Span is passed ByVal to F and "ok" prints.
-    ''' Note: a top-level call that passes a ref struct argument currently throws TypeLoadException (the
+    ''' Note: a top-level call that passes a ref struct argument throws TypeLoadException (the
     ''' generated submission class hoists the argument into a ByRef-like instance field), so the call runs
     ''' from within a method body, which the scripting runtime handles.
     ''' </summary>
@@ -1286,12 +1280,9 @@ F()")
     End Sub
 
     ''' <summary>
-    ''' R10: "allows ref struct" interface consumption depends on prerequisite-2 / M8, which is not landed.
-    ''' The REPL harness cannot supply a C# "allows ref struct" interface reference (CreateRunner references
-    ''' only the default assemblies), so the end-to-end "usable" assertion is a documented timing gap. Current
-    ''' not-ready behavior: a Span cannot be converted to an interface reference; interface conversion has no
-    ''' restricted-type check, so the reported error is the generic type mismatch BC30311 (per L1 S21), not
-    ''' BC31396 as the plan anticipated.
+    ''' R10: "allows ref struct" interface consumption is unsupported: a Span cannot be converted to an interface reference.
+    ''' Interface conversion has no restricted-type check, so the error is the generic type mismatch BC30311 (per L1 S21), not BC31396.
+    ''' A C# "allows ref struct" interface reference is not available to the REPL harness (CreateRunner references only the default assemblies).
     ''' </summary>
     <Fact>
     Public Sub TestAllowsRefStructInterfaceConsumptionNotReady()
