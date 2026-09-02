@@ -1055,7 +1055,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Return useSiteInfo
             End If
 
-            Dim refModifiersUseSiteInfo As UseSiteInfo(Of AssemblySymbol) = DeriveUseSiteInfoFromCustomModifiers(param.RefCustomModifiers)
+            Dim refModifiersUseSiteInfo As UseSiteInfo(Of AssemblySymbol) = DeriveUseSiteInfoFromCustomModifiers(param.RefCustomModifiers, allowInModifier:=True)
 
             If refModifiersUseSiteInfo.DiagnosticInfo IsNot Nothing AndAlso IsHighestPriorityUseSiteError(refModifiersUseSiteInfo.DiagnosticInfo.Code) Then
                 Return refModifiersUseSiteInfo
@@ -1096,7 +1096,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
         Friend Function DeriveUseSiteInfoFromCustomModifiers(
             customModifiers As ImmutableArray(Of CustomModifier),
-            Optional allowIsExternalInit As Boolean = False
+            Optional allowIsExternalInit As Boolean = False,
+            Optional allowInModifier As Boolean = False
         ) As UseSiteInfo(Of AssemblySymbol)
             Dim modifiersUseSiteInfo As UseSiteInfo(Of AssemblySymbol) = Nothing
 
@@ -1104,7 +1105,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Dim useSiteInfo As UseSiteInfo(Of AssemblySymbol)
 
                 If Not modifier.IsOptional AndAlso
-                   (Not allowIsExternalInit OrElse Not DirectCast(modifier, VisualBasicCustomModifier).ModifierSymbol.IsWellKnownTypeIsExternalInit()) Then
+                   (Not allowIsExternalInit OrElse Not DirectCast(modifier, VisualBasicCustomModifier).ModifierSymbol.IsWellKnownTypeIsExternalInit()) AndAlso
+                   (Not allowInModifier OrElse Not DirectCast(modifier, VisualBasicCustomModifier).ModifierSymbol.IsWellKnownTypeInAttribute()) Then
 
                     useSiteInfo = New UseSiteInfo(Of AssemblySymbol)(ErrorFactory.ErrorInfo(ERRID.ERR_UnsupportedType1, String.Empty))
                     GetSymbolSpecificUnsupportedMetadataUseSiteErrorInfo(useSiteInfo)

@@ -386,6 +386,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Public Overrides ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return _curriedFromMethod.ReturnsByRefReadOnly
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property ReturnType As TypeSymbol
             Get
                 If _lazyReturnType Is Nothing Then

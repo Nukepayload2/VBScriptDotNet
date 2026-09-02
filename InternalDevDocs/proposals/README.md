@@ -20,7 +20,7 @@
 
 ---
 
-## Active（8 份，根目录）
+## Active（11 份，根目录）
 
 > RESOLUTION = Active 或 Consider。编号为产品提案序列号。Proposed 未定三态的提案暂列 active 根目录，判定待 LDM 会议评估。
 
@@ -35,6 +35,8 @@
 | 07 | `proposal-distribute-compiler-nuget-package-and-dotnet-tool.md` | 把 fork 编译器分发为 Toolset 风格 NuGet 包（`Nukepayload2.Compilers.VBScriptDotNet` 2.0.0-Beta，.vbproj 引用即用 fork VB 编译器；不含 csc、不替代 dotnet 工具链）与 `.net tool`（`Nukepayload2.Compilers.VBScriptDotNet.Cli`，`vbi` 命令：复用现有 vbi 二进制，批量编译 + `.vbx` 执行 + shebang 解释器；编译器 NuGet 包不是 vbi，tool 才是 vbi）；**RESOLUTION Active**（四条 Unresolved 闭合：隐式分派 / 不补 VBCSCompiler / v1 仅 .NET SDK / 双行版本），见 `../meetings/meeting-distribute-compiler-nuget-package-and-dotnet-tool.md` |
 | 08 | `proposal-script-optimization-level.md` | 脚本编译优化级别：`/optimize+` 对脚本生效（透传 `arguments.CompilationOptions.OptimizationLevel`，默认仍 Debug），服务高 CPU 脚本用例（Active，见 `../meetings/meeting-script-optimization-level.md`） |
 | 09 | `proposal-vbi-script-diag-mode.md` | vbi 脚本模式诊断检查 `/check`：只编译输出错误+全部警告、不执行不落盘（复用 `Script.Compile()`，对标 `cargo check`），服务 AI 开发 vbx / CI 编译门；**命名由 meeting RESOLUTION 从提案原 `/diag` 改为 `/check`**（AI 先验标准）（Active，见 `../meetings/meeting-vbi-script-diag-mode.md`） |
+| 10 | `proposal-consume-ref-readonly.md` | 消费 C# `ref readonly` 返回（ReadOnlySpan 索引器 / `GetPinnableReference`）：豁免 required `modreq(In)`（**返回 + 参数双路径**，顺带解锁虚方法/委托 `in` 参数）+ `ReturnsByRefReadonly` 只读追踪 + 按接收方分类写入语义（直接赋值/复合赋值/Mid/With 块成员写/链式成员写复用 `ERR_LValueRequired`(30068) 拒——With 与链式一致，复会 2026-09-01 修正 R8 定稿；ByRef 实参 copy-out 传副本写回丢弃，推断褪 ByRef）；**RESOLUTION Active（D4 P1）**，见 `../meetings/meeting-consume-ref-readonly.md`；For Each over ReadOnlySpan 顺带解锁（S24 已翻转通过）；**已实现，spec 见 `../spec/spec-consume-ref-readonly.md`** |
+| 11 | `proposal-in-parameter-recognition.md` | 识别 `in` 参数（只读引用）并让只读来源（`ref readonly` 返回）传 `in` 参数从 copy-out 改零拷贝直传，对齐 C#（C# 侧 `ref readonly`→`in` 零拷贝直传实锤：规范 `readonly-ref.md` + 编译器 `EmitAddress.cs`）；三段实现（crack `[IsReadOnly]`→`RefKind.In` / 绑定放行 / 发射直传）；**R7 后续项、Proposed 待立项**（父 RESOLUTION `meeting-consume-ref-readonly.md` R7「v1 不做、等性能证据独立立项」） |
 
 ---
 

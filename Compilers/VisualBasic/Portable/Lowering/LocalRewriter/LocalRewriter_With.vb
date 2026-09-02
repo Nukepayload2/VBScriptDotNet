@@ -40,12 +40,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             RestoreUnstructuredExceptionHandlingContext(node, saveState)
 
+            ' An RValue placeholder (used when the With receiver is a readonly-lvalue, e.g.
+            ' With h(0) or With o.S(0).Inner) requires the replacement to be an RValue. The value
+            ' capture path below returns an lvalue temp for a value-type ByRef-returning readonly
+            ' receiver, so lower it to an RValue here; reads of .Member still work off the copy.
+            Dim replaceWith As BoundExpression = result.Expression
+            If Not node.ExpressionPlaceholder.IsLValue Then
+                replaceWith = replaceWith.MakeRValue()
+            End If
+
             Return RewriteWithBlockStatements(node,
                                               ShouldGenerateUnstructuredExceptionHandlingResumeCode(node),
                                               result.Locals,
                                               result.Initializers,
                                               node.ExpressionPlaceholder,
-                                              result.Expression)
+                                              replaceWith)
         End Function
 
         Private Function RewriteWithBlockStatements(node As BoundWithStatement,

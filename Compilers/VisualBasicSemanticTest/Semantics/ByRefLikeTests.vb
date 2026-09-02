@@ -536,22 +536,26 @@ End Class"
 
         <Fact>
         Public Sub S24_ForEachOverReadOnlySpan()
-            ' VB cannot expand For Each over a ref struct enumerator: Enumerator.Current returns
-            ' ByRef, an unsupported property type in VB (BC30643). This is a general VB limitation,
-            ' independent of the ref-like enforcement.
+            ' For Each over a ref struct enumerator works. Enumerator.Current is a ref readonly
+            ' property (metadata modreq(In)) that the compiler imports and reads as an RValue at the
+            ' read site (auto-deref). The For Each pattern's Current predicate
+            ' (s_isReadablePropertyWithoutArguments) requires only a readable, parameterless property,
+            ' so the loop binds, compiles, and enumerates 'a' and 'b'.
             Dim source =
 "Imports System
-Class C
-    Sub F()
+Module Program
+    Sub Main()
         Dim s As New ReadOnlySpan(Of Char)(""ab"".ToCharArray())
         For Each c As Char In s
             Console.WriteLine(c)
         Next
     End Sub
-End Class"
-            Dim comp = CreateCompilation(source, targetFramework:=TargetFramework.NetLatest)
-            comp.VerifyDiagnostics(
-                Diagnostic(ERRID.ERR_UnsupportedProperty1, "s").WithArguments("System.ReadOnlySpan(Of T).Enumerator.Current"))
+End Module"
+            Dim comp = CreateCompilation(source, targetFramework:=TargetFramework.NetLatest, options:=TestOptions.ReleaseExe)
+            comp.AssertNoDiagnostics()
+            CompileAndVerify(comp, expectedOutput:=<![CDATA[
+a
+b]]>)
         End Sub
 
         <Fact>

@@ -31,9 +31,7 @@ Public Class CommandLineRunnerTests
         String.Format(VBScriptingResources.LogoLine1, s_interactiveCompilerVersion) + Environment.NewLine +
         String.Format(VBScriptingResources.LogoLine2, s_roslynVersion) + Environment.NewLine +
         VBScriptingResources.LogoLine3 + Environment.NewLine +
-        VBScriptingResources.LogoLine4 + "
-
-" + ScriptingResources.HelpPrompt
+        VBScriptingResources.LogoLine4 + Environment.NewLine + Environment.NewLine + ScriptingResources.HelpPrompt
 
     Private Shared ReadOnly s_defaultArgs As String() = {"/R:System"}
 
@@ -1366,23 +1364,168 @@ End Sub")
     End Sub
 
     ''' <summary>
-    ''' R14: For Each over a ReadOnlySpan(Of Char) is not usable in VB: the enumerator's Current is a
-    ''' ByRef-returning property, unsupported (BC30643).
+    ''' R14: For Each over a ReadOnlySpan(Of Char) is usable: the enumerator's Current is a
+    ''' ByRef-returning ref readonly property (metadata modreq(In)) which the compiler imports and
+    ''' reads as an RValue (auto-deref), so the loop binds, runs, and enumerates both chars
+    ''' (BC30643 is not reported). Console.WriteLine is not captured by TestConsoleIO, so the loop
+    ''' appends into a StringBuilder and "? F()" auto-prints the returned string.
     ''' </summary>
     <Fact>
-    Public Sub TestForEachOverReadOnlySpanReportsUnsupportedProperty()
-        Dim runner = CreateRunner(input:="Sub F()
-    Dim s As New ReadOnlySpan(Of Char)(""ab"".ToCharArray())
-    For Each c As Char In s
-        Console.WriteLine(c)
+    Public Sub TestForEachOverReadOnlySpanIsUsable()
+        Dim runner = CreateRunner(input:="Function F() As String
+    Dim sb As New System.Text.StringBuilder()
+    For Each c As Char In ""ab"".AsSpan()
+        sb.Append(c).Append("";"")
     Next
+    Return sb.ToString()
+End Function
+? F()")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.DoesNotContain("BC30643", output)
+        ' "? F()" auto-prints the returned "a;b;" (with quotes), proving both chars were enumerated.
+        Assert.Contains("""a;b;""", output)
+    End Sub
+
+    ''' <summary>
+    ''' R1: The ReadOnlySpan(Of Char) indexer is readable in the REPL: "? "ab".AsSpan()(0)"
+    ''' auto-derefs the ref readonly Item and prints the Char value 'a' as "a"c.
+    ''' (test-plan §4 R1 expected value 97; the REPL's VB formatter prints a Char as "a"c.)
+    ''' </summary>
+    <Fact>
+    Public Sub TestReadIndexerOfReadOnlySpanInRepl()
+        Dim runner = CreateRunner(input:="? ""ab"".AsSpan()(0)")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.DoesNotContain("BC30643", output)
+        Assert.Contains("""a""c", output)
+    End Sub
+
+    ''' <summary>
+    ''' R2: GetPinnableReference() (ref readonly Char) is callable in the REPL; reading it as an
+    ''' RValue auto-derefs to 'a' ("a"c) without reporting BC30657.
+    ''' </summary>
+    <Fact>
+    Public Sub TestReadGetPinnableReferenceInRepl()
+        Dim runner = CreateRunner(input:="? ""ab"".AsSpan().GetPinnableReference()")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.DoesNotContain("BC30657", output)
+        Assert.Contains("""a""c", output)
+    End Sub
+
+    ''' <summary>
+    ''' R3: Assigning through a ref readonly indexer is rejected in the REPL with BC30068.
+    ''' The ReadOnlySpan local is declared inside a method body: a top-level "Dim s As New
+    ''' ReadOnlySpan(...)" would itself be rejected by the byref-like field restriction (BC31396),
+    ''' so the write-path scenario is exercised in a method body (where byref-like locals are legal).
+    ''' </summary>
+    <Fact>
+    Public Sub TestDirectAssignmentToReadOnlySpanIndexerRejectedInRepl()
+        Dim runner = CreateRunner(input:="Sub F()
+    Dim s As New ReadOnlySpan(Of Integer)(New Integer() {10})
+    s(0) = 5
 End Sub")
 
         runner.RunInteractive()
 
         Dim output = runner.Console.Out.ToString()
         Assert.Contains("«Red»", output)
-        Assert.Contains("BC30643", output)
+        Assert.Contains("BC30068", output)
+        Assert.DoesNotContain("BC30643", output)
+    End Sub
+
+    ''' <summary>
+    ''' R4: A ref readonly value passed to a mutable ByRef argument is copied out; the callee's write is
+    ''' discarded, so s(0) is still 10. Wrapped in a Function because a top-level ReadOnlySpan Dim is
+    ''' blocked by the byref-like field restriction (BC31396); method-body locals are legal.
+    ''' </summary>
+    <Fact>
+    Public Sub TestByRefCopyOutDiscardsWriteBackInRepl()
+        Dim runner = CreateRunner(input:="Sub M(ByRef v As Integer)
+    v = 99
+End Sub
+Function G() As Integer
+    Dim s As New ReadOnlySpan(Of Integer)(New Integer() {10})
+    M(s(0))
+    Return s(0)
+End Function
+? G()")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.DoesNotContain("«Red»", output)
+        Assert.Contains("10", output)
+    End Sub
+
+    ''' <summary>
+    ''' R6: A .vbx script consumes the ref readonly indexer in the same kind (script) mode:
+    ''' Print("ab".AsSpan()(0)) runs, exit code 0, and prints the Char 'a' as "a"c.
+    ''' </summary>
+    <Fact>
+    Public Sub TestVbxScriptSameKindReadRefReadonly()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(""ab"".AsSpan()(0))")
+
+            Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("""a""c", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' R7: A .vbx script that assigns through a ref readonly indexer is rejected: the compile error
+    ''' BC30068 is reported and the script does not run (exit code 1 = CommonCompiler.Failed).
+    ''' </summary>
+    <Fact>
+    Public Sub TestVbxScriptDirectAssignmentToReadOnlySpanRejected()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Sub F()
+    Dim s As New ReadOnlySpan(Of Integer)(New Integer() {10})
+    s(0) = 5
+End Sub")
+
+            Dim runner = CreateRunner(args:={"main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(1, runner.RunInteractive())
+            Assert.Contains("BC30068", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' R8: A failed ref-readonly assignment submission does not pollute the session: the Sub reports
+    ''' BC30068, then the next submission "? 1 + 2" still prints 3.
+    ''' </summary>
+    <Fact>
+    Public Sub TestFailedRefReadonlyAssignmentDoesNotPolluteSession()
+        Dim runner = CreateRunner(input:="Sub F()
+    Dim s As New ReadOnlySpan(Of Integer)(New Integer() {10})
+    s(0) = 5
+End Sub" & vbCrLf & "? 1 + 2")
+
+        runner.RunInteractive()
+
+        Dim output = runner.Console.Out.ToString()
+        Assert.Contains("«Red»", output)
+        Assert.Contains("BC30068", output)
+        Assert.Contains("> ? 1 + 2" & vbCrLf & "3", output)
     End Sub
 
     ''' <summary>

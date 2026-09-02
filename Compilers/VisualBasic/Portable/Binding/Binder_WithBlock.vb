@@ -233,9 +233,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                                                  binder:=Me.ContainingBinder,
                                                                  preserveIdentityOfLValues:=True)
 
-                ' Create a placeholder if needed
+                ' Create a placeholder if needed.
+                ' A readonly-lvalue receiver (or a member/array-element access rooted in one, e.g.
+                ' With o.S(0).Inner) must not be treated as an lvalue: writing .X = 5 inside the With
+                ' would store through the readonly reference into read-only memory. Route it through
+                ' the RValue placeholder so .X falls on a non-lvalue and reuse the existing
+                ' BindAssignmentTarget/ReportAssignmentToRValue path (BC30068), consistent with the
+                ' chained member write o.S(0).X = 5. Value capture still serves .Member reads.
                 Dim placeholder As BoundValuePlaceholderBase = Nothing
-                If boundExpression.IsLValue OrElse boundExpression.IsMeReference Then
+                If (boundExpression.IsLValue OrElse boundExpression.IsMeReference) AndAlso
+                   Not boundExpression.IsReadOnlyLValueOrMemberOfReadOnlyLValue() Then
                     placeholder = New BoundWithLValueExpressionPlaceholder(Me.Expression, boundExpression.Type)
                 Else
                     placeholder = New BoundWithRValueExpressionPlaceholder(Me.Expression, boundExpression.Type)

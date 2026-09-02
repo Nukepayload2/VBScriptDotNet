@@ -225,7 +225,7 @@ The following are inherent Visual Basic limitations and are independent of this 
 
 - **Default interface methods.** The compiler that implements this specification does not support default interface methods. The scenario in which a default interface member is invoked through a capable type parameter is therefore unreachable.
 
-- **Byref enumerators.** Visual Basic does not support properties that return by reference, so the standard byref-like enumerators, whose `Current` property is by reference, cannot be used with a `For Each` statement.
+- **Byref enumerators.** Visual Basic has no declaration syntax for properties that return by reference, but it consumes them from metadata. A `Current` property that returns a value by reference through a `ref readonly` signature (metadata `modreq(In)`) is imported and read through the compiler's automatic dereference, so the standard byref-like enumerators — for example, `ReadOnlySpan(Of T).Enumerator.Current` — can be used with a `For Each` statement. A `Current` that returns a mutable reference (plain `ref`, without `modreq(In)`) was already readable and remains so. Visual Basic still cannot author such an enumerator in source (there is no declaration syntax for a member that returns by reference), and a `ref readonly` `Current` is read-only: the compiler rejects assignments through it, consistently with the other write rules for ref-readonly values.
 
 - **Escape analysis.** The C# `scoped` and ref-escape analysis is a C#-specific mechanism and is not part of this specification.
 
@@ -303,7 +303,7 @@ The feature is exercised by in-memory compilation tests that have no side effect
 
 - **Script tests.** Tests for the interactive window verify the three top-level constraints — the top-level variable, the submission result, and `Await` across submissions — and the availability of method-body locals and `ByVal` parameters.
 
-- **External coverage.** The scenario inventory of the standalone Visual Basic byref-like analyzer and the consumption points of the C# [RefStructInterfacesTests][ref-struct-interfaces-tests] are mapped point-by-point onto the local cases. Divergences are documented rather than hidden: a `Using` statement over a byref-like disposable reports the pattern-based error rather than a boxing error; a scalar by-value return of a byref-like type is legal; and the C#-specific scenarios — default interface methods, byref enumerators, and escape analysis — are marked as not applicable with the reasons stated above.
+- **External coverage.** The scenario inventory of the standalone Visual Basic byref-like analyzer and the consumption points of the C# [RefStructInterfacesTests][ref-struct-interfaces-tests] are mapped point-by-point onto the local cases. Divergences are documented rather than hidden: a `Using` statement over a byref-like disposable reports the pattern-based error rather than a boxing error; a scalar by-value return of a byref-like type is legal; and the C#-specific scenarios — default interface methods and escape analysis — are marked as not applicable with the reasons stated above. For Each over a byref-like enumerator is exercised rather than marked not applicable: its `Current` is a ref readonly property, which is consumed as described under Byref enumerators.
 
 ## Related Items
 [related]: #related-items

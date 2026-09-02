@@ -158,7 +158,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If value.IsValue AndAlso value.Type IsNot Nothing AndAlso Not value.Type.IsVoidType() Then
 
-                Debug.Assert(Not value.IsLValue)
+                ' Normally only R-values reach this point. The exception is a value-type
+                ' ByRef-returning readonly call/property receiver (e.g. o.S(0) where S returns
+                ' ref readonly Row) reached as the receiver of a captured field/array-element
+                ' access. It is an lvalue, but it cannot be stored in a ByRef temp (a value type
+                ' has no stable reference) and the readonly ref must never be written through, so
+                ' it is captured by value below; later '.Member' writes operate on the copy.
+                Debug.Assert(Not value.IsLValue OrElse
+                             (value.Type.IsValueType AndAlso
+                              ((value.Kind = BoundKind.Call AndAlso DirectCast(value, BoundCall).Method.ReturnsByRefReadOnly) OrElse
+                               (value.Kind = BoundKind.PropertyAccess AndAlso DirectCast(value, BoundPropertyAccess).PropertySymbol.ReturnsByRefReadOnly))))
 
                 Dim constantValue As ConstantValue = value.ConstantValueOpt
 
@@ -321,11 +330,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             ' If the expression is to be captured in lambda do not capture in a ref local.
             ' If the expression is a generic array element, getting a writable reference may fail
             ' and readonly reference cannot be stored in a temp, so do not capture in a ref.
-            If Not (state.DoNotUseByRefLocal OrElse (value.Kind = BoundKind.ArrayAccess AndAlso value.Type.Kind = SymbolKind.TypeParameter)) Then
+            ' A readonly ByRef-returning value (e.g. ReadOnlySpan(Of T).Item) must not be captured
+            ' in a ByRef temp either: the ref stored in the temp would let a '.Member = x' write
+            ' through into read-only memory. This includes a member/array-element access whose base
+            ' receiver is a readonly-lvalue (e.g. With o.S(0).Inner where o.S(0) returns
+            ' ref readonly Row): writing .X = 5 inside the With must operate on a copy, not on the
+            ' read-only memory behind the ref. Such values are captured by value below instead.
+            If Not (state.DoNotUseByRefLocal OrElse
+                    value.IsReadOnlyLValueOrMemberOfReadOnlyLValue() OrElse
+                    (value.Kind = BoundKind.ArrayAccess AndAlso value.Type.Kind = SymbolKind.TypeParameter)) Then
                 Return CaptureInAByRefTemp(value, state)
             End If
 
-            ' Otherwise, we need to capture parts of the expression in a set of non-ByRef locals 
+            ' Otherwise, we need to capture parts of the expression in a set of non-ByRef locals
             Dim expression As BoundExpression = Nothing
             Select Case value.Kind
                 Case BoundKind.ArrayAccess
@@ -335,28 +352,40 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     expression = CaptureFieldAccess(DirectCast(value, BoundFieldAccess), state)
 
                 Case BoundKind.PropertyAccess
-                    If Not state.IsDraftRewrite OrElse Not DirectCast(value, BoundPropertyAccess).PropertySymbol.ReturnsByRef Then
+                    If Not DirectCast(value, BoundPropertyAccess).PropertySymbol.ReturnsByRef Then
                         Throw ExceptionUtilities.UnexpectedValue(value.Kind)
                     End If
 
-                    Debug.Assert(state.DoNotUseByRefLocal)
-                    If state._capturedLvalueByRefCallOrProperty Is Nothing Then
-                        state._capturedLvalueByRefCallOrProperty = value
+                    ' This point is reached for a ByRef-returning property access in a draft rewrite
+                    ' (where a ByRef local is unavailable) or for a readonly ByRef-returning property
+                    ' in any rewrite (where a ByRef temp would allow writing through into read-only
+                    ' memory). In both cases the value is captured by value.
+                    If Not value.IsReadOnlyLValue() Then
+                        ' Only a regular (mutable) ByRef-returning property raised BC37326
+                        ' (ERR_UnsupportedRefReturningCallInWithStatement) when captured by value in
+                        ' a lambda/iterator/async; capturing a readonly source by value is always safe.
+                        Debug.Assert(state.DoNotUseByRefLocal)
+                        If state._capturedLvalueByRefCallOrProperty Is Nothing Then
+                            state._capturedLvalueByRefCallOrProperty = value
+                        End If
                     End If
 
-                    expression = CaptureInATemp(value, state) ' Capture by value for the purpose of draft rewrite
+                    expression = CaptureInATemp(value, state) ' Capture by value
 
                 Case BoundKind.Call
-                    If Not state.IsDraftRewrite OrElse Not DirectCast(value, BoundCall).Method.ReturnsByRef Then
+                    If Not DirectCast(value, BoundCall).Method.ReturnsByRef Then
                         Throw ExceptionUtilities.UnexpectedValue(value.Kind)
                     End If
 
-                    Debug.Assert(state.DoNotUseByRefLocal)
-                    If state._capturedLvalueByRefCallOrProperty Is Nothing Then
-                        state._capturedLvalueByRefCallOrProperty = value
+                    ' Same as the PropertyAccess case: draft rewrite or readonly source.
+                    If Not value.IsReadOnlyLValue() Then
+                        Debug.Assert(state.DoNotUseByRefLocal)
+                        If state._capturedLvalueByRefCallOrProperty Is Nothing Then
+                            state._capturedLvalueByRefCallOrProperty = value
+                        End If
                     End If
 
-                    expression = CaptureInATemp(value, state) ' Capture by value for the purpose of draft rewrite
+                    expression = CaptureInATemp(value, state) ' Capture by value
 
                 Case Else
                     Throw ExceptionUtilities.UnexpectedValue(value.Kind)

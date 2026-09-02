@@ -327,6 +327,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Dim storeVal As BoundExpression = New BoundAssignmentOperator(argument.Syntax, boundTemp, inputValue, True, argument.Type)
 
+            If originalArgument.IsReadOnlyLValue() Then
+                ' Read-only source (e.g. ReadOnlySpan(Of T).Item): copy the value into the temp
+                ' but never write it back. The callee mutates only its own copy, which mirrors
+                ' the behavior of passing a literal to a ByRef parameter.
+                Return New BoundSequence(argument.Syntax, ImmutableArray(Of LocalSymbol).Empty, ImmutableArray.Create(storeVal), boundTemp, argument.Type)
+            End If
+
             AddPlaceholderReplacement(argument.OutPlaceholder, boundTemp.MakeRValue())
 
             Dim copyBack As BoundExpression

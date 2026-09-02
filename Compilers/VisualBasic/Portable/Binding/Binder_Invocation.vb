@@ -2879,12 +2879,13 @@ ProduceBoundNode:
             ' TODO: Fields of MarshalByRef object are passed via temp.
 
             Dim isLValue As Boolean = argument.IsLValue()
+            Dim isReadOnlyLValue As Boolean = argument.IsReadOnlyLValue()
 
             If isLValue AndAlso argument.Kind = BoundKind.PropertyAccess Then
                 argument = argument.SetAccessKind(PropertyAccessKind.Get)
             End If
 
-            If isLValue AndAlso Conversions.IsIdentityConversion(conversionTo.Key) Then
+            If isLValue AndAlso Not isReadOnlyLValue AndAlso Conversions.IsIdentityConversion(conversionTo.Key) Then
                 'Nothing to do
                 Debug.Assert(Conversions.IsIdentityConversion(conversionFrom.Key))
                 Return argument
@@ -2920,11 +2921,21 @@ ProduceBoundNode:
                     argument = MakeArgsRValues(DirectCast(argument, BoundLateInvocation), diagnostics)
                 End If
 
-                Dim copyBackExpression = BindAssignment(argument.Syntax, argument, outConversion, diagnostics)
+                Dim copyBackExpression As BoundExpression
 
-                Debug.Assert(copyBackExpression.HasErrors OrElse
-                             (copyBackExpression.Kind = BoundKind.AssignmentOperator AndAlso
-                              DirectCast(copyBackExpression, BoundAssignmentOperator).Right Is outConversion))
+                If isReadOnlyLValue Then
+                    ' A read-only source (e.g. ReadOnlySpan(Of T).Item) must never be written through.
+                    ' Copy the value into a temp and discard any copy-back so the callee only mutates
+                    ' its own copy. The write-back is omitted in lowering. We also deliberately skip
+                    ' BindAssignment here so the read-only lvalue never reaches AdjustAssignmentTarget.
+                    copyBackExpression = Nothing
+                Else
+                    copyBackExpression = BindAssignment(argument.Syntax, argument, outConversion, diagnostics)
+
+                    Debug.Assert(copyBackExpression.HasErrors OrElse
+                                 (copyBackExpression.Kind = BoundKind.AssignmentOperator AndAlso
+                                  DirectCast(copyBackExpression, BoundAssignmentOperator).Right Is outConversion))
+                End If
 
                 If Not isLValue Then
                     If argument.IsLateBound() Then
@@ -2939,7 +2950,7 @@ ProduceBoundNode:
                 Return New BoundByRefArgumentWithCopyBack(argument.Syntax, argument,
                                                           inConversion, inPlaceholder,
                                                           outConversion, outPlaceholder,
-                                                          targetType, copyBackExpression.HasErrors).MakeCompilerGenerated()
+                                                          targetType, copyBackExpression IsNot Nothing AndAlso copyBackExpression.HasErrors).MakeCompilerGenerated()
             Else
                 Dim propertyAccess = TryCast(argument, BoundPropertyAccess)
 

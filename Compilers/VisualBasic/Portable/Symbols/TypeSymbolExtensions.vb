@@ -1358,6 +1358,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 IsContainedInNamespace(typeSymbol, "System", "Runtime", "InteropServices")
         End Function
 
+        ' Keep in sync with C# equivalent.
+        <Extension>
+        Friend Function IsWellKnownTypeInAttribute(typeSymbol As TypeSymbol) As Boolean
+            Dim namedTypeSymbol = TryCast(typeSymbol, NamedTypeSymbol)
+            Return namedTypeSymbol IsNot Nothing AndAlso
+                namedTypeSymbol.Name = "InAttribute" AndAlso
+                namedTypeSymbol.Arity = 0 AndAlso
+                namedTypeSymbol.ContainingType Is Nothing AndAlso
+                IsContainedInNamespace(typeSymbol, "System", "Runtime", "InteropServices")
+        End Function
+
         <Extension>
         Private Function IsWellKnownCompilerServicesTopLevelType(typeSymbol As TypeSymbol, name As String) As Boolean
             If Not String.Equals(typeSymbol.Name, name) Then

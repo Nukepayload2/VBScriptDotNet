@@ -67,6 +67,30 @@ namespace Microsoft.CodeAnalysis.Test.Utilities
     /// </summary>
     public abstract partial class CommonTestBase : TestBase
     {
+        static CommonTestBase()
+        {
+            // Basic.Reference.Assemblies (NuGet) materializes its reference singletons (e.g.
+            // Net40.References.mscorlib, Net40.References.System) with a non-thread-safe
+            // check-then-act lazy pattern. When several test collections first touch the same
+            // singleton concurrently, multiple distinct MetadataImageReference instances are
+            // created for the same assembly image. Roslyn matches PE references by object
+            // identity and shares PE assembly symbols per AssemblyMetadata, so duplicate
+            // instances break reference lookup (GetReferencedAssemblySymbol returns null ->
+            // NullReferenceException) and symbol sharing across compilations
+            // (Assert.Same/Assert.Equal identity failures). This is the intermittent
+            // Retargeting/NoPia flake. Touching each package's References.All (and
+            // ExtraReferences.All where present) array forces single-threaded initialization
+            // (in the type's static constructor) of every reference singleton before any test
+            // body can reach them.
+            _ = Basic.Reference.Assemblies.Net20.References.All;
+            _ = Basic.Reference.Assemblies.Net40.References.All;
+            _ = Basic.Reference.Assemblies.Net461.References.All;
+            _ = Basic.Reference.Assemblies.Net461.ExtraReferences.All;
+            _ = Basic.Reference.Assemblies.NetStandard20.References.All;
+            _ = Basic.Reference.Assemblies.NetStandard20.ExtraReferences.All;
+            _ = Basic.Reference.Assemblies.Net70.References.All;
+        }
+
         #region Emit
 
         internal CompilationVerifier CompileAndVerifyCommon(

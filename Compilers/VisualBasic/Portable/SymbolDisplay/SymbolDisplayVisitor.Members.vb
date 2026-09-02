@@ -80,6 +80,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If symbol.ReturnsByRef AndAlso Format.MemberOptions.IncludesOption(SymbolDisplayMemberOptions.IncludeRef) Then
                 AddKeyword(SyntaxKind.ByRefKeyword)
+                If symbol.ReturnsByRefReadonly AndAlso IsPureDebugDisplayFormat(Format) AndAlso
+                   Not (Format.PropertyStyle = SymbolDisplayPropertyStyle.ShowReadWriteDescriptor AndAlso symbol.IsReadOnly) Then
+                    ' 仅纯 debug/内部诊断格式合成 readonly；属性描述符已显 ReadOnly（无 setter）时不叠字。
+                    AddSpace()
+                    AddKeyword(SyntaxKind.ReadOnlyKeyword)
+                End If
                 AddCustomModifiersIfRequired(symbol.RefCustomModifiers)
                 AddSpace()
             End If
@@ -180,6 +186,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If symbol.ReturnsByRef AndAlso Format.MemberOptions.IncludesOption(SymbolDisplayMemberOptions.IncludeRef) Then
                 AddKeyword(SyntaxKind.ByRefKeyword)
+                If symbol.ReturnsByRefReadonly AndAlso IsPureDebugDisplayFormat(Format) Then
+                    AddSpace()
+                    AddKeyword(SyntaxKind.ReadOnlyKeyword)
+                End If
                 AddCustomModifiersIfRequired(symbol.RefCustomModifiers)
                 AddSpace()
             End If
@@ -592,6 +602,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 End If
             End If
         End Sub
+
+        ' 仅纯 debug / 内部诊断显示格式合成「ByRef ReadOnly」；默认 IDE / 错误消息格式（tooltip）退化显示元素类型。
+        ' ILVisualizationFormat 有真实可达调用路径（NoPia 诊断、IL 可视化）；TestFormat 供编译器内部测试。
+        Private Shared Function IsPureDebugDisplayFormat(format As SymbolDisplayFormat) As Boolean
+            Return format Is SymbolDisplayFormat.ILVisualizationFormat OrElse
+                   format Is SymbolDisplayFormat.TestFormat
+        End Function
 
         Private Sub AddFieldModifiersIfRequired(symbol As IFieldSymbol)
             If Format.MemberOptions.IncludesOption(SymbolDisplayMemberOptions.IncludeModifiers) AndAlso Not IsEnumMember(symbol) Then

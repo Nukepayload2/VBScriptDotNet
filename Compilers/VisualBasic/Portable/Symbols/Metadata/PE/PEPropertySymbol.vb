@@ -27,6 +27,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
         Private ReadOnly _signatureHeader As SignatureHeader
         Private ReadOnly _parameters As ImmutableArray(Of ParameterSymbol)
         Private ReadOnly _returnsByRef As Boolean
+        Private ReadOnly _returnsByRefReadOnly As Boolean
         Private ReadOnly _propertyType As TypeSymbol
         Private ReadOnly _getMethod As PEMethodSymbol
         Private ReadOnly _setMethod As PEMethodSymbol
@@ -121,7 +122,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
 
             If Not signaturesMatch OrElse Not parametersMatch OrElse
                getEx IsNot Nothing OrElse setEx IsNot Nothing OrElse mrEx IsNot Nothing OrElse
-               propertyParams.Any(Function(p) p.RefCustomModifiers.AnyRequired() OrElse p.CustomModifiers.AnyRequired()) Then
+               propertyParams.Any(Function(p) (Not p.RefCustomModifiers.IsDefaultOrEmpty AndAlso p.RefCustomModifiers.Any(Function(m) Not m.IsOptional AndAlso Not m.Modifier.IsWellKnownTypeInAttribute())) OrElse p.CustomModifiers.AnyRequired()) Then
                 _lazyCachedUseSiteInfo.Initialize(ErrorFactory.ErrorInfo(ERRID.ERR_UnsupportedProperty1, CustomSymbolDisplayFormatter.QualifiedName(Me)))
             End If
 
@@ -136,6 +137,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
             Dim returnInfo As ParamInfo(Of TypeSymbol) = propertyParams(0)
 
             _returnsByRef = returnInfo.IsByRef
+            _returnsByRefReadOnly = returnInfo.IsByRef AndAlso
+                (Not returnInfo.RefCustomModifiers.IsDefaultOrEmpty AndAlso returnInfo.RefCustomModifiers.Any(Function(m) Not m.IsOptional AndAlso m.Modifier.IsWellKnownTypeInAttribute()))
             _propertyType = returnInfo.Type
             _propertyType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(_propertyType, handle, moduleSymbol)
         End Sub
@@ -283,6 +286,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
         Public Overrides ReadOnly Property ReturnsByRef As Boolean
             Get
                 Return _returnsByRef
+            End Get
+        End Property
+
+        Public Overrides ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return _returnsByRefReadOnly
             End Get
         End Property
 

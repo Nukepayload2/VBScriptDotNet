@@ -49,6 +49,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         Public MustOverride ReadOnly Property ReturnsByRef As Boolean
 
         ''' <summary>
+        ''' Source: Returns False; properties from source cannot return by reference.
+        ''' Metadata: Returns whether or not this property returns by readonly reference (ref readonly).
+        ''' The default is False; PE-derived symbols override this to read the In modreq.
+        ''' </summary>
+        Public Overridable ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return False
+            End Get
+        End Property
+
+        ''' <summary>
         ''' Gets the type of the property. 
         ''' </summary>
         Public MustOverride ReadOnly Property Type As TypeSymbol
@@ -436,7 +447,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End If
 
             ' Check return type custom modifiers.
-            Dim refModifiersUseSiteInfo = DeriveUseSiteInfoFromCustomModifiers(Me.RefCustomModifiers)
+            Dim refModifiersUseSiteInfo = DeriveUseSiteInfoFromCustomModifiers(Me.RefCustomModifiers, allowInModifier:=True)
 
             If MergeUseSiteInfo(useSiteInfo, refModifiersUseSiteInfo) Then
                 Return useSiteInfo
@@ -613,13 +624,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         Private ReadOnly Property IPropertySymbol_ByRefReturnIsReadonly As Boolean Implements IPropertySymbol.ReturnsByRefReadonly
             Get
-                Return False
+                Return Me.ReturnsByRefReadOnly
             End Get
         End Property
 
         Private ReadOnly Property IPropertySymbol_RefKind As RefKind Implements IPropertySymbol.RefKind
             Get
-                Return If(Me.ReturnsByRef, RefKind.Ref, RefKind.None)
+                Return If(Me.ReturnsByRef, If(Me.ReturnsByRefReadOnly, RefKind.RefReadOnly, RefKind.Ref), RefKind.None)
             End Get
         End Property
 

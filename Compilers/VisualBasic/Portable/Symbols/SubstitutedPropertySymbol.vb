@@ -215,6 +215,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Public Overrides ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return _originalDefinition.ReturnsByRefReadOnly
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property Type As TypeSymbol
             Get
                 Return _originalDefinition.Type.InternalSubstituteTypeParameters(TypeSubstitution).Type

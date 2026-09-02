@@ -1014,6 +1014,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols.Metadata.PE
             End Get
         End Property
 
+        Public Overrides ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return ReturnsByRef AndAlso CustomModifierUtils.HasInAttributeModifier(Signature.ReturnParam.RefCustomModifiers)
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property ReturnType As TypeSymbol
             Get
                 Return Signature.ReturnParam.Type

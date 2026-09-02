@@ -30,6 +30,7 @@
 - **`.vbx` 首行 `#!` shebang 指令**（编译器语法层，已实现）：见 `spec-shebang-directive.md`。
 - **消费 C# 扩展成员**（扩展属性/运算符，扩展方法本就可用，已实现）：见 `spec-consume-csharp-extension-members.md`。
 - **消费 C# 接口共享成员**（接口共享成员 SAIM，已实现）：见 `spec-consume-interface-shared-members.md`。
+- **消费 C# `ref readonly` 返回**（已实现）：见 `spec-consume-ref-readonly.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令。
 - **理论上和 C# REPL 不应该有功能差距**。
 - 代码内产品版本号已落 `2.0.0-Beta`（2026-08-23 用户裁决：Scripting 库版本 `Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj:8-9` 由 `1.2.0/beta` 改为 `2.0.0/Beta`，`vbi --version` 显示 `2.0.0-Beta`）。

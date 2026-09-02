@@ -130,6 +130,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Return modifiers.Any(Function(modifier) Not modifier.IsOptional AndAlso
                    DirectCast(modifier, VisualBasicCustomModifier).ModifierSymbol.IsWellKnownTypeIsExternalInit())
         End Function
+
+        Friend Shared Function HasInAttributeModifier(modifiers As ImmutableArray(Of CustomModifier)) As Boolean
+            Return modifiers.Any(Function(modifier) Not modifier.IsOptional AndAlso
+                   DirectCast(modifier, VisualBasicCustomModifier).ModifierSymbol.IsWellKnownTypeInAttribute())
+        End Function
     End Class
 End Namespace
 

@@ -1935,6 +1935,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
                     If propertyAccess.IsLValue Then
                         Debug.Assert(propertySymbol.ReturnsByRef)
+
+                        If propertySymbol.ReturnsByRefReadOnly Then
+                            ' A readonly-lvalue (ref readonly returning property) cannot be the target
+                            ' of an assignment: writing through it would store into read-only memory.
+                            ReportDiagnostic(diagnostics, op1.Syntax, ERRID.ERR_LValueRequired)
+                            isError = True
+                            Return propertyAccess.SetAccessKind(PropertyAccessKind.Get)
+                        End If
+
                         WarnOnRecursiveAccess(propertyAccess, PropertyAccessKind.Get, diagnostics)
                         Return propertyAccess.SetAccessKind(PropertyAccessKind.Get)
                     End If
@@ -2003,6 +2012,33 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Case BoundKind.LateInvocation
                     Debug.Assert((DirectCast(op1, BoundLateInvocation).AccessKind And (LateBoundAccessKind.Get Or LateBoundAccessKind.Call)) = 0)
                     Return DirectCast(op1, BoundLateInvocation).SetAccessKind(LateBoundAccessKind.Set)
+
+                Case BoundKind.Call
+                    ' A ByRef-returning method call can be used as an assignment target
+                    ' (e.g. GetRef() = 5). Reject readonly-lvalue calls the same way as properties:
+                    ' writing through them would store into read-only memory.
+                    Dim callExpression = DirectCast(op1, BoundCall)
+                    If callExpression.IsLValue AndAlso callExpression.Method.ReturnsByRefReadOnly Then
+                        ReportDiagnostic(diagnostics, op1.Syntax, ERRID.ERR_LValueRequired)
+                        isError = True
+                    End If
+
+                    Return op1
+
+                Case BoundKind.FieldAccess,
+                     BoundKind.ArrayAccess
+                    ' A field or array-element write whose base receiver is a readonly-lvalue
+                    ' (e.g. o.S(0).X = 5 where o.S(0) returns ref readonly Row) would store
+                    ' through the read-only reference into read-only memory. Reject it like any
+                    ' other store-through-ref write. With block writes are unaffected: their
+                    ' receiver is the With placeholder (not a readonly-lvalue), and the receiver
+                    ' is captured by value during lowering.
+                    If op1.IsReadOnlyLValueOrMemberOfReadOnlyLValue() Then
+                        ReportDiagnostic(diagnostics, op1.Syntax, ERRID.ERR_LValueRequired)
+                        isError = True
+                    End If
+
+                    Return op1
 
                 Case Else
                     Return op1

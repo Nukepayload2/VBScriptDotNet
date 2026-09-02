@@ -134,6 +134,54 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 DirectCast(node, BoundPropertyAccess).PropertySymbol.ReturnsByRef
         End Function
 
+        ''' <summary>
+        ''' Returns True if the expression is a ByRef-returning property access or method call whose
+        ''' referenced value is read-only (the symbol returns by readonly reference, e.g.
+        ''' ReadOnlySpan(Of T).Item). Such a value must never be written through; when it is used
+        ''' as a ByRef argument the compiler copies it into a temp and discards the copy-back.
+        ''' </summary>
+        <Extension()>
+        Public Function IsReadOnlyLValue(node As BoundExpression) As Boolean
+            If Not node.IsLValue Then
+                Return False
+            End If
+
+            Select Case node.Kind
+                Case BoundKind.PropertyAccess
+                    Return DirectCast(node, BoundPropertyAccess).PropertySymbol.ReturnsByRefReadOnly
+
+                Case BoundKind.Call
+                    Return DirectCast(node, BoundCall).Method.ReturnsByRefReadOnly
+
+                Case Else
+                    Return False
+            End Select
+        End Function
+
+        ''' <summary>
+        ''' Returns True if the expression is a readonly-lvalue or a member/array-element access
+        ''' whose base receiver is a readonly-lvalue. Writing through such an expression (e.g.
+        ''' o.S(0).X = 5 where o.S(0) returns ref readonly Row) would store into read-only memory.
+        ''' </summary>
+        <Extension()>
+        Public Function IsReadOnlyLValueOrMemberOfReadOnlyLValue(node As BoundExpression) As Boolean
+            Dim current As BoundExpression = node
+            Do
+                Select Case current.Kind
+                    Case BoundKind.FieldAccess
+                        current = DirectCast(current, BoundFieldAccess).ReceiverOpt
+
+                    Case BoundKind.ArrayAccess
+                        current = DirectCast(current, BoundArrayAccess).Expression
+
+                    Case Else
+                        Return current.IsReadOnlyLValue()
+                End Select
+            Loop While current IsNot Nothing
+
+            Return False
+        End Function
+
         <Extension()>
         Public Function IsLateBound(node As BoundExpression) As Boolean
             Select Case node.Kind

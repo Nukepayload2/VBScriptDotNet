@@ -5342,6 +5342,99 @@ public class C
             RefReturnInternal(compB)
         End Sub
 
+        ' ref readonly 返回的 SymbolDisplay 合成「ByRef ReadOnly」仅限纯 debug/内部诊断格式；
+        ' 默认 IDE/错误消息格式退化显示元素类型（无 ByRef/ReadOnly）；防属性描述符叠字；词序规范形锁定。
+        <Fact>
+        Public Sub RefReadonlyReturnDisplay()
+            Dim sourceA =
+"public class C
+{
+    int _f;
+    public ref readonly int Get() => ref _f;
+    public ref readonly int P => ref _f;
+    public ref int M(ref int i) => ref i;
+    public ref int Q => ref _f;
+}"
+            Dim parseOptions = CSharp.CSharpParseOptions.Default.WithLanguageVersion(CSharp.LanguageVersion.Preview)
+            Dim compA = CreateCSharpCompilation(GetUniqueName(), sourceA, parseOptions:=parseOptions)
+            compA.VerifyDiagnostics()
+            Dim refA = compA.EmitToImageReference()
+
+            Dim sourceB =
+<compilation>
+    <file name="b.vb">
+    </file>
+</compilation>
+            Dim compB = CompilationUtils.CreateCompilationWithMscorlib40(sourceB, references:={refA})
+            compB.VerifyDiagnostics()
+
+            Dim type = compB.GlobalNamespace.GetTypeMembers("C").Single()
+            Dim getMethod As IMethodSymbol = DirectCast(type.GetMembers("Get").Single(), IMethodSymbol)
+            Dim readonlyProp As IPropertySymbol = DirectCast(type.GetMembers("P").Single(), IPropertySymbol)
+            Dim refMethod As IMethodSymbol = DirectCast(type.GetMembers("M").Single(), IMethodSymbol)
+
+            ' D5: 语义模型只读标志：ReturnsByRefReadonly=True、RefKind.RefReadOnly。
+            ' 注意：裸 RefKind 枚举名被测试工具 Extensions.vb:340 的 RefKind(ParameterSymbol) 扩展方法遮蔽，
+            ' 必须用完全限定名 Microsoft.CodeAnalysis.RefKind。
+            Assert.True(getMethod.ReturnsByRefReadonly)
+            Assert.Equal(Microsoft.CodeAnalysis.RefKind.RefReadOnly, getMethod.RefKind)
+            Assert.True(readonlyProp.ReturnsByRefReadonly)
+            Assert.Equal(Microsoft.CodeAnalysis.RefKind.RefReadOnly, readonlyProp.RefKind)
+            Assert.False(refMethod.ReturnsByRefReadonly)
+            Assert.Equal(Microsoft.CodeAnalysis.RefKind.Ref, refMethod.RefKind)
+
+            ' D1/D8: 纯 debug/内部诊断格式（ILVisualizationFormat）合成 ByRef ReadOnly。
+            ' 词序规范形锁定：ByRef 在前、ReadOnly 在后。
+            AssertEx.Equal(
+                "ByRef ReadOnly Function C.Get() As Integer",
+                SymbolDisplay.ToDisplayString(getMethod, SymbolDisplayFormat.ILVisualizationFormat))
+            AssertEx.Equal(
+                "ByRef ReadOnly Property C.P As Integer",
+                SymbolDisplay.ToDisplayString(readonlyProp, SymbolDisplayFormat.ILVisualizationFormat))
+
+            ' D3: 可变 ref 返回不回归（debug 格式只显 ByRef、无 ReadOnly）。
+            ' ILVisualizationFormat 不含参数名，M(ref int i) 的参数显示为 ByRef Integer。
+            AssertEx.Equal(
+                "ByRef Function C.M(ByRef Integer) As Integer",
+                SymbolDisplay.ToDisplayString(refMethod, SymbolDisplayFormat.ILVisualizationFormat))
+            Assert.DoesNotContain("ReadOnly", SymbolDisplay.ToDisplayString(refMethod, SymbolDisplayFormat.ILVisualizationFormat))
+
+            ' D2: 默认 IDE 格式（无 IncludeRef）退化显示元素类型——无 ByRef/ReadOnly。
+            Dim ideFormat = New SymbolDisplayFormat(
+                memberOptions:=SymbolDisplayMemberOptions.IncludeParameters Or SymbolDisplayMemberOptions.IncludeType Or SymbolDisplayMemberOptions.IncludeContainingType,
+                parameterOptions:=SymbolDisplayParameterOptions.IncludeType,
+                kindOptions:=SymbolDisplayKindOptions.IncludeMemberKeyword,
+                miscellaneousOptions:=SymbolDisplayMiscellaneousOptions.UseSpecialTypes)
+            Dim d2Text = SymbolDisplay.ToDisplayString(getMethod, ideFormat)
+            AssertEx.Equal("Function C.Get() As Integer", d2Text)
+            Assert.DoesNotContain("ByRef", d2Text)
+            Assert.DoesNotContain("ReadOnly", d2Text)
+
+            ' D6: 退化不许比纯 ref 更少——含 IncludeRef 的非 debug 格式（错误消息格式）下，ref readonly 与纯 ref 对等显 ByRef、无 ReadOnly。
+            Dim errText = SymbolDisplay.ToDisplayString(getMethod, SymbolDisplayFormat.VisualBasicErrorMessageFormat)
+            Dim errRefText = SymbolDisplay.ToDisplayString(refMethod, SymbolDisplayFormat.VisualBasicErrorMessageFormat)
+            Assert.Contains("ByRef Function", errText)
+            Assert.Contains("As Integer", errText)
+            Assert.DoesNotContain("ReadOnly", errText)
+            Assert.Contains("ByRef Function", errRefText) ' 纯 ref 同样显 ByRef，对等
+
+            ' D7: ReadOnly 描述符属性（无 setter）在 debug 格式下不得叠字成 ReadOnly ByRef ReadOnly。
+            Dim d7Text = SymbolDisplay.ToDisplayString(readonlyProp, SymbolDisplayFormat.TestFormat)
+            Assert.Contains("ReadOnly ByRef", d7Text)
+            Assert.DoesNotContain("ReadOnly ByRef ReadOnly", d7Text)
+
+            ' D4: ref-like 类型显示不回归（ByRef Like Structure 类型层修饰由 SymbolDisplayVisitor.Types.vb:445-447 处理）。
+            Dim compNet = CreateCompilation("", targetFramework:=TargetFramework.NetLatest)
+            Dim spanDef = compNet.GetTypeByMetadataName("System.Span`1")
+            Dim span = DirectCast(spanDef.Construct(compNet.GetSpecialType(SpecialType.System_Int32)), INamedTypeSymbol)
+            Dim d4Format = New SymbolDisplayFormat(
+                typeQualificationStyle:=SymbolDisplayTypeQualificationStyle.NameOnly,
+                genericsOptions:=SymbolDisplayGenericsOptions.IncludeTypeParameters,
+                kindOptions:=SymbolDisplayKindOptions.IncludeTypeKeyword,
+                miscellaneousOptions:=SymbolDisplayMiscellaneousOptions.UseSpecialTypes)
+            AssertEx.Equal("ByRef Like Structure Span(Of Integer)", SymbolDisplay.ToDisplayString(span, d4Format))
+        End Sub
+
         Private Shared Sub RefReturnInternal(comp As Compilation)
             Dim formatWithRef = New SymbolDisplayFormat(
                 memberOptions:=SymbolDisplayMemberOptions.IncludeParameters Or SymbolDisplayMemberOptions.IncludeType Or SymbolDisplayMemberOptions.IncludeRef,

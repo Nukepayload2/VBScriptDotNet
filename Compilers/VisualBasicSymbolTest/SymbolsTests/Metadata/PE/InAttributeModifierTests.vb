@@ -144,11 +144,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        obj.M(x)
-            ~
-</expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -173,11 +169,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        obj.M(x)
-            ~
-</expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -206,11 +198,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        obj.M()
-            ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -234,11 +222,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        obj.M()
-            ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -266,11 +250,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        TestRef.M()
-                ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -299,11 +279,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'M' has a return type that is not supported or parameter types that are not supported.
-        obj.M()
-            ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -329,11 +305,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.P' is of an unsupported type.
-        Dim value = obj.P
-                        ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -358,11 +330,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.P' is of an unsupported type.
-        Dim value = TestRef.P
-                            ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -388,11 +356,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.P' is of an unsupported type.
-        Dim value = obj.P
-                        ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -416,11 +380,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.P' is of an unsupported type.
-        Dim value = obj.P
-                        ~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -446,11 +406,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.Item(ByRef p As Integer)' is of an unsupported type.
-        Dim value = obj(p)
-                    ~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -465,9 +421,9 @@ public abstract class TestRef
                 <compilation>
                     <file>
 Class Test
-    Shared Sub Main(obj As TestRef) 
+    Shared Sub Main(obj As TestRef)
         Dim p = 0
-        Dim value = obj(p)
+        obj(p) = 0
     End Sub
 End Class
     </file>
@@ -475,11 +431,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.Item(ByRef p As Integer)' is of an unsupported type.
-        Dim value = obj(p)
-                    ~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -505,11 +457,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.Item(p As Integer)' is of an unsupported type.
-        Dim value = obj(0)
-                    ~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -533,11 +481,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.Item(p As Integer)' is of an unsupported type.
-        Dim value = obj(0)
-                    ~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -563,11 +507,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30643: Property 'TestRef.Item(p As Integer)' is of an unsupported type.
-        Dim value = obj(0)
-                    ~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -590,11 +530,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'D' has a return type that is not supported or parameter types that are not supported.
-        lambda(x)
-        ~~~~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -617,11 +553,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'BeginInvoke' has a return type that is not supported or parameter types that are not supported.
-        lambda.BeginInvoke(x, Nothing, Nothing)
-               ~~~~~~~~~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -634,9 +566,9 @@ public delegate void D(in int p);
                 <compilation>
                     <file>
 Class Test
-    Shared Sub Main(lambda As D) 
+    Shared Sub Main(lambda As D)
         Dim x = 0
-        lambda.EndInvoke(x)
+        lambda.EndInvoke(x, Nothing)
     End Sub
 End Class
     </file>
@@ -644,11 +576,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'EndInvoke' has a return type that is not supported or parameter types that are not supported.
-        lambda.EndInvoke(x)
-               ~~~~~~~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -670,11 +598,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'D' has a return type that is not supported or parameter types that are not supported.
-        Dim x = lambda()
-                ~~~~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -687,8 +611,8 @@ public delegate ref readonly int D();
                 <compilation>
                     <file>
 Class Test
-    Shared Sub Main(lambda As D) 
-        lambda.EndInvoke()
+    Shared Sub Main(lambda As D)
+        lambda.EndInvoke(Nothing)
     End Sub
 End Class
     </file>
@@ -696,11 +620,7 @@ End Class
 
             Dim compilation = CreateCompilationWithMscorlib40(source, references:={reference})
 
-            AssertTheseDiagnostics(compilation, <expected>
-BC30657: 'EndInvoke' has a return type that is not supported or parameter types that are not supported.
-        lambda.EndInvoke()
-               ~~~~~~~~~
-                                                </expected>)
+            compilation.AssertNoDiagnostics()
         End Sub
 
         <Fact>
@@ -881,8 +801,10 @@ BC30311: Value of type 'Test' cannot be converted to 'Integer'.
                                                 </expected>)
         End Sub
 
+        ' Required modreq(In) 不参与候选排名：本 fork 豁免 required modreq(In)，候选既不被禁用也不被降级。
+        ' 无论参数还是返回类型，重载决议都按正常 betterness（较佳类型匹配）在候选间选择。
         <Fact>
-        Public Sub OverloadResolutionShouldBeAbleToPickOverloadsWithNoModreqsOverOnesWithModreq_Methods_Parameters()
+        Public Sub OverloadResolution_PicksBetterTypeMatchRegardlessOfModreqIn_Methods_Parameters()
             Dim reference = CreateCSharpCompilation("
 public class TestRef
 {
@@ -909,11 +831,11 @@ End Class
     </file>
                 </compilation>
 
-            CompileAndVerify(source, references:={reference}, expectedOutput:="20")
+            CompileAndVerify(source, references:={reference}, expectedOutput:="10")
         End Sub
 
         <Fact>
-        Public Sub OverloadResolutionShouldBeAbleToPickOverloadsWithNoModreqsOverOnesWithModreq_Methods_ReturnTypes()
+        Public Sub OverloadResolution_PicksBetterTypeMatchRegardlessOfModreqIn_Methods_ReturnTypes()
             Dim reference = CreateCSharpCompilation("
 public class TestRef
 {
@@ -943,11 +865,11 @@ End Class
     </file>
                 </compilation>
 
-            CompileAndVerify(source, references:={reference}, expectedOutput:="20")
+            CompileAndVerify(source, references:={reference}, expectedOutput:="10")
         End Sub
 
         <Fact>
-        Public Sub OverloadResolutionShouldBeAbleToPickOverloadsWithNoModreqsOverOnesWithModreq_Indexers_Parameters()
+        Public Sub OverloadResolution_PicksBetterTypeMatchRegardlessOfModreqIn_Indexers_Parameters()
             Dim reference = CreateCSharpCompilation("
 public class TestRef
 {
@@ -980,11 +902,11 @@ End Class
     </file>
                 </compilation>
 
-            CompileAndVerify(source, references:={reference}, expectedOutput:="20")
+            CompileAndVerify(source, references:={reference}, expectedOutput:="10")
         End Sub
 
         <Fact>
-        Public Sub OverloadResolutionShouldBeAbleToPickOverloadsWithNoModreqsOverOnesWithModreq_Indexers_ReturnTypes()
+        Public Sub OverloadResolution_PicksBetterTypeMatchRegardlessOfModreqIn_Indexers_ReturnTypes()
             Dim reference = CreateCSharpCompilation("
 public class TestRef
 {
@@ -1019,7 +941,7 @@ End Class
     </file>
                 </compilation>
 
-            CompileAndVerify(source, references:={reference}, expectedOutput:="20")
+            CompileAndVerify(source, references:={reference}, expectedOutput:="10")
         End Sub
     End Class
 

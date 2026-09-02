@@ -38,6 +38,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Public Overrides ReadOnly Property ReturnsByRefReadOnly As Boolean
+            Get
+                Return Me._underlyingProperty.ReturnsByRefReadOnly
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property IsDefault As Boolean
             Get
                 Return Me._underlyingProperty.IsDefault
