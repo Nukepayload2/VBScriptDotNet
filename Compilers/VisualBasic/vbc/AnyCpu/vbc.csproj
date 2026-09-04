@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net472</TargetFrameworks>
     <AssemblyName>vbc</AssemblyName>
+    <!-- R2: net472 defaults to C# 7.3, but host sources use modern C# (e.g. extension members in NativeMethods.cs). -->
+    <LangVersion>latest</LangVersion>
     <RootNamespace>Microsoft.CodeAnalysis.VisualBasic.CommandLine</RootNamespace>
     <StartupObject>Microsoft.CodeAnalysis.VisualBasic.CommandLine.Program</StartupObject>
     <SignAssembly>true</SignAssembly>
@@ -13,8 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- vbc.rsp is only for command-line compiler tests (net472 desktop vbc.exe style). netcore vbc runs via dotnet exec vbc.dll, so it must not enter publish output. -->
-    <None Include="..\vbc.runtime.rsp" Link="vbc.rsp" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <!-- R1: vbc.rsp is only for command-line compiler tests (net472 desktop vbc.exe style). netcore vbc runs via dotnet exec vbc.dll, so it must not enter publish output. -->
+    <None Include="..\vbc.runtime.rsp" Link="vbc.rsp" Condition="'$(TargetFramework)'=='net10.0'" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     <Compile Include="..\..\..\Shared\BuildClient.cs" />
     <Compile Include="..\..\..\Shared\BuildProtocol.cs" />
     <Compile Include="..\..\..\Shared\BuildServerConnection.cs" />
@@ -28,12 +30,47 @@
     <Compile Include="..\Program.cs" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <!-- netfx desktop vbc.rsp: source-tree 57-line all-/r: reference version. -->
+    <None Include="..\vbc.rsp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- vbc.exe.config: SDK auto-derives App.config -> $(TargetFileName).config on the net472 inner build. -->
+    <None Include="..\App.config" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\..\Core\Portable\Microsoft.CodeAnalysis.csproj" />
     <ProjectReference Include="..\..\Portable\Microsoft.CodeAnalysis.VisualBasic.vbproj" />
   </ItemGroup>
 
-  <Target Name="WriteNet10ResponseFile" AfterTargets="Build">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- net472 desktop full-PDB writer: mirror upstream eng\targets\DiaSymReaderNative.targets.
+       ExcludeAssets=all -> no lib flows; GeneratePathProperty surfaces the package dir so the
+       three arch dlls are copied flat into the compiler output (tasks/net472 wildcard picks them up). -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.DiaSymReader.Native" Version="17.0.0-beta1.21524.1" GeneratePathProperty="true" ExcludeAssets="all" />
+    <Content Include="$(PkgMicrosoft_DiaSymReader_Native)\runtimes\win\native\Microsoft.DiaSymReader.Native.x86.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </Content>
+    <Content Include="$(PkgMicrosoft_DiaSymReader_Native)\runtimes\win\native\Microsoft.DiaSymReader.Native.amd64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </Content>
+    <Content Include="$(PkgMicrosoft_DiaSymReader_Native)\runtimes\win\native\Microsoft.DiaSymReader.Native.arm64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="WriteNet10ResponseFile" AfterTargets="Build" Condition="'$(TargetFramework)'=='net10.0'">
     <PropertyGroup>
       <Net48ReferenceDirectory>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8</Net48ReferenceDirectory>
     </PropertyGroup>

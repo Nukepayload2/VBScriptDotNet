@@ -17,8 +17,18 @@ that ships with the SDK.
 
 ## Requirements
 
-- .NET SDK targeting **net10.0**. Both the compiler package and the `vbi` tool
-  target .NET 10.
+- For **MSBuild Core** (`dotnet build`): .NET SDK targeting **net10.0**.
+- For **Visual Studio / .NET Framework MSBuild** (`MSBuild.exe`, Full host):
+  .NET Framework 4.7.2+ and Visual Studio 2022 **17.11+** (the package loads a
+  net472 task assembly and spawns a net472 `vbc.exe`).
+- The `vbi` tool targets .NET 10.
+
+This package targets **two MSBuild hosts**:
+
+- `dotnet build` (Core MSBuild) uses `tasks/netcore` (net10.0 compiler).
+- Visual Studio and `MSBuild.exe` (.NET Framework MSBuild) use
+  `tasks/net472` (desktop compiler: netstandard2.0 Roslyn libraries loaded by a
+  net472 `vbc.exe`). Both hosts redirect the `Vbc` task to this package.
 
 ## Compiler package usage
 
@@ -49,10 +59,11 @@ references this package would not find a `csc` binary.
 
 Notes:
 
-- This is a v1 release that ships the .NET (Core) toolset only. Classic
-  (non-SDK) .NET Framework desktop projects are not supported.
+- Classic (non-SDK) .NET Framework projects that do not go through the .NET SDK
+  build chain are not covered by this package. It is intended for SDK-style
+  Visual Basic projects built under either MSBuild host.
 - Shared compilation is disabled (`UseSharedCompilation=false`); each build
-  compiles in-process.
+  compiles by launching the compiler in a subprocess (no compiler server).
 
 ## CLI tool usage
 

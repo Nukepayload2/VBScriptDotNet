@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Toolset 编译器包 build props（design-detailed.md A4 :105-124）。
+  Toolset 编译器包 build props（design-detailed.md A4 :105-124 + 本任务 G4 分派化）。
   对齐上游 {{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\build\Microsoft.Net.Compilers.Toolset.props:9-41，
-  fork 差异：只注册 Vbc、UseSharedCompilation=false、RoslynAssembliesPath→bincore、不含 _UseRoslynBridgeTask（netfx 桥 v1 不覆盖）。
+  按 MSBuildRuntimeType 分派：Core→tasks\netcore(bincore，解析值=v1 现状)；非 Core→tasks\net472。
+  fork 差异：只注册 Vbc、UseSharedCompilation=false、不设 VisualBasicCoreTargetsPath（R5：SDK targets 链驱动 CoreCompile）、不含 _UseRoslynBridgeTask（fork 无 bridge 壳）。
   文件名按包 ID 命名（Nukepayload2.Compilers.VBScriptDotNet.props），NuGet 引用包时自动导入（test-plan.md L2-3）。
 -->
 <Project>
   <PropertyGroup>
+    <_RoslynTargetsDirectoryName Condition="'$(MSBuildRuntimeType)' == 'Core'">netcore</_RoslynTargetsDirectoryName>
+    <_RoslynTargetsDirectoryName Condition="'$(MSBuildRuntimeType)' != 'Core'">net472</_RoslynTargetsDirectoryName>
     <RoslynCompilerType>Custom</RoslynCompilerType>
-    <RoslynAssembliesPath>$(MSBuildThisFileDirectory)..\tasks\netcore\bincore\</RoslynAssembliesPath>
-    <RoslynTasksAssembly>$(MSBuildThisFileDirectory)..\tasks\netcore\Microsoft.Build.Tasks.CodeAnalysis.dll</RoslynTasksAssembly>
+    <RoslynAssembliesPath Condition="'$(MSBuildRuntimeType)' == 'Core'">$(MSBuildThisFileDirectory)..\tasks\netcore\bincore\</RoslynAssembliesPath>
+    <RoslynAssembliesPath Condition="'$(MSBuildRuntimeType)' != 'Core'">$(MSBuildThisFileDirectory)..\tasks\net472\</RoslynAssembliesPath>
+    <RoslynTasksAssembly>$(MSBuildThisFileDirectory)..\tasks\$(_RoslynTargetsDirectoryName)\Microsoft.Build.Tasks.CodeAnalysis.dll</RoslynTasksAssembly>
     <UseSharedCompilation Condition="'$(UseSharedCompilation)' == ''">false</UseSharedCompilation>
   </PropertyGroup>
   <UsingTask TaskName="Microsoft.CodeAnalysis.BuildTasks.Vbc" AssemblyFile="$(RoslynTasksAssembly)" />

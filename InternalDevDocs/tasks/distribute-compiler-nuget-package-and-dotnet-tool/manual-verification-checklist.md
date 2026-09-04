@@ -142,7 +142,9 @@ L2-3 的 `Program.vb` 用裸 `Console.WriteLine`（未显式 `Imports System`）
 
 ### L2-5 net472 场景
 
-**允许缺失，不验证为缺陷**：不打包 `tasks/net472`；VS 桌面老式（非 SDK）MSBuild 项目不在 v1 范围（用户定案）。VS SDK 项目走 MSBuild Core → bincore，不受影响。
+> **Superseded（2026-09-04）**：本 L2-5 记录 v1 交付时的「net472 允许缺失」定案，属历史事实。该定案已被 `../net472-desktop-branch/` 修正——net472 桌面分支现为支持能力（`tasks/net472`），Full-host 端到端清单见 `../net472-desktop-branch/manual-verification-checklist.md`。
+
+v1 范围记录：**允许缺失，不验证为缺陷**——v1 不打包 `tasks/net472`；VS 桌面老式（非 SDK）MSBuild 项目不在 v1 范围（当时定案）。VS SDK 项目走 MSBuild Core → bincore，v1 下不受影响。
 
 ---
 
