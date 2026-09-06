@@ -13,7 +13,7 @@
 | **rejected** | `proposals/rejected/` | 否决（RESOLUTION **Reject**） |
 | **done** | `proposals/vbscript-<版本>/` | 已随 VBScript.NET 发布版本实现并定稿（成员见下，1.2 版已归档） |
 
-- **判定依据**：各会议纪要「三态判定」小节（`../meetings/`，与提案 1:1 同名镜像组织）。
+- **判定依据**：各会议纪要「三态判定」小节（`../meetings/`，与提案 1:1 同名镜像组织）。起草与定位提案可对照 `../dream-of-vbdev.md`（§2–§5/§7：主线/persona/情绪谱/六元素/三方张力；非权威输入，为提案提供动机与定位）。
 - **分类反映当前设计意图**，不排斥后续复活（inactive/rejected 可因信号回升）或归档（active 完成后转 done）。
 - 会议纪要目录与提案目录同步组织：`meetings/` ↔ `proposals/`、`meetings/inactive/` ↔ `proposals/inactive/`、`meetings/rejected/` ↔ `proposals/rejected/`。
 - 状态行（模板顶部）：`Proposed / Prototype / Implementation / Specification` 复选框标记进度。

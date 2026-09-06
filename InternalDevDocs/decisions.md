@@ -4,7 +4,7 @@
 
 - **本文件用途**：记录 VBScript.NET（.vbx）面对 C#/CLR/.NET 生态现实的设计决策，以及「C# 现实方向 → VBScript.NET 应对」映射。**本节原为 `csharplang-index.md` 第三节（M1–M8），按用户指示独立成文**——csharplang-index 只保留 C# interop 事实（T1–T8、文件索引、引用纪律），VBScript.NET 侧决策统一收敛到本文件。
 - **如何使用**：meeting agent 评估提案时，先读本文件「二、M1–M8」定位相关映射与决策；C# 事实（T1–T8、文件索引、引用纪律）见 `csharplang-index.md`；历史会议决策见 `modvb\meetings/`。
-- **相关文件**：`csharplang-index.md`（C# interop 事实索引）；`modvb\meetings/`（102 篇 LDM 会议纪要，其「附录：C# 生态与互操作考量」引用本文件 M1–M8）；`vblang\spec\types.md`（VB 受限类型规则）；`{{VBRefStructHelper}}`（VB ref struct 分析器）。
+- **相关文件**：`csharplang-index.md`（C# interop 事实索引）；`modvb\meetings/`（102 篇 LDM 会议纪要，其「附录：C# 生态与互操作考量」引用本文件 M1–M8）；`vblang\spec\types.md`（VB 受限类型规则）；`{{VBRefStructHelper}}`（VB ref struct 分析器）；`dream-of-vbdev.md`（愿景/意象输入，非决策权威）。
 
 ---
 

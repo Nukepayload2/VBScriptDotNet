@@ -10,6 +10,7 @@
 - `meetings/inactive/` ↔ `proposals/inactive/`
 - `meetings/rejected/` ↔ `proposals/rejected/`
 - `meetings/vbscript-<版本>/` ↔ `proposals/vbscript-<版本>/`（done 归档，当前无成员）
+- 会议做三态判定/优先级时，可对照 `../dream-of-vbdev.md`（§2 主线、§5 六元素、§7 三方张力）作动机/定位上下文（非权威输入）。
 
 ## 会议纪要
 
