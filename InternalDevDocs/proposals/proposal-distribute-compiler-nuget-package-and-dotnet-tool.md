@@ -110,6 +110,9 @@
 - shebang：`#!/usr/bin/env vbi` 直接可执行——`#!` 已在编译器语法层实现（`proposal-shebang-directive.md` done），`vbi` 作为解释器读取脚本首行，无需宿主剥行。
 - 默认 imports/引用：复用 vbi 的 rsp（`vbi.rsp`，默认 `System`、`Microsoft.VisualBasic`、`System.Linq`、`System.Xml.Linq`、`/optioninfer+`，见 `ReadMe.md:26-30`）。
 - `#R "nuget: Package, Version"`：复用 Scripting 层已有 `NuGetPackageResolver`（`Scripting\Core\Hosting\Resolvers\NuGetPackageResolver.cs`，`proposal-vbscript-lsp.md:121` 已确认复用点），不重复实现。
+  > 勘误：'复用已有实现'断言与本仓代码不符（`NuGetPackageResolver` 空转、注入 null）；本行语法 `nuget: Package, Version`（前缀后与版本前带空格）与本特性的逗号 + Trim 规则前向兼容，失实在「复用已有实现」断言、不在拼写；本特性以 `tasks\vbi-nuget-reference\` + `meetings\meeting-vbi-nuget-reference.md` RESOLUTION 为准。
+  >
+  > 语法明示：本特性语法为 `#R "nuget:包名[, 版本]"`——前缀 `nuget:` 大小写不敏感，包名与版本以逗号分隔、各段首尾空白可忽略；解析层版本可省，v1 版本必填（缺省报「请指定版本」）。与官方 file-based 的 `#:package id@version`（`@` 分隔）写法不同：`.vbx`/vbi 属 Script/REPL 语义，只认 `#R "nuget:"`，不解析 `#:`/`@`。
 
 **B4. 目标状态**
 

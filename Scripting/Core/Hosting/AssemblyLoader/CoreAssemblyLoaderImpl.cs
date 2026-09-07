@@ -5,6 +5,7 @@
 #nullable disable
 
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -16,10 +17,25 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
     {
         private readonly LoadContext _inMemoryAssemblyContext;
 
+        // Native probe roots shared by every LoadContext. The host pushes the NuGet
+        // runtimes/<rid>/native directories here (design §G2); an empty set keeps the loader probing
+        // nothing, exactly like before the seam existed.
+        private ImmutableArray<string> _nativeProbeRoots = ImmutableArray<string>.Empty;
+
         internal CoreAssemblyLoaderImpl(InteractiveAssemblyLoader loader)
             : base(loader)
         {
-            _inMemoryAssemblyContext = new LoadContext(Loader, null);
+            _inMemoryAssemblyContext = new LoadContext(this, null);
+        }
+
+        internal override void AddNativeProbeRoot(string directory)
+        {
+            Debug.Assert(directory != null);
+
+            if (!_nativeProbeRoots.Contains(directory, StringComparer.Ordinal))
+            {
+                _nativeProbeRoots = _nativeProbeRoots.Add(directory);
+            }
         }
 
         public override Assembly LoadFromStream(Stream peStream, Stream pdbStream)
@@ -32,7 +48,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             // Create a new context that knows the directory where the assembly was loaded from
             // and uses it to resolve dependencies of the assembly. We could create one context per directory,
             // but there is no need to reuse contexts.
-            var assembly = new LoadContext(Loader, Path.GetDirectoryName(path)).LoadFromAssemblyPath(path);
+            var assembly = new LoadContext(this, Path.GetDirectoryName(path)).LoadFromAssemblyPath(path);
 
             return new AssemblyAndLocation(assembly, path, fromGac: false);
         }
@@ -44,14 +60,16 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
         private sealed class LoadContext : AssemblyLoadContext
         {
+            private readonly CoreAssemblyLoaderImpl _owner;
             private readonly string _loadDirectoryOpt;
             private readonly InteractiveAssemblyLoader _loader;
 
-            internal LoadContext(InteractiveAssemblyLoader loader, string loadDirectoryOpt)
+            internal LoadContext(CoreAssemblyLoaderImpl owner, string loadDirectoryOpt)
             {
-                Debug.Assert(loader != null);
+                Debug.Assert(owner != null);
 
-                _loader = loader;
+                _owner = owner;
+                _loader = owner.Loader;
                 _loadDirectoryOpt = loadDirectoryOpt;
 
                 // CoreCLR resolves assemblies in steps:
@@ -60,7 +78,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 //   2) TPA list
                 //   3) Default.Resolving event
                 //   4) AssemblyLoadContext.Resolving event -- hooked below
-                // 
+                //
                 // What we want is to let the default context load assemblies it knows about (this includes already loaded assemblies,
                 // assemblies in AppPath, platform assemblies, assemblies explciitly resolved by the App by hooking Default.Resolving, etc.).
                 // Only if the assembly can't be resolved that way, the interactive resolver steps in.
@@ -72,6 +90,31 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
 
             protected override Assembly Load(AssemblyName assemblyName) => null;
+
+#if NET10_0
+            // Native (unmanaged) probing seam (design §G2). The runtime calls this when a P/Invoke name has
+            // to be bound in this context. Each probe root is tried with the verbatim name, the name plus the
+            // platform extension, and the Unix-convention "lib"+name+extension; on a hit the library is loaded
+            // from that path, otherwise default resolution decides. With an empty root set this forwards to the
+            // base implementation, keeping the no-nuget behavior byte-identical.
+            protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+            {
+                var roots = _owner._nativeProbeRoots;
+                if (!roots.IsDefaultOrEmpty && !string.IsNullOrEmpty(unmanagedDllName))
+                {
+                    var candidates = NativeLibraryProbe.GetProbeCandidates(roots, unmanagedDllName, NativeLibraryProbe.GetPlatformNativeExtension());
+                    foreach (var candidate in candidates)
+                    {
+                        if (File.Exists(candidate))
+                        {
+                            return LoadUnmanagedDllFromPath(candidate);
+                        }
+                    }
+                }
+
+                return base.LoadUnmanagedDll(unmanagedDllName);
+            }
+#endif
         }
     }
 }

@@ -817,8 +817,8 @@ namespace Microsoft.CodeAnalysis
                         continue;
                     }
 
-                    MetadataReference? boundReference = ResolveReferenceDirective(referenceDirective.File, referenceDirective.Location, compilation);
-                    if (boundReference == null)
+                    var boundReferences = ResolveReferenceDirective(referenceDirective.File, referenceDirective.Location, compilation);
+                    if (boundReferences.IsEmpty)
                     {
                         diagnostics.Add(MessageProvider.CreateDiagnostic(MessageProvider.ERR_MetadataFileNotFound, referenceDirective.Location, referenceDirective.File));
                         continue;
@@ -830,9 +830,21 @@ namespace Microsoft.CodeAnalysis
                         referenceDirectiveLocationsBuilder = ArrayBuilder<Location>.GetInstance();
                     }
 
-                    referencesBuilder.Add(boundReference);
-                    referenceDirectiveLocationsBuilder!.Add(referenceDirective.Location);
-                    localBoundReferenceDirectives.Add((referenceDirective.Location.SourceTree.FilePath, referenceDirective.File), boundReference);
+                    // A single #r directive may expand to multiple references; each is added as an
+                    // explicit reference and anchored at the same #r directive location.
+                    foreach (var boundReference in boundReferences)
+                    {
+                        referencesBuilder.Add(boundReference);
+                        referenceDirectiveLocationsBuilder!.Add(referenceDirective.Location);
+                    }
+
+                    // Keep the per-#r map single-valued: boundReferences[0] is the primary asset
+                    // (the requested package itself) and any later entries are its dependency
+                    // closure. The map is keyed by #r (file, content) for cross-directive
+                    // de-duplication and holds only the primary asset for the legacy singular
+                    // per-directive lookup; the full closure still flows to later submissions
+                    // through the explicit references added above.
+                    localBoundReferenceDirectives.Add((referenceDirective.Location.SourceTree.FilePath, referenceDirective.File), boundReferences[0]);
                 }
 
                 // add external reference at the end, so that they are processed first:
@@ -864,9 +876,20 @@ namespace Microsoft.CodeAnalysis
         }
 
         /// <summary>
-        /// For each given directive return a bound PE reference, or null if the binding fails.
+        /// For each given directive return all bound PE references the resolver returned for it,
+        /// or an empty array if the binding fails. A single #r directive may resolve to multiple
+        /// references (primary asset followed by its dependency closure).
         /// </summary>
-        private static PortableExecutableReference? ResolveReferenceDirective(string reference, Location location, TCompilation compilation)
+        /// <remarks>
+        /// Resolving to multiple references is a new path: the caller adds every returned reference
+        /// as an explicit reference, so the full closure is inherited by later script submissions
+        /// through ExplicitReferences. Legacy singular consumers (the single-valued
+        /// ReferenceDirectiveMap and the per-directive lookup) are unchanged and still see only
+        /// the primary asset. Multi-reference resolution only activates when a #r directive
+        /// actually resolves to more than one reference, so for existing 0/1-input compilations it
+        /// stays dormant and is purely additive.
+        /// </remarks>
+        private static ImmutableArray<PortableExecutableReference> ResolveReferenceDirective(string reference, Location location, TCompilation compilation)
         {
             var tree = location.SourceTree;
             string? basePath = (tree != null && tree.FilePath.Length > 0) ? tree.FilePath : null;
@@ -875,18 +898,7 @@ namespace Microsoft.CodeAnalysis
             Debug.Assert(compilation.Options.MetadataReferenceResolver != null);
 
             var references = compilation.Options.MetadataReferenceResolver.ResolveReference(reference, basePath, MetadataReferenceProperties.Assembly.WithRecursiveAliases(true));
-            if (references.IsDefaultOrEmpty)
-            {
-                return null;
-            }
-
-            if (references.Length > 1)
-            {
-                // TODO: implement
-                throw new NotSupportedException();
-            }
-
-            return references[0];
+            return references.IsDefaultOrEmpty ? ImmutableArray<PortableExecutableReference>.Empty : references;
         }
 
         internal static AssemblyReferenceBinding[] ResolveReferencedAssemblies(

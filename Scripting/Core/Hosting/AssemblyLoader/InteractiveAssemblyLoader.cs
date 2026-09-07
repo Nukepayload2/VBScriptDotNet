@@ -112,6 +112,22 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             _runtimeAssemblyLoader.Dispose();
         }
 
+        /// <summary>
+        /// Registers a root directory to probe for unmanaged (native) libraries when assemblies loaded by
+        /// this loader P/Invoke into them (design §G2). The directory policy is the host's: it hands over the
+        /// NuGet restore <c>runtimes/&lt;rid&gt;/native</c> probe roots; the loader only performs the probe.
+        /// An empty root set keeps native resolution at the platform default.
+        /// </summary>
+        internal void AddNativeProbeRoot(string directory)
+        {
+            if (directory == null)
+            {
+                throw new ArgumentNullException(nameof(directory));
+            }
+
+            _runtimeAssemblyLoader.AddNativeProbeRoot(directory);
+        }
+
         internal Assembly LoadAssemblyFromStream(Stream peStream, Stream pdbStream)
         {
             Assembly assembly = _runtimeAssemblyLoader.LoadFromStream(peStream, pdbStream);

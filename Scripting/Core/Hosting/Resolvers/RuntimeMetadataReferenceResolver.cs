@@ -51,12 +51,13 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         internal static RuntimeMetadataReferenceResolver CreateCurrentPlatformResolver(
             ImmutableArray<string> searchPaths = default,
             string? baseDirectory = null,
-            Func<string, MetadataReferenceProperties, PortableExecutableReference>? fileReferenceProvider = null)
+            Func<string, MetadataReferenceProperties, PortableExecutableReference>? fileReferenceProvider = null,
+            NuGetPackageResolver? packageResolver = null)
         {
             return new RuntimeMetadataReferenceResolver(
                 searchPaths,
                 baseDirectory,
-                packageResolver: null,
+                packageResolver,
                 gacFileResolver: GacFileResolver.IsAvailable ? new GacFileResolver(preferredCulture: CultureInfo.CurrentCulture) : null,
                 GetTrustedPlatformAssemblyPaths(),
                 fileReferenceProvider);

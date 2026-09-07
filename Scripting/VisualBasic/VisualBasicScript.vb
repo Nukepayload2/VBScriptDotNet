@@ -160,11 +160,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                 args:=args,
                 analyzerLoader:=New NotImplementedAnalyzerLoader())
 
+            ' NuGet restore wiring (design §C2/§D): interactive-only (compile mode never reaches this point).
+            ' A NuGetPackageSession + NuGetPackageResolverImpl + NuGetRestoreCoordinator are threaded through
+            ' the CommandLineRunner optional ctor parameters; with no nuget references the coordinator returns
+            ' empty and the resolver is never consulted, so the default path stays unchanged.
+            Dim session = New NuGetPackageSession()
             Dim runner = New CommandLineRunner(
                 ConsoleIO.Default,
                 compiler,
                 VisualBasicScriptCompiler.Instance,
-                VisualBasicObjectFormatter.Instance)
+                VisualBasicObjectFormatter.Instance,
+                New NuGetPackageResolverImpl(session),
+                New NuGetRestoreCoordinator(session))
 
             Return runner.RunInteractiveAsync()
         End Function

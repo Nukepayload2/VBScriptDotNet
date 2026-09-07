@@ -43,5 +43,14 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         public abstract Assembly LoadFromStream(Stream peStream, Stream pdbStream);
         public abstract AssemblyAndLocation LoadFromPath(string path);
         public abstract void Dispose();
+
+        /// <summary>
+        /// Registers a root directory used to probe for unmanaged (native) libraries (design §G2). The
+        /// .NET Framework desktop loader has no AssemblyLoadContext and never probes, so the default is a
+        /// no-op; <see cref="CoreAssemblyLoaderImpl"/> records the roots for its load contexts.
+        /// </summary>
+        internal virtual void AddNativeProbeRoot(string directory)
+        {
+        }
     }
 }

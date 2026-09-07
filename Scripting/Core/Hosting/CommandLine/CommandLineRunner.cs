@@ -27,8 +27,10 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         private readonly CommonCompiler _compiler;
         private readonly ScriptCompiler _scriptCompiler;
         private readonly ObjectFormatter _objectFormatter;
+        private readonly NuGetPackageResolver _packageResolver;
+        private readonly INuGetRestoreCoordinator _nuGetRestoreCoordinator;
 
-        internal CommandLineRunner(ConsoleIO console, CommonCompiler compiler, ScriptCompiler scriptCompiler, ObjectFormatter objectFormatter)
+        internal CommandLineRunner(ConsoleIO console, CommonCompiler compiler, ScriptCompiler scriptCompiler, ObjectFormatter objectFormatter, NuGetPackageResolver packageResolver = null, INuGetRestoreCoordinator nuGetRestoreCoordinator = null)
         {
             Debug.Assert(console != null);
             Debug.Assert(compiler != null);
@@ -39,6 +41,8 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             _compiler = compiler;
             _scriptCompiler = scriptCompiler;
             _objectFormatter = objectFormatter;
+            _packageResolver = packageResolver;
+            _nuGetRestoreCoordinator = nuGetRestoreCoordinator;
         }
 
         // for testing:
@@ -131,7 +135,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             var emitDebugInformation = !_compiler.Arguments.InteractiveMode;
 
             var scriptPathOpt = sourceFiles.IsEmpty ? null : sourceFiles[0].Path;
-            var scriptOptions = GetScriptOptions(_compiler.Arguments, scriptPathOpt, _compiler.MessageProvider, diagnosticsInfos, emitDebugInformation);
+            var scriptOptions = GetScriptOptions(_compiler.Arguments, scriptPathOpt, _compiler.MessageProvider, diagnosticsInfos, emitDebugInformation, _packageResolver);
 
             var errors = _compiler.Arguments.Errors.Concat(diagnosticsInfos.Select(Diagnostic.Create));
             if (_compiler.ReportDiagnostics(errors, _console.Error, errorLogger, compilation: null))
@@ -140,6 +144,22 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
 
             var cancellationToken = new CancellationToken();
+
+            // NuGet restore coordinator seam (design §D1, file-script path): let the host pre-scan and
+            // restore before the script is compiled. Interactive mode feeds a source file to the REPL as its
+            // initial submission instead, where the loop seam below covers it; /check compiles a file, so it
+            // still needs the pre-scan.
+            if (code != null && !(_compiler.Arguments.InteractiveMode && !_compiler.Arguments.Check))
+            {
+                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(code, scriptPathOpt, cancellationToken).ConfigureAwait(false);
+                if (!nuGetDiagnostics.IsEmpty)
+                {
+                    if (_compiler.ReportDiagnostics(nuGetDiagnostics, _console.Error, errorLogger, compilation: null))
+                    {
+                        return CommonCompiler.Failed;
+                    }
+                }
+            }
 
             if (_compiler.Arguments.Check)
             {
@@ -158,11 +178,11 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
         }
 
-        private static ScriptOptions GetScriptOptions(CommandLineArguments arguments, string scriptPathOpt, CommonMessageProvider messageProvider, List<DiagnosticInfo> diagnostics, bool emitDebugInformation)
+        private static ScriptOptions GetScriptOptions(CommandLineArguments arguments, string scriptPathOpt, CommonMessageProvider messageProvider, List<DiagnosticInfo> diagnostics, bool emitDebugInformation, NuGetPackageResolver packageResolver = null)
         {
             var touchedFilesLoggerOpt = (arguments.TouchedFilesPath != null) ? new TouchedFileLogger() : null;
 
-            var metadataResolver = GetMetadataReferenceResolver(arguments, touchedFilesLoggerOpt);
+            var metadataResolver = GetMetadataReferenceResolver(arguments, touchedFilesLoggerOpt, packageResolver);
             var sourceResolver = GetSourceReferenceResolver(arguments, touchedFilesLoggerOpt);
 
             var resolvedReferences = new List<MetadataReference>();
@@ -187,7 +207,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 parseOptions: arguments.ParseOptions);
         }
 
-        internal static MetadataReferenceResolver GetMetadataReferenceResolver(CommandLineArguments arguments, TouchedFileLogger loggerOpt)
+        internal static MetadataReferenceResolver GetMetadataReferenceResolver(CommandLineArguments arguments, TouchedFileLogger loggerOpt, NuGetPackageResolver packageResolver = null)
         {
             return RuntimeMetadataReferenceResolver.CreateCurrentPlatformResolver(
                 arguments.ReferencePaths,
@@ -196,12 +216,21 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 {
                     loggerOpt?.AddRead(path);
                     return MetadataReference.CreateFromFile(path, properties);
-                });
+                },
+                packageResolver: packageResolver);
         }
 
         internal static SourceReferenceResolver GetSourceReferenceResolver(CommandLineArguments arguments, TouchedFileLogger loggerOpt)
         {
             return new CommonCompiler.LoggingSourceFileResolver(arguments.SourcePaths, arguments.BaseDirectory, ImmutableArray<KeyValuePair<string, string>>.Empty, loggerOpt);
+        }
+
+        private Task<ImmutableArray<Diagnostic>> RestoreNuGetReferencesAsync(SourceText code, string filePath, CancellationToken cancellationToken)
+        {
+            var coordinator = _nuGetRestoreCoordinator;
+            return coordinator != null
+                ? coordinator.PrepareCompilationAsync(code, filePath, cancellationToken)
+                : Task.FromResult(ImmutableArray<Diagnostic>.Empty);
         }
 
         private async Task<int> RunScriptAsync(ScriptOptions options, SourceText code, ErrorLogger errorLogger, CancellationToken cancellationToken)
@@ -246,8 +275,20 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
             if (initialScriptCodeOpt != null)
             {
-                var script = Script.CreateInitialScript<object>(_scriptCompiler, SourceText.From(initialScriptCodeOpt), options, globals.GetType(), assemblyLoaderOpt: null);
-                (state, options) = await BuildAndRunAsync(script, globals, state, options, displayResult: false, cancellationToken: cancellationToken);
+                var initialCode = SourceText.From(initialScriptCodeOpt);
+
+                // NuGet restore coordinator seam (design §D1, REPL initial submission).
+                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(initialCode, options.FilePath, cancellationToken).ConfigureAwait(false);
+                if (!nuGetDiagnostics.IsEmpty)
+                {
+                    DisplayDiagnostics(nuGetDiagnostics);
+                }
+
+                if (!nuGetDiagnostics.HasAnyErrors())
+                {
+                    var script = Script.CreateInitialScript<object>(_scriptCompiler, initialCode, options, globals.GetType(), assemblyLoaderOpt: null);
+                    (state, options) = await BuildAndRunAsync(script, globals, state, options, displayResult: false, cancellationToken: cancellationToken);
+                }
             }
 
             while (true)
@@ -295,10 +336,23 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                     continue;
                 }
 
+                // NuGet restore coordinator seam (design §D1, every REPL submission): run before the
+                // submission is compiled so the host can restore referenced packages first.
+                var submissionCode = SourceText.From(code ?? string.Empty);
+                var submissionDiagnostics = await RestoreNuGetReferencesAsync(submissionCode, options.FilePath, cancellationToken).ConfigureAwait(false);
+                if (!submissionDiagnostics.IsEmpty)
+                {
+                    DisplayDiagnostics(submissionDiagnostics);
+                    if (submissionDiagnostics.HasAnyErrors())
+                    {
+                        continue;
+                    }
+                }
+
                 Script<object> newScript;
                 if (state == null)
                 {
-                    newScript = Script.CreateInitialScript<object>(_scriptCompiler, SourceText.From(code ?? string.Empty), options, globals.GetType(), assemblyLoaderOpt: null);
+                    newScript = Script.CreateInitialScript<object>(_scriptCompiler, submissionCode, options, globals.GetType(), assemblyLoaderOpt: null);
                 }
                 else
                 {
