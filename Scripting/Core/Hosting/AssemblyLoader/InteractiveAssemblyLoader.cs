@@ -554,40 +554,88 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             return assemblyAndLocation;
         }
 
-        private static Assembly FindHighestVersionOrFirstMatchingIdentity(AssemblyIdentity identity, IEnumerable<LoadedAssemblyInfo> infos)
+        /// <summary>
+        /// Selects the definition among <paramref name="definitions"/> (all sharing the reference's simple
+        /// name) that best satisfies <paramref name="reference"/>: an exact (or platform-unified) match
+        /// wins; otherwise the highest definition version that does not downgrade the requested version is
+        /// accepted (upward version unification, upstream-merge 2.15). Returns -1 when nothing matches.
+        /// </summary>
+        internal static int ResolveBestDefinitionIndex(AssemblyIdentity reference, IReadOnlyList<AssemblyIdentity> definitions)
         {
-            Assembly candidate = null;
-            Version candidateVersion = null;
-            foreach (var info in infos)
+            int exactIndex = -1;
+            Version exactVersion = null;
+            int upgradeIndex = -1;
+            Version upgradeVersion = null;
+
+            for (int i = 0; i < definitions.Count; i++)
             {
-                if (DesktopAssemblyIdentityComparer.Default.ReferenceMatchesDefinition(identity, info.Identity))
+                AssemblyIdentity definition = definitions[i];
+                if (DesktopAssemblyIdentityComparer.Default.ReferenceMatchesDefinition(reference, definition))
                 {
-                    if (candidate == null || candidateVersion < info.Identity.Version)
+                    if (exactIndex < 0 || exactVersion < definition.Version)
                     {
-                        candidate = info.Assembly;
-                        candidateVersion = info.Identity.Version;
+                        exactIndex = i;
+                        exactVersion = definition.Version;
+                    }
+                }
+                else if (IsUpwardVersionUnification(reference, definition))
+                {
+                    if (upgradeIndex < 0 || upgradeVersion < definition.Version)
+                    {
+                        upgradeIndex = i;
+                        upgradeVersion = definition.Version;
                     }
                 }
             }
 
-            return candidate;
+            return exactIndex >= 0 ? exactIndex : upgradeIndex;
+        }
+
+        // A definition may satisfy the reference when the two are the same identity apart from the version
+        // (same simple name, culture, public key token and content type) and the definition does not
+        // downgrade the requested version. Weak-named and platform (FX) definitions never reach here: the
+        // former already match any version through ReferenceMatchesDefinition and the latter are unified by
+        // it in both directions, so this only upgrades strong-named, non-platform references.
+        private static bool IsUpwardVersionUnification(AssemblyIdentity reference, AssemblyIdentity definition)
+        {
+            return definition.Version >= reference.Version
+                && AssemblyIdentityComparer.Default.Compare(reference, definition) == AssemblyIdentityComparer.ComparisonResult.EquivalentIgnoringVersion;
+        }
+
+        private static Assembly FindHighestVersionOrFirstMatchingIdentity(AssemblyIdentity identity, IEnumerable<LoadedAssemblyInfo> infos)
+        {
+            var list = infos as IReadOnlyList<LoadedAssemblyInfo>;
+            if (list == null)
+            {
+                list = infos.ToArray();
+            }
+
+            var identities = new AssemblyIdentity[list.Count];
+            for (int i = 0; i < list.Count; i++)
+            {
+                identities[i] = list[i].Identity;
+            }
+
+            int bestIndex = ResolveBestDefinitionIndex(identity, identities);
+            return bestIndex < 0 ? null : list[bestIndex].Assembly;
         }
 
         private static AssemblyIdentityAndLocation FindHighestVersionOrFirstMatchingIdentity(AssemblyIdentity identity, IEnumerable<AssemblyIdentityAndLocation> assemblies)
         {
-            var candidate = default(AssemblyIdentityAndLocation);
-            foreach (var assembly in assemblies)
+            var list = assemblies as IReadOnlyList<AssemblyIdentityAndLocation>;
+            if (list == null)
             {
-                if (DesktopAssemblyIdentityComparer.Default.ReferenceMatchesDefinition(identity, assembly.Identity))
-                {
-                    if (candidate.Identity == null || candidate.Identity.Version < assembly.Identity.Version)
-                    {
-                        candidate = assembly;
-                    }
-                }
+                list = assemblies.ToArray();
             }
 
-            return candidate;
+            var identities = new AssemblyIdentity[list.Count];
+            for (int i = 0; i < list.Count; i++)
+            {
+                identities[i] = list[i].Identity;
+            }
+
+            int bestIndex = ResolveBestDefinitionIndex(identity, identities);
+            return bestIndex < 0 ? default(AssemblyIdentityAndLocation) : list[bestIndex];
         }
     }
 }

@@ -138,6 +138,14 @@
 - 合并前评估义务：合并前读本条目对 `InteractiveAssemblyLoader`（`RegisterDependency` 覆盖重定向 + 新增 internal 方法）、`CommandLineRunner` ctor / 三处 `CreateInitialScript` 调用点、`AssemblyLoaderImpl`/`CoreAssemblyLoaderImpl` 新增 internal 属性做 3-way 评审；上游若日后以其它形状实现同款 runtime 资产选择或改动上述签名，按上游形状对齐并回退本 fork 改法；VB Hosting 配套为本地私有 Friend，不与上游路径冲突。
 - 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（运行时注册 + net10 native loader seam）。
 
+### 2.15 Scripting Core loader 向上版本统一：`ResolveBestDefinitionIndex`（修改）
+
+- `Scripting\Core\Hosting\AssemblyLoader\InteractiveAssemblyLoader.cs`（修改，public sealed partial）—— 新增 internal static `ResolveBestDefinitionIndex(AssemblyIdentity reference, IReadOnlyList<AssemblyIdentity> definitions)`（版本选择策略单点，供测试直调锁定）+ private `IsUpwardVersionUnification(reference, definition)`；原两处私有 `FindHighestVersionOrFirstMatchingIdentity`（`LoadedAssemblyInfo` 与 `AssemblyIdentityAndLocation` 重载，.cs:557/576 前身）改为把候选 identity 物化数组后委托该内部方法。语义：请求 identity 无**精确（或平台统一）候选**时，允许同名 + 文化/公钥/内容类型一致且定义版本 ≥ 引用版本的**最高版本**候选满足（可升级、不降级）；有精确候选时精确优先。「等价仅版本异」经 public `AssemblyIdentityComparer.Default.Compare == EquivalentIgnoringVersion` 判定，不触碰共享 `DesktopAssemblyIdentityComparer` 全局语义、不新增 public 面（`PublicAPI.*` 零动）。
+- 改动形状：internal/Friend 面，零公共面；无版本冲突路径（精确命中 / 弱名 any-version / FX 双向统一）行为与改动前逐字节一致；只有「强名非 FX、无精确候选且定义版本高于引用版本」时点亮升级路径（对齐默认 ALC 的版本向上绑定）。
+- 折抵：修复 P-008 用户可见限制——跨 assembly 版本 skew 的包组合（`FluentAvaloniaUI 3.0.0-preview2` 按 Avalonia 12.0.0.0 编译配 Avalonia 12.1.1 包）由「永 FileNotFound、须同 release pin」变为可运行（精确优先、只升不降，引用高于所有定义仍失败）。样例 `Samples/AvaloniaCalculator.vbx` 加回 FAUI 主题（窗口真跑通过：MainWindowTitle 可见、16s 存活、无错误输出、无残留）。
+- 合并前评估义务：合并前读本条目对 `InteractiveAssemblyLoader` 两处私有 `FindHighestVersionOrFirstMatchingIdentity` 与新增 internal `ResolveBestDefinitionIndex` 做 3-way 评审；上游若日后以其它形状实现同款版本统一或改动上述方法，按上游形状对齐并回退本 fork 改法。新单测锁定选择策略（`Scripting\VisualBasicTest\NuGetRuntimeHandshakeTests.vb` F-D 节，纯函数零 I/O + 一例真实已加载程序集解析）。
+- 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（运行时 loader seam）；修复 F-B 记录的 P-008 已知限制（`tmp/vortex-logs/vbi-nuget-runtime-handshake/pitfalls.md` 已追加 P-008 裁决）。
+
 ## 三、合并步骤
 
 1. **拉取上游**：`git -C {{Roslyn}} fetch origin release/stable`，记录新 commit 到「一、上游基准」。

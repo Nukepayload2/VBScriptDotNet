@@ -224,6 +224,103 @@ Public Class NuGetRuntimeHandshakeTests
         Assert.True(loader.NativeProbeRoots.IsEmpty)
     End Sub
 
+    ' --- Upward version unification (upstream-merge 2.15, design F-D) ---
+    '
+    ' Restored NuGet runtime assets can carry a higher assembly version than a dependency binary was
+    ' compiled against (e.g. FluentAvaloniaUI preview2 references Avalonia 12.0.0.0 while the restored
+    ' Avalonia 12.1.1 package ships 12.1.1.0). ResolveBestDefinitionIndex is the shared selection policy
+    ' behind both FindHighestVersionOrFirstMatchingIdentity overloads: an exact (or platform-unified)
+    ' candidate wins; otherwise the highest non-downgrading definition version is accepted. These tests
+    ' lock that policy on fabricated strong-named identities only (no file or assembly load).
+
+    Private Shared ReadOnly PublicKeyToken As ImmutableArray(Of Byte) =
+        ImmutableArray.Create(Of Byte)(New Byte() {1, 2, 3, 4, 5, 6, 7, 8})
+    Private Shared ReadOnly OtherPublicKeyToken As ImmutableArray(Of Byte) =
+        ImmutableArray.Create(Of Byte)(New Byte() {9, 10, 11, 12, 13, 14, 15, 16})
+
+    Private Shared Function StrongName(name As String, version As Version, pkt As ImmutableArray(Of Byte), Optional culture As String = Nothing) As AssemblyIdentity
+        Return New AssemblyIdentity(name, version, culture, pkt)
+    End Function
+
+    <Fact>
+    Public Sub LoaderUnifiesUpwardToHighestVersionWhenNoExactCandidate()
+        Dim reference = StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken)
+        Dim definitions As AssemblyIdentity() = {
+            StrongName("Contoso.Lib", New Version(2, 0, 0, 0), PublicKeyToken),
+            StrongName("Contoso.Lib", New Version(3, 0, 0, 0), PublicKeyToken)}
+
+        Assert.Equal(1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, definitions))
+    End Sub
+
+    <Fact>
+    Public Sub LoaderPrefersExactVersionOverHigherDefinition()
+        Dim reference = StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken)
+        Dim definitions As AssemblyIdentity() = {
+            StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken),
+            StrongName("Contoso.Lib", New Version(2, 0, 0, 0), PublicKeyToken)}
+
+        Assert.Equal(0, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, definitions))
+    End Sub
+
+    <Fact>
+    Public Sub LoaderPrefersExactVersionEvenWhenHigherDefinitionAppearsFirst()
+        Dim reference = StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken)
+        Dim definitions As AssemblyIdentity() = {
+            StrongName("Contoso.Lib", New Version(3, 0, 0, 0), PublicKeyToken),
+            StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken)}
+
+        Assert.Equal(1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, definitions))
+    End Sub
+
+    <Fact>
+    Public Sub LoaderRefusesDowngradeWhenReferenceAboveAllDefinitions()
+        Dim reference = StrongName("Contoso.Lib", New Version(3, 0, 0, 0), PublicKeyToken)
+        Dim definitions As AssemblyIdentity() = {
+            StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken),
+            StrongName("Contoso.Lib", New Version(2, 0, 0, 0), PublicKeyToken)}
+
+        Assert.Equal(-1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, definitions))
+    End Sub
+
+    <Fact>
+    Public Sub LoaderReturnsNoCandidateForEmptyOrNonMatchingDefinitions()
+        Dim reference = StrongName("Contoso.Lib", New Version(1, 0, 0, 0), PublicKeyToken)
+
+        Assert.Equal(-1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, Array.Empty(Of AssemblyIdentity)()))
+
+        Dim wrongName As AssemblyIdentity() = {StrongName("Contoso.Other", New Version(2, 0, 0, 0), PublicKeyToken)}
+        Assert.Equal(-1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, wrongName))
+
+        Dim wrongKey As AssemblyIdentity() = {StrongName("Contoso.Lib", New Version(2, 0, 0, 0), OtherPublicKeyToken)}
+        Assert.Equal(-1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, wrongKey))
+
+        Dim wrongCulture As AssemblyIdentity() = {StrongName("Contoso.Lib", New Version(2, 0, 0, 0), PublicKeyToken, culture:="fr")}
+        Assert.Equal(-1, InteractiveAssemblyLoader.ResolveBestDefinitionIndex(reference, wrongCulture))
+    End Sub
+
+    <Fact>
+    Public Sub LoaderResolvesHigherVersionLoadedAssemblyForLowerVersionReference()
+        Dim loader As New InteractiveAssemblyLoader()
+        Dim realAssembly = GetType(AssemblyIdentity).Assembly
+        loader.RegisterDependency(realAssembly)
+
+        Dim asmName = realAssembly.GetName()
+        Dim pktBytes = asmName.GetPublicKeyToken()
+        Dim pkt = If(pktBytes, Array.Empty(Of Byte)()).ToImmutableArray()
+        Dim version = asmName.Version
+        Dim lowerVersion As New Version(Math.Max(0, version.Major - 1), 0, 0, 0)
+        If lowerVersion.CompareTo(version) >= 0 Then
+            lowerVersion = New Version(0, 0, 0, 0)
+        End If
+        Dim reference = New AssemblyIdentity(asmName.Name, lowerVersion, asmName.CultureName, pkt)
+
+        Dim resolved = loader.ResolveAssembly(reference, Nothing)
+
+        ' The loader returns the already-loaded (higher-version) assembly instead of failing to find an
+        ' exact match, whether through the new strong-named upgrade path or the weak-name any-version path.
+        Assert.Same(realAssembly, resolved)
+    End Sub
+
     Private NotInheritable Class FakeRestoreRunner
         Implements IRestoreRunner
 

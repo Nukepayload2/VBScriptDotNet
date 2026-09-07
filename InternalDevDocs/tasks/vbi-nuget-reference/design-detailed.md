@@ -331,6 +331,8 @@ net10 宿主 `.vbx`：`#R "nuget:Microsoft.Data.Sqlite, 8.0.x"` → `Microsoft.D
 
 > **实现注记（V-G2 续跑收口，2026-09-07）**：本验收已由 Vortex F-B 轮在 net10 宿主真跑执行并关闭（独立复核记录 `tmp/vortex-logs/vbi-nuget-runtime-handshake/5-verifier-fb-gated.md`）：G2-1 sqlite 内存库 e2e `sqlite-ok:forty-two` EXIT 0（无 DllNotFound/TypeLoad）；G2-2 阴性对照不带根集 → `DllNotFoundException` EXIT 36；G2-5 托管传递依赖闭包用 `Microsoft.Extensions.Caching.Memory, 8.0.1`（lib-only，闭包 6 程序集）主包 + 依赖类型各直用零错；补 F-A ref-split 冒烟（单 `#R` `Avalonia.Desktop, 12.1.1` 直用 ref-split 传递依赖 `PixelPoint`/`SKColor`，无 TypeLoad → ref→lib override 真实生效）。真跑暴露三缺陷以修复 + 单测收口（见 §G1/§E4 注记；`Scripting\VisualBasicTest` 全量 279 绿）。**未物理机真证**：G2-3 跨平台命名 / RID 回退 / 缺目录诊断与 G2-4 net48 宿主真跑——由纯函数单测覆盖（`NativeLibraryProbeTests` / `NuGetMissingNativeAssetsTests` / hostCapability=net48 注入）。sqlite 演示脚本已晋升 `Samples/SqliteNuGetDemo.vbx`（原 `scripts/g2-1-sqlite.vbx`，注释含 §F 与官方 `#:`/`@` 差异明示文本 + `SQLitePCL.Batteries_V2.Init()` 显式调用原因）。
 
+> **实现注记（F-D loader 向上版本统一，2026-09-08）**：interactive loader 的依赖解析现支持**向上版本统一**——`InteractiveAssemblyLoader.ResolveBestDefinitionIndex`（两处私有 `FindHighestVersionOrFirstMatchingIdentity` 共享，登记 `upstream-merge.md` 2.15）：请求 identity 无精确（或平台统一）候选时，允许同名 + 文化/公钥/内容类型一致且定义版本 ≥ 引用版本的**最高版本**候选满足（可升级、不降级）；有精确候选时精确优先。默认/无版本冲突路径逐字节不变，`PublicAPI.*` 零增量。跨 assembly 版本 skew 的包组合（如 `FluentAvaloniaUI 3.0.0-preview2` 引用 Avalonia 12.0.0.0 配 12.1.1 包）由此可运行；`Samples/AvaloniaCalculator.vbx` 已加回 FAUI 主题（5 包含 FluentAvaloniaUI），窗口真跑通过（net10 宿主 MainWindowTitle 可见、16s 存活、无错误输出）。用法注意：`FluentAvaloniaTheme` 构造需 Avalonia Application 上下文（ctor 内 `ResolveThemeAndInitializeSystemResources` 查 `Application.Current`），裸控制台脚本构造会 NRE，属用法约束而非版本解析问题——须在 `Application.Initialize` 内 `Styles.Add(New FluentAvaloniaTheme())`（样例即此用法）。
+
 ---
 
 ## H. 零回归（RESOLUTION 后续工作项测试一/二）

@@ -1,10 +1,11 @@
-' Avalonia standard-mode calculator demo (.vbx).
+' Avalonia standard-mode calculator demo with the FluentAvaloniaUI theme (.vbx).
 '
 ' References NuGet packages through the #R "nuget:" channel (design: vbi-nuget-reference).
 ' Each directive is: #R "nuget:<id>, <version>" - the prefix is case-insensitive and the name and
-' version are separated by a comma. Versions are pinned so a restore is reproducible. All Avalonia
-' packages are pinned to the same release so every restored assembly shares one assembly version
-' (the interactive loader resolves strong-named references by exact assembly version).
+' version are separated by a comma. Versions are pinned so a restore is reproducible. The Avalonia
+' packages are pinned to 12.1.1; FluentAvaloniaUI 3.0.0-preview2 is built against Avalonia 12.0.0.0 and
+' the interactive loader's upward version unification lets it bind to the restored 12.1.1 assemblies
+' instead (an exact-version candidate always wins; unification only upgrades, never downgrades).
 '
 ' Requires the .NET (net10) vbi host. On first run vbi restores the packages with `dotnet restore`
 ' (an internet connection is needed once per package set). Rendering is Avalonia + Skia, which needs
@@ -16,6 +17,7 @@
 #R "nuget:Avalonia.Desktop, 12.1.1"
 #R "nuget:Avalonia.Themes.Fluent, 12.1.1"
 #R "nuget:Avalonia.Fonts.Inter, 12.1.1"
+#R "nuget:FluentAvaloniaUI, 3.0.0-preview2"
 
 Imports System.Globalization
 Imports Avalonia
@@ -24,14 +26,14 @@ Imports Avalonia.Controls.ApplicationLifetimes
 Imports Avalonia.Interactivity
 Imports Avalonia.Layout
 Imports Avalonia.Media
-Imports Avalonia.Themes.Fluent
+Imports FluentAvalonia.Styling
 
 Public Class CalculatorApp
     Inherits Application
 
     Public Overrides Sub Initialize()
-        ' The Avalonia Fluent theme gives the calculator window and its controls a modern Fluent look.
-        Styles.Add(New FluentTheme())
+        ' The FluentAvaloniaUI theme gives the calculator window and its controls a modern Fluent look.
+        Styles.Add(New FluentAvaloniaTheme())
     End Sub
 
     Public Overrides Sub OnFrameworkInitializationCompleted()
