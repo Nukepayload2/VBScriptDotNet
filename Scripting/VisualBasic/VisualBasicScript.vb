@@ -163,15 +163,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             ' NuGet restore wiring (design §C2/§D): interactive-only (compile mode never reaches this point).
             ' A NuGetPackageSession + NuGetPackageResolverImpl + NuGetRestoreCoordinator are threaded through
             ' the CommandLineRunner optional ctor parameters; with no nuget references the coordinator returns
-            ' empty and the resolver is never consulted, so the default path stays unchanged.
+            ' empty and the resolver is never consulted, so the default path stays unchanged. One shared
+            ' InteractiveAssemblyLoader is created here and handed to both the runner (so every submission's
+            ' ScriptBuilder registers into it) and the coordinator (so a successful restore pushes the
+            ' runtime-lib overrides and native probe roots before the script runs, design §G1/§G2).
             Dim session = New NuGetPackageSession()
+            Dim assemblyLoader As New InteractiveAssemblyLoader()
             Dim runner = New CommandLineRunner(
                 ConsoleIO.Default,
                 compiler,
                 VisualBasicScriptCompiler.Instance,
                 VisualBasicObjectFormatter.Instance,
                 New NuGetPackageResolverImpl(session),
-                New NuGetRestoreCoordinator(session))
+                New NuGetRestoreCoordinator(session, loader:=assemblyLoader),
+                assemblyLoader)
 
             Return runner.RunInteractiveAsync()
         End Function

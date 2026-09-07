@@ -56,8 +56,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
     ''' Pure reader over the restore output's <c>project.assets.json</c> (design §E4). No file I/O: it takes
-    ''' the JSON text and the host framework name (the exact "targets" key, e.g. ".NETCoreApp,Version=v10.0")
-    ''' and RID, and produces the session-friendly asset view.
+    ''' the JSON text, the host short target-framework moniker (the exact "targets" key the SDK writes, e.g.
+    ''' "net10.0" or "net48", optionally suffixed "/&lt;rid&gt;") and the RID, and produces the
+    ''' session-friendly asset view.
     ''' </summary>
     Friend NotInheritable Class NuGetRestoreAssetsReader
 
@@ -140,6 +141,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         Private Shared Function GetPackageFolder(root As NuGetJsonObject) As String
+            ' The SDK writes "packageFolders" as an object mapping each package folder to {} (e.g.
+            ' { "C:\\Users\\...\\.nuget\\packages\\": {} }). Restore output is read with the first folder as
+            ' the root every NuGet package path is relative to.
+            Dim folderMap = TryCast(root.TryGetMember("packageFolders"), NuGetJsonObject)
+            If folderMap IsNot Nothing Then
+                For Each member In folderMap.EnumerateMembers()
+                    Return member.Key
+                Next
+                Return String.Empty
+            End If
+
+            ' Array form is accepted as a fallback for hand-authored inputs.
             Dim folders = TryCast(root.TryGetMember("packageFolders"), NuGetJsonArray)
             If folders IsNot Nothing AndAlso folders.Count > 0 Then
                 Dim first = TryCast(folders(0), NuGetJsonString)
@@ -227,13 +240,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
             Dim dependencies = TryCast(entry.TryGetMember("dependencies"), NuGetJsonObject)
             If dependencies IsNot Nothing Then
+                ' Assets "dependencies" entries are keyed by the bare package name (no version); the target
+                ' section is keyed by the resolved "name/version" identity. Re-resolve each dependency to its
+                ' identity before recursing so the transitive closure is actually collected.
                 Dim depList = New List(Of String)()
                 For Each dep In dependencies.EnumerateMembers()
                     depList.Add(dep.Key)
                 Next
                 depList.Sort(StringComparer.Ordinal)
                 For Each dep In depList
-                    CollectCompileClosure(target, packageRoot, libraryPaths, dep, collected, visited)
+                    Dim resolvedDep = FindResolvedIdentity(target, dep)
+                    If resolvedDep IsNot Nothing Then
+                        CollectCompileClosure(target, packageRoot, libraryPaths, resolvedDep, collected, visited)
+                    End If
                 Next
             End If
         End Sub
@@ -290,12 +309,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Native asset directories for one package entry. Both the RID-specific "runtimeTargets" section
-        ''' and a plain "runtime" file path are scanned for <c>runtimes/&lt;rid&gt;/native/</c> entries; the
-        ''' returned directory is the folder that contains the native library.
+        ''' Native asset directories for one package entry. The RID-specific assets target stores the
+        ''' chosen RID's native files under the entry's "native" section, while the plain target lists every
+        ''' RID under "runtimeTargets"; a "runtime" file path may also carry a native entry. All three are
+        ''' scanned for <c>runtimes/&lt;rid&gt;/native/</c> paths; the returned directory is the folder that
+        ''' contains the native library.
         ''' </summary>
         Private Shared Function GetNativeDirectories(entry As NuGetJsonObject, packageRoot As String, libraryPath As String) As ImmutableArray(Of String)
             Dim candidates = New List(Of String)()
+
+            Dim native = TryCast(entry.TryGetMember("native"), NuGetJsonObject)
+            If native IsNot Nothing Then
+                For Each member In native.EnumerateMembers()
+                    If member.Key.IndexOf("/native/", StringComparison.OrdinalIgnoreCase) >= 0 Then
+                        candidates.Add(member.Key)
+                    End If
+                Next
+            End If
 
             Dim runtimeTargets = TryCast(entry.TryGetMember("runtimeTargets"), NuGetJsonObject)
             If runtimeTargets IsNot Nothing Then
@@ -333,6 +363,67 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Dim libPath = libraryPath.TrimEnd("/"c)
             Dim rel = relativeFile.TrimStart("/"c)
             Return root & "/" & libPath & "/" & rel
+        End Function
+
+        ''' <summary>
+        ''' Compile (ref) asset → runtime (implementation) asset overrides for the runtime handshake (design
+        ''' §G1). A compile file is overridden only when a <em>different</em> runtime file carries the same
+        ''' simple file name and that name is unambiguous across the whole restored graph. A lib-only package
+        ''' (compile path = runtime path) needs no override; an ambiguous name is left alone so the loader
+        ''' keeps today's behavior rather than guessing. Pure, no file access.
+        ''' </summary>
+        Friend Shared Function ComputeRuntimePathOverrides(
+            compilePathsByCanonicalKey As ImmutableDictionary(Of String, ImmutableArray(Of String)),
+            runtimePaths As ImmutableArray(Of String)) As ImmutableDictionary(Of String, String)
+
+            Dim runtimeByFileName = New Dictionary(Of String, List(Of String))(StringComparer.OrdinalIgnoreCase)
+            If Not runtimePaths.IsDefaultOrEmpty Then
+                For Each runtimePath In runtimePaths
+                    Dim runtimeFileName = GetSimpleFileName(runtimePath)
+                    If runtimeFileName Is Nothing Then
+                        Continue For
+                    End If
+                    Dim matching As List(Of String) = Nothing
+                    If Not runtimeByFileName.TryGetValue(runtimeFileName, matching) Then
+                        matching = New List(Of String)()
+                        runtimeByFileName(runtimeFileName) = matching
+                    End If
+                    matching.Add(runtimePath)
+                Next
+            End If
+
+            Dim result = ImmutableDictionary.CreateBuilder(Of String, String)(StringComparer.Ordinal)
+            If compilePathsByCanonicalKey IsNot Nothing Then
+                For Each pair In compilePathsByCanonicalKey
+                    For Each compilePath In pair.Value
+                        Dim compileFileName = GetSimpleFileName(compilePath)
+                        If compileFileName Is Nothing Then
+                            Continue For
+                        End If
+                        Dim runtimeMatches As List(Of String) = Nothing
+                        If Not runtimeByFileName.TryGetValue(compileFileName, runtimeMatches) OrElse runtimeMatches.Count <> 1 Then
+                            Continue For
+                        End If
+                        Dim runtimePath = runtimeMatches(0)
+                        If Not String.Equals(compilePath, runtimePath, StringComparison.Ordinal) Then
+                            result(compilePath) = runtimePath
+                        End If
+                    Next
+                Next
+            End If
+
+            Return result.ToImmutable()
+        End Function
+
+        Private Shared Function GetSimpleFileName(path As String) As String
+            If String.IsNullOrEmpty(path) Then
+                Return Nothing
+            End If
+            Dim forwardSlash = path.LastIndexOf("/"c)
+            Dim backSlash = path.LastIndexOf("\"c)
+            Dim start = If(forwardSlash > backSlash, forwardSlash, backSlash)
+            Dim fileName = If(start >= 0, path.Substring(start + 1), path)
+            Return If(fileName.Length = 0, Nothing, fileName)
         End Function
     End Class
 End Namespace

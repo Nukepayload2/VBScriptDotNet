@@ -1,0 +1,46 @@
+' SQLite (Microsoft.Data.Sqlite) NuGet demo (.vbx).
+'
+' References a NuGet package through the #R "nuget:" channel. The directive syntax is
+'   #R "nuget:<package id>[, <version>]"
+' - the "nuget:" prefix is case-insensitive, and the package id and version are separated by a comma
+'   (each segment is trimmed). A version is expected so a restore is reproducible; a floating spec
+'   such as "8.0.*" is allowed.
+' This #R "nuget:" form is the .vbx/vbi script convention and does NOT parse the official file-based
+' "#:package id@version" syntax (@ separator, no quoted prefix); the two are not interchangeable.
+'
+' Requires the .NET (net10) vbi host. On first run vbi restores the package set with `dotnet restore`
+' (an SDK is needed, and an internet connection once per package set). This package is the canonical
+' native demo: Microsoft.Data.Sqlite is a managed wrapper over the native e_sqlite3 library, so a
+' successful run also proves the host's native probe-root handshake reached the loader.
+'
+' Run:   vbi SqliteNuGetDemo.vbx
+
+#R "nuget:Microsoft.Data.Sqlite, 8.0.1"
+
+Imports Microsoft.Data.Sqlite
+Imports System.Globalization
+
+' Microsoft.Data.Sqlite auto-initializes its SQLitePCL bundle by resolving "SQLitePCL.Batteries_V2, ..."
+' through Type.GetType (default ALC). The script loader is a non-default context and does not answer
+' that lookup, so the auto-init is silently skipped; the explicit Init() call initializes the bundle
+' in the script's own context.
+SQLitePCL.Batteries_V2.Init()
+
+Dim connectionString = "Data Source=:memory:"
+Using connection = New SqliteConnection(connectionString)
+    connection.Open()
+    Using command = connection.CreateCommand()
+        command.CommandText = "CREATE TABLE demo (id INTEGER PRIMARY KEY, label TEXT NOT NULL);"
+        command.ExecuteNonQuery()
+    End Using
+    Using command = connection.CreateCommand()
+        command.CommandText = "INSERT INTO demo (label) VALUES ('forty-two');"
+        command.ExecuteNonQuery()
+    End Using
+    Dim selected As String = Nothing
+    Using command = connection.CreateCommand()
+        command.CommandText = "SELECT label FROM demo WHERE id = 1;"
+        selected = TryCast(command.ExecuteScalar(), String)
+    End Using
+    Console.WriteLine("sqlite-ok:" & selected)
+End Using

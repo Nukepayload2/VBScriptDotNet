@@ -58,9 +58,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Property
 
         ''' <summary>
-        ''' Framework-name string used to pick the matching entry in project.assets.json "targets" (design §E4).
-        ''' The assets file keys targets by the long form, e.g. ".NETCoreApp,Version=v10.0" or
-        ''' ".NETFramework,Version=v4.8".
+        ''' Framework name mirrored into the restore cache key and the net48 reference-assemblies mapping
+        ''' (design §E1). Long form for the .NET host (".NETCoreApp,Version=v10.0") so the key stays stable
+        ''' and machine-independent; it is <em>not</em> used to key the assets "targets" section, which the
+        ''' reader addresses by the short target-framework moniker (see <see cref="ShortTargetFramework"/>).
         ''' </summary>
         Friend ReadOnly Property FrameworkNameForRestore As String
             Get

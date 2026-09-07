@@ -109,7 +109,12 @@ Public Class NuGetRestoreEngineTests
 
     ' --- ReadAssets (design §E4) ---
 
-    Private Const AssetsJson As String = "{""packageFolders"":[""C:/nuget/packages/""],""libraries"":{""Contoso.Main/2.0.0"":{""type"":""package"",""path"":""contoso.main/2.0.0""},""Newtonsoft.Json/13.0.3"":{""type"":""package"",""path"":""newtonsoft.json/13.0.3""},""Contoso.Native/1.0.0"":{""type"":""package"",""path"":""contoso.native/1.0.0""}},""targets"":{ "".NETCoreApp,Version=v10.0"":{""Contoso.Main/2.0.0"":{""type"":""package"",""compile"":{""ref/net10.0/Contoso.Main.dll"":{},""lib/net10.0/Contoso.Main.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Main.dll"":{}},""dependencies"":{""Newtonsoft.Json/13.0.3"":{}}},""Newtonsoft.Json/13.0.3"":{""type"":""package"",""compile"":{""lib/netstandard2.0/Newtonsoft.Json.dll"":{}},""runtime"":{""lib/netstandard2.0/Newtonsoft.Json.dll"":{}}},""Contoso.Native/1.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.Native.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Native.dll"":{}},""runtimeTargets"":{""runtimes/win-x64/native/e_sqlite3.dll"":{""rid"":""win-x64"",""assetType"":""native""}}}}}}"
+    ' Mirrors the real project.assets.json shape the SDK writes: "packageFolders" is an object and the
+    ' "targets" keys are the short target-framework moniker (optionally "/<rid>"), e.g. "net10.0" and
+    ' "net10.0/win-x64". The RID-specific target repeats the package set and is where the SDK places the
+    ' chosen RID's native assets under a package's "native" section (the plain target lists every RID under
+    ' "runtimeTargets" instead); reading native from the RID-specific target locks the preferRidSpecific selection.
+    Private Const AssetsJson As String = "{""packageFolders"":{""C:/nuget/packages/"":{}},""libraries"":{""Contoso.Main/2.0.0"":{""type"":""package"",""path"":""contoso.main/2.0.0""},""Newtonsoft.Json/13.0.3"":{""type"":""package"",""path"":""newtonsoft.json/13.0.3""},""Contoso.Native/1.0.0"":{""type"":""package"",""path"":""contoso.native/1.0.0""}},""targets"":{""net10.0"":{""Contoso.Main/2.0.0"":{""type"":""package"",""compile"":{""ref/net10.0/Contoso.Main.dll"":{},""lib/net10.0/Contoso.Main.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Main.dll"":{}},""dependencies"":{""Newtonsoft.Json"":{}}},""Newtonsoft.Json/13.0.3"":{""type"":""package"",""compile"":{""lib/netstandard2.0/Newtonsoft.Json.dll"":{}},""runtime"":{""lib/netstandard2.0/Newtonsoft.Json.dll"":{}}},""Contoso.Native/1.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.Native.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Native.dll"":{}}}},""net10.0/win-x64"":{""Contoso.Main/2.0.0"":{""type"":""package"",""runtime"":{""lib/net10.0/Contoso.Main.dll"":{}}},""Newtonsoft.Json/13.0.3"":{""type"":""package"",""runtime"":{""lib/netstandard2.0/Newtonsoft.Json.dll"":{}}},""Contoso.Native/1.0.0"":{""type"":""package"",""native"":{""runtimes/win-x64/native/e_sqlite3.dll"":{}}}}}}"
 
     Private Shared Function Request(name As String, version As String) As NuGetPackageRequest
         Return New NuGetPackageRequest(name, version, Location.None)
@@ -118,7 +123,7 @@ Public Class NuGetRestoreEngineTests
     <Fact>
     Public Sub ReadAssetsParsesCompileRuntimeAndNativeRoots()
         Dim requests = ImmutableArray.Create(Request("Contoso.Main", "2.0.0"), Request("Contoso.Native", "1.0.0"))
-        Dim assets = NuGetRestoreAssetsReader.ReadAssets(AssetsJson, ".NETCoreApp,Version=v10.0", "", requests)
+        Dim assets = NuGetRestoreAssetsReader.ReadAssets(AssetsJson, "net10.0", "win-x64", requests)
 
         ' Main package lists its own ref/ compile asset first, then its dependency closure.
         Dim mainCompile = assets.CompilePathsByCanonicalKey("contoso.main,2.0.0")

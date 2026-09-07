@@ -263,6 +263,8 @@ key = hash(
 
 restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM 精确匹配宿主镜像」取 compile 资产路径（喂 resolver 会话）+ runtime 资产（managed 注册）+ `runtimes/<rid>/native` 目录去重集（喂 §G native 根）。compile 段取**全部依赖闭包**（不是只主包）——这正是 R4「单 `#R` 自含全图」的资产来源；resolver 子类把主资产放索引 0、闭包随后。
 
+> **实现注记（F-A/F-B 后，2026-09-07）**：`NuGetRestoreAssetsReader.ReadAssets(assetsJsonText, host.ShortTargetFramework, rid, validRequests)` 实际以**短 TFM 单体键**（`net10.0`/`net48`，RID-specific target 形如 `net10.0/win-x64`）寻址 `targets` 节——SDK 写出的 `targets` 键是短形，非长形 `.NETCoreApp,Version=v10.0`；`NuGetPackageSession.FrameworkNameForRestore` 只作缓存 key 成分与 net48 ReferenceAssemblies 映射，**不再命名 assets target**。真实 assets 形状三项实测修正（P-001，单测 golden 已镜像 SDK 输出）：`packageFolders` 为**对象形**（键 = 包目录，值 `{}`），非数组（数组形仅作手写输入回退）；`dependencies` 键为**裸包名**（无版本），收集闭包时须先经库表 `FindResolvedIdentity` 还原到 `name/version` 恒等再递归；RID-specific target 把已选 RID 的 native 文件放包条目 **`native` 节**（非 `runtimeTargets`，后者只在 plain target 全 RID 出现），`GetNativeDirectories` 现依次扫 `native`→`runtimeTargets`→`runtime`。
+
 **裁决规则**：
 - 当 assets 的 compile 路径含 `ref/` 与 `lib/` 双份 → 取 NuGet 已选中的 compile 目标（`ref/<tfm>` 优先，同 `dotnet` 语义）；运行时注册用 runtime 目标（缺失则 compile lib）。
 - 当集合变化但 restore 在无 SDK 机器 → §D「SDK 缺失」；**不做 Z**：不尝试进程内替代还原（C2/增量自解析均否决）。
@@ -287,6 +289,8 @@ restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM �
 - `.vbx` demo 行（逗号写法、pin 版本）落 **V-G2 sqlite 验收的 `.vbx` sample**（同一脚本，随 §G3 门控跑），不另开 demo 产物；该 sample 用逗号 + pin 版本。
 - 「与官方 `@`/`#:` 语法差异」的**产品文档明示**文本由 **V-I**（文档批）随勘误同批产出（草案写入 §I1 勘误指针批注，同文本在 V-G2 `.vbx` sample 注释复用，README V-I pass 复核）——§F 不自行产出独立产品文档文件。
 
+> **实现注记（V-G2 续跑收口）**：V-G2 sqlite 验收脚本（`scripts/g2-1-sqlite.vbx`，注释已含上方 §F 明示文本）在 F-B 真跑通过后晋升 `Samples/SqliteNuGetDemo.vbx` 作为唯一 demo 产物（不另开第二份），满足「同一脚本不另开 demo 产物」；注释语言按 Samples 产品惯例用英文，同文本语义见 §I1。§F 明示文本中文口径随 V-I 勘误指针（已 done）。
+
 ---
 
 ## G. 运行时注册 + net10 native（U5）
@@ -296,6 +300,8 @@ restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM �
 **现状（已核实）**：`Scripting\Core\ScriptBuilder.cs:142-151` 编译后对 `compilation.GetBoundReferenceManager().GetReferencedAssemblies()` **逐条** `RegisterDependency(identity, path)`（path 非 null）。Core-N 下 N 引用全在 bound refs 内 → 该循环天然覆盖 N。**预期零代码改动**；若实测某闭包路径缺注册（其 PE 引用的 FilePath 为 null 等），在会话 resolver 保证 compile 路径都带 FilePath。
 
 **pass**：多资产包运行期闭包类型可解析（V-G2 sqlite 端到端隐含验证 managed 闭包）。
+
+> **实现注记（F-A/F-B 后）**：实测发现 ScriptBuilder 循环只注册**编译期 bound**（脚本直引）程序集；整 app 型脚本（Avalonia）运行期才触达的闭包程序集（基类链 / 惰性依赖）不在其内 → **并非零改动**。落实施：`InteractiveAssemblyLoader` 加 internal `RegisterRuntimePathOverride(compile, runtime)`（`RegisterDependency` 锁内查覆盖表重定向 compile→runtime，修复对齐 `ScriptBuilder.cs:147-148` 上游 TODO「Contract vs RT」）+ internal 观察位 `GetRegisteredDependencyLocations`/`NativeProbeRoots`；`NuGetRestoreAssetsReader.ComputeRuntimePathOverrides`（纯函数，同名唯一且路径不同才覆盖、lib-only 不覆盖、歧义跳过）产 compile(ref)→runtime(lib) 覆盖表；协调器 `PushSessionAssetsToLoader` 把 native 根 + 覆盖表下推 loader，并 `RegisterRuntimeClosure` 把 restore 的整个 runtime(lib) 闭包经 `AssemblyName.GetAssemblyName` + `AssemblyIdentity.TryParseDisplayName` 逐条 `RegisterDependency` 注册（`File.Exists` 门控，单测虚路径跳过）。覆盖由 `NuGetRuntimeHandshakeTests` + V-G2 真实还原端到端锁定（279 全量绿）。
 
 ### G2. net10 native loader seam（机制在 loader，目录策略在宿主）
 
@@ -311,6 +317,8 @@ restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM �
 
 **分工**：目录清单（策略）= 宿主（从 assets runtime 闭包取 `runtimes/<rid>/native` 去重集，经协调器在编译后运行前调用 `AddNativeProbeRoot`）；unmanaged 解析钩子（机制）= Scripting loader（`CoreAssemblyLoaderImpl`）。宿主拿不到 ALC（私有嵌套）、看不到包 `Assembly` 实例 → 纯宿主挂 resolver 不成立，机制必须在 loader。
 
+> **实现注记（F-A 装配，2026-09-07）**：loader 共享落地为 `CommandLineRunner` ctor 可选参 `InteractiveAssemblyLoader assemblyLoader = null`（默认 null → 维持 `CreateInitialScript` 自建 loader 的现状），三次 `CreateInitialScript`（文件脚本 / REPL 初提交 / REPL 首提交）经 `assemblyLoaderOpt:` 用该实例 → 跨提交同一 loader；`VisualBasicScript.RunInteractiveAsync` 建一个共享 loader 同时传 runner 与 coordinator（`loader:=`）。宿主 push 在协调器 `PushSessionAssetsToLoader`（restore 成功、运行前）一次性完成：native 根 `AddNativeProbeRoot` + 覆盖表 `RegisterRuntimePathOverride` + runtime(lib) 闭包 `RegisterRuntimeClosure`（见 §G1 注记）。
+
 **pass 条件**：空 native 根集下 loader 行为与现状一致（现有 Scripting 测试全绿）；`AddNativeProbeRoot` 为 internal 且不触 `PublicAPI.*.txt`；跨平台候选名探测表有单测（纯函数，输入根目录集 + name → 候选路径，不实际加载）；net48 能力诊断在 §D 测试覆盖。
 
 ### G3. sqlite + 托管传递依赖端到端验收（V-G2，作者/QA 门控集成，V-Z 收口后执行）
@@ -320,6 +328,8 @@ net10 宿主 `.vbx`：`#R "nuget:Microsoft.Data.Sqlite, 8.0.x"` → `Microsoft.D
 **托管传递依赖真实还原（G2-5，补间接依赖缺口）**：sqlite 的传递依赖偏 native，未覆盖「restore 闭包 → 托管 N>1 引用集」真实链；S1 只在 in-memory 证 Core-N 机制。故另引**带托管传递依赖的包**（非 Newtonsoft 单 dll 无依赖；具体选有托管依赖的稳定 pin 版，如 `Microsoft.Extensions.*` 一族），脚本直用主包类型 + 其依赖库类型各至少一处，断言还原闭包 N>1、两类型均零编译错且运行正确。具体包/版本在验收时记录于 test-plan.md §7。
 
 此验收允许真实 `dotnet restore` + `%LOCALAPPDATA%` 写（非无副作用单测范围）。**不在无人值守 Vortex 表内**（README「门控集成验收」节登记，V-Z 收口后由作者/QA 执行）。
+
+> **实现注记（V-G2 续跑收口，2026-09-07）**：本验收已由 Vortex F-B 轮在 net10 宿主真跑执行并关闭（独立复核记录 `tmp/vortex-logs/vbi-nuget-runtime-handshake/5-verifier-fb-gated.md`）：G2-1 sqlite 内存库 e2e `sqlite-ok:forty-two` EXIT 0（无 DllNotFound/TypeLoad）；G2-2 阴性对照不带根集 → `DllNotFoundException` EXIT 36；G2-5 托管传递依赖闭包用 `Microsoft.Extensions.Caching.Memory, 8.0.1`（lib-only，闭包 6 程序集）主包 + 依赖类型各直用零错；补 F-A ref-split 冒烟（单 `#R` `Avalonia.Desktop, 12.1.1` 直用 ref-split 传递依赖 `PixelPoint`/`SKColor`，无 TypeLoad → ref→lib override 真实生效）。真跑暴露三缺陷以修复 + 单测收口（见 §G1/§E4 注记；`Scripting\VisualBasicTest` 全量 279 绿）。**未物理机真证**：G2-3 跨平台命名 / RID 回退 / 缺目录诊断与 G2-4 net48 宿主真跑——由纯函数单测覆盖（`NativeLibraryProbeTests` / `NuGetMissingNativeAssetsTests` / hostCapability=net48 注入）。sqlite 演示脚本已晋升 `Samples/SqliteNuGetDemo.vbx`（原 `scripts/g2-1-sqlite.vbx`，注释含 §F 与官方 `#:`/`@` 差异明示文本 + `SQLitePCL.Batteries_V2.Init()` 显式调用原因）。
 
 ---
 

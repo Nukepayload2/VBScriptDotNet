@@ -5,6 +5,7 @@
 #nullable disable
 
 using System;
+using System.Collections.Immutable;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -52,5 +53,11 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         internal virtual void AddNativeProbeRoot(string directory)
         {
         }
+
+        /// <summary>
+        /// Native probe roots recorded so far (design §G2). The desktop loader never probes, so this is
+        /// empty there; <see cref="CoreAssemblyLoaderImpl"/> reports its shared root set.
+        /// </summary>
+        internal virtual ImmutableArray<string> NativeProbeRoots => ImmutableArray<string>.Empty;
     }
 }

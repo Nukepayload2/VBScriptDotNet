@@ -44,6 +44,17 @@ Use #R to reference external assemblies:
 #R "WindowsBase.dll"
 ```
 
+NuGet packages use the same directive with a `nuget:` prefix:
+```vb
+#R "nuget:Microsoft.Data.Sqlite, 8.0.1"
+```
+The prefix is case-insensitive; the package id and version are separated by a comma (segments are
+trimmed), and a version is expected so restores are reproducible (floating specs like `8.0.*` are
+allowed). On the .NET (net10) host vbi restores the package set with `dotnet restore` on first use,
+then references the whole restored closure. This `#R "nuget:"` script form is distinct from the
+official file-based `#:package id@version` syntax; the two are not interchangeable. See
+`Samples/SqliteNuGetDemo.vbx` for a native-library demo.
+
 ### 4. Import Statements
 Standard VB.NET imports:
 ```vb

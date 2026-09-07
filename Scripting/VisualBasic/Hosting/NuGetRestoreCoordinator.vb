@@ -4,6 +4,8 @@
 
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
+Imports System.IO
+Imports System.Reflection
 Imports System.Runtime.InteropServices
 Imports System.Threading
 Imports System.Threading.Tasks
@@ -81,12 +83,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private ReadOnly _runner As IRestoreRunner
         Private ReadOnly _cacheRootOverride As String
         Private ReadOnly _sourceFingerprint As String
+        Private ReadOnly _loader As InteractiveAssemblyLoader
         Private _lastRestoredKeys As ImmutableArray(Of String) = ImmutableArray(Of String).Empty
 
         Friend Sub New(session As NuGetPackageSession,
                        Optional runner As IRestoreRunner = Nothing,
                        Optional cacheRoot As String = Nothing,
-                       Optional sourceFingerprint As String = "")
+                       Optional sourceFingerprint As String = "",
+                       Optional loader As InteractiveAssemblyLoader = Nothing)
             If session Is Nothing Then
                 Throw New ArgumentNullException(NameOf(session))
             End If
@@ -94,6 +98,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             _runner = If(runner, New DotNetRestoreRunner())
             _cacheRootOverride = cacheRoot
             _sourceFingerprint = If(sourceFingerprint, String.Empty)
+            _loader = loader
         End Sub
 
         ''' <summary>
@@ -283,7 +288,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Return ImmutableArray(Of Diagnostic).Empty
             End If
 
-            Dim assets = NuGetRestoreAssetsReader.ReadAssets(outcome.AssetsJsonText, host.FrameworkNameForRestore, rid, validRequests)
+            ' ReadAssets keys the assets "targets" section by the project's target-framework moniker, which is
+            ' the same string written into the temporary project's <TargetFramework> (ShortTargetFramework).
+            ' FrameworkNameForRestore stays a cache-key ingredient only; it does not name the assets target.
+            Dim assets = NuGetRestoreAssetsReader.ReadAssets(outcome.AssetsJsonText, host.ShortTargetFramework, rid, validRequests)
             _session.WriteRestoredAssets(assets.CompilePathsByCanonicalKey, assets.RuntimePaths, assets.NativeRootDirectories)
 
             If net48 AndAlso assets.HasNativeAssets Then
@@ -309,9 +317,70 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 End If
             End If
 
+            ' Runtime handshake (design §G1/§G2): with the loader wired in, push the restored runtime
+            ' (lib) assets and native probe roots into it before the script is compiled and run. Empty root
+            ' sets / an absent loader leave the loader untouched.
+            PushSessionAssetsToLoader(assets)
+
             _lastRestoredKeys = currentKeys
             Return ImmutableArray(Of Diagnostic).Empty
         End Function
+
+        ''' <summary>
+        ''' Hands the restored assets to the script loader (design §G1/§G2): native probe roots become
+        ''' loader probe roots and compile (ref) assets that have a distinct runtime (implementation) file are
+        ''' registered as runtime-path overrides, so the loader never loads a ref-only assembly at runtime.
+        ''' No-op when the host did not wire a loader (pure no-nuget / tests without a loader).
+        ''' </summary>
+        Private Sub PushSessionAssetsToLoader(assets As NuGetRestoreAssets)
+            If _loader Is Nothing Then
+                Return
+            End If
+
+            For Each nativeRoot In assets.NativeRootDirectories
+                _loader.AddNativeProbeRoot(nativeRoot)
+            Next
+
+            Dim runtimeOverrides = NuGetRestoreAssetsReader.ComputeRuntimePathOverrides(
+                assets.CompilePathsByCanonicalKey, assets.RuntimePaths)
+            For Each pair In runtimeOverrides
+                _loader.RegisterRuntimePathOverride(pair.Key, pair.Value)
+            Next
+
+            ' Full managed runtime closure registration (design §G1): ScriptBuilder registers only the
+            ' assemblies a submission binds at compile time, but framework-style scripts (e.g. the Avalonia
+            ' demo) need closure assemblies that are reached only at runtime (base types, lazily touched
+            ' deps) to be resolvable too. Register every restored lib asset with the loader so a later
+            ' ResolveAssembly can satisfy those by simple name.
+            RegisterRuntimeClosure(assets.RuntimePaths)
+        End Sub
+
+        ''' <summary>
+        ''' Registers every restored managed runtime (lib) assembly with the loader (design §G1). Only paths
+        ''' that exist on disk are read; unit-test fixtures use non-existent absolute paths and are skipped, so
+        ''' this stays a no-op there.
+        ''' </summary>
+        Friend Sub RegisterRuntimeClosure(runtimePaths As ImmutableArray(Of String))
+            If _loader Is Nothing OrElse runtimePaths.IsDefaultOrEmpty Then
+                Return
+            End If
+
+            For Each runtimePath In runtimePaths
+                If Not File.Exists(runtimePath) Then
+                    Continue For
+                End If
+
+                Try
+                    Dim loadedName = AssemblyName.GetAssemblyName(runtimePath)
+                    Dim identity As AssemblyIdentity = Nothing
+                    If loadedName IsNot Nothing AndAlso AssemblyIdentity.TryParseDisplayName(loadedName.FullName, identity) Then
+                        _loader.RegisterDependency(identity, runtimePath)
+                    End If
+                Catch generatedExceptionName As Exception
+                    ' Not a managed assembly or not readable; leave it to default resolution.
+                End Try
+            Next
+        End Sub
 
         Private Shared Function CreateSingleDiagnostic(diagnostic As Diagnostic) As ImmutableArray(Of Diagnostic)
             Return ImmutableArray.Create(diagnostic)

@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -57,6 +58,11 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
         // simple name -> identity and location of a known dependency
         private readonly Dictionary<string, List<AssemblyIdentityAndLocation>> _dependenciesWithLocationBySimpleName;
+
+        // compile (ref) asset path -> runtime (implementation) asset path for NuGet restore packages
+        // (design §G1). Empty by default; only the host's runtime handshake populates it, so the no-nuget
+        // path keeps every registration byte-identical.
+        private ImmutableDictionary<string, string> _runtimePathOverrides = ImmutableDictionary<string, string>.Empty;
 
         [DebuggerDisplay("{GetDebuggerDisplay(),nq}")]
         private readonly struct AssemblyIdentityAndLocation
@@ -128,6 +134,60 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             _runtimeAssemblyLoader.AddNativeProbeRoot(directory);
         }
 
+        /// <summary>
+        /// Native probe roots currently pushed into the loader (design §G2). Empty unless the host restored
+        /// a package with <c>runtimes/&lt;rid&gt;/native</c> assets.
+        /// </summary>
+        internal ImmutableArray<string> NativeProbeRoots => _runtimeAssemblyLoader.NativeProbeRoots;
+
+        /// <summary>
+        /// Registers a runtime handshake override: when a dependency is later registered against the NuGet
+        /// compile (ref) asset <paramref name="compilePath"/>, the loader stores the runtime (implementation)
+        /// asset <paramref name="runtimePath"/> instead (design §G1). A ref assembly carries metadata only and
+        /// must never be the assembly the runtime loads. The override map is empty by default, keeping the
+        /// no-nuget path unchanged.
+        /// </summary>
+        internal void RegisterRuntimePathOverride(string compilePath, string runtimePath)
+        {
+            if (!PathUtilities.IsAbsolute(compilePath))
+            {
+                throw new ArgumentException(ScriptingResources.AbsolutePathExpected, nameof(compilePath));
+            }
+
+            if (!PathUtilities.IsAbsolute(runtimePath))
+            {
+                throw new ArgumentException(ScriptingResources.AbsolutePathExpected, nameof(runtimePath));
+            }
+
+            lock (_referencesLock)
+            {
+                _runtimePathOverrides = _runtimePathOverrides.SetItem(compilePath, runtimePath);
+            }
+        }
+
+        /// <summary>
+        /// Registered dependency locations for <paramref name="simpleName"/> in registration order (design
+        /// §G1; used by tests to assert the runtime override redirected the compile asset).
+        /// </summary>
+        internal ImmutableArray<string> GetRegisteredDependencyLocations(string simpleName)
+        {
+            lock (_referencesLock)
+            {
+                if (!_dependenciesWithLocationBySimpleName.TryGetValue(simpleName, out List<AssemblyIdentityAndLocation> dependencies))
+                {
+                    return ImmutableArray<string>.Empty;
+                }
+
+                var locations = new List<string>(dependencies.Count);
+                foreach (var dependency in dependencies)
+                {
+                    locations.Add(dependency.Location);
+                }
+
+                return locations.ToImmutableArray();
+            }
+        }
+
         internal Assembly LoadAssemblyFromStream(Stream peStream, Stream pdbStream)
         {
             Assembly assembly = _runtimeAssemblyLoader.LoadFromStream(peStream, pdbStream);
@@ -195,6 +255,14 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
             lock (_referencesLock)
             {
+                // Runtime handshake (design §G1): a NuGet compile (ref) asset that the host mapped to its
+                // runtime (implementation) asset is redirected here, so the loader never loads a ref-only
+                // assembly at runtime. The default empty map keeps the path unchanged.
+                if (_runtimePathOverrides.TryGetValue(path, out string runtimePath))
+                {
+                    path = runtimePath;
+                }
+
                 RegisterDependencyNoLock(new AssemblyIdentityAndLocation(dependency, path));
             }
         }

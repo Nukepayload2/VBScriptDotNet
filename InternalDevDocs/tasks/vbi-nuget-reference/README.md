@@ -8,6 +8,8 @@
 - **交付物**：概要设计（`design-overview.md`）、详细设计（`design-detailed.md`，改动蓝图 A–I + 自动裁决规则 + pass 条件）、测试计划（`test-plan.md`，L1–L4 分层 + 门控 V-G2 分离）、本 README（Vortex 代办拆分表 + accepted 门 + 归属与调度）。
 - **调度方式**：Vortex 涡流（实施者 agent 产出 → 验证者 agent 核对 → 打回修复 → 通过关闭），main 只调度，串行交替、不可催促。流水账：`<项目根>/tmp/vortex-logs/`。
 
+> **续跑收口注记（2026-09-07）**：Vortex 表全 done 后，V-G2 门控在此前从未真跑；续跑补做运行时资产握手、V-G2 真实 restore 验收与本收口（过程审计与逐轮结果见 `tmp/vortex-logs/vbi-nuget-runtime-handshake/`）。相关改动已落工作树（历史 done 判定不变）。V-G2 执行结果与已知限制见下方「门控集成验收」节执行记录。
+
 ## 范围与非范围
 
 **范围内（v1）**：
@@ -82,7 +84,9 @@ U9 spike 是 R4 的硬闸门，已在任务计划前完成并**通过**。实验
 |---|---|---|---|---|
 | V-G2 | sqlite 端到端验收（§G3；兼作 §F 的 `.vbx` demo：逗号 + pin 版本）+ 托管传递依赖真实还原 | V-Z 收口后 | 作者/QA | net10 宿主 `.vbx` 用 `#R "nuget:Microsoft.Data.Sqlite, 8.0.x"` 建内存库完成一次 `SELECT` 输出正确；**另引一带托管传递依赖的包（非单 dll 无依赖，见 test-plan G2-5）直用主包 + 依赖类型均零错**；跨平台 dll 命名（`.dll`/`.so`/`.dylib`）/RID 回退/缺目录诊断按 §G2.3-4 清单过；net48 宿主跑同脚本 → 收宿主能力诊断而非崩溃；sample 注释含 §F「与官方 `#:`/`@` 语法差异」产品文档明示文本（V-I 随勘误同批产出） |
 
-> **V-G2 执行须知（V-Z 收口时登记）**：sqlite 阳性用例跑前，须在宿主运行时把会话 `NuGetPackageSession.NativeRootDirectories`（restore 成功后由协调器写入）经 `InteractiveAssemblyLoader.AddNativeProbeRoot` 逐目录推入 loader（loader seam 已落地：`AssemblyLoaderImpl.cs` internal virtual + `CoreAssemblyLoaderImpl.LoadUnmanagedDll` net10 override + `NativeLibraryProbe` 纯候选表）。**现宿主装配侧（`VisualBasicScript.vb` `RunInteractiveAsync`）尚无该调用点**——握手留 V-G2：G2-1 的「native `e_sqlite3` 经 loader 探测根找到」与 G2-2 阴性对照（不带根集 → `DllNotFoundException`）都以正确执行此推入为前提。实现形态待作者/QA 定（可在脚本运行前把 loader 实例经 seam 传给协调器，或由 vbi 宿主在创建会话后调用）。`NuGetPackageSession`/协调器已是 `Friend`、`AddNativeProbeRoot` 为 internal（IVT 可达），无需新增 public 面。
+> **V-G2 执行须知（收口核销）**：运行时握手已由宿主装配，非留待项——`VisualBasicScript.vb` `RunInteractiveAsync` 现创建一个共享 `InteractiveAssemblyLoader`，同时经 ctor 可选参传给 `CommandLineRunner`（runner 三次 `CreateInitialScript` 经 `assemblyLoaderOpt:` 用同一实例 → 跨提交同一 loader）与 `NuGetRestoreCoordinator`（`loader:=`）；restore 成功后协调器 `PushSessionAssetsToLoader` 把会话 native 根逐条 `AddNativeProbeRoot` 推入 loader、把 compile(ref)→runtime(lib) 覆盖表逐条 `RegisterRuntimePathOverride` 登记、并把 restore 的整个 runtime(lib) 闭包 `RegisterRuntimeClosure` 注册进 loader（设计 §G1/§G2）。loader seam 落地：`AssemblyLoaderImpl.cs` internal virtual + `CoreAssemblyLoaderImpl` net10 `LoadUnmanagedDll` override + `NativeLibraryProbe` 纯候选表。`NuGetPackageSession`/协调器为 `Friend`、seam 为 internal（IVT 可达），零新增 public 面。V-G2 的 G2-1「native `e_sqlite3` 经 loader 探测根找到」与 G2-2 阴性对照均以该推入为前提，已于续跑中实跑核销。
+
+**V-G2 执行记录（续跑收口，2026-09-07）**：作者/QA 角色由 Vortex F-B 轮实施者 + 验证者真跑，结果写入 `tmp/vortex-logs/vbi-nuget-runtime-handshake/`（`4-implementer-fb-gated.md`/`5-verifier-fb-gated.md`，验证者独立复核）。net10 宿主实测：G2-1 sqlite 端到端 `sqlite-ok:forty-two` EXIT 0（native `e_sqlite3` 经探测根命中，无 DllNotFound/TypeLoad）；G2-2 阴性对照不带 native 根集 → `DllNotFoundException` EXIT 36；G2-5 托管传递依赖闭包（`Microsoft.Extensions.Caching.Memory, 8.0.1`，lib-only 闭包 6 程序集）主包 + 依赖类型各直用零错；F-A ref-split 端到端（`Avalonia.Desktop, 12.1.1` 直用 `Avalonia.PixelPoint`/`SkiaSharp.SKColor`）EXIT 0 无 TypeLoadException；`Samples/AvaloniaCalculator.vbx` 真出窗口（进程存活 ≥16s、MainWindowTitle 可见、无残留）。真跑暴露并修复三处真实缺陷（reader 漏扫 native 节、运行期闭包未注册、Samples 跨 assembly 版本错配），均以修复 + 单测收口；`Scripting\VisualBasicTest` 全量 **279 通过 / 0 失败**。**未能物理机真证项**：G2-3 跨平台 `.so`/`.dylib` 命名 / RID 回退 / 缺目录诊断（本环境 Windows，由 `NativeLibraryProbeTests`/`NuGetMissingNativeAssetsTests` 纯函数单测覆盖）；G2-4 net48 宿主真跑同脚本（无 net48 环境，net10 宿主经 hostCapability=net48 注入单测覆盖「宿主能力诊断而非崩溃」分支）。**P-008 已知限制（用户可见）**：interactive loader 强名解析按精确程序集版本匹配、无 default ALC 式向上统一；跨包二进制引用旧 assembly 版本（如 FAUI preview2 引用 Avalonia 12.0.0.0 配 Avalonia 12.1.1 包）永 FileNotFound → 须同 release pin（样例已去 FluentAvaloniaUI、改用同 release `Avalonia.Themes.Fluent` `FluentTheme`）。sqlite 演示脚本已晋升 `Samples/SqliteNuGetDemo.vbx`（含 §F 与官方 `#:`/`@` 差异明示注释，见 §F/§G3 实现注记）。
 
 ## Accepted 门（计划被批准进入实施的条件）
 

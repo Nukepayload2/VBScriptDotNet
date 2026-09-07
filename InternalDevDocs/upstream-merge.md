@@ -126,6 +126,18 @@
 - 合并前评估义务：合并前读本条目对 `AssemblyLoaderImpl` 基类、`InteractiveAssemblyLoader`（internal seam）、`CoreAssemblyLoaderImpl`（`LoadContext` ctor 签名 + `#if NET10_0` override）与新增 `NativeLibraryProbe.cs` 做 3-way 评审；上游若日后以其它形状实现同款 native 探测或改动上述签名，按上游形状对齐并回退本 fork 改法；VB Hosting 配套为本地私有 Friend，不与上游路径冲突。
 - 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（net10 native loader seam）。
 
+### 2.14 Scripting Core 运行期资产握手：`RegisterRuntimePathOverride`（ref→lib）+ 共享 loader 装配（修改 + 新增）
+
+- `Scripting\Core\Hosting\AssemblyLoader\InteractiveAssemblyLoader.cs`（修改，public sealed partial）—— 运行期 ref→lib 覆盖 seam：新增 internal `RegisterRuntimePathOverride(string compilePath, string runtimePath)`（把 NuGet compile(ref) 资产映射到 runtime(lib) 资产，宿主 restore 成功后调用）与 `GetRegisteredDependencyLocations(string simpleName)`（internal 观察位，供测试断言覆盖生效）；`public RegisterDependency(AssemblyIdentity, string path)` 在锁内查覆盖表：命中则以 runtime 路径替换 compile 路径再登记，**覆盖表默认空 → 无 nuget / 未握手路径逐字节回到现状**；不新增 public 面（`PublicAPI.*` 零动）。
+- `Scripting\Core\Hosting\AssemblyLoader\AssemblyLoaderImpl.cs`（修改）—— 基类加 `internal virtual ImmutableArray<string> NativeProbeRoots => Empty`（观察位；Desktop 恒空）。
+- `Scripting\Core\Hosting\AssemblyLoader\CoreAssemblyLoaderImpl.cs`（修改）—— override `NativeProbeRoots` 返回共享根集 `_nativeProbeRoots`（配合 2.13 的 `AddNativeProbeRoot`/`LoadUnmanagedDll`）。
+- `Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs`（修改）—— ctor 末位加可选参 `InteractiveAssemblyLoader assemblyLoader = null`（字段 + 赋值），三处 `Script.CreateInitialScript(..., assemblyLoaderOpt:)`（文件脚本 / REPL 初提交 / REPL 首提交）由原 `null` 改传 `_assemblyLoader`；默认 null 时行为与现一致（`CreateInitialScript` 自建 loader）。
+- VB 宿主配套（本地 Friend，不入上游路径）—— `NuGetRestoreAssets.vb` `NuGetRestoreAssetsReader.ComputeRuntimePathOverrides`（纯函数：compile 资产集 × runtime 资产集 → ref→lib 覆盖字典，同名唯一且路径不同才覆盖、lib-only 包不覆盖、同名歧义跳过）；`NuGetRestoreCoordinator.vb` ctor 加可选 `loader`，restore 成功（非 net48-native 早退）后 `PushSessionAssetsToLoader` 把 native 根逐条 `AddNativeProbeRoot` + 覆盖表逐条 `RegisterRuntimePathOverride` 下推 loader，并把 restore 的整个 runtime(lib) 闭包经 `RegisterRuntimeClosure`（`AssemblyName.GetAssemblyName` + `AssemblyIdentity.TryParseDisplayName` + public `RegisterDependency`，`File.Exists` 门控）注册进 loader（F-B 扩展：ScriptBuilder 只注册编译 bound 程序集，整 app 型脚本运行期才触达的闭包程序集由此补全，仍走既有 public `RegisterDependency`，零公共面增量）；`VisualBasicScript.vb` `RunInteractiveAsync` 建一个共享 `InteractiveAssemblyLoader` 同时传给 runner 与 coordinator。
+- 改动形状：internal/Friend 面，零公共面（`PublicAPI.*` 零动）；覆盖表/根集默认空 = 现状零回归；目录策略在宿主、机制在 loader（同 2.13）。
+- 折抵：纯加性——空覆盖表 / 空根集 / 无 loader 时 loader 与 runner 行为与 seam 前一致；只有宿主在真实 nuget restore 成功后握手才点亮。ref→lib 修复对齐 ScriptBuilder.cs:147-148 上游 TODO（"Contract assembly vs RT assembly path"）。
+- 合并前评估义务：合并前读本条目对 `InteractiveAssemblyLoader`（`RegisterDependency` 覆盖重定向 + 新增 internal 方法）、`CommandLineRunner` ctor / 三处 `CreateInitialScript` 调用点、`AssemblyLoaderImpl`/`CoreAssemblyLoaderImpl` 新增 internal 属性做 3-way 评审；上游若日后以其它形状实现同款 runtime 资产选择或改动上述签名，按上游形状对齐并回退本 fork 改法；VB Hosting 配套为本地私有 Friend，不与上游路径冲突。
+- 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（运行时注册 + net10 native loader seam）。
+
 ## 三、合并步骤
 
 1. **拉取上游**：`git -C {{Roslyn}} fetch origin release/stable`，记录新 commit 到「一、上游基准」。

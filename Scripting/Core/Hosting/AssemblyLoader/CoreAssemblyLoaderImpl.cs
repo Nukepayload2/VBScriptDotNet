@@ -38,6 +38,8 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             }
         }
 
+        internal override ImmutableArray<string> NativeProbeRoots => _nativeProbeRoots;
+
         public override Assembly LoadFromStream(Stream peStream, Stream pdbStream)
         {
             return _inMemoryAssemblyContext.LoadFromStream(peStream, pdbStream);

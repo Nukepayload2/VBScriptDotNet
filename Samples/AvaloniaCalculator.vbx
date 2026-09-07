@@ -1,0 +1,306 @@
+' Avalonia standard-mode calculator demo (.vbx).
+'
+' References NuGet packages through the #R "nuget:" channel (design: vbi-nuget-reference).
+' Each directive is: #R "nuget:<id>, <version>" - the prefix is case-insensitive and the name and
+' version are separated by a comma. Versions are pinned so a restore is reproducible. All Avalonia
+' packages are pinned to the same release so every restored assembly shares one assembly version
+' (the interactive loader resolves strong-named references by exact assembly version).
+'
+' Requires the .NET (net10) vbi host. On first run vbi restores the packages with `dotnet restore`
+' (an internet connection is needed once per package set). Rendering is Avalonia + Skia, which needs
+' the host's runtime-asset handshake (lib/ implementation assemblies and native probe roots) wired up.
+'
+' Run:   vbi AvaloniaCalculator.vbx
+
+#R "nuget:Avalonia, 12.1.1"
+#R "nuget:Avalonia.Desktop, 12.1.1"
+#R "nuget:Avalonia.Themes.Fluent, 12.1.1"
+#R "nuget:Avalonia.Fonts.Inter, 12.1.1"
+
+Imports System.Globalization
+Imports Avalonia
+Imports Avalonia.Controls
+Imports Avalonia.Controls.ApplicationLifetimes
+Imports Avalonia.Interactivity
+Imports Avalonia.Layout
+Imports Avalonia.Media
+Imports Avalonia.Themes.Fluent
+
+Public Class CalculatorApp
+    Inherits Application
+
+    Public Overrides Sub Initialize()
+        ' The Avalonia Fluent theme gives the calculator window and its controls a modern Fluent look.
+        Styles.Add(New FluentTheme())
+    End Sub
+
+    Public Overrides Sub OnFrameworkInitializationCompleted()
+        Dim lifetime = TryCast(ApplicationLifetime, IClassicDesktopStyleApplicationLifetime)
+        If lifetime IsNot Nothing Then
+            lifetime.MainWindow = New CalculatorWindow()
+            lifetime.ShutdownMode = ShutdownMode.OnMainWindowClose
+        End If
+        MyBase.OnFrameworkInitializationCompleted()
+    End Sub
+End Class
+
+Public Class CalculatorWindow
+    Inherits Window
+
+    ' Displayed numeric entry, the stored left operand and the pending binary operator.
+    Private ReadOnly _display As TextBox
+    Private _entry As String = "0"
+    Private _stored As Double
+    Private _hasStored As Boolean
+    Private _pendingOp As String
+    Private _freshEntry As Boolean = True
+
+    Private Shared ReadOnly s_invariant As CultureInfo = CultureInfo.InvariantCulture
+
+    Public Sub New()
+        Title = "Avalonia Calculator"
+        Width = 360
+        Height = 520
+        MinWidth = 330
+        MinHeight = 470
+
+        Dim root As New Grid()
+        root.RowDefinitions.Add(New RowDefinition(110, GridUnitType.Pixel))
+        For row = 1 To 6
+            root.RowDefinitions.Add(New RowDefinition(1, GridUnitType.Star))
+        Next
+        For col = 1 To 4
+            root.ColumnDefinitions.Add(New ColumnDefinition(1, GridUnitType.Star))
+        Next
+
+        _display = New TextBox With {
+            .Text = _entry,
+            .FontSize = 30,
+            .FontFamily = New FontFamily("Inter"),
+            .IsReadOnly = True,
+            .TextAlignment = TextAlignment.Right,
+            .VerticalContentAlignment = VerticalAlignment.Center,
+            .Margin = New Thickness(8)
+        }
+        Grid.SetColumnSpan(_display, 4)
+        root.Children.Add(_display)
+
+        AddButton(root, 1, 0, "%", "%")
+        AddButton(root, 1, 1, "CE", "CE")
+        AddButton(root, 1, 2, "C", "C")
+        AddButton(root, 1, 3, "Del", "Backspace")
+        AddButton(root, 2, 0, "1/x", "Reciprocal")
+        AddButton(root, 2, 1, "x2", "Square")
+        AddButton(root, 2, 2, "sqrt", "Sqrt")
+        AddButton(root, 2, 3, "/", "/")
+        AddButton(root, 3, 0, "7", "7")
+        AddButton(root, 3, 1, "8", "8")
+        AddButton(root, 3, 2, "9", "9")
+        AddButton(root, 3, 3, "*", "*")
+        AddButton(root, 4, 0, "4", "4")
+        AddButton(root, 4, 1, "5", "5")
+        AddButton(root, 4, 2, "6", "6")
+        AddButton(root, 4, 3, "-", "-")
+        AddButton(root, 5, 0, "1", "1")
+        AddButton(root, 5, 1, "2", "2")
+        AddButton(root, 5, 2, "3", "3")
+        AddButton(root, 5, 3, "+", "+")
+        AddButton(root, 6, 0, "+/-", "Negate")
+        AddButton(root, 6, 1, "0", "0")
+        AddButton(root, 6, 2, ".", ".")
+        AddButton(root, 6, 3, "=", "=")
+
+        Content = root
+    End Sub
+
+    Private Sub AddButton(grid As Grid, row As Integer, col As Integer, label As String, token As String)
+        Dim button As New Button With {
+            .Content = label,
+            .FontSize = 18,
+            .Tag = token,
+            .Margin = New Thickness(4),
+            .HorizontalAlignment = HorizontalAlignment.Stretch,
+            .VerticalAlignment = VerticalAlignment.Stretch
+        }
+        AddHandler button.Click, AddressOf OnKeyClick
+        Grid.SetRow(button, row)
+        Grid.SetColumn(button, col)
+        grid.Children.Add(button)
+    End Sub
+
+    Private Sub OnKeyClick(sender As Object, e As RoutedEventArgs)
+        Dim button = TryCast(sender, Button)
+        If button IsNot Nothing Then
+            HandleKey(TryCast(button.Tag, String))
+        End If
+    End Sub
+
+    Private Sub HandleKey(token As String)
+        Select Case token
+            Case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+                TypeDigit(token)
+            Case "."
+                TypeDot()
+            Case "+", "-", "*", "/"
+                ApplyOperator(token)
+            Case "="
+                PressEquals()
+            Case "%"
+                ApplyUnary(Function(value) value / 100.0)
+            Case "Reciprocal"
+                ApplyUnary(Function(value) If(value = 0.0, Double.NaN, 1.0 / value))
+            Case "Square"
+                ApplyUnary(Function(value) value * value)
+            Case "Sqrt"
+                ApplyUnary(Function(value) If(value < 0.0, Double.NaN, Math.Sqrt(value)))
+            Case "Negate"
+                ApplyUnary(Function(value) -value)
+            Case "CE"
+                _entry = "0"
+                _freshEntry = True
+                UpdateDisplay()
+            Case "C"
+                ResetAll()
+            Case "Backspace"
+                Backspace()
+        End Select
+    End Sub
+
+    Private Sub TypeDigit(digit As String)
+        If _freshEntry Then
+            _entry = digit
+        ElseIf _entry = "0" AndAlso Not _entry.Contains(".") Then
+            _entry = digit
+        ElseIf _entry.Length < 16 Then
+            _entry &= digit
+        End If
+        _freshEntry = False
+        UpdateDisplay()
+    End Sub
+
+    Private Sub TypeDot()
+        If _freshEntry Then
+            _entry = "0."
+            _freshEntry = False
+        ElseIf Not _entry.Contains(".") AndAlso _entry.Length < 16 Then
+            _entry &= "."
+        End If
+        UpdateDisplay()
+    End Sub
+
+    Private Sub ApplyOperator(op As String)
+        If _pendingOp IsNot Nothing AndAlso Not _freshEntry Then
+            _stored = SafeCompute(_stored, Parse(_entry), _pendingOp)
+            _entry = FormatNumber(_stored)
+        ElseIf Not _hasStored Then
+            _stored = Parse(_entry)
+            _hasStored = True
+        End If
+        _pendingOp = op
+        _freshEntry = True
+        UpdateDisplay()
+    End Sub
+
+    Private Sub PressEquals()
+        If Not _hasStored Then
+            _stored = Parse(_entry)
+            _hasStored = True
+        End If
+        If _pendingOp IsNot Nothing Then
+            Dim result = SafeCompute(_stored, Parse(_entry), _pendingOp)
+            If Double.IsNaN(result) OrElse Double.IsInfinity(result) Then
+                ShowError("Cannot divide by zero")
+                Return
+            End If
+            _stored = result
+            _entry = FormatNumber(result)
+            _pendingOp = Nothing
+            _freshEntry = True
+            UpdateDisplay()
+        End If
+    End Sub
+
+    Private Sub ApplyUnary(operation As Func(Of Double, Double))
+        Dim result = operation(Parse(_entry))
+        If Double.IsNaN(result) OrElse Double.IsInfinity(result) Then
+            ShowError("Invalid operation")
+            Return
+        End If
+        _entry = FormatNumber(result)
+        _freshEntry = True
+        UpdateDisplay()
+    End Sub
+
+    Private Sub Backspace()
+        If _freshEntry Then
+            Return
+        End If
+        If _entry.Length <= 1 Then
+            _entry = "0"
+        Else
+            _entry = _entry.Substring(0, _entry.Length - 1)
+        End If
+        If _entry = "-" OrElse _entry = "." Then
+            _entry = "0"
+        End If
+        UpdateDisplay()
+    End Sub
+
+    Private Sub ShowError(message As String)
+        ' Clear the operator state but leave the message visible until the next key press.
+        _entry = "0"
+        _stored = 0.0
+        _hasStored = False
+        _pendingOp = Nothing
+        _freshEntry = True
+        _display.Text = message
+    End Sub
+
+    Private Sub ResetAll()
+        _entry = "0"
+        _stored = 0.0
+        _hasStored = False
+        _pendingOp = Nothing
+        _freshEntry = True
+        UpdateDisplay()
+    End Sub
+
+    Private Sub UpdateDisplay()
+        _display.Text = _entry
+    End Sub
+
+    Private Shared Function SafeCompute(left As Double, right As Double, op As String) As Double
+        Select Case op
+            Case "+"
+                Return left + right
+            Case "-"
+                Return left - right
+            Case "*"
+                Return left * right
+            Case "/"
+                If right = 0.0 Then
+                    Return Double.NaN
+                End If
+                Return left / right
+            Case Else
+                Return right
+        End Select
+    End Function
+
+    Private Shared Function Parse(text As String) As Double
+        Dim value As Double
+        If Double.TryParse(text, NumberStyles.Float, s_invariant, value) Then
+            Return value
+        End If
+        Return 0.0
+    End Function
+
+    Private Shared Function FormatNumber(value As Double) As String
+        Return value.ToString("G15", s_invariant)
+    End Function
+End Class
+
+AppBuilder.Configure(Of CalculatorApp)().
+    UsePlatformDetect().
+    WithInterFont().
+    StartWithClassicDesktopLifetime(Environment.GetCommandLineArgs, ShutdownMode.OnMainWindowClose)

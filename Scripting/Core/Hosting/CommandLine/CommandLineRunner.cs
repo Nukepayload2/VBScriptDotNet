@@ -29,8 +29,9 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         private readonly ObjectFormatter _objectFormatter;
         private readonly NuGetPackageResolver _packageResolver;
         private readonly INuGetRestoreCoordinator _nuGetRestoreCoordinator;
+        private readonly InteractiveAssemblyLoader _assemblyLoader;
 
-        internal CommandLineRunner(ConsoleIO console, CommonCompiler compiler, ScriptCompiler scriptCompiler, ObjectFormatter objectFormatter, NuGetPackageResolver packageResolver = null, INuGetRestoreCoordinator nuGetRestoreCoordinator = null)
+        internal CommandLineRunner(ConsoleIO console, CommonCompiler compiler, ScriptCompiler scriptCompiler, ObjectFormatter objectFormatter, NuGetPackageResolver packageResolver = null, INuGetRestoreCoordinator nuGetRestoreCoordinator = null, InteractiveAssemblyLoader assemblyLoader = null)
         {
             Debug.Assert(console != null);
             Debug.Assert(compiler != null);
@@ -43,6 +44,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             _objectFormatter = objectFormatter;
             _packageResolver = packageResolver;
             _nuGetRestoreCoordinator = nuGetRestoreCoordinator;
+            _assemblyLoader = assemblyLoader;
         }
 
         // for testing:
@@ -238,7 +240,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             var globals = new CommandLineScriptGlobals(_console.Out, _objectFormatter);
             globals.Args.AddRange(_compiler.Arguments.ScriptArguments);
 
-            var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: null);
+            var script = Script.CreateInitialScript<int>(_scriptCompiler, code, options, globals.GetType(), assemblyLoaderOpt: _assemblyLoader);
 
             if (_compiler.Arguments.Check)
             {
@@ -286,7 +288,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
 
                 if (!nuGetDiagnostics.HasAnyErrors())
                 {
-                    var script = Script.CreateInitialScript<object>(_scriptCompiler, initialCode, options, globals.GetType(), assemblyLoaderOpt: null);
+                    var script = Script.CreateInitialScript<object>(_scriptCompiler, initialCode, options, globals.GetType(), assemblyLoaderOpt: _assemblyLoader);
                     (state, options) = await BuildAndRunAsync(script, globals, state, options, displayResult: false, cancellationToken: cancellationToken);
                 }
             }
@@ -352,7 +354,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 Script<object> newScript;
                 if (state == null)
                 {
-                    newScript = Script.CreateInitialScript<object>(_scriptCompiler, submissionCode, options, globals.GetType(), assemblyLoaderOpt: null);
+                    newScript = Script.CreateInitialScript<object>(_scriptCompiler, submissionCode, options, globals.GetType(), assemblyLoaderOpt: _assemblyLoader);
                 }
                 else
                 {
