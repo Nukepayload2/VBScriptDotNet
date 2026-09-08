@@ -17,7 +17,7 @@
 - 共享 Core 单 `#R`→N 引用（R4/U9 实证架构）的**收口**：主资产约定文档标注、`DirectiveReferences` 语义注记、`upstream-merge.md` 新增 ReferenceManager 类别、U9 两场景改造为正式单测。
 - 语法 fork：`TryParsePackageReference` 逗号 + `OrdinalIgnoreCase` 前缀 + 段 Trim + 版本可省（解析层）；共享层改动标注「本 fork 有意偏离上游」。
 - 接线：宿主（VB 脚本宿主层）持具体 `NuGetPackageResolver` 子类 + 会话；Scripting Core 留注入位（`CreateCurrentPlatformResolver`/`CommandLineRunner` 工厂加可选 packageResolver，默认 null）；IVT 走既有 `Scripting\Core\Microsoft.CodeAnalysis.Scripting.csproj:54-58`。
-- 宿主驱动环 + 诊断锚定（R6）：文件脚本与 REPL 预扫描 `#R "nuget:"`、累积会话包集合、两提交间 async `dotnet restore`、还原/NU/SDK/版本/近失配错误映射为锚 `#R` 行的领域诊断。
+- 宿主驱动环 + 诊断锚定（R6）：文件脚本与 REPL 预扫描 `#R "nuget:"`、**会话累积包集合**（见下「REPL 跨提交包集合语义（R-1 定稿）」）、两提交间 async `dotnet restore`、还原/NU/SDK/版本/近失配错误映射为锚 `#R` 行的领域诊断。
 - 会话临时工程 + 内容寻址缓存（key/写一次字节稳定/`global.json`/LRU/restore 触发策略/退出码 0 唯一有效信号/NU1101·网络清晰转译）；net48 临时工程带 `Microsoft.NETFramework.ReferenceAssemblies`（先例 `vbi.vbproj:55-59`）。
 - 运行时：`ScriptBuilder.cs:142-151` 注册 N 引用（既有机制确认覆盖 N）；net10 native = Scripting loader seam（`ResolvingUnmanagedDll` + 宿主供 `runtimes/<rid>/native` 目录清单）。
 - 零回归：无 nuget `.vbx` 行为逐字节不变测试 + 现有单结果 resolver 全量不回归。
@@ -83,10 +83,21 @@ U9 spike 是 R4 的硬闸门，已在任务计划前完成并**通过**。实验
 | # | 内容（design-detailed 章节） | 触发 | 执行者 | 通过判定 |
 |---|---|---|---|---|
 | V-G2 | sqlite 端到端验收（§G3；兼作 §F 的 `.vbx` demo：逗号 + pin 版本）+ 托管传递依赖真实还原 | V-Z 收口后 | 作者/QA | net10 宿主 `.vbx` 用 `#R "nuget:Microsoft.Data.Sqlite, 8.0.x"` 建内存库完成一次 `SELECT` 输出正确；**另引一带托管传递依赖的包（非单 dll 无依赖，见 test-plan G2-5）直用主包 + 依赖类型均零错**；跨平台 dll 命名（`.dll`/`.so`/`.dylib`）/RID 回退/缺目录诊断按 §G2.3-4 清单过；net48 宿主跑同脚本 → 收宿主能力诊断而非崩溃；sample 注释含 §F「与官方 `#:`/`@` 语法差异」产品文档明示文本（V-I 随勘误同批产出） |
+| V-G2-C1 | **整链组合真跑（门控候选，C-1）**：coordinator→session→resolver→ScriptBuilder→loader 一次成功 nuget `#R` 从预扫描到编译运行的全链。F-G 评估后**未落地无副作用单测**——链上每段都已有分段单测，但跨段（session key 形状 / resolver 空命中 / ScriptBuilder 注册 compile-ref / loader 运行解析）只在本门控覆盖；要在无副作用纪律下补一条整链须以「测试输出目录真实 dll」作 assets lib 路径并经 `VisualBasicScript.Create(...).RunAsync` 跑通，实测受 assembly 身份双载 / 默认 ALC 回退干扰易脆，故不硬造。**登记为门控常跑脚本候选**，与 V-G2 同批由作者/QA 执行（真 restore 或受控 fixture dll） | V-Z 收口后（F-G 已列候选） | 作者/QA | 一次真实成功 nuget `#R` 经预扫描 → restore → resolver 展开 N → ScriptBuilder 注册 → 运行返回/调用类型全链零错 |
 
 > **V-G2 执行须知（收口核销）**：运行时握手已由宿主装配，非留待项——`VisualBasicScript.vb` `RunInteractiveAsync` 现创建一个共享 `InteractiveAssemblyLoader`，同时经 ctor 可选参传给 `CommandLineRunner`（runner 三次 `CreateInitialScript` 经 `assemblyLoaderOpt:` 用同一实例 → 跨提交同一 loader）与 `NuGetRestoreCoordinator`（`loader:=`）；restore 成功后协调器 `PushSessionAssetsToLoader` 把会话 native 根逐条 `AddNativeProbeRoot` 推入 loader、把 compile(ref)→runtime(lib) 覆盖表逐条 `RegisterRuntimePathOverride` 登记、并把 restore 的整个 runtime(lib) 闭包 `RegisterRuntimeClosure` 注册进 loader（设计 §G1/§G2）。loader seam 落地：`AssemblyLoaderImpl.cs` internal virtual + `CoreAssemblyLoaderImpl` net10 `LoadUnmanagedDll` override + `NativeLibraryProbe` 纯候选表。`NuGetPackageSession`/协调器为 `Friend`、seam 为 internal（IVT 可达），零新增 public 面。V-G2 的 G2-1「native `e_sqlite3` 经 loader 探测根找到」与 G2-2 阴性对照均以该推入为前提，已于续跑中实跑核销。
 
 **V-G2 执行记录（续跑收口，2026-09-07）**：作者/QA 角色由 Vortex F-B 轮实施者 + 验证者真跑，结果写入 `tmp/vortex-logs/vbi-nuget-runtime-handshake/`（`4-implementer-fb-gated.md`/`5-verifier-fb-gated.md`，验证者独立复核）。net10 宿主实测：G2-1 sqlite 端到端 `sqlite-ok:forty-two` EXIT 0（native `e_sqlite3` 经探测根命中，无 DllNotFound/TypeLoad）；G2-2 阴性对照不带 native 根集 → `DllNotFoundException` EXIT 36；G2-5 托管传递依赖闭包（`Microsoft.Extensions.Caching.Memory, 8.0.1`，lib-only 闭包 6 程序集）主包 + 依赖类型各直用零错；F-A ref-split 端到端（`Avalonia.Desktop, 12.1.1` 直用 `Avalonia.PixelPoint`/`SkiaSharp.SKColor`）EXIT 0 无 TypeLoadException；`Samples/AvaloniaCalculator.vbx` 真出窗口（进程存活 ≥16s、MainWindowTitle 可见、无残留）。真跑暴露并修复三处真实缺陷（reader 漏扫 native 节、运行期闭包未注册、Samples 跨 assembly 版本错配），均以修复 + 单测收口；`Scripting\VisualBasicTest` 全量 **279 通过 / 0 失败**。**未能物理机真证项**：G2-3 跨平台 `.so`/`.dylib` 命名 / RID 回退 / 缺目录诊断（本环境 Windows，由 `NativeLibraryProbeTests`/`NuGetMissingNativeAssetsTests` 纯函数单测覆盖）；G2-4 net48 宿主真跑同脚本（无 net48 环境，net10 宿主经 hostCapability=net48 注入单测覆盖「宿主能力诊断而非崩溃」分支）。**P-008 已由 F-D 修复（loader 向上版本统一，2026-09-08）**：interactive loader 原按精确程序集版本匹配、无 default ALC 式向上统一（F-B 因此去 FAUI、改同 release pin，记录于上一段 V-G2 执行记录）；F-D 起 `InteractiveAssemblyLoader.ResolveBestDefinitionIndex`（登记 `upstream-merge.md` 2.15）支持向上版本统一——请求 identity 无精确（或平台统一）候选时，允许同名 + 文化/公钥/内容类型一致且定义版本 ≥ 引用版本的**最高版本**候选满足（可升级、不降级；精确仍优先）。跨包二进制引用旧 assembly 版本（如 FluentAvaloniaUI preview2 引用 Avalonia 12.0.0.0 配 Avalonia 12.1.1 包）由此可运行，`Samples/AvaloniaCalculator.vbx` 已加回 FluentAvaloniaUI 主题（5 包含 FAUI，窗口真跑通过：MainWindowTitle 可见、16s 存活、无错误输出、无残留）。sqlite 演示脚本已晋升 `Samples/SqliteNuGetDemo.vbx`（含 §F 与官方 `#:`/`@` 差异明示注释，见 §F/§G3 实现注记）。
+
+## REPL 跨提交包集合语义（R-1 定稿，2026-09-08）
+
+> 老登复查 R-1 后裁决（`tmp/vortex-logs/vbi-nuget-runtime-handshake/15-vb-veteran-review.md`）。实码与本文档必须一致。
+
+- **协调器持会话累积包集合**：`NuGetRestoreCoordinator` 每成功 restore 后把该提交的 `#R "nuget:"` 指令并入内部累积集（`_sessionRequests`）。restore 触发与临时工程永远按**累积集**（不是当前提交 delta）算——多次提交各自引包时，共享传递依赖由同一次 NuGet restore 按统一图解析（`EnsureRestoredAsync` 先 `MergeSessionRequests` 再建工程，锚点见 `NuGetRestoreCoordinator.vb:336-470`）。
+- **当前提交对同 id 权威**：提交内提到某 id 时，累积集里该 id 的旧版本条目被替换（**新版本以本次为准**，升降级跨提交生效），未提到的旧 id 保留（累积）。同一提交内同 id **两个不同版本**都保留 → restore 报 NU1107（C-3 用例钉住）。
+- **失败不污染**：restore 失败（含 SDK 缺失）不提交合并，下次同提交重试；net48-native / 缺当前 RID native 属「restore 成功但被宿主策略阻断」，同样不并入累积集（阻断提交的包本就没编译/运行）。
+- **残留限制（记录在案，非缺陷）**：编译期「双版本歧义」在 pinned-history（前序提交已解析的显式引用烙进 REPL 提交链）下**无法**被累积 restore 消除——前序提交对共享依赖 C 1.0 的引用仍与本次解析的 C 2.0 并存。实际表现与官方 csi/.NET REPL 的 `#r` 语义一致：跨提交共享传递依赖版本不一致、且源码直用该依赖类型时编译器报歧义（BC30560 族）；运行期由 loader 向上版本统一（F-D）兜底。规避：同一会话内共享依赖版本保持一致，或升降级后重启会话。
+- 单测钉住：`NuGetRestoreCoordinatorTests.SessionAccumulatesPackagesAcrossSubmissionsAndRestoresUnion`（累积 ∪ 本次 + 工程含历史包）、`...TwoVersionsOfSamePackageInOneSubmissionKeepsBothAndReportsNu1107`（同提交两版本保留 + NU1107 转译）。
 
 ## Accepted 门（计划被批准进入实施的条件）
 

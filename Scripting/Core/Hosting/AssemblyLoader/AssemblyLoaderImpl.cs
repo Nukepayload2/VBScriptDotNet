@@ -59,5 +59,15 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         /// empty there; <see cref="CoreAssemblyLoaderImpl"/> reports its shared root set.
         /// </summary>
         internal virtual ImmutableArray<string> NativeProbeRoots => ImmutableArray<string>.Empty;
+
+        /// <summary>
+        /// Clears the recorded native probe roots (design §G2). The desktop loader never probes, so the
+        /// default is a no-op; <see cref="CoreAssemblyLoaderImpl"/> empties its shared root set. The host
+        /// resets before each successful NuGet restore push so a later restore replaces — rather than
+        /// accumulates — the roots of an earlier package version.
+        /// </summary>
+        internal virtual void ResetNativeProbeRoots()
+        {
+        }
     }
 }

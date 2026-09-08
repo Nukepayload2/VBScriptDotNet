@@ -23,6 +23,12 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         /// </summary>
         /// <param name="code">The submission or file-script source text about to be compiled.</param>
         /// <param name="filePath">The file path of the source, or empty for an interactive submission.</param>
-        Task<ImmutableArray<Diagnostic>> PrepareCompilationAsync(SourceText code, string? filePath, CancellationToken cancellationToken);
+        /// <param name="options">
+        /// The <see cref="ScriptOptions"/> the submission will be compiled with, or null when the caller has
+        /// no options (legacy shape). When non-null the host may expand <c>#load</c> directives through
+        /// <see cref="ScriptOptions.SourceResolver"/> / <see cref="ScriptOptions.ParseOptions"/> so NuGet
+        /// references nested inside loaded files are restored before compilation.
+        /// </param>
+        Task<ImmutableArray<Diagnostic>> PrepareCompilationAsync(SourceText code, string? filePath, ScriptOptions? options, CancellationToken cancellationToken);
     }
 }

@@ -153,7 +153,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             // still needs the pre-scan.
             if (code != null && !(_compiler.Arguments.InteractiveMode && !_compiler.Arguments.Check))
             {
-                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(code, scriptPathOpt, cancellationToken).ConfigureAwait(false);
+                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(code, scriptPathOpt, scriptOptions, cancellationToken).ConfigureAwait(false);
                 if (!nuGetDiagnostics.IsEmpty)
                 {
                     if (_compiler.ReportDiagnostics(nuGetDiagnostics, _console.Error, errorLogger, compilation: null))
@@ -227,11 +227,11 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
             return new CommonCompiler.LoggingSourceFileResolver(arguments.SourcePaths, arguments.BaseDirectory, ImmutableArray<KeyValuePair<string, string>>.Empty, loggerOpt);
         }
 
-        private Task<ImmutableArray<Diagnostic>> RestoreNuGetReferencesAsync(SourceText code, string filePath, CancellationToken cancellationToken)
+        private Task<ImmutableArray<Diagnostic>> RestoreNuGetReferencesAsync(SourceText code, string filePath, ScriptOptions options, CancellationToken cancellationToken)
         {
             var coordinator = _nuGetRestoreCoordinator;
             return coordinator != null
-                ? coordinator.PrepareCompilationAsync(code, filePath, cancellationToken)
+                ? coordinator.PrepareCompilationAsync(code, filePath, options, cancellationToken)
                 : Task.FromResult(ImmutableArray<Diagnostic>.Empty);
         }
 
@@ -280,7 +280,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 var initialCode = SourceText.From(initialScriptCodeOpt);
 
                 // NuGet restore coordinator seam (design §D1, REPL initial submission).
-                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(initialCode, options.FilePath, cancellationToken).ConfigureAwait(false);
+                var nuGetDiagnostics = await RestoreNuGetReferencesAsync(initialCode, options.FilePath, options, cancellationToken).ConfigureAwait(false);
                 if (!nuGetDiagnostics.IsEmpty)
                 {
                     DisplayDiagnostics(nuGetDiagnostics);
@@ -341,7 +341,7 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
                 // NuGet restore coordinator seam (design §D1, every REPL submission): run before the
                 // submission is compiled so the host can restore referenced packages first.
                 var submissionCode = SourceText.From(code ?? string.Empty);
-                var submissionDiagnostics = await RestoreNuGetReferencesAsync(submissionCode, options.FilePath, cancellationToken).ConfigureAwait(false);
+                var submissionDiagnostics = await RestoreNuGetReferencesAsync(submissionCode, options.FilePath, options, cancellationToken).ConfigureAwait(false);
                 if (!submissionDiagnostics.IsEmpty)
                 {
                     DisplayDiagnostics(submissionDiagnostics);

@@ -9,6 +9,7 @@ Imports System.Reflection
 Imports System.Runtime.InteropServices
 Imports System.Threading
 Imports System.Threading.Tasks
+Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Scripting.Hosting
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic
@@ -23,10 +24,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     ''' <summary>
     ''' VB host coordinator for <c>#R "nuget:name, version"</c>. Implements the shared
     ''' <see cref="INuGetRestoreCoordinator"/> seam: before a submission or file script is compiled it
-    ''' pre-scans the reference directives, classifies each against the design decision table, restores the
-    ''' referenced package set when it changed (design §E), writes the session, and returns diagnostics
-    ''' anchored at the offending <c>#R</c> line. A submission without NuGet directives short-circuits with
-    ''' no diagnostics and never consults the SDK or restore runner.
+    ''' pre-scans the reference directives — expanding <c>#Load</c> through the compilation's
+    ''' <see cref="ScriptOptions"/> when available so directives nested in loaded files are included —
+    ''' classifies each against the design decision table, restores the referenced package set when it
+    ''' changed (design §E), writes the session, and returns diagnostics anchored at the offending
+    ''' <c>#R</c> line. A submission without NuGet directives short-circuits with no diagnostics and never
+    ''' consults the SDK or restore runner.
     ''' </summary>
     Friend NotInheritable Class NuGetRestoreCoordinator
         Implements INuGetRestoreCoordinator
@@ -86,6 +89,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private ReadOnly _loader As InteractiveAssemblyLoader
         Private _lastRestoredKeys As ImmutableArray(Of String) = ImmutableArray(Of String).Empty
 
+        ' Session-cumulative package set (design §E/§F, R-1): the union of every submission's NuGet
+        ' directives this host run has seen and committed after a successful restore. A submission's
+        ' directives replace the session entries for the ids they mention (newest version wins across
+        ' submissions) and leave every other previously referenced id in place, so each restore resolves the
+        ' whole accumulated graph in one NuGet invocation. Only success commits; a failed restore leaves the
+        ' prior set in force and an identical submission retries.
+        Private _sessionRequests As New List(Of NuGetPackageRequest)()
+
         Friend Sub New(session As NuGetPackageSession,
                        Optional runner As IRestoreRunner = Nothing,
                        Optional cacheRoot As String = Nothing,
@@ -110,12 +121,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End Get
         End Property
 
-        Public Async Function PrepareCompilationAsync(code As SourceText, filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
+        Public Async Function PrepareCompilationAsync(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
             If code Is Nothing Then
                 Return ImmutableArray(Of Diagnostic).Empty
             End If
 
-            Dim scan As ScanResult = ScanSubmission(code, filePath, cancellationToken)
+            Dim scan As ScanResult = ScanSubmission(code, filePath, options, cancellationToken)
             If Not scan.Diagnostics.IsEmpty Then
                 Return scan.Diagnostics
             End If
@@ -124,6 +135,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End If
 
             Return Await EnsureRestoredAsync(scan.ValidRequests, cancellationToken)
+        End Function
+
+        ''' <summary>
+        ''' Legacy overload without the submission's <see cref="ScriptOptions"/> (no source resolver to expand
+        ''' <c>#Load</c> against): scans only the submitted text, exactly like the original seam shape.
+        ''' </summary>
+        Public Function PrepareCompilationAsync(code As SourceText, filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
+            Return PrepareCompilationAsync(code, filePath, Nothing, cancellationToken)
         End Function
 
         ''' <summary>
@@ -153,8 +172,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End Property
         End Class
 
-        Private Function ScanSubmission(code As SourceText, filePath As String, cancellationToken As CancellationToken) As ScanResult
-            Dim tree = VisualBasicSyntaxTree.ParseText(code, s_parseOptions, filePath, cancellationToken)
+        ''' <summary>
+        ''' Pre-scan pass: parses the submitted text and, when the compilation <see cref="ScriptOptions"/> are
+        ''' available, expands <c>#Load</c> exactly like the compiler does (<see cref="VisualBasicScriptCompiler.CollectLoadTrees"/>)
+        ''' so NuGet reference directives nested inside loaded files are classified too. Every reachable tree's
+        ''' <c>#R</c> directives are scanned; a directive's location keeps its own tree's path, so diagnostics
+        ''' and restore anchors point at the file/line that actually references the package. Without options
+        ''' (or a source resolver) no <c>#Load</c> can be expanded and only the submitted text is scanned.
+        ''' </summary>
+        Private Function ScanSubmission(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As ScanResult
+            ' ScriptOptions.ParseOptions is typed as the base ParseOptions but always holds a
+            ' VisualBasicParseOptions in the VB host; parse the trees with it so loaded-file parsing matches
+            ' the compiler (which uses the same options). Fall back to the coordinator default when absent.
+            Dim parseOptions = s_parseOptions
+            If options IsNot Nothing Then
+                Dim optionsParseOptions = TryCast(options.ParseOptions, VisualBasicParseOptions)
+                If optionsParseOptions IsNot Nothing Then
+                    parseOptions = optionsParseOptions
+                End If
+            End If
+
+            Dim tree = VisualBasicSyntaxTree.ParseText(code, parseOptions, filePath, cancellationToken)
             Dim root = TryCast(tree.GetRoot(cancellationToken), CompilationUnitSyntax)
             If root Is Nothing Then
                 Return New ScanResult(ImmutableArray(Of Diagnostic).Empty, ImmutableArray(Of NuGetPackageRequest).Empty)
@@ -162,6 +200,71 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
             Dim diagnostics As New List(Of Diagnostic)()
             Dim validRequests As New List(Of NuGetPackageRequest)()
+
+            Dim resolver As SourceReferenceResolver = Nothing
+            If options IsNot Nothing Then
+                resolver = options.SourceResolver
+            End If
+
+            If resolver Is Nothing Then
+                ' No source resolver: nothing to expand #Load against, so scan only the submitted tree.
+                ScanTreeForNuGetDirectives(tree, diagnostics, validRequests, cancellationToken)
+                Return New ScanResult(diagnostics.ToImmutableArray(), DeduplicateRequests(validRequests))
+            End If
+
+            Dim activeLoads As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            If Not String.IsNullOrEmpty(tree.FilePath) Then
+                Dim normalizedMainPath = resolver.NormalizePath(tree.FilePath, Nothing)
+                If normalizedMainPath IsNot Nothing Then
+                    activeLoads.Add(normalizedMainPath)
+                End If
+            End If
+
+            Dim loadedTrees As New List(Of SyntaxTree)()
+            ' Expansion failures (missing / cyclic #Load) are left for the compiler to report at compile
+            ' time; the pre-scan just stops expanding and scans what it already resolved.
+            VisualBasicScriptCompiler.CollectLoadTrees(tree, parseOptions, options, activeLoads, loadedTrees)
+
+            ScanTreeForNuGetDirectives(tree, diagnostics, validRequests, cancellationToken)
+            For Each loadedTree In loadedTrees
+                ScanTreeForNuGetDirectives(loadedTree, diagnostics, validRequests, cancellationToken)
+            Next
+
+            Return New ScanResult(diagnostics.ToImmutableArray(), DeduplicateRequests(validRequests))
+        End Function
+
+        ''' <summary>
+        ''' De-duplicates valid requests by canonical key (id lower-cased + version, C-3): the same package at
+        ''' the same version written twice — including a case variant — feeds a single restore and a single
+        ''' <c>PackageReference</c>. The first directive's location is kept. Two versions of the same id in one
+        ''' submission are both retained so NuGet reports the conflict (NU1107) and the R-3 anchor points at a
+        ''' line that actually references the package.
+        ''' </summary>
+        Private Shared Function DeduplicateRequests(requests As List(Of NuGetPackageRequest)) As ImmutableArray(Of NuGetPackageRequest)
+            Dim seen As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Dim builder = ImmutableArray.CreateBuilder(Of NuGetPackageRequest)()
+            For Each request In requests
+                If seen.Add(request.CanonicalKey) Then
+                    builder.Add(request)
+                End If
+            Next
+            Return builder.ToImmutable()
+        End Function
+
+        ''' <summary>
+        ''' Runs the design §D2 decision table over one tree's <c>#R</c> directives. Each diagnostic/request
+        ''' keeps the directive's own tree location, so a directive in a <c>#Load</c>ed file anchors there.
+        ''' </summary>
+        Private Shared Sub ScanTreeForNuGetDirectives(
+            tree As SyntaxTree,
+            diagnostics As List(Of Diagnostic),
+            validRequests As List(Of NuGetPackageRequest),
+            cancellationToken As CancellationToken)
+
+            Dim root = TryCast(tree.GetRoot(cancellationToken), CompilationUnitSyntax)
+            If root Is Nothing Then
+                Return
+            End If
 
             For Each directive In root.GetReferenceDirectives()
                 cancellationToken.ThrowIfCancellationRequested()
@@ -223,23 +326,31 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
                 ' No prefix attempt; an ordinary path / TPA / GAC bare name, left to the resolver.
             Next
-
-            Return New ScanResult(diagnostics.ToImmutableArray(), validRequests.ToImmutableArray())
-        End Function
+        End Sub
 
         ''' <summary>
         ''' Restore pass (design §E): decides whether the referenced set changed, gates on the .NET SDK,
         ''' deploys and runs one restore through the injectable runner, maps failures to <c>#R</c>-anchored
         ''' diagnostics, and on success reads the assets and writes the session.
         ''' </summary>
-        Private Async Function EnsureRestoredAsync(validRequests As ImmutableArray(Of NuGetPackageRequest), cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
+        Private Async Function EnsureRestoredAsync(submissionRequests As ImmutableArray(Of NuGetPackageRequest), cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
+            ' Merge the submission's directives into the session-cumulative set (R-1). A submission replaces
+            ' the session entries for the ids it mentions and keeps every other previously referenced id, so
+            ' the restore below always sees the whole accumulated graph.
+            Dim merged = MergeSessionRequests(submissionRequests)
+
             Dim keys = New List(Of String)()
-            For Each pkg In validRequests
+            For Each pkg In merged
                 keys.Add(pkg.CanonicalKey)
             Next
             Dim currentKeys = NuGetPackageSet.Normalize(keys)
+            Dim mergedRequests = merged.ToImmutableArray()
 
             If Not NuGetRestorePolicy.ShouldRestore(_lastRestoredKeys, currentKeys) Then
+                ' The accumulated set is unchanged (e.g. a directive was re-typed verbatim); the session
+                ' already describes it, so compile proceeds with no restore. Committing the merge freshens
+                ' request locations for re-typed directives.
+                _sessionRequests = merged
                 Return ImmutableArray(Of Diagnostic).Empty
             End If
 
@@ -251,7 +362,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Dim installedSdks = Await _runner.GetInstalledSdkVersionsAsync(cancellationToken)
             Dim sdkVersion = NuGetSdkResolver.SelectSdkVersion(installedSdks)
             If sdkVersion Is Nothing Then
-                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateSdkMissingDiagnostic(validRequests(0).Location))
+                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateSdkMissingDiagnostic(submissionRequests(0).Location))
             End If
 
             Dim rid = GetRuntimeIdentifier()
@@ -268,7 +379,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Dim projectXml = NuGetProjectGenerator.GenerateProjectXml(
                 host.ShortTargetFramework,
                 net48,
-                validRequests,
+                mergedRequests,
                 runtimeIdentifier:=rid)
             Dim globalJson = NuGetProjectGenerator.GenerateGlobalJson(sdkVersion)
 
@@ -276,11 +387,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Dim outcome = Await _runner.RestoreAsync(restoreRequest, cancellationToken)
 
             If outcome Is Nothing OrElse outcome.ExitCode <> 0 OrElse Not outcome.NuGetCacheWritten Then
-                Dim affected = validRequests(0)
+                ' Failure leaves the session-cumulative set unchanged (the merge above is not committed), so
+                ' an identical submission retries and a later working submission is not poisoned by the id
+                ' that failed. ExitCodeToDiagnostic ties the anchor and message to the package NuGet named.
                 Dim exitCode = If(outcome Is Nothing, -1, outcome.ExitCode)
                 Dim standardError = If(outcome Is Nothing, String.Empty, outcome.StandardError)
-                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.ExitCodeToDiagnostic(
-                    exitCode, standardError, affected.Location, affected.Name, affected.Version))
+                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.ExitCodeToDiagnostic(exitCode, standardError, mergedRequests))
             End If
 
             If outcome.AssetsJsonText Is Nothing Then
@@ -291,39 +403,72 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             ' ReadAssets keys the assets "targets" section by the project's target-framework moniker, which is
             ' the same string written into the temporary project's <TargetFramework> (ShortTargetFramework).
             ' FrameworkNameForRestore stays a cache-key ingredient only; it does not name the assets target.
-            Dim assets = NuGetRestoreAssetsReader.ReadAssets(outcome.AssetsJsonText, host.ShortTargetFramework, rid, validRequests)
+            Dim assets = NuGetRestoreAssetsReader.ReadAssets(outcome.AssetsJsonText, host.ShortTargetFramework, rid, mergedRequests)
             _session.WriteRestoredAssets(assets.CompilePathsByCanonicalKey, assets.RuntimePaths, assets.NativeRootDirectories)
+
+            ' Host-capability blocks below leave both _sessionRequests and _lastRestoredKeys unchanged: the
+            ' restore succeeded but the submission is blocked, so its packages must not poison later
+            ' submissions (they were never compiled/run), while an identical submission re-runs the cheap
+            ' no-op restore and re-reports instead of slipping through.
 
             If net48 AndAlso assets.HasNativeAssets Then
                 ' Host-capability block (design §D2 net48 row): the restore succeeded but the net48 host
-                ' cannot probe native assets. Leave _lastRestoredKeys empty so a later identical submission
-                ' re-runs the cheap no-op restore and re-reports instead of slipping through.
-                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateNet48NativeDiagnostic(validRequests(0).Name, validRequests(0).Location))
+                ' cannot probe native assets.
+                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateNet48NativeDiagnostic(submissionRequests(0).Name, submissionRequests(0).Location))
             End If
 
             If Not net48 Then
                 ' Clarity diagnostics for missing current-RID native assets (design §G2.4). NuGet already did
                 ' the RID fallback; when a referenced package ships native assets for other RIDs only, report
                 ' it up front (anchored at the package's #R line) instead of a later DllNotFoundException.
-                ' Like the net48 row, _lastRestoredKeys is left empty so an identical submission re-reports.
-                Dim missingNative = NuGetMissingNativeAssetsDetector.FindMissingNativeForRid(outcome.AssetsJsonText, rid, validRequests)
+                Dim missingNative = NuGetMissingNativeAssetsDetector.FindMissingNativeForRid(outcome.AssetsJsonText, rid, mergedRequests)
                 If Not missingNative.IsEmpty Then
                     Dim builder = ImmutableArray.CreateBuilder(Of Diagnostic)()
                     For Each missing In missingNative
                         builder.Add(NuGetRestoreDiagnostics.CreateMissingNativeAssetsDiagnostic(
-                            missing.PackageName, rid, missing.CandidateRids, FindRequestLocation(validRequests, missing.PackageName)))
+                            missing.PackageName, rid, missing.CandidateRids, FindRequestLocation(mergedRequests, missing.PackageName)))
                     Next
                     Return builder.ToImmutable()
                 End If
             End If
 
-            ' Runtime handshake (design §G1/§G2): with the loader wired in, push the restored runtime
+            ' Fully successful path: commit the merged set so later submissions merge on top of it, then run
+            ' the runtime handshake (design §G1/§G2) — with the loader wired in, push the restored runtime
             ' (lib) assets and native probe roots into it before the script is compiled and run. Empty root
             ' sets / an absent loader leave the loader untouched.
+            _sessionRequests = merged
             PushSessionAssetsToLoader(assets)
 
             _lastRestoredKeys = currentKeys
             Return ImmutableArray(Of Diagnostic).Empty
+        End Function
+
+        ''' <summary>
+        ''' Merges <paramref name="submission"/> into the session-cumulative set (R-1): every id the
+        ''' submission mentions replaces the session's entry for that id (so a newer version written in a
+        ''' later submission wins and the old one stops being restored), and ids the submission does not
+        ''' mention keep their session entry, making the set cumulative. Two versions of the same id inside
+        ''' one submission are both kept for NuGet to report (NU1107). Never mutates <see cref="_sessionRequests"/>;
+        ''' callers commit the returned list only once the restore they drive succeeds.
+        ''' </summary>
+        Private Function MergeSessionRequests(submission As ImmutableArray(Of NuGetPackageRequest)) As List(Of NuGetPackageRequest)
+            Dim merged As New List(Of NuGetPackageRequest)()
+
+            Dim submissionIds As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            For Each request In submission
+                submissionIds.Add(request.Name)
+            Next
+
+            For Each existing In _sessionRequests
+                If Not submissionIds.Contains(existing.Name) Then
+                    merged.Add(existing)
+                End If
+            Next
+
+            For Each request In submission
+                merged.Add(request)
+            Next
+            Return merged
         End Function
 
         ''' <summary>
@@ -336,6 +481,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             If _loader Is Nothing Then
                 Return
             End If
+
+            ' R-2: the loader reflects exactly this restore's session state. Reset the handshake state first
+            ' so roots/overrides from an earlier restore (an upgraded/downgraded package version, or a graph
+            ' that no longer carries native assets) are replaced rather than accumulated. Managed dependency
+            ' registrations are intentionally not reset — earlier submissions' assemblies stay resolvable.
+            _loader.ResetSessionState()
 
             For Each nativeRoot In assets.NativeRootDirectories
                 _loader.AddNativeProbeRoot(nativeRoot)

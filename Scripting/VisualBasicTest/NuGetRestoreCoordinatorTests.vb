@@ -229,12 +229,301 @@ Public Class NuGetRestoreCoordinatorTests
         Assert.Equal(1, runner.RestoreCalls)
     End Sub
 
+    ' --- F-E: #load expansion pre-scan (design F-E / upstream-merge 2.16) ---
+    '
+    ' A submission (or file script) that #loads a file whose body carries #R "nuget:..." directives used to
+    ' be pre-scanned on the submitted text only, so the loaded file's package was never restored and binding
+    ' failed with BC2017 "could not find library". The coordinator now expands #load through the compilation
+    ' ScriptOptions' source resolver (sharing the compiler's CollectLoadTrees walk) and scans every reachable
+    ' tree. These tests use an in-memory SourceReferenceResolver so nothing touches the disk.
+
+    ' Same real assets shape as ManagedAssetsJson, for a package named Contoso.X.
+    Private Const LoadedPackageAssetsJson As String = "{""packageFolders"":{""C:/nuget/packages/"":{}},""libraries"":{""Contoso.X/1.0.0"":{""type"":""package"",""path"":""contoso.x/1.0.0""}},""targets"":{""net10.0"":{""Contoso.X/1.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.X.dll"":{}},""runtime"":{""lib/net10.0/Contoso.X.dll"":{}}}}}}"
+
+    Private Shared Function OptionsWithMemorySource(files As IEnumerable(Of KeyValuePair(Of String, String))) As ScriptOptions
+        Return ScriptOptions.Default.WithSourceResolver(New MemorySourceResolver(files))
+    End Function
+
+    <Fact>
+    Public Sub LoadNestedNuGetDirectiveTriggersRestore()
+        ' Regression for the user repro: #load "b.vbx" whose body has #R "nuget:Contoso.X, 1.0.0" must be
+        ' pre-scanned so the package is restored before compilation (diagnostics stay empty).
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=LoadedPackageAssetsJson)
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/b.vbx", "#R " & Quote & "nuget:Contoso.X, 1.0.0" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/b.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub LoadNestedNuGetDirectiveDiagnosticAnchorsInLoadedTree()
+        ' A classification diagnostic for a directive inside the loaded file must anchor in that file's tree
+        ' (path + line), not in the submitted text.
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession())
+        Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/b.vbx", "' loaded helper" & vbCrLf & "#R " & Quote & "nuget:Contoso.X" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/b.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.Equal(1, diagnostics.Length)
+        Assert.Equal("VBI1001", diagnostics(0).Id)
+        Assert.Equal("/mem/b.vbx", diagnostics(0).Location.GetLineSpan().Path)
+        Assert.Equal(1, diagnostics(0).Location.GetLineSpan().StartLinePosition.Line)
+    End Sub
+
+    <Fact>
+    Public Sub DeepNestedLoadNuGetDirectiveTriggersRestore()
+        ' Depth-first expansion: main #loads b, b #loads c, c carries the nuget directive. Only the deepest
+        ' loaded tree has the request, so the whole chain must be expanded for the restore to fire.
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=LoadedPackageAssetsJson)
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource({
+            New KeyValuePair(Of String, String)("/mem/b.vbx", "#load " & Quote & "/mem/c.vbx" & Quote),
+            New KeyValuePair(Of String, String)("/mem/c.vbx", "#R " & Quote & "nuget:Contoso.X, 1.0.0" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/b.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub MainNuGetDirectiveWithoutLoadStillRestoredWithOptions()
+        ' Regression: a nuget #R directly in the submitted text (no #load anywhere) keeps working when the
+        ' options-carrying seam shape is used.
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=ManagedAssetsJson)
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource(Array.Empty(Of KeyValuePair(Of String, String))())
+
+        Dim code = "#R " & Quote & "nuget:Contoso.Lib, 2.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub NoNuGetNoLoadSubmissionWithOptionsTriggersNothing()
+        Dim runner As New FakeRestoreRunner()
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource(Array.Empty(Of KeyValuePair(Of String, String))())
+
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From("? 1"), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(0, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub NullOptionsLegacyShapeStillScansAndRestores()
+        ' options:=Nothing must behave exactly like the original seam shape: scan the submitted text only
+        ' (no #load expansion) and still restore a direct nuget directive.
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=ManagedAssetsJson)
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+
+        Dim code = "#R " & Quote & "nuget:Contoso.Lib, 2.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", Nothing, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub SelfLoadCycleTerminatesWithoutRestore()
+        ' A loaded file that #loads itself must stop expanding (the compiler later reports the cyclic load);
+        ' the pre-scan must not hang and must not fire a restore.
+        Dim runner As New FakeRestoreRunner()
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/b.vbx", "#load " & Quote & "/mem/b.vbx" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/b.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(0, runner.RestoreCalls)
+    End Sub
+
+    <Fact>
+    Public Sub MainFileSelfLoadCycleTerminatesWithoutRestore()
+        ' When the submission is a file script (filePath set), the main path is seeded into the active-load
+        ' set so a #load of the main file itself is a cycle and stops expanding.
+        Dim runner As New FakeRestoreRunner()
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
+        Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/main.vbx", "? 1")})
+
+        Dim code = "#load " & Quote & "/mem/main.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "/mem/main.vbx", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        Assert.True(diagnostics.IsEmpty)
+        Assert.Equal(0, runner.RestoreCalls)
+    End Sub
+
+    ' --- R-3: restore-failure anchor must point at the package NuGet named in stderr, not the first #R ---
+
+    <Fact>
+    Public Sub RestoreFailureAnchorsToThePackageNuGetNamedInStderr()
+        ' A two-package submission where the second #R names a package NuGet cannot find. The diagnostic
+        ' must name and anchor Contoso.Missing (line 2), not the first request Contoso.Good (line 1).
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=1, standardError:="error NU1101: Unable to find package Contoso.Missing. No packages exist with this id in source(s): nuget.org", nuGetCacheWritten:=False, assetsJsonText:=Nothing)
+
+        Dim code = "#R " & Quote & "nuget:Contoso.Good, 1.0.0" & Quote & vbCrLf &
+                   "#R " & Quote & "nuget:Contoso.Missing, 9.9.9" & Quote & vbCrLf &
+                   "? 1"
+        Dim diags = RestoreScanDiagnostics(code, runner)
+
+        Assert.Equal(1, diags.Length)
+        Assert.Equal("VBI1007", diags(0).Id)
+        Assert.Contains("Contoso.Missing", diags(0).GetMessage())
+        Assert.Equal(1, diags(0).Location.GetLineSpan().StartLinePosition.Line)
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    ' --- C-3: same-submission duplicate #R de-duplication ---
+
+    <Fact>
+    Public Sub DuplicateSamePackageSameVersionInOneSubmissionRestoresOnce()
+        ' The same package (case variant of the id, same version) written twice must feed a single restore
+        ' and a single PackageReference instead of two identical references (NU1504 noise).
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=ManagedAssetsJson)
+
+        Dim code = "#R " & Quote & "nuget:Contoso.Lib, 2.0.0" & Quote & vbCrLf &
+                   "#R " & Quote & "NuGet:contoso.lib, 2.0.0 " & Quote & vbCrLf &
+                   "? 1"
+        Dim diags = RestoreScanDiagnostics(code, runner)
+
+        Assert.True(diags.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+        Assert.Equal(1, CountOccurrences(runner.LastRequest.ProjectXml, "PackageReference Include=" & Quote & "Contoso.Lib"))
+    End Sub
+
+    <Fact>
+    Public Sub TwoVersionsOfSamePackageInOneSubmissionKeepsBothAndReportsNu1107()
+        ' Two different versions of the same id in one submission are both kept (not de-duplicated), so the
+        ' restore project carries two PackageReference entries and NuGet's NU1107 conflict is translated to a
+        ' diagnostic anchored at a line that actually references the package.
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcome = New RestoreOutcome(exitCode:=1, standardError:="error NU1107: Version conflict detected for Contoso.Lib. Direct dependency Contoso.Lib 1.0.0 requested Contoso.Lib 2.0.0.", nuGetCacheWritten:=False, assetsJsonText:=Nothing)
+
+        Dim code = "#R " & Quote & "nuget:Contoso.Lib, 1.0.0" & Quote & vbCrLf &
+                   "#R " & Quote & "nuget:Contoso.Lib, 2.0.0" & Quote & vbCrLf &
+                   "? 1"
+        Dim diags = RestoreScanDiagnostics(code, runner)
+
+        Assert.Equal(1, diags.Length)
+        Assert.Equal("VBI1009", diags(0).Id)
+        Assert.Contains("NU1107", diags(0).GetMessage())
+        Assert.Equal(0, diags(0).Location.GetLineSpan().StartLinePosition.Line)
+        Assert.Equal(2, CountOccurrences(runner.LastRequest.ProjectXml, "PackageReference Include=" & Quote & "Contoso.Lib"))
+        Assert.Equal(1, runner.RestoreCalls)
+    End Sub
+
+    ' --- R-1: session-cumulative package set (REPL cross-submission) ---
+
+    Private Const CumulativeUnionJson As String = "{""packageFolders"":{""C:/nuget/packages/"":{}},""libraries"":{""Contoso.Lib/2.0.0"":{""type"":""package"",""path"":""contoso.lib/2.0.0""},""Contoso.B/1.0.0"":{""type"":""package"",""path"":""contoso.b/1.0.0""}},""targets"":{""net10.0"":{""Contoso.Lib/2.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.Lib.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Lib.dll"":{}}},""Contoso.B/1.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.B.dll"":{}},""runtime"":{""lib/net10.0/Contoso.B.dll"":{}}}}}}"
+
+    <Fact>
+    Public Sub SessionAccumulatesPackagesAcrossSubmissionsAndRestoresUnion()
+        ' REPL semantics (R-1, README "累积会话包集合"): a later submission that references a new package
+        ' restores the union of every package referenced so far in one NuGet invocation, so shared transitive
+        ' dependencies are resolved on a unified graph and the session keeps serving earlier packages.
+        Dim runner As New FakeRestoreRunner()
+        runner.Outcomes = New RestoreOutcome() {
+            New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=ManagedAssetsJson),
+            New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=CumulativeUnionJson)}
+        Dim session As New NuGetPackageSession()
+        Dim coordinator As New NuGetRestoreCoordinator(session, runner:=runner)
+
+        Dim first = "#R " & Quote & "nuget:Contoso.Lib, 2.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics1 = coordinator.PrepareCompilationAsync(SourceText.From(first), "", CancellationToken.None).GetAwaiter().GetResult()
+        Assert.True(diagnostics1.IsEmpty)
+        Assert.Equal(1, runner.RestoreCalls)
+
+        Dim second = "#R " & Quote & "nuget:Contoso.B, 1.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics2 = coordinator.PrepareCompilationAsync(SourceText.From(second), "", CancellationToken.None).GetAwaiter().GetResult()
+        Assert.True(diagnostics2.IsEmpty)
+        Assert.Equal(2, runner.RestoreCalls)
+
+        ' The second restore ran against the accumulated union (Contoso.Lib from the first submission plus
+        ' the new Contoso.B), not just the current submission's delta.
+        Assert.Contains("Contoso.Lib", runner.LastRequest.ProjectXml)
+        Assert.Contains("Contoso.B", runner.LastRequest.ProjectXml)
+
+        ' The session keeps serving both packages.
+        Assert.False(session.TryGetCompilePaths("Contoso.Lib", "2.0.0").IsDefaultOrEmpty)
+        Assert.False(session.TryGetCompilePaths("Contoso.B", "1.0.0").IsDefaultOrEmpty)
+    End Sub
+
+    Private NotInheritable Class MemorySourceResolver
+        Inherits SourceReferenceResolver
+
+        Private ReadOnly _files As ImmutableDictionary(Of String, String)
+
+        Friend Sub New(files As IEnumerable(Of KeyValuePair(Of String, String)))
+            _files = ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, files)
+        End Sub
+
+        Public Overrides Function NormalizePath(path As String, baseFilePath As String) As String
+            ' In-memory namespace keys are already normalized absolute paths.
+            Return path
+        End Function
+
+        Public Overrides Function ResolveReference(path As String, baseFilePath As String) As String
+            If path Is Nothing Then
+                Return Nothing
+            End If
+            If _files.ContainsKey(path) Then
+                Return path
+            End If
+            ' Relative reference: resolve against the directory of the loading tree, mirroring how the real
+            ' file resolver combines a #load path with the referring file's location.
+            If Not String.IsNullOrEmpty(baseFilePath) Then
+                Dim slash = baseFilePath.LastIndexOf("/"c)
+                Dim dir = If(slash >= 0, baseFilePath.Substring(0, slash + 1), "")
+                Dim candidate = dir & path
+                If _files.ContainsKey(candidate) Then
+                    Return candidate
+                End If
+            End If
+            Return Nothing
+        End Function
+
+        Public Overrides Function OpenRead(resolvedPath As String) As IO.Stream
+            Return New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(_files(resolvedPath)))
+        End Function
+
+        Public Overrides Function ReadText(resolvedPath As String) As SourceText
+            Return SourceText.From(_files(resolvedPath))
+        End Function
+
+        Public Overrides Function Equals(obj As Object) As Boolean
+            Return ReferenceEquals(Me, obj)
+        End Function
+
+        Public Overrides Function GetHashCode() As Integer
+            Return _files.Count
+        End Function
+    End Class
+
     Private NotInheritable Class FakeRestoreRunner
         Implements IRestoreRunner
 
         Public Property SdkVersions As String() = New String() {"10.0.100"}
         Public Property Outcome As RestoreOutcome
+        Public Outcomes As RestoreOutcome() = Nothing
         Public RestoreCalls As Integer
+        Public LastRequest As RestoreRequest
+        Private _outcomeIndex As Integer
 
         Public Function GetInstalledSdkVersionsAsync(cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of String)) Implements IRestoreRunner.GetInstalledSdkVersionsAsync
             Return Task.FromResult(SdkVersions.ToImmutableArray())
@@ -242,9 +531,29 @@ Public Class NuGetRestoreCoordinatorTests
 
         Public Function RestoreAsync(request As RestoreRequest, cancellationToken As CancellationToken) As Task(Of RestoreOutcome) Implements IRestoreRunner.RestoreAsync
             RestoreCalls += 1
+            LastRequest = request
+            If Outcomes IsNot Nothing AndAlso _outcomeIndex < Outcomes.Length Then
+                Dim outcome = Outcomes(_outcomeIndex)
+                _outcomeIndex += 1
+                Return Task.FromResult(outcome)
+            End If
             Return Task.FromResult(Outcome)
         End Function
     End Class
+
+    Private Shared Function CountOccurrences(text As String, value As String) As Integer
+        Dim count = 0
+        Dim index = 0
+        While True
+            index = text.IndexOf(value, index, StringComparison.Ordinal)
+            If index < 0 Then
+                Exit While
+            End If
+            count += 1
+            index += value.Length
+        End While
+        Return count
+    End Function
 
     Private Shared Function CreateRunner(Optional input As String = "", Optional coordinator As INuGetRestoreCoordinator = Nothing) As CommandLineRunner
         Dim io As New TestConsoleIO(input)
@@ -274,7 +583,7 @@ Public Class NuGetRestoreCoordinatorTests
 
         Public RestoreAttempted As Boolean
 
-        Public Function PrepareCompilationAsync(code As SourceText, filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
+        Public Function PrepareCompilationAsync(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
             If code.ToString().IndexOf("nuget", StringComparison.OrdinalIgnoreCase) >= 0 Then
                 RestoreAttempted = True
                 Throw New InvalidOperationException("A nuget restore must not be attempted for this submission.")

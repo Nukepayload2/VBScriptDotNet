@@ -122,6 +122,90 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Return Diagnostic.Create(s_restoreFailed, location, summary, exitCode.ToString())
         End Function
 
+        ''' <summary>
+        ''' Restore-failure diagnostic resolved against the request set being restored (design §E3). Unlike
+        ''' the raw overload, it ties the <c>#R</c> anchor and the message package identity to whichever
+        ''' requested package NuGet actually named in <paramref name="stderr"/> (NU1101 / NU1107), so a
+        ''' multi-package submission no longer anchors the first request while the message names a later one.
+        ''' When NuGet names a package outside the requests (e.g. a missing transitive dependency) or no id
+        ''' can be extracted, the anchor falls back to the most recently added request and the message falls
+        ''' back to the exit-code summary instead of claiming a specific requested package failed.
+        ''' </summary>
+        Friend Shared Function ExitCodeToDiagnostic(
+            exitCode As Integer,
+            stderr As String,
+            requests As ImmutableArray(Of NuGetPackageRequest)) As Diagnostic
+
+            Dim anchor As Location = Location.None
+            If Not requests.IsDefaultOrEmpty Then
+                ' The last entry is the request that most recently joined the session set; when NuGet does
+                ' not name one of our requests it is the best guess for what broke this restore.
+                anchor = requests(requests.Length - 1).Location
+            End If
+
+            Dim mentionedId = TryExtractPackageId(stderr)
+            If mentionedId IsNot Nothing Then
+                For Each request In requests
+                    If String.Equals(request.Name, mentionedId, StringComparison.OrdinalIgnoreCase) Then
+                        Return ExitCodeToDiagnostic(exitCode, stderr, request.Location, request.Name, request.Version)
+                    End If
+                Next
+            End If
+
+            If ContainsOrdinalIgnoreCase(stderr, "NU1101") OrElse ContainsOrdinalIgnoreCase(stderr, "NU1107") Then
+                ' The failing id is not one of the direct requests; surface the raw NuGet line (it names the
+                ' real package) rather than a package-not-found message with an empty identity.
+                Return Diagnostic.Create(s_restoreFailed, anchor, FirstNonEmptyLine(stderr), exitCode.ToString())
+            End If
+
+            Return ExitCodeToDiagnostic(exitCode, stderr, anchor, String.Empty, String.Empty)
+        End Function
+
+        ''' <summary>
+        ''' Best-effort extraction of the package id NuGet named as failing in <paramref name="stderr"/>
+        ''' (NU1101 "Unable to find package X", NU1107 "Version conflict detected for X"). Returns Nothing
+        ''' when no marker is present or no id token follows. Pure, no file access.
+        ''' </summary>
+        Friend Shared Function TryExtractPackageId(stderr As String) As String
+            If String.IsNullOrEmpty(stderr) Then
+                Return Nothing
+            End If
+
+            Dim markers As String() = {
+                "unable to find package ",
+                "version conflict detected for "}
+            For Each marker In markers
+                Dim markerIndex = stderr.IndexOf(marker, StringComparison.OrdinalIgnoreCase)
+                If markerIndex < 0 Then
+                    Continue For
+                End If
+
+                Dim start = markerIndex + marker.Length
+                While start < stderr.Length AndAlso (stderr.Chars(start) = "'"c OrElse stderr.Chars(start) = """"c OrElse stderr.Chars(start) = " "c)
+                    start += 1
+                End While
+                If start >= stderr.Length Then
+                    Continue For
+                End If
+
+                Dim endIndex = start
+                While endIndex < stderr.Length AndAlso Not Char.IsWhiteSpace(stderr.Chars(endIndex))
+                    endIndex += 1
+                End While
+                If endIndex <= start Then
+                    Continue For
+                End If
+
+                ' A NuGet id can contain '.' and '-' but never whitespace; trailing punctuation (period that
+                ' terminates the sentence, quotes, comma) is trimmed off.
+                Dim id = stderr.Substring(start, endIndex - start).TrimEnd("."c, ","c, ";"c, ":"c, "'"c, """"c)
+                If id.Length > 0 Then
+                    Return id
+                End If
+            Next
+            Return Nothing
+        End Function
+
         Private Shared Function IsNetworkFailure(stderr As String) As Boolean
             Dim markers = New String() {
                 "NU1301",

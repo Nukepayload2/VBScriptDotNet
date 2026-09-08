@@ -154,7 +154,7 @@ Public Class NoNuGetZeroRegressionTests
         Public SubmissionsSeen As Integer
         Public RestoreAttempted As Boolean
 
-        Public Function PrepareCompilationAsync(code As SourceText, filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
+        Public Function PrepareCompilationAsync(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
             SubmissionsSeen += 1
             If code.ToString().IndexOf("nuget", StringComparison.OrdinalIgnoreCase) >= 0 Then
                 RestoreAttempted = True

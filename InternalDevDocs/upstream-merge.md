@@ -146,6 +146,28 @@
 - 合并前评估义务：合并前读本条目对 `InteractiveAssemblyLoader` 两处私有 `FindHighestVersionOrFirstMatchingIdentity` 与新增 internal `ResolveBestDefinitionIndex` 做 3-way 评审；上游若日后以其它形状实现同款版本统一或改动上述方法，按上游形状对齐并回退本 fork 改法。新单测锁定选择策略（`Scripting\VisualBasicTest\NuGetRuntimeHandshakeTests.vb` F-D 节，纯函数零 I/O + 一例真实已加载程序集解析）。
 - 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（运行时 loader seam）；修复 F-B 记录的 P-008 已知限制（`tmp/vortex-logs/vbi-nuget-runtime-handshake/pitfalls.md` 已追加 P-008 裁决）。
 
+### 2.16 Scripting Core NuGet 协调 seam 增带 ScriptOptions + #Load 预扫描展开（修改）
+
+- `Scripting\Core\Hosting\CommandLine\INuGetRestoreCoordinator.cs`（修改）—— `PrepareCompilationAsync` 签名由 `(SourceText code, string? filePath, CancellationToken)` 改为 `(SourceText code, string? filePath, ScriptOptions? options, CancellationToken)`（`:32`）；`options` 为编译该提交将用的 `ScriptOptions`，null = 旧形状（只扫提交文本，不展开 `#Load`）。接口仍 internal，零公共面。
+- `Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs`（修改）—— 私有 helper `RestoreNuGetReferencesAsync`（`:230`）与三调用点（文件脚本 `:156`、REPL 初提交 `:283`、REPL 每提交 `:344`）均透传当前 `scriptOptions`/`options`；coordinator 为 null 时 helper 短路 `Empty`，行为与 seam 前逐字节一致。
+- `Scripting\VisualBasic\VisualBasicScriptCompiler.vb`（修改）—— 原私有 `LoadReferencedTrees`（抛 `CompilationErrorException`）提为 **Friend Shared** `CollectLoadTrees`（`:73-110`）：同一 DFS `#Load` 展开（resolver 解析 + 循环 activeLoads 防护 + depth-first 收集），遇首个不可解析/循环 `#Load` 返回其 file-not-found 诊断而不再内抛，由调用方决定如何浮出；`CreateSubmission`（`:195-197`）收到诊断仍 `ThrowLoadDirectiveError`（行为与改动前一致）。共享单点防编译器与宿主预扫描两份拷贝漂移。
+- `Scripting\VisualBasic\Hosting\NuGetRestoreCoordinator.vb`（修改）—— `ScanSubmission`（`:175`）在 options 非 null 时以 `options.ParseOptions`/`options.SourceResolver` 解析主树并调 `VisualBasicScriptCompiler.CollectLoadTrees`（`:218`）展开 `#Load`，主树与所有可达树逐棵经 `ScanTreeForNuGetDirectives`（`:232`）扫 `#R` 分类（决策表不变）；被 load 文件的 `#R` 诊断/restore 锚定位到各自树的路径与行。展开失败（缺文件/循环）不阻塞预扫描——留给编译器在编译期报 ERR_FileNotFound。保留 3 参重载（`:136-137`）＝ options 为 Nothing 的旧形状（只扫提交文本），既有调用/测试零改动。
+- 改动形状：接口 internal 加参 + VB 宿主 Friend；`PublicAPI.*` 零动；options 为 null / 无 `#Load` / 无 nuget 引用时行为与 seam 前一致（预扫描短路空返）。
+- 折抵：修复「`#Load` 嵌套 `#R "nuget:…"` 不 restore → 编译绑定期 BC2017 找不到库」：coordinator 之前只扫提交文本，被 load 文件里的 nuget 指令从没进预扫描；现与编译器共享同一展开逻辑，restore 先于编译完成。单测以 in-memory `SourceReferenceResolver` 覆盖（无磁盘/网络/spawn），真跑（REPL `#load` AvaloniaCalculator / 文件脚本 `#load` nuget helper）均 EXIT 0、无 BC2017。
+- 合并前评估义务：合并前读本条目对 `INuGetRestoreCoordinator` 签名、`CommandLineRunner` 三调用点、`VisualBasicScriptCompiler.CollectLoadTrees`（含 `LoadReferencedTrees` 重构）与 `NuGetRestoreCoordinator.ScanSubmission` 做 3-way 评审；上游若日后以其它形状实现 host 注入或改动上述签名/`#Load` 展开，按上游形状对齐并回退本 fork 改法。
+- 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §D（宿主驱动环 + 诊断锚定）；修复用户实锤 REPL `#load` 含 nuget 的 `.vbx` 报 BC2017 的 bug（F-E）。
+
+### 2.17 Scripting Core loader NuGet 会话状态替换 seam：`ResetSessionState`（修改）
+
+- `Scripting\Core\Hosting\AssemblyLoader\InteractiveAssemblyLoader.cs`（修改，public sealed partial）—— 新增 **internal** `ResetSessionState()`：清 native 探测根（下推 `_runtimeAssemblyLoader.ResetNativeProbeRoots()`）+ 清 runtime-path override 表（`_runtimePathOverrides` 置空，锁内）；**托管依赖注册（`_dependenciesWithLocationBySimpleName` / `_loadedAssembliesBySimpleName`）不清**——前序 REPL 提交已加载程序集仍需解析。不新增 public 面（`PublicAPI.*` 零动）。
+- `Scripting\Core\Hosting\AssemblyLoader\AssemblyLoaderImpl.cs`（修改）—— 基类加 internal virtual `ResetNativeProbeRoots()`（默认 no-op；net48 Desktop 不探测）。
+- `Scripting\Core\Hosting\AssemblyLoader\CoreAssemblyLoaderImpl.cs`（修改）—— override `ResetNativeProbeRoots()` 把共享根集 `_nativeProbeRoots` 置空。
+- VB 宿主配套（本地 Friend，不入上游路径）—— `NuGetRestoreCoordinator.PushSessionAssetsToLoader` 每次成功 restore 推送前先 `ResetSessionState()` 再推本次会话根集/覆盖表；结合 R-1 会话累积包集合语义，升降级/移除 native 包后旧根与旧 override 不再残留，空根/空覆盖 = 现状零行为。
+- 改动形状：internal/Friend 面，零公共面（`PublicAPI.*` 零动）；空根集/空覆盖表下行为与 seam 前逐字节一致。
+- 折抵：REPL 长会话内 loader 的 NuGet 握手状态由「单调累积」改为「每次成功 restore 后替换为本次会话集」；托管依赖保留累积（不能卸载已加载程序集，且前序提交仍需运行）。单测 `NuGetRuntimeHandshakeTests.LoaderResetClearsNativeRootsAndOverridesButKeepsDependencyRegistrations` / `...CoordinatorReplacesLoaderOverridesAcrossVersionUpgrade` 锁定（R-2）。
+- 合并前评估义务：合并前读本条目对 `InteractiveAssemblyLoader`（internal `ResetSessionState`）、`AssemblyLoaderImpl`/`CoreAssemblyLoaderImpl`（internal virtual/override `ResetNativeProbeRoots`）做 3-way 评审；上游若日后以其它形状实现同款替换语义或改动上述方法，按上游形状对齐并回退本 fork 改法；VB Hosting 配套为本地私有 Friend，不与上游路径冲突。
+- 对应设计：`tasks\vbi-nuget-reference\design-detailed.md` §G（net10 native loader seam / 运行期注册）；修复 VB 老登复查 R-2（REPL 升降级 loader 状态残留，F-G）。
+
 ## 三、合并步骤
 
 1. **拉取上游**：`git -C {{Roslyn}} fetch origin release/stable`，记录新 commit 到「一、上游基准」。

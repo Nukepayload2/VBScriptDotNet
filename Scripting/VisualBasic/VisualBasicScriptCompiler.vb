@@ -63,16 +63,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Throw New CompilationErrorException(diagnostic.GetMessage(), ImmutableArray.Create(diagnostic))
         End Sub
 
-        Private Shared Sub LoadReferencedTrees(
+        ''' <summary>
+        ''' Shared <c>#Load</c> expansion (also used by the NuGet host pre-scan so its walk of loaded trees
+        ''' cannot drift from the compiler's): depth-first so nested <c>#Load</c> trees precede their referrer,
+        ''' matching execution order. On the first unresolvable or cyclic <c>#Load</c> the walk stops and
+        ''' returns that directive's file-not-found diagnostic; the caller decides how to surface it (the
+        ''' compiler throws it as a <see cref="CompilationErrorException"/>; a pre-scan just stops expanding).
+        ''' </summary>
+        Friend Shared Function CollectLoadTrees(
             tree As SyntaxTree,
             parseOptions As ParseOptions,
             options As ScriptOptions,
-            loadedTrees As List(Of SyntaxTree),
-            activeLoads As HashSet(Of String))
+            activeLoads As HashSet(Of String),
+            loadedTrees As List(Of SyntaxTree)) As Diagnostic
 
             Dim root = TryCast(tree.GetRoot(), CompilationUnitSyntax)
             If root Is Nothing Then
-                Return
+                Return Nothing
             End If
 
             Dim resolver = options.SourceResolver
@@ -85,19 +92,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                 Dim baseFilePath = If(String.IsNullOrEmpty(tree.FilePath), Nothing, tree.FilePath)
                 Dim resolvedPath = resolver.ResolveReference(path, baseFilePath)
                 If resolvedPath Is Nothing OrElse Not activeLoads.Add(resolvedPath) Then
-                    ThrowLoadDirectiveError(
-                        Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, path).WithLocation(directive.File.GetLocation()))
+                    Return Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, path).WithLocation(directive.File.GetLocation())
                 End If
 
                 Dim loadedText = resolver.ReadText(resolvedPath)
                 Dim loadedTree = SyntaxFactory.ParseSyntaxTree(loadedText, parseOptions, resolvedPath)
 
                 ' Depth-first so that nested #Load trees precede their referrer, matching execution order.
-                LoadReferencedTrees(loadedTree, parseOptions, options, loadedTrees, activeLoads)
+                Dim childDiagnostic = CollectLoadTrees(loadedTree, parseOptions, options, activeLoads, loadedTrees)
+                If childDiagnostic IsNot Nothing Then
+                    Return childDiagnostic
+                End If
                 activeLoads.Remove(resolvedPath)
                 loadedTrees.Add(loadedTree)
             Next
-        End Sub
+
+            Return Nothing
+        End Function
 
         Private Shared Function GetGlobalImportsForCompilation(script As Script) As IEnumerable(Of GlobalImport)
             Dim importNames = New List(Of String)()
@@ -181,7 +192,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                     activeLoads.Add(normalizedMainPath)
                 End If
             End If
-            LoadReferencedTrees(tree, parseOptions, script.Options, trees, activeLoads)
+            Dim loadDiagnostic = CollectLoadTrees(tree, parseOptions, script.Options, activeLoads, trees)
+            If loadDiagnostic IsNot Nothing Then
+                ThrowLoadDirectiveError(loadDiagnostic)
+            End If
             trees.Add(tree)
 
             ' create compilation:

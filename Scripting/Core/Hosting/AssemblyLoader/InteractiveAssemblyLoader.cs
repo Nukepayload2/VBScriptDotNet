@@ -166,6 +166,23 @@ namespace Microsoft.CodeAnalysis.Scripting.Hosting
         }
 
         /// <summary>
+        /// Replaces the NuGet runtime-handshake session state on the loader: native probe roots and
+        /// runtime-path overrides pushed by an earlier restore are cleared so the next push installs
+        /// exactly the current session's set (design §G). Dependency registrations are deliberately kept:
+        /// assemblies loaded for earlier submissions must stay resolvable for the rest of the REPL
+        /// session. An empty root set / override table is the no-nuget default, so a reset followed by an
+        /// empty push leaves the loader indistinguishable from one that never had the handshake.
+        /// </summary>
+        internal void ResetSessionState()
+        {
+            _runtimeAssemblyLoader.ResetNativeProbeRoots();
+            lock (_referencesLock)
+            {
+                _runtimePathOverrides = ImmutableDictionary<string, string>.Empty;
+            }
+        }
+
+        /// <summary>
         /// Registered dependency locations for <paramref name="simpleName"/> in registration order (design
         /// §G1; used by tests to assert the runtime override redirected the compile asset).
         /// </summary>

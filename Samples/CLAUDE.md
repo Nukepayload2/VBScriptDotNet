@@ -10,7 +10,10 @@ VBScript.NET (.vbx) scripts are powerful lightweight scripts that combine the si
 - Full access to .NET runtime libraries and COM objects
 
 ### Target Framework Specification
-Use comments to specify target framework when needed. The default target framework is .NET 8. The following code sets target framework to .NET Framework:
+Scripts run on the vbi host that launches them, and the engine mirrors that running host's target
+framework (for example the .NET 10 host compiles and restores NuGet packages against `net10.0`; the
+engine does not read a header comment). A header comment such as `'Attribute TargetFramework = "net48"`
+is honored by the outer launcher only, which uses it to dispatch the script to a matching host process:
 ```vb
 'Attribute TargetFramework = "net48"
 ```
@@ -50,10 +53,12 @@ NuGet packages use the same directive with a `nuget:` prefix:
 ```
 The prefix is case-insensitive; the package id and version are separated by a comma (segments are
 trimmed), and a version is expected so restores are reproducible (floating specs like `8.0.*` are
-allowed). On the .NET (net10) host vbi restores the package set with `dotnet restore` on first use,
-then references the whole restored closure. This `#R "nuget:"` script form is distinct from the
-official file-based `#:package id@version` syntax; the two are not interchangeable. See
-`Samples/SqliteNuGetDemo.vbx` for a native-library demo.
+allowed, but the first resolved version is cached and frozen — NuGet no-op restore does not re-check
+for newer releases, so change the spec or clear the vbi nuget-restore cache to pick one up). On the
+.NET (net10) host vbi restores the package set with `dotnet restore` on first use, then references the
+whole restored closure. This `#R "nuget:"` script form is distinct from the official file-based
+`#:package id@version` syntax; the two are not interchangeable. See `Samples/SqliteNuGetDemo.vbx` for a
+native-library demo.
 
 ### 4. Import Statements
 Standard VB.NET imports:

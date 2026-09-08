@@ -205,6 +205,8 @@ TryParsePackageReference(reference, out name, out version):
 - 决策表每行有对应测试/验收：版本缺失、前缀格式、空包名、疑似拼错、宿主平台包范围外、SDK 缺失、NU 转译各至少一例，断言诊断锚 `#R` 行（`Location.GetLineSpan` 行号 = 该 `#R` 行）。net48 native 能力行经 **hostCapability 注入**（§C2，net10 单测注入 net48 即达）+ fake runner 产出 native 资产到达；NU/SDK/网络经 **fake runner** 返固定退出码到达；宿主平台包范围外行喂 `nuget:Microsoft.WindowsAppSDK` 断言报范围外诊断且不进集合不 restore——均无真实 restore/进程。
 - U6-A 负测试：`/r:nuget:…` 编译不触发还原、不报 nuget 专属诊断。
 
+> **实现注记（R-3 / C-3 收口，2026-09-08）**：R-3——restore 失败诊断不再一律锚 `validRequests(0)`；`NuGetRestoreDiagnostics.ExitCodeToDiagnostic` 增 request-list 重载，从 stderr 解析 NuGet 指名的失败包 id（`TryExtractPackageId`，NU1101「Unable to find package X」/ NU1107「Version conflict detected for X」），锚到该包自己的 `#R` 行并让消息指名它；解析不到（如缺传递依赖）则回退锚最近加入请求 + 走 exit-code 摘要、不臆测指名。C-3——预扫描对合法请求按 canonical key（id 大小写不敏感 + version）**去重**（同提交同包同版本多条 → 一条、保首条位置，`DeduplicateRequests`），同包不同版本仍都保留进工程 → restore 报 NU1107 转译（此时锚经 R-3 指向失败行）。
+
 ---
 
 ## E. 会话临时工程 + 缓存（R2/U2/U3/U4/U8 + E7）
@@ -225,7 +227,7 @@ key = hash(
 | TFM + windows 平台版本 | **宿主供参**：读运行中 vbi 程序集 `TargetFrameworkAttribute` + 每宿主常量表兜底（U8-A）；不读 `.vbx` 头部声明注释（该注释由外层 launcher 派发进程，引擎不读） |
 | RID | 当前进程 RID（`RuntimeInformation.RuntimeIdentifier`；restore 时由 NuGet 按图选，key 记宿主 RID） |
 | 解析后 SDK 版本 | `dotnet --list-sdks` 选版本 + `global.json` `rollForward` 结算（见 E3） |
-| 还原源指纹 | 用户级/机器级 `nuget.config` 源集合的稳定指纹 |
+| 还原源指纹 | **仅测试注入**：`NuGetRestoreCoordinator` ctor 可选参 `sourceFingerprint` 接受它并计入 key（`NuGetRestoreCache.ComputeKey` 吃该参）；**生产装配恒空串**——`VisualBasicScript.RunInteractiveAsync` 建协调器时不传该参（只传 loader），v1 不读 `nuget.config`。因此跨源同 key 复用缓存依赖 NuGet no-op 的「验证包文件在盘」重验（E7），新源新包靠清缓存/改 spec 拾取（D-2 同口径）。源指纹真正接线留待未来（成本高，需算 nuget.config 稳定指纹），本行已与实码一致，不悬空 |
 | 框架引用镜像 | 需要镜像的 FrameworkReference（如 WindowsDesktop/WinUI）清单 |
 | 浮动版本（U3-B） | key **含请求 spec**（如 `13.0.*`），不写回具体版、不换 key；dgspec 不变则 NuGet 冻结上次解析 |
 | 脚本源码 | **不进 key**（restore 是包集合的纯函数） |
@@ -249,6 +251,8 @@ key = hash(
 | 本进程内包集合与上次 exit-0 相同 | skip，零调用 |
 | 集合变化（新增/改版） | 必调（非 NuGet 不可算；顺带自愈上次坏档） |
 | 跨进程重跑同 key | v1 总调（NuGet no-op 廉价重验包在盘，E7） |
+
+> **实现注记（R-1 收口，2026-09-08）**：上表「集合」在 REPL/文件脚本长会话里是**会话累积集**，非当前提交 delta——协调器把每提交的 `#R` 并入 `_sessionRequests`（提交提到的 id 替换旧版本、未提到保留），restore 触发/临时工程/资产读取都按累积集（`EnsureRestoredAsync` 先 `MergeSessionRequests` 再建工程）。语义定稿与残留限制见 `README.md`「REPL 跨提交包集合语义（R-1 定稿）」；单测 `NuGetRestoreCoordinatorTests.SessionAccumulatesPackagesAcrossSubmissionsAndRestoresUnion` 钉住。
 
 - **唯一有效信号** = 自己那次 restore 的**退出码 0** + NuGet 自身 `obj/project.nuget.cache`。vbi **不做资产状态判断**：不校验 assets.json、不探包存在。
 - **转译表**（restore 失败 → §D 诊断）：`NU1101`（找不到包）→ 锚 `#R` 行「找不到包 `<name> <version>`（还原源已含当前源指纹），请核对包名/版本」；网络失败/超时 → 「无法连接 NuGet 源（<源>），请检查网络或离线源」；其余 NU/SDK 错误 → 取首行错误摘要锚 `#R` 行，附 exit code，不整段贴 stderr。
@@ -319,7 +323,9 @@ restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM �
 
 > **实现注记（F-A 装配，2026-09-07）**：loader 共享落地为 `CommandLineRunner` ctor 可选参 `InteractiveAssemblyLoader assemblyLoader = null`（默认 null → 维持 `CreateInitialScript` 自建 loader 的现状），三次 `CreateInitialScript`（文件脚本 / REPL 初提交 / REPL 首提交）经 `assemblyLoaderOpt:` 用该实例 → 跨提交同一 loader；`VisualBasicScript.RunInteractiveAsync` 建一个共享 loader 同时传 runner 与 coordinator（`loader:=`）。宿主 push 在协调器 `PushSessionAssetsToLoader`（restore 成功、运行前）一次性完成：native 根 `AddNativeProbeRoot` + 覆盖表 `RegisterRuntimePathOverride` + runtime(lib) 闭包 `RegisterRuntimeClosure`（见 §G1 注记）。
 
-**pass 条件**：空 native 根集下 loader 行为与现状一致（现有 Scripting 测试全绿）；`AddNativeProbeRoot` 为 internal 且不触 `PublicAPI.*.txt`；跨平台候选名探测表有单测（纯函数，输入根目录集 + name → 候选路径，不实际加载）；net48 能力诊断在 §D 测试覆盖。
+> **实现注记（R-2 收口，2026-09-08）**：loader 的 NuGet 会话状态改为**替换制**而非单调累积——`InteractiveAssemblyLoader` 新增 internal `ResetSessionState()`（清 native 根集 + 清 runtime-path override 表；**托管依赖注册保留不清**，前序提交已加载程序集仍需解析），基类 `AssemblyLoaderImpl` 加 internal virtual `ResetNativeProbeRoots()`（Desktop no-op、`CoreAssemblyLoaderImpl` 置空共享根集）。`PushSessionAssetsToLoader` 每次成功 restore 推送前先 `ResetSessionState()` 再推本次会话根集/覆盖表，故升降级同 native 包 / ref-lib 拆分变体后，旧根/旧 override 不再残留；空根/空覆盖 = 现状零行为。共享层改动登记 `upstream-merge.md` 2.17。单测：`NuGetRuntimeHandshakeTests.LoaderResetClearsNativeRootsAndOverridesButKeepsDependencyRegistrations`（loader seam）+ `...CoordinatorReplacesLoaderOverridesAcrossVersionUpgrade`（coordinator 替换制）。
+
+**pass 条件**：空 native 根集下 loader 行为与现状一致（现有 Scripting 测试全绿）；`AddNativeProbeRoot`/`ResetSessionState` 为 internal 且不触 `PublicAPI.*.txt`；跨平台候选名探测表有单测（纯函数，输入根目录集 + name → 候选路径，不实际加载）；net48 能力诊断在 §D 测试覆盖。
 
 ### G3. sqlite + 托管传递依赖端到端验收（V-G2，作者/QA 门控集成，V-Z 收口后执行）
 

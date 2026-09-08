@@ -4,7 +4,8 @@
 '   #R "nuget:<package id>[, <version>]"
 ' - the "nuget:" prefix is case-insensitive, and the package id and version are separated by a comma
 '   (each segment is trimmed). A version is expected so a restore is reproducible; a floating spec
-'   such as "8.0.*" is allowed.
+'   such as "8.0.*" is allowed. The first resolved version is cached and frozen (NuGet no-op restore);
+'   to pick up a newer release change the spec or clear the vbi nuget-restore cache.
 ' This #R "nuget:" form is the .vbx/vbi script convention and does NOT parse the official file-based
 ' "#:package id@version" syntax (@ separator, no quoted prefix); the two are not interchangeable.
 '

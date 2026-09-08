@@ -89,8 +89,8 @@
 ### 场景 B：REPL 交互
 
 1. 首提交同 A 步 2-3（`RunInteractiveLoopAsync` 初脚本分支 `:247-251`）。
-2. 每 REPL 提交（`:290-308`）→ 协调器预扫描该提交 → 集合 delta → restore / skip → 再 `BuildAndRunAsync`（`:312`）编译。`UpdateOptions`（`:338-358`）保留 resolver（WithRelativePathResolver 拷贝不丢 PackageResolver），会话跨提交持续。
-3. 跨提交继承：提交 1 的 `#R "nuget:X"` 展开的 N 引用进 `ExplicitReferences`（`Resolution.cs:848-853`）→ 提交 2 直接可用闭包类型（U9-i 实证）。
+2. 每 REPL 提交（`:290-308`）→ 协调器预扫描该提交 → **把该提交并入会话累积包集合**（提交提到的 id 替换旧版本、未提到的保留；见 `README.md`「REPL 跨提交包集合语义（R-1 定稿）」）→ 累积集有变化才 restore / 否则 skip → 再 `BuildAndRunAsync`（`:312`）编译。`UpdateOptions`（`:338-358`）保留 resolver（WithRelativePathResolver 拷贝不丢 PackageResolver），会话跨提交持续。
+3. 跨提交继承：提交 1 的 `#R "nuget:X"` 展开的 N 引用进 `ExplicitReferences`（`Resolution.cs:848-853`）→ 提交 2 直接可用闭包类型（U9-i 实证）。此继承与「累积 restore」是两条互补机制：前者把已解析引用烙进提交链（pinned-history，故共享传递依赖版本跨提交不一致时编译期仍可能报歧义，见 R-1 定稿残留限制）；后者保证当前提交的 `#R` 在统一图上解析。
 
 ## 5. 关键机制与边界
 

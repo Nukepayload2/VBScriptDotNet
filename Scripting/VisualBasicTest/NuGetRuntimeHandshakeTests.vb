@@ -321,12 +321,92 @@ Public Class NuGetRuntimeHandshakeTests
         Assert.Same(realAssembly, resolved)
     End Sub
 
+    ' --- R-2: loader NuGet-session state reset (REPL downgrade/upgrade across submissions) ---
+    '
+    ' Native probe roots and runtime-path overrides are "current restore set" state and must be replaced,
+    ' not accumulated, when a later restore changes the package graph; managed dependency registrations stay
+    ' cumulative so earlier submissions' assemblies remain resolvable. These tests lock the reset seam and
+    ' the coordinator's replace-before-push behavior.
+
+    <Fact>
+    Public Sub LoaderResetClearsNativeRootsAndOverridesButKeepsDependencyRegistrations()
+        Dim loader As New InteractiveAssemblyLoader()
+        Dim identity As New AssemblyIdentity("Contoso.Main", New Version(2, 0, 0, 0))
+
+        loader.AddNativeProbeRoot("C:/nuget/packages/contoso.main/1.0.0/runtimes/win-x64/native")
+        loader.AddNativeProbeRoot("C:/nuget/packages/contoso.main/2.0.0/runtimes/win-x64/native")
+        loader.RegisterRuntimePathOverride(RefPath, LibPath)
+        loader.RegisterDependency(identity, RefPath)
+
+        loader.ResetSessionState()
+
+        ' Native roots and the override table are cleared.
+        Assert.True(loader.NativeProbeRoots.IsEmpty)
+
+        ' Managed dependency registrations survive the reset (earlier submissions still runnable).
+        Dim kept = loader.GetRegisteredDependencyLocations("Contoso.Main")
+        Assert.Equal(1, kept.Length)
+        Assert.Equal(LibPath, kept(0))
+
+        ' With the override cleared, re-registering the compile (ref) path records the ref path itself.
+        loader.RegisterDependency(New AssemblyIdentity("Contoso.Main", New Version(2, 0, 0, 0)), RefPath)
+        Dim after = loader.GetRegisteredDependencyLocations("Contoso.Main")
+        Assert.Equal(2, after.Length)
+        Assert.Equal(RefPath, after(1))
+    End Sub
+
+    Private Const Main10RefPath As String = "C:/nuget/packages/contoso.main/1.0.0/ref/net10.0/Contoso.Main.dll"
+    Private Const Main10LibPath As String = "C:/nuget/packages/contoso.main/1.0.0/lib/net10.0/Contoso.Main.dll"
+
+    Private Const Main10AssetsJson As String = "{""packageFolders"":{""C:/nuget/packages/"":{}},""libraries"":{""Contoso.Main/1.0.0"":{""type"":""package"",""path"":""contoso.main/1.0.0""}},""targets"":{""net10.0"":{""Contoso.Main/1.0.0"":{""type"":""package"",""compile"":{""ref/net10.0/Contoso.Main.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Main.dll"":{}}}}}}"
+
+    Private Const Main20AssetsJson As String = "{""packageFolders"":{""C:/nuget/packages/"":{}},""libraries"":{""Contoso.Main/2.0.0"":{""type"":""package"",""path"":""contoso.main/2.0.0""}},""targets"":{""net10.0"":{""Contoso.Main/2.0.0"":{""type"":""package"",""compile"":{""lib/net10.0/Contoso.Main.dll"":{}},""runtime"":{""lib/net10.0/Contoso.Main.dll"":{}}}}}}"
+
+    <Fact>
+    Public Sub CoordinatorReplacesLoaderOverridesAcrossVersionUpgrade()
+        ' Same coordinator + loader over two submissions: 1.0.0 is a ref/lib split package (push override
+        ' ref→lib), then the same id is upgraded to 2.0.0 which is lib-only. The second successful restore
+        ' must reset the loader's handshake state so the stale 1.0.0 override no longer redirects.
+        Dim session As New NuGetPackageSession()
+        Dim loader As New InteractiveAssemblyLoader()
+        Dim fakeRunner As New FakeRestoreRunner()
+        fakeRunner.Outcomes = New RestoreOutcome() {
+            New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=Main10AssetsJson),
+            New RestoreOutcome(exitCode:=0, standardError:="", nuGetCacheWritten:=True, assetsJsonText:=Main20AssetsJson)}
+        Dim coordinator As New NuGetRestoreCoordinator(session, runner:=fakeRunner, loader:=loader)
+
+        Dim code1 = "#R " & Quote & "nuget:Contoso.Main, 1.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics1 = coordinator.PrepareCompilationAsync(SourceText.From(code1), "", CancellationToken.None).GetAwaiter().GetResult()
+        Assert.True(diagnostics1.IsEmpty)
+
+        ' After the first restore the 1.0.0 compile (ref) asset is redirected to its runtime (lib) asset.
+        Dim identity10 As New AssemblyIdentity("Contoso.Main", New Version(1, 0, 0, 0))
+        loader.RegisterDependency(identity10, Main10RefPath)
+        Assert.Equal(Main10LibPath, loader.GetRegisteredDependencyLocations("Contoso.Main")(0))
+
+        Dim code2 = "#R " & Quote & "nuget:Contoso.Main, 2.0.0" & Quote & vbCrLf & "? 1"
+        Dim diagnostics2 = coordinator.PrepareCompilationAsync(SourceText.From(code2), "", CancellationToken.None).GetAwaiter().GetResult()
+        Assert.True(diagnostics2.IsEmpty)
+        Assert.Equal(2, fakeRunner.RestoreCalls)
+
+        ' 2.0.0 is lib-only, so the replace-before-push cleared the 1.0.0 override: re-registering the
+        ' 1.0.0 ref path now records the ref path itself (no redirect to the old 1.0.0 lib).
+        loader.RegisterDependency(identity10, Main10RefPath)
+        Dim locations = loader.GetRegisteredDependencyLocations("Contoso.Main")
+        Assert.Equal(2, locations.Length)
+        Assert.Equal(Main10RefPath, locations(1))
+        Assert.Equal(Main10LibPath, locations(0))
+    End Sub
+
     Private NotInheritable Class FakeRestoreRunner
         Implements IRestoreRunner
 
         Public Property SdkVersions As String() = New String() {"10.0.100"}
         Public Property Outcome As RestoreOutcome
+        Public Outcomes As RestoreOutcome() = Nothing
         Public RestoreCalls As Integer
+        Public LastRequest As RestoreRequest
+        Private _outcomeIndex As Integer
 
         Public Function GetInstalledSdkVersionsAsync(cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of String)) Implements IRestoreRunner.GetInstalledSdkVersionsAsync
             Return Task.FromResult(SdkVersions.ToImmutableArray())
@@ -334,6 +414,12 @@ Public Class NuGetRuntimeHandshakeTests
 
         Public Function RestoreAsync(request As RestoreRequest, cancellationToken As CancellationToken) As Task(Of RestoreOutcome) Implements IRestoreRunner.RestoreAsync
             RestoreCalls += 1
+            LastRequest = request
+            If Outcomes IsNot Nothing AndAlso _outcomeIndex < Outcomes.Length Then
+                Dim outcome = Outcomes(_outcomeIndex)
+                _outcomeIndex += 1
+                Return Task.FromResult(outcome)
+            End If
             Return Task.FromResult(Outcome)
         End Function
     End Class
