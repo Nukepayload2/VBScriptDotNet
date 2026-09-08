@@ -28,6 +28,12 @@
 | `meeting-consume-ref-readonly.md` | 评估 `../proposals/proposal-consume-ref-readonly.md`（消费 C# `ref readonly` 返回） | 深度评审（vblang 官方叙事结构，多参会者流程）：根因收敛到一个 modreq（`CMOD_REQD(In) BYREF T`）；发现 C# 既有结构 `PEPropertySymbol.cs:363-367` 已白名单 InAttribute；候选方案 A–E；裁决：**统一豁免返回+参数双路径 In modreq**（csc 发射实证虚方法/委托 `in` 参数带 modreq）、直接赋值**复用 `ERR_LValueRequired`（30068）零新码**（显示退化自洽 + 30098→30068 既有迁移；拒绝面含复合赋值/Mid，VB 老登新增发现）、tooltip 显示退化 + `ByRef ReadOnly` 仅 debug 格式、丢弃写回接受（与字面量传 ByRef 一致）、`ReturnsByRefReadonly` 填既有占位、For Each 解锁、§4a v1 不做；C# 7.2 归属修正；独立五维评审为 git-ignored 工作材料、不入库 | consume-ref-readonly = **Active** |
 | `meeting-vbi-nuget-reference.md` | 评估 `../proposals/proposal-vbi-nuget-reference.md`（.vbx/REPL `#R "nuget:"` NuGet 包引用） | 深度评审（vblang 官方叙事结构，双老登流程 + 复会 1/2）：**定性**=宿主/工具链契约而非 VB 语言特性（归 M5、进产品 spec 不进 vblang spec）；引擎 **C1 采用**（dotnet CLI 内容寻址临时工程 restore）、C2 与增量自解析否决；语法**逗号 + 大小写不敏感前缀**（附两义务：近失配显式诊断、共享层文档标注防 merge 误回滚）；**接线 R4 经复会 1 改判**——共享 Core 单 `#R` 只收 1 解析结果（`CommonReferenceManager.Resolution.cs:883-887` 上游 `// TODO: implement`），改为**扩展共享 Core 支持单 `#R`→N 引用**为 U9 spike 目标架构（受 spike 硬门控；不 alter 旧 `CSharpCompilation.GetDirectiveReference`、N 语义走新增 API/路径，产品 VB-only 故 C# 零 churn；spike 不过回退宿主拦截=干净剥行过渡）；宿主驱动环落点订正在共享 `CommandLineRunner.RunInteractiveLoopAsync`（`CommandLineRunner.cs:240-310`）；U1-B（锚点订正 `Scripting.Core.csproj:54-58`）/U2-A/U3-B/U4-A/U5-A/U6-A/U7-A/U8-A 采纳；**TFM 镜像经复会 2 收窄为只镜像运行宿主 TFM**（`' Attribute TargetFramework` 由 vbichooser 派发、vbi 引擎不读，TFM 镜像 spike 删除）；**U5 native 经复会 3**——net10 native 支持（sqlite 类先行 + Scripting loader seam `ResolvingUnmanagedDll` spike 验收；宿主供策略目录、机制落 loader seam），WindowsAppSDK 类 net10 后置，net48 范围外（R6 锚 `#R` 宿主能力诊断）；测试策略为新增非改断言；独立五维评审为 git-ignored 工作材料、不入库 | vbi-nuget-reference = **Active** |
 
+## Inactive（`meetings/inactive/`）
+
+| 文件名 | 对应提案 | 主题 | 三态判定 |
+|--------|---------|------|---------|
+| `inactive/meeting-vbi-console-completion.md` | 评估 `../proposals/inactive/proposal-vbi-console-completion.md`（vbi 控制台 REPL 行内补全） | 深度评审（vblang 官方叙事结构，双老登流程）：源码锚点整条复核命中；纠偏三处表述（Vbi.vb:86 输出侧≠输入侧谓词 / 多行态是真多行编辑器 / Windows-Unix 平台 ROI 不对称）+ dotnet/interactive ≈310 行 glue 改读为"工程级补全 = Features 层"反证；**裁决 Table**（此刻捆绑投入 L0+L1 不成立——补全能力将由已 Active 的 LSP 补层 / Consider 的 Avalonia/一进程编辑面承接）；L0/L1 拆分、剥离保留三件低成本资产、复活闸门 G1（现成读行库采纳）/G2（LSP 补层 M0/M1 落地接 Features top-1）/G3（浅档探针命中率/延迟基线）；修正点 a–f 记纪要不写回提案；独立五维评审为 git-ignored 工作材料、不入库 | vbi-console-completion = **Table（归档待触发）** |
+
 ## 会议纪要格式
 
 - 标题：`# Visual Basic Language Design Meeting` + 日期行。

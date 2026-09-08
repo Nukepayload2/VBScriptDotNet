@@ -42,10 +42,13 @@
 
 ---
 
-## Inactive（暂无成员，`inactive/`）
+## Inactive（`inactive/`）
 
 - 机制：RESOLUTION = Table（搁置/未定型）的提案放入 `inactive/`，与 modvb 的 inactive 目录同约定。
-- 当前无成员。
+
+| # | 文件名 | 建议 | 三态判定 |
+|---|--------|------|---------|
+| 14 | `inactive/proposal-vbi-console-completion.md` | vbi 控制台 REPL 行内补全（inline suggestion，**控制台 UI 本体**）：v1 = L0 raw-key 行编辑器 + L1 行内灰字首候选，补全引擎浅档（不复制 Workspaces/Features），L2/L3 带触发延期 | **Table**（归档待触发，见 `../meetings/inactive/meeting-vbi-console-completion.md`：L0/L1 拆分、剥离保留浅档引擎路径等三件资产、复活闸门 G1–G3） |
 
 ---
 
