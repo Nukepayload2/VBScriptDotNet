@@ -1869,7 +1869,11 @@ lVbRuntimePlus:
                 Dim importDiagnostics As ImmutableArray(Of Diagnostic) = Nothing
                 Dim import = GlobalImport.Parse(importNamespace, importDiagnostics)
                 errors.AddRange(importDiagnostics)
-                globalImports.Add(import)
+                ' A syntactically bad clause parses to Nothing; the error is already in errors, and storing
+                ' Nothing in GlobalImports would NRE every consumer of GlobalImports.
+                If import IsNot Nothing Then
+                    globalImports.Add(import)
+                End If
             Next
         End Sub
 

@@ -60,7 +60,7 @@ U9 spike 是 R4 的硬闸门，已在任务计划前完成并**通过**。实验
 >
 > **执行范围**：本表 = **无人值守串行**项（实施者/验证者交替，pass 全自动判）。含真实 `dotnet restore`、`%LOCALAPPDATA%` 写入与跨平台（`.so`/`.dylib`）的验收（V-G2 sqlite 端到端）**不在本表内**，见下方「门控集成验收」节。
 >
-> **测试执行规约**：`Scripting\VisualBasicTest`（net10.0，MTP/xunit.v3）**禁用 `dotnet test`**（EXIT 0 但静默不跑）；验证者先 `dotnet build`，再直跑 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或加 `-method <FQN>`（单测）。见 `design-detailed.md` §0 + memory `vb-scripting-test-runner`。
+> **测试执行规约**：`Scripting\VisualBasicTest`（net10.0，MTP/xunit.v3）**禁用 `dotnet test`**（EXIT 0 但静默不跑）；验证者先 `dotnet build`，再直跑 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或加 `-class <FQN>`（类级）/`-method <FQN>`（单测；FQN 须完整到 `命名空间.类.方法`，缺段或拼错会静默 0 跑，须核对 `TestCasesToRun > 0`）。见 `design-detailed.md` §0 + memory `vb-scripting-test-runner`。
 
 | # | 功能（design-detailed 章节） | pass 条件（全部满足才算过） | 前置 | 状态 |
 |---|---|---|---|---|

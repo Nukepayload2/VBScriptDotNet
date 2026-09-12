@@ -12,7 +12,7 @@
 - **引擎与会话状态落宿主（U1-B）**：`Scripting\Core` 只留 seam + 注入位；dotnet-shell 还原/临时工程/缓存逻辑放 VB 宿主层，共享 Core 不背。
 - **零回归**：无 nuget 引用全链路零行为；所有新增 seam 参数默认 null / 空根集 = 现状。
 - **文件路径规约**：下文引用仓库相对路径；新增文件相对仓库根。**测试纪律**：单测无副作用（不网络/不写文件/不 spawn 进程/不注册表）；涉及真实 `dotnet restore` / native 的验收为手工或门控集成项，不进无副作用单测。
-- **测试执行规约（本仓特有）**：`Scripting\VisualBasicTest`（net10.0，MTP/xunit.v3）**不可用 `dotnet test`**（EXIT 0 但静默不跑）；验证一律直跑输出程序集：先 `dotnet build` 该项目，再 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或追加 `-method <FullyQualifiedName>`（单测过滤，如 `...CommandLineRunnerTests.TestX`）。见 memory `vb-scripting-test-runner`。
+- **测试执行规约（本仓特有）**：`Scripting\VisualBasicTest`（net10.0，MTP/xunit.v3）**不可用 `dotnet test`**（EXIT 0 但静默不跑）；验证一律直跑输出程序集：先 `dotnet build` 该项目，再 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或追加 `-class <FullyQualifiedName>`（类级）/`-method <FullyQualifiedName>`（单测过滤，如 `Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.CommandLineRunnerTests.TestAssignmentDoesNotPrint`；FQN 须完整到 `命名空间.类.方法`，缺段或拼错会**静默 0 跑**——EXIT 0 且无报错，须核对 `discovery-complete` 的 `TestCasesToRun > 0`）。见 memory `vb-scripting-test-runner`。
 
 ## 1. 改动清单总览
 

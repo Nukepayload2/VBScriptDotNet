@@ -1,6 +1,6 @@
 # VBScript.NET 产品规范说明
 
-本文档说明 **VBScript.NET 产品自身**的 spec 层。spec 层**不维护「当前状态」快照**（现状快照会随版本漂移，一旦疏于维护就会造成误导）——产品能力以**版本归档**为准：各已发布版本的能力归档在 `../proposals/vbscript-<版本>/`（如 1.2 已归档在 `../proposals/vbscript-1.2/`），各版本归档**自包含**，其能力事实即稳定记录。
+本文档说明 **VBScript.NET 产品自身**的 spec 层。spec 层**不维护「当前状态」快照**（现状快照会随版本漂移，一旦疏于维护就会造成误导）——产品能力以**版本归档**为准：各已发布版本的能力归档在 `../proposals/vbscript-<版本>/`（如 1.2 已归档在 `../proposals/vbx-1.2-beta/`），各版本归档**自包含**，其能力事实即稳定记录。
 
 **与 modvb 的关系**：`../modvb/spec/` 对应 Anthony 提案库的规范（当前为空）；本目录是 VBScript.NET 产品自身的规范说明，两者分离。
 
@@ -31,7 +31,9 @@
 - **消费 C# 扩展成员**（扩展属性/运算符，扩展方法本就可用，已实现）：见 `spec-consume-csharp-extension-members.md`。
 - **消费 C# 接口共享成员**（接口共享成员 SAIM，已实现）：见 `spec-consume-interface-shared-members.md`。
 - **消费 C# `ref readonly` 返回**（已实现）：见 `spec-consume-ref-readonly.md`。
-- 已移植 C# interactive 的 **`#Load`** 指令。
+- **脚本方言的声明与提交模型**（顶层声明 → 合成 script class、提交链与跨提交可见性、入口点合成、顶层 `Await`/`AddHandler`、`Imports` 跨提交累积、脚本专属诊断族）：见 `spec-scripting-dialect.md`。
+- **`#R` 引用指令**（脚本源码层唯一的程序集引用机制，已实现）：见 `spec-reference-directive.md`。
+- 已移植 C# interactive 的 **`#Load`** 指令（编译器指令 trivia + 宿主多树展开契约、加载树先于主树、`Return` 为整个提交的退出码、失败通道与 C# 对照，已实现）：见 `spec-load-directive.md`。
 - **理论上和 C# REPL 不应该有功能差距**。
 - 代码内产品版本号已落 `2.0.0-Beta`（2026-08-23 用户裁决：Scripting 库版本 `Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj:8-9` 由 `1.2.0/beta` 改为 `2.0.0/Beta`，`vbi --version` 显示 `2.0.0-Beta`）。
 

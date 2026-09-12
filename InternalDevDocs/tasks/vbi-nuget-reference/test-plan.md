@@ -77,7 +77,7 @@
 ## 6. 测试执行规约（本仓特有）
 
 - `Scripting\VisualBasicTest`（net10.0，MTP/xunit.v3）**不可用 `dotnet test`**（EXIT 0 但静默不跑）。
-- 验证一律：先 `dotnet build`，再直接跑程序集 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或加 `-method <FullyQualifiedName>`（单测过滤）。
+- 验证一律：先 `dotnet build`，再直接跑程序集 `dotnet <输出>\Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated`（全量）或加 `-class <FullyQualifiedName>`（类级）/`-method <FullyQualifiedName>`（单测过滤；FQN 须完整到 `命名空间.类.方法`，缺段或拼错会**静默 0 跑**——EXIT 0 且无报错，须核对 `discovery-complete` 的 `TestCasesToRun > 0`）。
 - 共享 Core `Compilers\Core\Portable` 构建面（net10）随 V-Z 构建 gate 覆盖。
 - 门控集成验收（V-G2 sqlite 端到端 + 跨平台 + net48 宿主实跑）由作者/QA 在 V-Z 收口后手动执行（README「门控集成验收」节），测试计划列出步骤与预期如下节。
 

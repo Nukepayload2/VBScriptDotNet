@@ -12,6 +12,8 @@
 
 以下决策修正了旧表述（原散落在 csharplang-index.md 第三节 / 会议附录），**以本文件为权威立场**。
 
+> **引用纪律（2026-09-12 定，强制）**：引用本节的决策一律**按节号**（`D1`–`D6`）并写明小节，**不得按 `文件:行号` 引用**——本文件会持续增补，行号不稳定（已实测：D5 插入后 D4 整体下移，导致会议纪要里 `decisions.md:51-56` 这处「P1 硬约束」引用**已指向 D6**）。历史文档中遗留的行号引用，**以节号为准**解释。
+
 ### D1. ref struct 在 VB 的解法 = 自定义分析器（RefStructHelper）
 
 - **VB 规范已有受限类型分析规则**：`System.RuntimeArgumentHandle`、`System.ArgIterator`、`System.TypedReference` 一类受限类型的栈引用限制已写入 `vblang\spec\types.md`。
@@ -31,6 +33,30 @@
 
 - `(As Type)` 是**显式转换**（meeting 已裁定锚定 CType 语义），**不是 TryCast**（`As?` 变体被拒）、**也不是 Option Strict Off 的 callsite 隐式转换**。
 - 作用：把动态/Any/晚绑定值显式转成强类型 T，后续 `.Member` 变为早绑定——「默认安全、按需动态」路线的**类型化出口**。
+
+### D5. 基础功能的落地细节以 C# / csi 实现为设计蓝本（用户定案，2026-09-10）
+
+- **定案**：vbi 的**基础功能**（脚本/提交模型、构造器、初始化器、入口点、类型落点、名字查找等）在**落地详细设计**阶段，以 **C# / csi 的实现为参考蓝本**；目标是在**架构上让 vbi 追平 csi**，而不是另起一套模型。
+- **依据**：csi 由微软官方维护约十年，其基础机制经过长期验证；本 fork 在这些区域与 C# 的分叉处，多数不是有意设计，而是**移植不完整**。
+- **已证实例**（均有 `文件:行号` 锚点，非口号）：
+  1. **提交构造器**——C# 把「提交构造器」与「静态初始化器构造器」分成两个类（`SynthesizedSubmissionConstructor : SynthesizedInstanceConstructor`，静态走独立的 `SynthesizedStaticConstructor`）；VB 共用一个类，导致共享构造器带上实例版形参（见 `issues\issue-submission-shared-field-initializer-typeload.md`）。
+  2. **扩展方法承载**——C# 对「成员必须 `static`」有用户可见诊断 CS1105（`SourceOrdinaryMethodSymbol.cs:243-245`）；VB 只有 `Debug.Assert(Me.IsShared)`（`SourceMethodSymbol.vb:1504`）。
+  3. **脚本里的顶层类型落点**——**脚本模式下两侧其实同形**：C# 的 `CreateScriptRootDeclaration`（`CSharp\Portable\Declarations\DeclarationTreeBuilder.cs:266-303`）与 VB（`VisualBasic\Portable\Declarations\DeclarationTreeBuilder.vb:175-198`）都把非 namespace 的顶层成员（含兄弟类型）塞进脚本类，两侧 `CreateScriptClass` 修饰符也同形。差异在**另一条路径**：C# 的「文件式程序 / 顶层语句」（`SourceCodeKind.Regular` 的 `acceptSimpleProgram`，`CSharp\...\DeclarationTreeBuilder.cs:142` + `:152-156`）把兄弟类型留在命名空间层——**VB 没有这个模式**（全树无 `SimpleProgram`/`TopLevelStatements` 命中，无 `SynthesizedSimpleProgramEntryPointSymbol`）。**故这一条是「C# 有、VB 没有的一个特性」，不是「同一特性两侧建模不同」**；要在 VB 侧对齐属**新特性**，须评估与既有 `.vbx` 语义、`#Load`、`Submission` 链的兼容，不按移植修补对待。
+  4. **正向测试覆盖错 kind**——既有 `SourceExtensionMethods` 用 `DeclarationKind.Script`，而产品出货的所有脚本宿主都产 `Submission`；测试覆盖的不是产品走的那条路。
+- **落地约束**：
+  - 参照 C# 时**要说明「为什么 VB 必须分叉」**，不能因存在分叉就默认放弃对齐（VB 有 C# 无的概念：`Module`、`Shared`、晚期绑定）。
+  - 比较结论要落到 `文件:行号`，能实证就实证；「C# 这么做」本身不是理由，**C# 这么做且 VB 没有对应理由**才是。
+  - 此原则作用于 **plan 阶段的 `design-detailed.md`**，也作用于 propose/meeting 阶段的候选设计。
+
+### D6. 兼容性约束只对正式版（GA）成立（用户定案，2026-09-12）
+
+- **定案**：脚本语义的兼容性约束**只对正式版（GA）成立**。在只有 beta / preview 发行版的期间，**不得以「breaking change / 破坏既有语义」为由否决设计**；beta 期间发出的脚本语义调整不落入 D4 的 P1 硬约束（「不引起无谓的 regression / breaking change」）。
+- **实证（只有 beta，无 GA）**：
+  - MSIX 清单 `Installer\VBInteractive.WindowsDesktop.Installer\Package.appxmanifest:12` `Version="1.2.0.0"`；`:15` `DisplayName` = `N2Fork VB Interactive (Preview)`、`:34` = `N2Fork VB Interactive (preview)`。
+  - `proposals\README.md:73` 逐字「VBScript.NET **1.2 beta** 已发布到微软商店」；`:35` 编译器包版本 `2.0.0-Beta`。
+  - 全仓 `正式版` / `GA` **零命中**。
+- **边界（防止本条被滥用）**：本条**只解掉「兼容性」这一条否决理由**。其它理由——**实现可行性、与 D5 的同形性、机制收益与代价、规范的可表达性**——**不受影响**，仍须逐条论证。举「兼容性」以外的理由否决时，本条不适用。
+- **用途**：propose / meeting 阶段的候选裁决与 plan 阶段的取舍，凡出现「这会改掉既有语义」类论据，先对照本条判断该论据是否成立。
 
 ### D4. 提案优先级判定规则（用户定案，2026-08-09）
 

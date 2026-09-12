@@ -9,7 +9,7 @@ August 9, 2026
 
 ## Proposal: REPL 表达式开头问号可选
 
-_Related: `../proposals/proposal-optional-question-prefix.md`；先导 `../meetings/meeting-vb-repl-parity-with-csharp-repl.md`；C# 对照：`csi` 敲表达式即打印（LDM-2020-04-15 interactive 设置）；`../proposals/vbscript-1.2/`（REPL 能力版本归档）_
+_Related: `../proposals/proposal-optional-question-prefix.md`；先导 `../meetings/meeting-vb-repl-parity-with-csharp-repl.md`；C# 对照：`csi` 敲表达式即打印（LDM-2020-04-15 interactive 设置）；`../proposals/vbx-1.2-beta/`（REPL 能力版本归档）_
 
 ### 场景与缺口
 

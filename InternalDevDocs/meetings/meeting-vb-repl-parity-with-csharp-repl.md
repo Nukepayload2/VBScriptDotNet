@@ -12,7 +12,7 @@ VBScript.NET 产品设计系列会议。本次我们不评 Anthony 提案库，�
 
 ## 现状盘点：VBScript.NET REPL 与 C# REPL 的功能差距
 
-我们先把产品现状摊开（1.2 版本事实见 `../proposals/vbscript-1.2/` 版本归档）。
+我们先把产品现状摊开（1.2 版本事实见 `../proposals/vbx-1.2-beta/` 版本归档）。
 
 - **1.2 beta（微软商店版，已发布）**：几乎原封不动。顶层 `Await`/`AddHandler` 是损坏状态，`Imports` 交互模式失效；仅通过 fork common scripting（`Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs`）做 workaround 启用了 vbx 文件执行——在 `RunScript` 里用 `Script.CreateInitialScript(Of Object)` 然后 `(ReturnValue As Integer?)` 取退出码（因上游 `CreateScriptCompilation` 把返回值硬编码为 `Object`）。**以上为 1.2 beta 历史状态；2.0 beta 的 `RunScriptAsync` 已改为 `Script.CreateInitialScript<int>` 并直接返回 `ReturnValue`。**
 - **2.0 beta（当前，进行中）**：fork 完整 Roslyn 编译器进 `Compilers\`；已修复顶层 Await、顶层 AddHandler/RemoveHandler、Imports 跨提交累积、Function Main 退出码语义（`Return 42` → 退出码 42，裸 Return/无 Return → 0，**末尾表达式不再设退出码**）；已移植 C# interactive 的 `#Load`。理论上与 C# REPL 无功能差距。
@@ -70,7 +70,7 @@ VBScript.NET 的顶层 Dim/Sub/Function/Class/Module 免包装是同一动机的
 
 ## Proposal: REPL 表达式开头问号可选（proposal-optional-question-prefix）
 
-_Related: `../proposals/proposal-optional-question-prefix.md`；C# 对照：`csi` 输入表达式即打印（LDM-2020-04-15 的 interactive 设置）；`../proposals/vbscript-1.2/`（REPL 能力版本归档）_
+_Related: `../proposals/proposal-optional-question-prefix.md`；C# 对照：`csi` 输入表达式即打印（LDM-2020-04-15 的 interactive 设置）；`../proposals/vbx-1.2-beta/`（REPL 能力版本归档）_
 
 ### 场景与缺口
 
