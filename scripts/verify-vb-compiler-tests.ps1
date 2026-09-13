@@ -10,7 +10,7 @@ $gates = @(
     @{ Name = 'Symbol'; Project = 'Compilers\VisualBasicSymbolTest\Microsoft.CodeAnalysis.VisualBasic.Symbol.UnitTests.vbproj'; Total = 3400; Passed = 3376; Skipped = 24; Failed = 0 }
     @{ Name = 'Semantic'; Project = 'Compilers\VisualBasicSemanticTest\Microsoft.CodeAnalysis.VisualBasic.Semantic.UnitTests.vbproj'; Total = 5784; Passed = 5680; Skipped = 104; Failed = 0 }
     @{ Name = 'IOperation'; Project = 'Compilers\VisualBasicIOperationTest\Roslyn.Compilers.VisualBasic.IOperation.UnitTests.vbproj'; Total = 1574; Passed = 1566; Skipped = 8; Failed = 0 }
-    @{ Name = 'Emit'; Project = 'Compilers\VisualBasicEmitTest\Microsoft.CodeAnalysis.VisualBasic.Emit.UnitTests.vbproj'; Total = 4330; Passed = 4227; Skipped = 103; Failed = 0 }
+    @{ Name = 'Emit'; Project = 'Compilers\VisualBasicEmitTest\Microsoft.CodeAnalysis.VisualBasic.Emit.UnitTests.vbproj'; Total = 4349; Passed = 4246; Skipped = 103; Failed = 0 }
     @{ Name = 'CommandLine'; Project = 'Compilers\VisualBasicCommandLineTest\Microsoft.CodeAnalysis.VisualBasic.CommandLine.UnitTests.vbproj'; Total = 475; Passed = 468; Skipped = 7; Failed = 0 }
 )
 

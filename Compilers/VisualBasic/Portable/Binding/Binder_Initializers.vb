@@ -19,10 +19,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Friend NotInheritable Class ProcessedFieldOrPropertyInitializers
             Friend ReadOnly BoundInitializers As ImmutableArray(Of BoundInitializer)
 
-            ''' <summary> 
-            ''' Indicate the fact that binding of initializers produced a tree with errors. 
-            ''' This property does not indicate whether or not a diagnostic was produced during the 
-            ''' binding of the initializers. 
+            ''' <summary>
+            ''' Indicate the fact that binding of initializers produced a tree with errors or that the binding
+            ''' of the initializers reported an error diagnostic.
+            ''' Some diagnostics (an 'Await' outside of an async context, for instance) are reported without
+            ''' marking the bound tree, so the flag has to be supplied by the caller that owns the diagnostics
+            ''' of this binding (see <see cref="MethodCompiler.CompileNamedType"/>).
             ''' </summary>
             Friend ReadOnly HasAnyErrors As Boolean
 
@@ -46,10 +48,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Me._loweredInitializers = ImmutableArray(Of BoundStatement).Empty
             End Sub
 
-            Friend Sub New(boundInitializers As ImmutableArray(Of BoundInitializer))
+            Friend Sub New(boundInitializers As ImmutableArray(Of BoundInitializer), Optional bindingReportedErrors As Boolean = False)
                 Debug.Assert(Not boundInitializers.IsDefault)
                 Me.BoundInitializers = boundInitializers
-                Me.HasAnyErrors = boundInitializers.Any(Function(i) i.HasErrors)
+                Me.HasAnyErrors = bindingReportedErrors OrElse boundInitializers.Any(Function(i) i.HasErrors)
             End Sub
 
             Private _analyzed As Boolean = False

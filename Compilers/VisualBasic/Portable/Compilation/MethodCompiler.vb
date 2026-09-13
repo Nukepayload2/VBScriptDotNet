@@ -596,15 +596,31 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                         sourceTypeSymbol.GetFirstLocation().PossiblyEmbeddedOrMySourceTree,
                                         sourceTypeSymbol)
 
-                processedStaticInitializers = New Binder.ProcessedFieldOrPropertyInitializers(Binder.BindFieldAndPropertyInitializers(sourceTypeSymbol,
-                                                        sourceTypeSymbol.StaticInitializers,
-                                                        scriptInitializer,
-                                                        _diagnostics))
+                ' Bind each bucket into a diagnostic bag of its own and merge it into the compilation-wide bag
+                ' right afterwards. The diagnostics the user sees are exactly the same, but whether this binding
+                ' reported an error can then be answered without looking at errors that other (possibly
+                ' concurrently compiled) members already put into the shared bag. Initializer diagnostics have to
+                ' stop code generation ('Code gen should not be invoked if there are errors.' EmitExpression.vb),
+                ' and many of them - an 'Await' outside of an async context, for instance - are reported without
+                ' marking the bound tree. HasAnyErrors() is a linear scan over the bag, so it is called exactly
+                ' once per bucket instead of once per method.
+                Dim staticInitializerDiagnostics = BindingDiagnosticBag.GetInstance(_diagnostics)
+                processedStaticInitializers = New Binder.ProcessedFieldOrPropertyInitializers(
+                    Binder.BindFieldAndPropertyInitializers(sourceTypeSymbol,
+                                                            sourceTypeSymbol.StaticInitializers,
+                                                            scriptInitializer,
+                                                            staticInitializerDiagnostics),
+                    staticInitializerDiagnostics.HasAnyErrors())
+                _diagnostics.AddRangeAndFree(staticInitializerDiagnostics)
 
-                processedInstanceInitializers = New Binder.ProcessedFieldOrPropertyInitializers(Binder.BindFieldAndPropertyInitializers(sourceTypeSymbol,
-                                                        sourceTypeSymbol.InstanceInitializers,
-                                                        scriptInitializer,
-                                                        _diagnostics))
+                Dim instanceInitializerDiagnostics = BindingDiagnosticBag.GetInstance(_diagnostics)
+                processedInstanceInitializers = New Binder.ProcessedFieldOrPropertyInitializers(
+                    Binder.BindFieldAndPropertyInitializers(sourceTypeSymbol,
+                                                            sourceTypeSymbol.InstanceInitializers,
+                                                            scriptInitializer,
+                                                            instanceInitializerDiagnostics),
+                    instanceInitializerDiagnostics.HasAnyErrors())
+                _diagnostics.AddRangeAndFree(instanceInitializerDiagnostics)
 
                 ' TODO: any flow analysis for initializers?
 
