@@ -361,6 +361,340 @@ End Sub", parseOptions:=TestOptions.Script)
 
 #End Region
 
+#Region "Top level scripts: 'Await' in Catch/Finally/SyncLock and the shared implicit Me (F10/F08)"
+
+        Private Shared Function ErrorCode(errorId As ERRID) As String
+            Return "BC" & CInt(errorId).ToString("00000")
+        End Function
+
+        ''' <summary>
+        ''' The span of BC36943 is the whole 'Await' expression, exactly as it is in an ordinary async method
+        ''' (see <c>Semantics\AsyncAwait.vb</c>).
+        ''' </summary>
+        Private Const AwaitDelayText As String = "Await System.Threading.Tasks.Task.Delay(1)"
+
+        ''' <summary>The span of BC36937 and of the shared-initializer error is the 'Await' keyword.</summary>
+        Private Const AwaitKeywordText As String = "Await"
+
+        ''' <summary>
+        ''' Asserts that the compilation reports exactly one diagnostic, that it is <paramref name="errorId"/> and
+        ''' that it points at the piece of source text <paramref name="squiggledText"/>.
+        ''' </summary>
+        Private Shared Sub AssertSingleError(compilation As VisualBasicCompilation, errorId As ERRID, squiggledText As String)
+            Dim diagnostics = compilation.GetDiagnostics()
+            Assert.Equal(1, diagnostics.Length)
+            Dim [error] = diagnostics(0)
+            Assert.Equal(ErrorCode(errorId), [error].Id)
+            Assert.Equal(squiggledText, [error].Location.SourceTree.GetText().ToString([error].Location.SourceSpan))
+        End Sub
+
+        ''' <summary>
+        ''' 'Await' is not allowed inside a 'Catch' statement (BC36943, <see cref="ERRID.ERR_BadAwaitInTryHandler"/>).
+        ''' A method body gets that check from <c>BindMethodBlock</c>; top level statements are bound through the
+        ''' initializer path, whose synthesized host body is a stub, so the check has to be run there as well.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelAwaitInCatch_ReportsBadAwaitInTryHandler()
+            Dim c = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""TRY"")" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "End Try", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInTryHandler, AwaitDelayText)
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelAwaitInFinally_ReportsBadAwaitInTryHandler()
+            Dim c = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""TRY"")" & vbLf &
+                "Finally" & vbLf &
+                "    Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "End Try", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInTryHandler, AwaitDelayText)
+        End Sub
+
+        ''' <summary>
+        ''' The 'SyncLock' sub-shape compiles and produces a broken artifact instead of crashing, so only this
+        ''' diagnostic keeps it out of code generation.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelAwaitInSyncLock_ReportsBadAwaitInTryHandler()
+            Dim c = CreateSubmission(
+                "Dim gate As New Object" & vbLf &
+                "SyncLock gate" & vbLf &
+                "    Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "End SyncLock", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInTryHandler, AwaitDelayText)
+        End Sub
+
+        ''' <summary>'Await' inside the 'Try' block itself stays legal.</summary>
+        <Fact>
+        Public Sub TopLevelAwaitInTryBlock_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Try" & vbLf &
+                "    Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    System.Console.WriteLine(""CATCH"")" & vbLf &
+                "End Try", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>'Await' inside a 'Using' block stays legal - 'Using' is not part of the BC36943 family.</summary>
+        <Fact>
+        Public Sub TopLevelAwaitInUsing_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Using d As New System.IO.MemoryStream()" & vbLf &
+                "    Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "End Using", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>An ordinary async method keeps reporting one diagnostic per offending 'Await'.</summary>
+        <Fact>
+        Public Sub AsyncMethodAwaitInCatchAndFinally_ReportsOneDiagnosticEach()
+            Dim c = CreateSubmission(
+                "Class C" & vbLf &
+                "    Async Function F() As System.Threading.Tasks.Task" & vbLf &
+                "        Try" & vbLf &
+                "            Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "        Catch ex As System.Exception" & vbLf &
+                "            Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "        Finally" & vbLf &
+                "            Await System.Threading.Tasks.Task.Delay(1)" & vbLf &
+                "        End Try" & vbLf &
+                "    End Function" & vbLf &
+                "End Class", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            Dim diagnostics = c.GetDiagnostics()
+            Assert.Equal(2, diagnostics.Length)
+            Assert.True(diagnostics.All(Function(d) d.Id = ErrorCode(ERRID.ERR_BadAwaitInTryHandler)),
+                        String.Join(" | ", diagnostics))
+        End Sub
+
+        ''' <summary>
+        ''' The top level check runs with the 'Await' position check only: the 'On Error' related diagnostics of the
+        ''' same walker keep out of top level code.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelOnErrorResumeNextWithTry_KeepsItsExistingDiagnostics()
+            Dim c = CreateSubmission(
+                "On Error Resume Next" & vbLf &
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""TRY"")" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    System.Console.WriteLine(""CATCH"")" & vbLf &
+                "End Try", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            ' The statement itself keeps the one diagnostic top level code always had for an 'On Error'
+            ' inside an async context (BC36956, reported by BindOnErrorStatement and unrelated to the walker).
+            ' Pinning it keeps the lock from passing vacuously if that diagnostic ever disappears.
+            AssertSingleError(c, ERRID.ERR_ResumablesCannotContainOnError, "On Error Resume Next")
+
+            Dim diagnostics = c.GetDiagnostics()
+            Assert.DoesNotContain(diagnostics, Function(d) d.Id = ErrorCode(ERRID.ERR_TryAndOnErrorDoNotMix))
+            Assert.DoesNotContain(diagnostics, Function(d) d.Id = ErrorCode(ERRID.ERR_BadAwaitInTryHandler))
+        End Sub
+
+        ''' <summary>
+        ''' The walker does not dive into lambdas, so an 'Await' inside a lambda stays legal even when the lambda sits
+        ''' inside a 'SyncLock' block.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelAwaitInLambdaInsideSyncLock_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Dim gate As New Object" & vbLf &
+                "Dim t As System.Threading.Tasks.Task(Of Integer)" & vbLf &
+                "SyncLock gate" & vbLf &
+                "    t = System.Threading.Tasks.Task.Run(Async Function()" & vbLf &
+                "                                              Await System.Threading.Tasks.Task.FromResult(1)" & vbLf &
+                "                                          End Function)" & vbLf &
+                "End SyncLock", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>
+        ''' A shared member of a script class has no instance to offer, so an implicit reference to an instance member
+        ''' is the ordinary BC30369 (ERR_BadInstanceMemberAccess) that an ordinary class reports as well.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelSharedMethodBody_ReadingInstanceField_ReportsBadInstanceMemberAccess()
+            Dim c = CreateSubmission(
+                "Dim sx As Integer = 5" & vbLf &
+                "Shared Sub S()" & vbLf &
+                "    System.Console.WriteLine(sx)" & vbLf &
+                "End Sub" & vbLf &
+                "S()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadInstanceMemberAccess, "sx")
+        End Sub
+
+        ''' <summary>The shared initializer shape: calling an instance method relies on an implicit Me.</summary>
+        <Fact>
+        Public Sub TopLevelSharedFieldInitializer_CallingInstanceMethod_ReportsBadInstanceMemberAccess()
+            Dim c = CreateSubmission(
+                "Function F() As Integer" & vbLf &
+                "    Return 3" & vbLf &
+                "End Function" & vbLf &
+                "Shared Dim y As Integer = F()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadInstanceMemberAccess, "F")
+        End Sub
+
+        ''' <summary>The shared property initializer shape, which binds against the property symbol.</summary>
+        <Fact>
+        Public Sub TopLevelSharedPropertyInitializer_CallingInstanceMethod_ReportsBadInstanceMemberAccess()
+            Dim c = CreateSubmission(
+                "Function F() As Integer" & vbLf &
+                "    Return 3" & vbLf &
+                "End Function" & vbLf &
+                "Shared ReadOnly Property P As Integer = F()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadInstanceMemberAccess, "F")
+        End Sub
+
+        ''' <summary>An implicit reference made from an instance member of the script class stays legal.</summary>
+        <Fact>
+        Public Sub TopLevelInstanceMethodBody_ReadingInstanceField_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Dim sx As Integer = 5" & vbLf &
+                "Sub S()" & vbLf &
+                "    System.Console.WriteLine(sx)" & vbLf &
+                "End Sub" & vbLf &
+                "S()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>A top level statement is bound by the '&lt;Initialize&gt;' method, which is not shared.</summary>
+        <Fact>
+        Public Sub TopLevelStatement_ReadingInstanceField_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Dim sx As Integer = 5" & vbLf &
+                "System.Console.WriteLine(sx)", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>An explicit 'Me' in a script class keeps BC36966.</summary>
+        <Fact>
+        Public Sub TopLevelExplicitMe_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim sx As Integer = 5" & vbLf &
+                "Sub S()" & vbLf &
+                "    System.Console.WriteLine(Me.sx)" & vbLf &
+                "End Sub", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>An ordinary class keeps reporting BC30369 for both shapes.</summary>
+        <Fact>
+        Public Sub OrdinaryClassSharedMembers_StillReportBadInstanceMemberAccess()
+            Dim c = CreateSubmission(
+                "Class C" & vbLf &
+                "    Public x As Integer = 5" & vbLf &
+                "    Public Shared Sub S()" & vbLf &
+                "        System.Console.WriteLine(x)" & vbLf &
+                "    End Sub" & vbLf &
+                "End Class" & vbLf &
+                "C.S()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadInstanceMemberAccess, "x")
+        End Sub
+
+#End Region
+
+#Region "Top level scripts: 'Await' in a shared initializer (F06)"
+
+        ''' <summary>
+        ''' A shared field or property initializer is executed by the shared constructor of the script class, which is
+        ''' synchronous, so 'Await' cannot be honored there - it used to survive into code generation and trip the
+        ''' assertion in <c>CodeGen\EmitExpression.vb:207</c>.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelSharedFieldInitializerAwait_ReportsBadAwaitInSharedInitializer()
+            Dim c = CreateSubmission(
+                "Shared Dim x = Await System.Threading.Tasks.Task.FromResult(1)",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInSharedInitializer, AwaitKeywordText)
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelSharedReadOnlyFieldInitializerAwait_ReportsBadAwaitInSharedInitializer()
+            Dim c = CreateSubmission(
+                "Shared ReadOnly x As Integer = Await System.Threading.Tasks.Task.FromResult(1)",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInSharedInitializer, AwaitKeywordText)
+        End Sub
+
+        ''' <summary>
+        ''' The property shape: the initializer binds against the <c>PropertySymbol</c> of the script class, not against
+        ''' a backing field, so the check has to accept both member kinds.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelSharedPropertyInitializerAwait_ReportsBadAwaitInSharedInitializer()
+            Dim c = CreateSubmission(
+                "Shared ReadOnly Property P As Integer = Await System.Threading.Tasks.Task.FromResult(7)",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInSharedInitializer, AwaitKeywordText)
+        End Sub
+
+        ''' <summary>An array field needed no '=' to require the shared constructor, and its upper bound is 'Await'-checked as well.</summary>
+        <Fact>
+        Public Sub TopLevelSharedArrayFieldBoundsAwait_ReportsBadAwaitInSharedInitializer()
+            Dim c = CreateSubmission(
+                "Shared Dim arr(Await System.Threading.Tasks.Task.FromResult(2)) As Integer",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitInSharedInitializer, AwaitKeywordText)
+        End Sub
+
+        ''' <summary>An instance initializer runs inside the asynchronous '&lt;Initialize&gt;' method, so 'Await' stays legal.</summary>
+        <Fact>
+        Public Sub TopLevelInstanceFieldInitializerAwait_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Dim y = Await System.Threading.Tasks.Task.FromResult(2)",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelInstancePropertyInitializerAwait_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "ReadOnly Property P As Integer = Await System.Threading.Tasks.Task.FromResult(7)",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>
+        ''' An initializer of a nested (non-script) type is not an asynchronous context at all, so it keeps reporting
+        ''' BC36937 and is not taken over by the script specific check.
+        ''' </summary>
+        <Fact>
+        Public Sub NestedClassSharedInitializerAwait_ReportsBadAwaitNotInAsyncMethodOrLambda()
+            Dim c = CreateSubmission(
+                "Class C" & vbLf &
+                "    Shared s As Integer = Await System.Threading.Tasks.Task.FromResult(9)" & vbLf &
+                "End Class", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadAwaitNotInAsyncMethodOrLambda, AwaitKeywordText)
+        End Sub
+
+#End Region
+
     End Class
 End Namespace
 

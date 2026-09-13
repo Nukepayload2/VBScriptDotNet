@@ -1632,6 +1632,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_PPLoadFollowsToken = 37002
         ERR_ShebangDirectiveOnlyAllowedInScripts = 37003
         ERR_ShebangDirectiveNotOnFirstLine = 37004
+        ' 37006-37049 is an unused gap in the official 37xxx band, so fork-only script diagnostics land here.
+        ERR_ExtensionMethodNotShared = 37005
         ERR_ResumableLambdaInExpressionTree = 37050
         ERR_DllImportOnResumableMethod = 37051
         ERR_CannotLiftRestrictedTypeResumable1 = 37052
@@ -1811,8 +1813,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_AttributeCannotBeAppliedManually = 37338
         ERR_EncUpdateRequiresEmittingExplicitInterfaceImplementationNotSupportedByTheRuntime = 37339
         ERR_ExpressionTreeContainsAbstractStaticMemberAccess = 37340
+        ERR_BadAwaitInSharedInitializer = 37341
 
-        ERR_NextAvailable = 37341
+        ERR_NextAvailable = 37342
 
         '// WARNINGS BEGIN HERE
         WRN_UseOfObsoleteSymbol2 = 40000

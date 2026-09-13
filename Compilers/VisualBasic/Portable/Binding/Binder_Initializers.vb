@@ -131,7 +131,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     If initializer.FieldsOrProperties.IsDefault Then
                         ' use the binder of the Script class for global statements
                         Dim isLast = (i = initializers.Length - 1 AndAlso j = siblingInitializers.Length - 1)
-                        boundInitializers.Add(parentBinder.BindGlobalStatement(scriptInitializerOpt, DirectCast(initializerNode, StatementSyntax), diagnostics, isLast))
+                        Dim globalStatement = parentBinder.BindGlobalStatement(scriptInitializerOpt, DirectCast(initializerNode, StatementSyntax), diagnostics, isLast)
+                        boundInitializers.Add(globalStatement)
+
+                        ' Top level statements live in the synthesized script initializer whose bound body is a stub, so the
+                        ' 'Await' position check that method bodies get from BindMethodBlock never sees them. Run it here, on the
+                        ' statement just bound, so that the binder matches the tree the statement came from.
+                        CheckAwaitInTryHandler(parentBinder, globalStatement, diagnostics)
+
                         Continue For
                     End If
 
@@ -227,6 +234,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Return New BoundGlobalStatementInitializer(statementNode, boundStatement)
         End Function
+
+        Private Shared Sub CheckAwaitInTryHandler(binder As Binder, globalStatement As BoundInitializer, diagnostics As BindingDiagnosticBag)
+            Debug.Assert(TypeOf globalStatement Is BoundGlobalStatementInitializer)
+
+            Dim statement = DirectCast(globalStatement, BoundGlobalStatementInitializer).Statement
+            Dim block As New BoundBlock(statement.Syntax,
+                                        Nothing,
+                                        ImmutableArray(Of LocalSymbol).Empty,
+                                        ImmutableArray.Create(statement))
+
+            CheckOnErrorAndAwaitWalker.VisitBlockOnlyCheckAwaitInTryHandler(binder, block, diagnostics)
+        End Sub
 
         ''' <summary>
         ''' Bind an initializer for an implicitly allocated array field (for example: Private F(2) As Object).

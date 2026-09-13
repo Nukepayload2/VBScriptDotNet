@@ -5666,6 +5666,11 @@
         <target state="translated">확장 메서드는 모듈에만 정의할 수 있습니다.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_ExtensionMethodNotShared">
+        <source>Extension methods must be declared 'Shared'. Members of a standard module are implicitly 'Shared', but a script class is not a standard module, so the 'Shared' modifier is required.</source>
+        <target state="new">Extension methods must be declared 'Shared'. Members of a standard module are implicitly 'Shared', but a script class is not a standard module, so the 'Shared' modifier is required.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_ExtensionMethodNoParams">
         <source>Extension methods must declare at least one parameter. The first parameter specifies which type to extend.</source>
         <target state="translated">확장 메서드는 하나 이상의 매개 변수를 선언해야 합니다. 첫 번째 매개 변수는 확장할 형식을 지정합니다.</target>
@@ -8292,6 +8297,11 @@
       <trans-unit id="ERR_BadAwaitNotInAsyncMethodOrLambda">
         <source>'Await' can only be used when contained within a method or lambda expression marked with the 'Async' modifier.</source>
         <target state="translated">'Await'는 'Async' 한정자로 표시된 메서드나 람다 식 내에 포함된 경우에만 사용할 수 있습니다.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_BadAwaitInSharedInitializer">
+        <source>'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</source>
+        <target state="new">'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_StatementLambdaInExpressionTree">

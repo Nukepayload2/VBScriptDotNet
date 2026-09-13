@@ -90,7 +90,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         Friend Overrides Sub AddSynthesizedAttributes(moduleBuilder As PEModuleBuilder, ByRef attributes As ArrayBuilder(Of VisualBasicAttributeData))
             MyBase.AddSynthesizedAttributes(moduleBuilder, attributes)
 
-            Debug.Assert(Not ContainingType.IsImplicitlyDeclared)
+            Debug.Assert(Not ContainingType.IsImplicitClass)
             Dim compilation = Me.DeclaringCompilation
             AddSynthesizedAttribute(attributes,
                                     compilation.TrySynthesizeAttribute(WellKnownMember.System_Runtime_CompilerServices_CompilerGeneratedAttribute__ctor))

@@ -2610,10 +2610,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
                     CreateProperty(propertyDecl, Nothing, binder, diagBag.DiagnosticBag, members, staticInitializers, instanceInitializers)
 
-                Case SyntaxKind.LabelStatement
-                    ' TODO (tomat): should be added to the initializers
-                    Exit Select
-
                 Case SyntaxKind.EventStatement
                     Dim eventDecl = DirectCast(memberSyntax, EventStatementSyntax)
                     CreateEvent(eventDecl, Nothing, binder, diagBag.DiagnosticBag, members)
@@ -2726,7 +2722,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             If TypeKind = TypeKind.Submission Then
 
                 ' Only add a constructor if it is not shared OR if there are shared initializers
-                If Not isShared OrElse Me.AnyInitializerToBeInjectedIntoConstructor(initializers, False) Then
+                If isShared Then
+                    ' A shared constructor cannot take the submission array parameter carried by the submission
+                    ' constructor, so shared initializers are injected into a parameterless shared constructor.
+                    If Me.AnyInitializerToBeInjectedIntoConstructor(initializers, False) Then
+                        EnsureCtor(members, isShared, isDebuggable:=True, diagnostics)
+                    End If
+
+                Else
 
                     ' use the first part; a submission may span multiple script trees (#Load)
                     Dim syntaxRef = SyntaxReferences.First()

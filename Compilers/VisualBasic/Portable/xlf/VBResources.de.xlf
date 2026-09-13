@@ -5666,6 +5666,11 @@
         <target state="translated">Erweiterungsmethoden können nur in Modulen definiert werden.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_ExtensionMethodNotShared">
+        <source>Extension methods must be declared 'Shared'. Members of a standard module are implicitly 'Shared', but a script class is not a standard module, so the 'Shared' modifier is required.</source>
+        <target state="new">Extension methods must be declared 'Shared'. Members of a standard module are implicitly 'Shared', but a script class is not a standard module, so the 'Shared' modifier is required.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_ExtensionMethodNoParams">
         <source>Extension methods must declare at least one parameter. The first parameter specifies which type to extend.</source>
         <target state="translated">Erweiterungsmethoden müssen mindestens einen Parameter deklarieren. Der erste Parameter gibt den zu erweiternden Typ an.</target>
@@ -8292,6 +8297,11 @@
       <trans-unit id="ERR_BadAwaitNotInAsyncMethodOrLambda">
         <source>'Await' can only be used when contained within a method or lambda expression marked with the 'Async' modifier.</source>
         <target state="translated">'"Await" kann nur verwendet werden, wenn es in einer Methode oder einem Lambdaausdruck enthalten ist, die bzw. der mit dem Async-Modifizierer markiert ist.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_BadAwaitInSharedInitializer">
+        <source>'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</source>
+        <target state="new">'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_StatementLambdaInExpressionTree">

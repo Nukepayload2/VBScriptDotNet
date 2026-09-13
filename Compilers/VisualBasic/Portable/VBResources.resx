@@ -3130,6 +3130,9 @@
   <data name="ERR_ExtensionMethodNotInModule" xml:space="preserve">
     <value>Extension methods can be defined only in modules.</value>
   </data>
+  <data name="ERR_ExtensionMethodNotShared" xml:space="preserve">
+    <value>Extension methods must be declared 'Shared'. Members of a standard module are implicitly 'Shared', but a script class is not a standard module, so the 'Shared' modifier is required.</value>
+  </data>
   <data name="ERR_ExtensionMethodNoParams" xml:space="preserve">
     <value>Extension methods must declare at least one parameter. The first parameter specifies which type to extend.</value>
   </data>
@@ -4720,6 +4723,9 @@
   </data>
   <data name="ERR_BadAwaitNotInAsyncMethodOrLambda" xml:space="preserve">
     <value>'Await' can only be used when contained within a method or lambda expression marked with the 'Async' modifier.</value>
+  </data>
+  <data name="ERR_BadAwaitInSharedInitializer" xml:space="preserve">
+    <value>'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</value>
   </data>
   <data name="ERR_StatementLambdaInExpressionTree" xml:space="preserve">
     <value>Statement lambdas cannot be converted to expression trees.</value>

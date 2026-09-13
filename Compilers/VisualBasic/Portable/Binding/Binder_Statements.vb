@@ -466,11 +466,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Private _enclosingSyncLockOrUsing As BoundStatement
             Private _isInCatchFinallyOrSyncLock As Boolean
             Private _containsAwait As Boolean
+            Private ReadOnly _onlyCheckAwaitInTryHandler As Boolean
             Private ReadOnly _tryOnErrorResume As New ArrayBuilder(Of BoundStatement)
 
-            Private Sub New(binder As Binder, diagnostics As BindingDiagnosticBag)
+            Private Sub New(binder As Binder, diagnostics As BindingDiagnosticBag, Optional onlyCheckAwaitInTryHandler As Boolean = False)
                 _diagnostics = diagnostics
                 _binder = binder
+                _onlyCheckAwaitInTryHandler = onlyCheckAwaitInTryHandler
             End Sub
 
             Public Shared Shadows Sub VisitBlock(
@@ -504,13 +506,34 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 containsLineNumberLabel = walker._containsLineNumberLabel
                 containsCatch = walker._containsCatch
 
-                If (containsOnError OrElse containsResume) AndAlso walker._containsTry Then
+                If Not walker._onlyCheckAwaitInTryHandler AndAlso
+                   (containsOnError OrElse containsResume) AndAlso walker._containsTry Then
                     For Each node In walker._tryOnErrorResume
                         Binder.ReportDiagnostic(diagnostics, node.Syntax, ERRID.ERR_TryAndOnErrorDoNotMix)
                     Next
 
                     reportedAnError = True
                 End If
+            End Sub
+
+            ''' <summary>
+            ''' Reports an 'Await' inside a 'Catch', 'Finally' or 'SyncLock' block. Only the 'Await' position check runs,
+            ''' the 'On Error' related diagnostics are left to the callers that bind a real method body.
+            ''' </summary>
+            Public Shared Sub VisitBlockOnlyCheckAwaitInTryHandler(
+                binder As Binder,
+                block As BoundBlock,
+                diagnostics As BindingDiagnosticBag
+            )
+                Dim walker As New CheckOnErrorAndAwaitWalker(binder, diagnostics, onlyCheckAwaitInTryHandler:=True)
+
+                Try
+                    walker.Visit(block)
+                    Debug.Assert(walker._enclosingSyncLockOrUsing Is Nothing)
+                    Debug.Assert(Not walker._isInCatchFinallyOrSyncLock)
+                Catch ex As CancelledByStackGuardException
+                    ex.AddAnError(diagnostics)
+                End Try
             End Sub
 
             Public Overrides Function Visit(node As BoundNode) As BoundNode
@@ -553,7 +576,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                     End If
                 End If
 
-                If _enclosingSyncLockOrUsing IsNot Nothing Then
+                If Not _onlyCheckAwaitInTryHandler AndAlso _enclosingSyncLockOrUsing IsNot Nothing Then
                     ReportDiagnostic(_diagnostics, node.Syntax,
                                      If(_enclosingSyncLockOrUsing.Kind = BoundKind.UsingStatement,
                                         ERRID.ERR_OnErrorInUsing,

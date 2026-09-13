@@ -1,6 +1,6 @@
 # 任务：脚本顶层「本该报错 / 本该正常却崩掉编译器」一次收口（script-top-level-crashes）——任务计划
 
-> **状态：计划已产出，待 author/验证者核对（Accepted 门前）**。本文件夹是本族缺陷的四件套：本 README（目标 / 判定表 / 分批 / Vortex 代办 / 共享源码事实 / 冲突登记）+ `design-overview.md`（总体设计 + 全称主张剪枝自检）+ `design-detailed.md`（逐单元改动蓝图 + pass 条件 + 账本义务）+ `test-plan.md`（L1–L4 矩阵 + 无副作用纪律 + 全量回归口径）。
+> **状态：计划已产出，并已按本计划实施、验证收口**（§八 七条未单独留档；F09 系 author 直接指令先行落地，见「状态行」）。本文件夹是本族缺陷的四件套：本 README（目标 / 判定表 / 分批 / Vortex 代办 / 共享源码事实 / 冲突登记）+ `design-overview.md`（总体设计 + 全称主张剪枝自检）+ `design-detailed.md`（逐单元改动蓝图 + pass 条件 + 账本义务）+ `test-plan.md`（L1–L4 矩阵 + 无副作用纪律 + 全量回归口径）。
 
 - **一句话**：把 `issues\` 的 **04–11 八条 Open 缺陷**（脚本顶层成员 / 初始化器 / 语句在**普通编译上下文里合法或报错、在脚本模式下却崩编译器进程或产出坏 IL**）逐条判定为「修好」或「报错」，给出可无人值守串行实施的改动蓝图与无副作用验收网；**八条判定为 4 修好 + 4 报错**。
 - **作者给定的判定原则（本计划的唯一判据）**：
@@ -18,7 +18,7 @@
 
 | # | issue 文件 | 形状（顶层/提交类） | 现状症状（已运行实测） |
 |---|---|---|---|
-| 04 | `issue-script-top-level-extension-method-crash.md` | `<Extension>` 施加于脚本类的**实例**成员（漏写 `Shared`） | Debug 断言终止 `Me.IsShared`（`SourceMethodSymbol.vb:1504`）；Release 落到 codegen |
+| 04 | `issue-script-top-level-extension-method-crash.md` | `<Extension>` 施加于脚本类的**实例**成员（漏写 `Shared`） | Debug 断言终止 `Me.IsShared`（`SourceMethodSymbol.vb:1505`）；Release 落到 codegen |
 | 05 | `issue-submission-shared-field-initializer-typeload.md` | 顶层 `Shared` 字段/属性带初始化器（含 `Shared ReadOnly`、含 `Shared Dim arr(2)` 隐式上界） | 编译期零诊断，宿主 `TypeLoadException`（exit 34） |
 | 06 | `issue-script-shared-field-await-initializer-crash.md` | 顶层 `Shared` 字段/属性初始化器含 `Await` | 断言终止 `Unexpected value 'AwaitOperator'`（exit 35） |
 | 07 | `issue-submission-implicit-type-member-asserts.md` | 提交类顶层 `Event` / `WithEvents` | 断言终止（`SynthesizedEventAccessorSymbol.vb:495` / `SourceWithEventsBackingFieldSymbol.vb:66`，exit 35） |
@@ -31,9 +31,10 @@
 
 - **不改容器种类**：脚本/提交类保持 `TypeKind.Submission`（`meeting-script-extension-methods.md` R21 已裁；本任务的任何单元都不得以「换容器」为修法）。
 - **不修 issue 07 之外的断言族邻居**：`Symbols\Source\SynthesizedWithEventsAccessorSymbol.vb:93` 虽属同一断言族，但**本任务一并收口**（它是同族可枚举的第三处，属 F07 的改动面，不留遗留）；除此以外 `Symbols\Source\**` 里其余 `IsImplicitlyDeclared` 消费点不在此列。
+- **不修「顶层实例 `RaiseEvent`」的第四处断言**：`Lowering\LocalRewriter\LocalRewriter_RaiseEvent.vb:36` 的 `Debug.Assert(fieldAccessReceiver Is Nothing OrElse …Kind = BoundKind.MeReference)` 与 F07 的三处**谓词 / 文件 / 阶段皆不同**（后者是 `Symbols\Source\` 里 Emit 期的 `Not …IsImplicitlyDeclared`），它是**独立缺陷**：脚本类顶层**实例** `Sub` / lambda 里的 `RaiseEvent` 触发它，而同样的 `RaiseEvent` 在嵌套（普通）类里正常工作。它使「实例 `Event` 的 raise 路径」在语言内不可达（见 §七 F07 行的缺口登记）⇒ **单独立项**，不在本任务范围。
 - **不改 `Compilers\Core\Portable\CodeGen\`（共享 C#/VB 发射层）**：八条崩溃的栈顶都在共享 `CodeGen.ILBuilder` / `BasicBlock`，修法一律是「不让坏形状活到发射期」，不是给共享发射层加守卫（加守卫会把 VB 的形状知识写进 C# 也走的文件）。
 - **不做 `Module` 化 / 顶层成员默认 `Shared`**：`meetings\inactive\meeting-top-level-implicit-shared.md` 方向维持 Table，本任务不触碰。
-- **不改 `spec\` / `meetings\` / `proposals\` / `issues\` 文本**：规范与 issue 正文的修订作为**义务**记在 `design-detailed.md` §账本与规范义务，由后续 spec/issue 阶段执行。
+- **不改 `spec\` / `meetings\` / `proposals\` / `issues\` 文本**：规范与 issue 正文的修订作为**义务**记在 `design-detailed.md` §账本与规范义务，由后续 spec/issue 阶段执行。**变更面以 `design-detailed.md` §变更面汇总 的白名单为准**；这四个目录的**整体** `git diff` 状态不在本任务的验收判据内（本任务不把「仓库里 `issues\` 零 diff」当验收事实）。
 - **不碰 issue 06 的「面孔②」判据**（嵌套类型）：由 F09 承接（`meeting-submission-shared-members.md` R6 明写）。
 
 ---
@@ -45,13 +46,13 @@
 | # | 普通上下文里的同形状 | 普通上下文行为（证据） | 判定 | 依据 / 前置决定 |
 |---|---|---|---|---|
 | **04** | `C#` `.csx` 里 `<Extension>` 非 `static` 成员 → **CS1105**「Extension method must be static」（`issues\issue-script-top-level-extension-method-crash.md` 的已检查锚点 + `ScriptSemanticsTests.cs:1110-1118`）；VB 普通上下文里该前提**不可违反**（`Module` 成员隐式 `Shared`） | **报错**（普通上下文没有可比形状，但 C# 有先例且 VB 缺这一条） | **报错** | **前置决定已存在**：`meeting-script-extension-methods.md` **R2** 采纳候选 B = 「维持『脚本类里只有 `Shared` 成员可作扩展方法』，补齐缺失诊断」，两处同批（早期解码守卫 + 完整解码分支），**诊断必须点名 `Shared`**（对齐 CS1105 句式，不复用 BC36551 的「only in modules」）。本计划不推翻，只做落点细化。 |
-| **05** | 普通类 `Public Shared x As Integer = 5` | **合法且工作**：**已运行实锤**——嵌套类同形状（`Public Class C` + `Public Shared sx As Integer = 5` + 读 `C.sx`）exit 0、输出 `NESTEDCLASS-OK 5`（探针 q23，见 `..\..\proposals\proposal-submission-shared-members.md` §4 探针清单；issue 正文的边界表同向） | **修好** | **前置决定已存在**：`meeting-submission-shared-members.md` **R1** 采纳**甲**（`SourceMemberContainerTypeSymbol.vb:2726-2737` 的 `TypeKind = Submission` 分支按 `isShared` 分叉——共享时走 `EnsureCtor`，形态是**两个符号**而非形参分叉）。本计划不推翻。 |
-| **06** | 普通类 `Shared x = Await …` | **报错**：**已运行实锤**——嵌套类（非脚本类）`Public Shared s As Integer = Await 5` 正常打印 **BC36937 + BC36930**、exit 1（探针 v4）；机制上 `IsInAsyncContext()`（`Binder_Expressions.vb:4720-4728`）对非脚本类的字段返回 False ⇒ 绑定期报 BC36937。C# 侧是 CS8100（脚本专属静态字段初始化器） | **报错** | **前置决定已存在**：`meeting-submission-shared-members.md` **R2** 采纳**乙**，目标定为「从崩改成报错」，三条件（新脚本专属码 / 覆盖共享**属性** / 落点在**调用结构**）。本计划不推翻。 |
-| **07** | 嵌套类里 `Public Event E` / `Public WithEvents r` | **合法且工作**（q34/q35 exit 0；取自 issue 正文的已运行结论） | **修好** | 三处 `Debug.Assert(Not …IsImplicitlyDeclared)` **不是控制流**：断言之后的 `AddSynthesizedAttribute` 无条件执行（`SynthesizedEventAccessorSymbol.vb:495-498`、`SourceWithEventsBackingFieldSymbol.vb:66-77`），Release 下断言编译掉后**照常发射**（`e307d0f` 实测顶层 `Event` exit 0），故把断言收窄到原本意图（`Not …IsImplicitClass`）**零行为变化**。可选路线 B（改 `ImplicitNamedTypeSymbol.IsImplicitlyDeclared`）改动面扩散到全部消费者，**不取**——理由见 `design-detailed.md` §F07。 |
-| **08** | 普通类里共享方法体 / 共享初始化器隐式引用实例成员 | **报错 BC30369**（q39 / q37 两条，exit 1） | **报错** | 复用 **BC30369**（`ERR_BadInstanceMemberAccess`，`Errors.vb:323`），**零新码**。根因是 `Binder_Expressions.vb:2260-2261` 的注释前提「No code in a script class is shared」在 fork 里已不成立（`:2263-2265` 对任何隐式 `Me` 一律 `Return True`，永不走到 `:2272-2278`）。 |
+| **05** | 普通类 `Public Shared x As Integer = 5` | **合法且工作**：**已运行实锤**——嵌套类同形状（`Public Class C` + `Public Shared sx As Integer = 5` + 读 `C.sx`）exit 0、输出 `NESTEDCLASS-OK 5`（探针 q23，见 `..\..\proposals\proposal-submission-shared-members.md` §4 探针清单；issue 正文的边界表同向） | **修好** | **前置决定已存在**：`meeting-submission-shared-members.md` **R1** 采纳**甲**（`SourceMemberContainerTypeSymbol.vb:2722-2740` 的 `TypeKind = Submission` 分支按 `isShared` 分叉——共享时走 `EnsureCtor`，形态是**两个符号**而非形参分叉）。本计划不推翻。 |
+| **06** | 普通类 `Shared x = Await …` | **报错**：**已运行实锤**——嵌套类（非脚本类）`Public Shared s As Integer = Await 5` 正常打印 **BC36937 + BC36930**、exit 1（探针 v4）；机制上 `IsInAsyncContext()`（`Binder_Expressions.vb:4723-4731`）对非脚本类的字段返回 False ⇒ 绑定期报 BC36937。C# 侧是 CS8100（脚本专属静态字段初始化器） | **报错** | **前置决定已存在**：`meeting-submission-shared-members.md` **R2** 采纳**乙**，目标定为「从崩改成报错」，三条件（新脚本专属码 / 覆盖共享**属性** / 落点在**调用结构**）。本计划不推翻。 |
+| **07** | 嵌套类里 `Public Event E` / `Public WithEvents r` | **合法且工作**（q34/q35 exit 0；取自 issue 正文的已运行结论） | **修好** | 三处 `Debug.Assert(Not …IsImplicitlyDeclared)` **不是控制流**：断言之后的 `AddSynthesizedAttribute` 无条件执行（`SynthesizedEventAccessorSymbol.vb:495-498`、`SourceWithEventsBackingFieldSymbol.vb:66-77`），Release 下断言编译掉后**照常发射**（`e307d0f` 实测顶层 `Event` exit 0），故把断言收窄为 `Not …IsImplicitClass`（真正的隐式类容器仍不放行）**零行为变化**。可选路线 B（改 `ImplicitNamedTypeSymbol.IsImplicitlyDeclared`）改动面扩散到全部消费者，**不取**——理由见 `design-detailed.md` §F07。 |
+| **08** | 普通类里共享方法体 / 共享初始化器隐式引用实例成员 | **报错 BC30369**（q39 / q37 两条，exit 1） | **报错** | 复用 **BC30369**（`ERR_BadInstanceMemberAccess`，`Errors.vb:323`），**零新码**。根因是「脚本类里没有共享代码」这一前提（在 fork 里不成立：脚本类可有 `Shared` 成员与共享初始化器）被当作 `Binder_Expressions.vb:2264-2273` 脚本类分支的放行条件 ⇒ 隐式 `Me` 到不了 `:2275-2281` 的 BC30369 出口；判据落在 `:2270-2271`（`IsMeOrMyBaseOrMyClassInSharedContext()`）。 |
 | **09** | 嵌套类型初始化器里 `Await`（普通类，非脚本类） | **诊断已报** BC36937，**且应当不发射**——`EmitExpression.vb:207` 的注释逐字「Code gen should not be invoked if there are errors.」；判别性对照 v4/v5 显示「有别的错时门生效」 | **修好**（让已报出的诊断 gate 发射） | **缺陷机制**不是「缺诊断」，而是「诊断只落进编译级共享袋，逐方法发射门看不见本桶报过 error」（登记与逐环锚点见 `..\..\issues\issue-initializer-diagnostic-does-not-gate-emit.md`；相关文件 `MethodCompiler.vb` / `BindingDiagnosticBag.vb`）。修法不改语言语义：错误照报，只是不再崩。 |
-| **10** | 普通 `Async Function` 里 `Catch` / `Finally` 内 `Await` | **报错 BC36943**（g8 实测 exit 1、×2；`g10` 证明 `Using` 内 `Await` 合法 ⇒ 家族边界与消息一致） | **报错** | **复用 BC36943**（`ERR_BadAwaitInTryHandler`，`Errors.vb:1572`），**零新码**。根因：BC36943 的检查住在 `BindMethodBlock` 的 `CheckOnErrorAndAwaitWalker`（`Binder_Statements.vb:291` / `:330` / `:602-610`），而脚本 `<Initialize>` 的方法体由 `SynthesizedInteractiveInitializerMethod.GetBoundMethodBody` 返回**空壳**（`Symbols\Source\SynthesizedInteractiveInitializerMethod.vb:135-142`，体内只有一个退出标签）⇒ 顶层语句从不经过这道 walker。 |
-| **11** | 普通 `Async Function` 里 `GoTo` 跨 `Await` | **合法、编译通过、跳转生效**（g4 实测 exit 0，输出 `A`→`C`） | **修好** | 根因**不是**「异步宿主与普通方法不一致」（**推翻 issue 11 正文的同源假说**，见 §三）：顶层 `LabelStatement` 被**显式丢弃**——`SourceMemberContainerTypeSymbol.vb:2613-2615` 逐字 `Case SyntaxKind.LabelStatement ' TODO (tomat): should be added to the initializers / Exit Select`，而顶层语句（含 `GoTo`）在 `:2625-2637` 照常入 `instanceInitializers` ⇒ `GoTo` 的分支目标永远没有落地块。**判别性实测 g1/g11：无 `Await` 的顶层 `GoTo`（前向与反向各一）同样崩在 `ShortenBranches`** ⇒ `Await` 与本崩溃无关。 |
+| **10** | 普通 `Async Function` 里 `Catch` / `Finally` 内 `Await` | **报错 BC36943**（g8 实测 exit 1、×2；`g10` 证明 `Using` 内 `Await` 合法 ⇒ 家族边界与消息一致） | **报错** | **复用 BC36943**（`ERR_BadAwaitInTryHandler`，`Errors.vb:1572`），**零新码**。根因：BC36943 的检查住在 `BindMethodBlock` 的 `CheckOnErrorAndAwaitWalker`（`Binder_Statements.vb:291` / `:330` / `:625-636`），而脚本 `<Initialize>` 的方法体由 `SynthesizedInteractiveInitializerMethod.GetBoundMethodBody` 返回**空壳**（`Symbols\Source\SynthesizedInteractiveInitializerMethod.vb:135-142`，体内只有一个退出标签）⇒ 顶层语句从不经过这道 walker。 |
+| **11** | 普通 `Async Function` 里 `GoTo` 跨 `Await` | **合法、编译通过、跳转生效**（g4 实测 exit 0，输出 `A`→`C`） | **修好** | 根因**不是**「异步宿主与普通方法不一致」（**推翻 issue 11 正文的同源假说**，见 §三）：顶层 `LabelStatement` 与其它顶层可执行语句同由 `SourceMemberContainerTypeSymbol.vb:2621-2633` 的 `Case Else` 收集入 `instanceInitializers`（`LabelStatementSyntax` 继承 `ExecutableStatementSyntax`，`Syntax.xml.Syntax.Generated.vb:13444-13445`），无专用分支；标签语句不在该序列里时，`GoTo` 的分支目标没有落地块，症状落到发射期的 `ShortenBranches`。**判别性实测 g1/g11：无 `Await` 的顶层 `GoTo`（前向与反向各一）同样崩** ⇒ `Await` 与本崩溃无关。 |
 
 **计数：修好 4 条（05 / 07 / 09 / 11）；报错 4 条（04 / 06 / 08 / 10）。**
 
@@ -68,15 +69,15 @@
 三层证据，逐环 `文件:行号` + 实测：
 
 1. **`<Initialize>` 的方法体是空壳**：`Compilers\VisualBasic\Portable\Symbols\Source\SynthesizedInteractiveInitializerMethod.vb:135-142` 的 `GetBoundMethodBody` 只返回一个含退出标签的空 `BoundBlock`。⇒ `MethodCompiler.BindAndAnalyzeMethodBody`（`Compilation\MethodCompiler.vb:1807-1848`，`body = method.GetBoundMethodBody(...)` 于 `:1818`）看到的不是顶层代码。
-2. **方法体级检查因此整族缺席**：BC36943 与 On Error/Resume 混用、行号标签、`WRN_AsyncLacksAwaits` 全部挂在 `Binder_Statements.vb:291-448` 的 `BindMethodBlock` 上，其中 `CheckOnErrorAndAwaitWalker.VisitBlock(blockBinder, body, ...)` 于 `:330` 被调用、`VisitAwaitOperator` 于 `:602-610` 报 BC36943。空壳体使这一步恒为空转。**实测**：g15（Finally 内 `Await`）、g6（Catch 内 `Await`）、g7（三处）→ exit 3 NRE、零诊断；g8（普通 `Async Function` 同形状）→ exit 1、BC36943。
+2. **方法体级检查因此整族缺席**：BC36943 与 On Error/Resume 混用、行号标签、`WRN_AsyncLacksAwaits` 全部挂在 `Binder_Statements.vb:291-448` 的 `BindMethodBlock` 上，其中 `CheckOnErrorAndAwaitWalker.VisitBlock(blockBinder, body, ...)` 于 `:330` 被调用、`VisitAwaitOperator` 于 `:625-636` 报 BC36943。空壳体使这一步恒为空转。**实测**：g15（Finally 内 `Await`）、g6（Catch 内 `Await`）、g7（三处）→ exit 3 NRE、零诊断；g8（普通 `Async Function` 同形状）→ exit 1、BC36943。
 3. **顶层语句的绑定诊断落进编译级袋，不进发射门**（**缺陷机制**：登记与逐环锚点见 `..\..\issues\issue-initializer-diagnostic-does-not-gate-emit.md`）：顶层语句与字段/属性初始化器同由 `Binder.BindFieldAndPropertyInitializers` 绑定，该绑定报出的诊断只落进编译级共享袋，不构成「本桶报过 error」这一信号；而发射门（`MethodCompiler.vb`）的三项判据里，`diagsForCurrentMethod` 是 `BindingDiagnosticBag.GetInstance(_diagnostics)` 造出的**空袋**（`BindingDiagnosticBag.vb` 的 `GetInstance` **只复制两个布尔**），`processedInitializers.HasAnyErrors` 只反映 **bound 节点错误标志**（`Binding\Binder_Initializers.vb` 的 `ProcessedFieldOrPropertyInitializers.HasAnyErrors`），`block.HasErrors` 是那个空壳 ⇒ 已报出的诊断拦不住发射。**实测**：v1–v3（嵌套类三种形状）exit 35 零诊断 vs v4/v5（同形状+别的错）正常打印 BC36937。
 
 ⇒ 09 与 10 是**同一根的两个面**：A-1（检查缺席）与 A-2（诊断不 gate）。**修法必须成对**——只让诊断 gate 发射（F09）不会让 10 出现诊断（walker 压根没跑）；只补 walker（F10）而不让初始化器诊断 gate，则报出的 BC36943 仍然拦不住发射（`_diagnostics` 不参与 `:1288`）。故 F09 是 F10 的**前置**。
 
-### 根 B（成立，只覆盖 11）：顶层语句收集表**漏掉 `LabelStatement`**
+### 根 B（成立，只覆盖 11）：顶层 `GoTo` 的分支目标取决于标签语句是否进初始化器序列
 
-- 丢弃点：`SourceMemberContainerTypeSymbol.vb:2613-2615`（含上游作者 `' TODO (tomat): should be added to the initializers` 原注释）。
-- 收集点与之相邻：`:2625-2637` 的 `Case Else` 把 `ExecutableStatementSyntax` 入 `instanceInitializers`。
+- 收集点：`SourceMemberContainerTypeSymbol.vb:2621-2633` 的 `Case Else` 把 `ExecutableStatementSyntax` 入 `instanceInitializers`（`LabelStatementSyntax` 继承 `ExecutableStatementSyntax`，`Syntax.xml.Syntax.Generated.vb:13444-13445`）⇒ 顶层 `LabelStatement` 与其它顶层语句走**同一条**收集路，无专用分支。
+- 标签符号本身存在（`VB\Binding\ExecutableCodeBinder.vb:50-74` 扫整棵语法根建标签表）⇒ `GoTo` 能绑定、**零诊断**；标签语句一旦不在 `instanceInitializers` 里，分支目标就没有落地块，症状落到发射期。
 - **推翻「同源于根 A」的判别性实测**：g1（顶层 `GoTo` + 标签，**无任何 `Await`**）exit 3，崩点与 g2 逐字相同（`ILBuilder.BasicBlock.ShortenBranches`，`Compilers\Core\Portable\CodeGen\BasicBlock.cs:325`）；g11（**反向** `GoTo` 循环，无 `Await`）同样 exit 3。g3（顶层 `Try/Catch/Finally`，无 `Await`）exit 0 正常 ⇒「顶层异步宿主」本身不致病。
 - ⇒ 11 与 10 **不同源**；issue 11 正文的「与 #10 同源」是**推测**，实测**证伪**（该订正记在 §九 冲突登记）。
 
@@ -84,13 +85,13 @@
 
 | # | 独立根因（锚点） | 与根 A/B 的关系 |
 |---|---|---|
-| 04 | `SourceMethodSymbol.vb:1500-1504` 与 `:1633-1634` 的 `Debug.Assert(Me.IsShared)`——「扩展方法必须 `Shared`」的前提在 `Module` 内不可违反，故 VB 从无用户可见诊断（`NamedTypeSymbolExtensions.vb:108-111` 把 `IsScriptClass` 与 `TypeKind.Module` 并列放行） | 无关（早期/完整属性解码路径） |
-| 05 | `SourceMemberContainerTypeSymbol.vb:2726-2737` 的 submission 分支把**共享**初始化器交给**为实例版设计**的 `SynthesizedSubmissionConstructorSymbol`（`:31-38` 无条件带 `submissionArray` 形参）⇒ 带形参的 `.cctor` | 无关（构造器符号生产） |
-| 06 | `Binder_Expressions.vb:4720-4728` 的 `IsInAsyncContext()` **不查 `IsShared`**（共享初始化器被当 async 上下文放行），而 `.cctor` 的 `IsAsync` 恒 False（`Symbols\SynthesizedSymbols\SynthesizedMethodBase.vb:195-200`）⇒ `AwaitOperator` 存活到 `CodeGen\EmitExpression.vb:206-209` | 与 08 **同母题**（「脚本类里没有共享代码」这一失效前提的第二个落点，见 08 行） |
+| 04 | `SourceMethodSymbol.vb:1500-1505` 与 `:1637-1638` 的 `Debug.Assert(Me.IsShared)`——「扩展方法必须 `Shared`」的前提在 `Module` 内不可违反，故 VB 从无用户可见诊断（`NamedTypeSymbolExtensions.vb:108-111` 把 `IsScriptClass` 与 `TypeKind.Module` 并列放行） | 无关（早期/完整属性解码路径） |
+| 05 | `SourceMemberContainerTypeSymbol.vb:2722-2740` 的 submission 分支把**共享**初始化器交给**为实例版设计**的 `SynthesizedSubmissionConstructorSymbol`（`:31-38` 无条件带 `submissionArray` 形参）⇒ 带形参的 `.cctor` | 无关（构造器符号生产） |
+| 06 | `Binder_Expressions.vb:4723-4731` 的 `IsInAsyncContext()` **不查 `IsShared`**（共享初始化器被当 async 上下文放行），而 `.cctor` 的 `IsAsync` 恒 False（`Symbols\SynthesizedSymbols\SynthesizedMethodBase.vb:195-200`）⇒ `AwaitOperator` 存活到 `CodeGen\EmitExpression.vb:206-209` | 与 08 **同母题**（「脚本类里没有共享代码」这一失效前提的第二个落点，见 08 行） |
 | 07 | `ImplicitNamedTypeSymbol.vb:33-37` 让提交/脚本类的 `IsImplicitlyDeclared` 恒 True，撞三处合成成员断言（`SynthesizedEventAccessorSymbol.vb:495`、`SourceWithEventsBackingFieldSymbol.vb:66`、`SynthesizedWithEventsAccessorSymbol.vb:93`） | 无关（类型符号类型判定） |
-| 08 | `Binder_Expressions.vb:2260-2270` 以注释「No code in a script class is shared」为前提，对脚本类任何隐式 `Me` 一律 `Return True` | 与 06 同母题（同一条失效前提） |
+| 08 | `Binder_Expressions.vb:2264-2273` 以「脚本类里没有共享代码」为前提放行脚本类的隐式 `Me`（该前提在 fork 里不成立：脚本类可有 `Shared` 成员与共享初始化器）⇒ 到不了 `:2275-2281` 的 BC30369 出口；判据落在 `:2270-2271` | 与 06 同母题（同一条失效前提） |
 
-> **转述纪律**：上表每格的三态 = 锚点行**实锤**（逐行已检查）+ 症状**实锤**（已运行）；「06 与 08 同母题」是**推测**（issue 08 / 06 正文各自的自述，未额外实证）；「Release 下 07 照常发射」为**实锤**但取自**较旧** Release 二进制 `e307d0f`（**参照级**，HEAD Release 未跑）。
+> **转述纪律**：上表每格的三态 = 锚点行**实锤**（逐行已检查）+ 症状**实锤**（已运行）；「06 与 08 同母题」是**推测**（issue 08 / 06 正文各自的自述，未额外实证）；「Release 下 07 照常发射」为**实锤**（较旧二进制 `e307d0f` 的参照级实测 **＋ 收口轮的 HEAD `d7b0fc8` Release 实测**：顶层 `Event` exit 0 `EVENT-OK`；见 `design-detailed.md` §待定项 U5）。
 
 ---
 
@@ -101,8 +102,8 @@
 | 批 | 单元 | 文件面 | 依赖 | 说明 |
 |---|---|---|---|---|
 | **W1** | **F09**（issue 09，修好：诊断 gate 发射） | `Compilation\MethodCompiler.vb`（`:599-623` / `:1288`）、`Binding\Binder_Initializers.vb`（文档 + 构造） | 无 | **必须最先**：F06 / F08（初始化器形状）/ F10 都靠「初始化器绑定产生的 error 能拦住发射」 |
-| **W2** | **F05**（甲）→ **F11**（标签入序列）→ **F07**（断言收窄） | `Symbols\Source\SourceMemberContainerTypeSymbol.vb`（F05 `:2726-2737`、F11 `:2613-2615`，**同文件 ⇒ 串行**）；F07 三个合成成员文件 | 无（与 W1 并行安全：文件面不重叠） | F05 先于 F11 只因同文件串行的书写顺序（`meeting-submission-shared-members.md` R5 已把「甲先落地」定为顺序） |
-| **W3** | **F10**（BC36943 补跑）→ **F08**（BC30369）→ **F06**（乙，新码）→ **F04**（B，新码） | `Binding\Binder_Initializers.vb` + `Binding\Binder_Statements.vb`（F10）；`Binding\Binder_Expressions.vb`（F08 `:2257-2286` 与 F06 `:4740-4744`，**同文件 ⇒ 串行**）；`Symbols\Source\SourceMethodSymbol.vb`（F04）；`Errors.vb` + `ErrorFacts.vb` + `VBResources.resx` + 13 `xlf`（F06 与 F04 各一枚新码，**必须串行相邻落地**） | **F10 ← F09**；**F06 ← F05（甲）+ F09**；**F08 的初始化器形状 ← F09**（方法体形状无依赖）；F04 无依赖 | 两枚新码共享 `Errors.vb` 的编号带与 13 份 xlf ⇒ 由同一实施轮或紧邻轮次完成，避免 rebase 冲突 |
+| **W2** | **F05**（甲）→ **F11**（标签入序列）→ **F07**（断言收窄） | `Symbols\Source\SourceMemberContainerTypeSymbol.vb`（F05 `:2722-2740`、F11 `:2621-2633`，**同文件 ⇒ 串行**）；F07 三个合成成员文件 | 无（与 W1 并行安全：文件面不重叠） | F05 先于 F11 只因同文件串行的书写顺序（`meeting-submission-shared-members.md` R5 已把「甲先落地」定为顺序） |
+| **W3** | **F10**（BC36943 补跑）→ **F08**（BC30369）→ **F06**（乙，新码）→ **F04**（B，新码） | `Binding\Binder_Initializers.vb` + `Binding\Binder_Statements.vb`（F10）；`Binding\Binder_Expressions.vb`（F08 `:2257-2289` 与 F06 `:4737-4760`，**同文件 ⇒ 串行**）；`Symbols\Source\SourceMethodSymbol.vb`（F04）；`Errors.vb` + `ErrorFacts.vb` + `VBResources.resx` + 13 `xlf`（F06 与 F04 各一枚新码，**必须串行相邻落地**） | **F10 ← F09**；**F06 ← F05（甲）+ F09**；**F08 的初始化器形状 ← F09**（方法体形状无依赖）；F04 无依赖 | 两枚新码共享 `Errors.vb` 的编号带与 13 份 xlf ⇒ 由同一实施轮或紧邻轮次完成，避免 rebase 冲突 |
 
 **跨批依赖图（单行）**：`F09 → {F10, F06, F08②}`、`F05 → F06`；F04 / F07 / F11 无前置。
 
@@ -110,15 +111,18 @@
 
 ## 五、共享源码事实（所有 Vortex agent 以此为基准，不必重读全部源码）
 
-> 已核实（2026-09-13，本代理逐条 Read/Grep 复核行号；工作树 = `with-modified-vbsyntax` 分支，含 F09 的初始化器袋改动）。引用以 `文件:行号` 给出；证据等级按 `manifest.md` 证据阶梯。路径相对仓库根；编译器前缀 `Compilers\VisualBasic\Portable\`（简写 `VB\`）、共享编译器前缀 `Compilers\Core\Portable\`（简写 `Core\`）。失败点缓存 `<项目根>/tmp/vortex-logs/top-level-implicit-shared/pitfalls.md`（P-001…P-038）。
+> 已核实（2026-09-13，本代理逐条 Read/Grep 复核行号；工作树 = `with-modified-vbsyntax` 分支，含 F09 的初始化器袋改动）。引用以 `文件:行号` 给出；证据等级按 `manifest.md` 证据阶梯。路径相对仓库根；编译器前缀 `Compilers\VisualBasic\Portable\`（简写 `VB\`）、共享编译器前缀 `Compilers\Core\Portable\`（简写 `Core\`）。失败点缓存 `<项目根>/tmp/vortex-logs/top-level-implicit-shared/pitfalls.md`（只追加不覆盖；Vortex agent **开工第一件事读**）。
 
 ### 根 A 相关
 
 - `VB\Symbols\Source\SynthesizedInteractiveInitializerMethod.vb:135-142` — `GetBoundMethodBody` 返回只含 `BoundLabelStatement(ExitLabel)` 的空壳块；`:51-55` `IsAsync` 恒 True；`:87-91` `IsShared` 恒 False；`:105-109` `MethodKind = Ordinary`。**已检查。**
 - `VB\Compilation\MethodCompiler.vb:1807-1848` — `BindAndAnalyzeMethodBody`：`body = method.GetBoundMethodBody(compilationState, diagnostics, methodBodyBinder)`（`:1818`），随后 `Analyzer.AnalyzeMethodBody`（`:1821`）与 `DiagnosticsPass.IssueDiagnostics`（`:1822`）都作用在这个**空壳**上。**已检查。**
 - `VB\Binding\Binder_Statements.vb:291-448` — `BindMethodBlock`；`:330` 调 `CheckOnErrorAndAwaitWalker.VisitBlock(blockBinder, body, diagnostics, …)`；`:335-339` 的 `WRN_AsyncLacksAwaits` 判据。**已检查。**
-- `VB\Binding\Binder_Statements.vb:454-635` — `CheckOnErrorAndAwaitWalker`（`Private Class`，嵌在 `Partial Friend Class Binder` 内 ⇒ 同一 `Binder` 的其它 partial 文件按 `Private` 可达）；`:516-523` 的 `Visit` 在**非** async 上下文时拒绝下钻到 `BoundExpression`（这是「walker 必须在 async-aware binder 下跑」的硬约束）；`:525-541` `VisitTryStatement`（`Debug.Assert(Not node.WasCompilerGenerated)`，`:526`）；`:579-591` `VisitSyncLockStatement`；`:593-600` `VisitUsingStatement`（**不**置 `_isInCatchFinallyOrSyncLock` ⇒ `Using` 内 `Await` 合法，与 BC36943 消息口径一致）；`:602-610` `VisitAwaitOperator` 报 `ERRID.ERR_BadAwaitInTryHandler`。**已检查。**
-- `VB\Binding\Binder_Initializers.vb:102-203` — `BindFieldAndPropertyInitializers` 主循环；`:122-126` 脚本模式下 `parentBinder = New TopLevelCodeBinder(scriptInitializerOpt, syntaxTree.GetRoot(), parentBinder)`（**async-aware**：`TopLevelCodeBinder` 继承 `SubOrFunctionBodyBinder` 且以 `<Initialize>` 为 containing member，见 `VB\Binding\TopLevelCodeBinder.vb:12-25` ⇒ `IsInAsyncContext()` 为 True）；`:131-136` 的 `initializer.FieldsOrProperties.IsDefault` 判定「这是顶层语句（非字段/属性初始化器）」；`:205-229` `BindGlobalStatement` → `Me.BindStatement(statementNode, diagnostics)`。**已检查。**
+- `VB\Binding\Binder_Statements.vb:454-658` — `CheckOnErrorAndAwaitWalker`（`Private Class`，嵌在 `Partial Friend Class Binder` 内 ⇒ 同一 `Binder` 的其它 partial 文件按 `Private` 可达）；`:539-546` 的 `Visit` 在**非** async 上下文时拒绝下钻到 `BoundExpression`（这是「walker 必须在 async-aware binder 下跑」的硬约束）；`:548-565` `VisitTryStatement`（`Debug.Assert(Not node.WasCompilerGenerated)`，`:549`）；`:602-615` `VisitSyncLockStatement`；`:616-623` `VisitUsingStatement`（**不**置 `_isInCatchFinallyOrSyncLock` ⇒ `Using` 内 `Await` 合法，与 BC36943 消息口径一致）；`:625-636` `VisitAwaitOperator` 报 `ERRID.ERR_BadAwaitInTryHandler`。**已检查。**
+- `VB\Binding\Binder_Statements.vb:469-476` — `onlyCheckAwaitInTryHandler` 构造开关（`:469` 字段、`:472` 签名，**默认 False ⇒ `BindMethodBlock` 的既有行为不变**）；`:509-516` 的 `ERR_TryAndOnErrorDoNotMix` 报告在该开关为真时跳过；`:579-585` 的 `ERR_OnErrorInUsing` / `ERR_OnErrorInSyncLock` 报告同样只在开关为假时做（**只取 await 检查**，见 §F10 裁决）；`:519-537` `VisitBlockOnlyCheckAwaitInTryHandler` 是以该开关调 walker 的入口。**已检查。**
+- `VB\Binding\Binder_Initializers.vb:238-249` — `CheckAwaitInTryHandler`：把刚绑定的顶层语句包一个合成 `BoundBlock` 后调上面的入口；唯一调用点在 `:140` 的顶层语句分支，用的是该语句所在树的 `TopLevelCodeBinder` ⇒ **多树提交（`#Load`）逐树各用自己的 binder**。**已检查。**
+- `VB\Binding\Binder_Expressions.vb:2264-2273` — 脚本类分支：**显式**引用仍报 `ERR_KeywordNotAllowedInScript`（`:2266`）；**隐式**引用先查 `IsMeOrMyBaseOrMyClassInSharedContext()`，不命中才 `Return True`；命中共享上下文则落到 `:2275-2281` 的 `ERR_BadInstanceMemberAccess`（BC30369）。**已检查。**
+- `VB\Binding\Binder_Initializers.vb:102-210` — `BindFieldAndPropertyInitializers` 主循环；`:122-126` 脚本模式下 `parentBinder = New TopLevelCodeBinder(scriptInitializerOpt, syntaxTree.GetRoot(), parentBinder)`（**async-aware**：`TopLevelCodeBinder` 继承 `SubOrFunctionBodyBinder` 且以 `<Initialize>` 为 containing member，见 `VB\Binding\TopLevelCodeBinder.vb:12-25` ⇒ `IsInAsyncContext()` 为 True）；`:131-143` 的 `initializer.FieldsOrProperties.IsDefault` 判定「这是顶层语句（非字段/属性初始化器）」；`:212-236` `BindGlobalStatement` → `Me.BindStatement(statementNode, diagnostics)`。**已检查。**
 - `VB\Binding\Binder_Initializers.vb:19-76` — `ProcessedFieldOrPropertyInitializers`；`:22-28` 文档逐字「Indicate the fact that binding of initializers produced a tree with errors or that the binding of the initializers reported an error diagnostic.」；`:54` `HasAnyErrors = bindingReportedErrors OrElse boundInitializers.Any(Function(i) i.HasErrors)`；`:58-75` `EnsureInitializersAnalyzed`（**已存在的「把初始化器拼成一个合成块再走分析」扩展点**，其 `:64-67` 的拼块形状是 F09/F10 的模板）。**已检查。**
 - `VB\Compilation\MethodCompiler.vb:599-623` — 两个桶各自 `BindingDiagnosticBag.GetInstance(_diagnostics)` 得到**本桶独立袋**并作 `diagnostics` 实参传给 `Binder.BindFieldAndPropertyInitializers`，随后 `_diagnostics.AddRangeAndFree(袋)` 合并回共享袋（`AddRange` 保序）；`:630` 的 `CreateSharedConstructorsForConstFieldsIfRequired` 与随后的 `CompileMethod` 调用。**已检查。**
 - `VB\Compilation\MethodCompiler.vb:1272-1273` — `diagsForCurrentMethod = BindingDiagnosticBag.GetInstance(_diagnostics)`；`:1288` 发射门 `hasErrors = _hasDeclarationErrors OrElse diagsForCurrentMethod.HasAnyErrors() OrElse processedInitializers.HasAnyErrors OrElse block.HasErrors`；`:1331` `If DoLoweringPhase AndAlso Not hasErrors Then`；`:1504-1506` `BuildScriptInitializerBody`（脚本初始化器体的真正拼装点）；`:1554` `LowerAndEmitMethod` 内的二次门 `hasErrors = body.HasErrors OrElse diagsForCurrentMethod.HasAnyErrors …`；`:1558` 早退；`:1642` `Debug.Assert(Not diagnostics.HasAnyErrors)`。**已检查。**
@@ -129,44 +133,43 @@
 
 ### 根 B 相关
 
-- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2613-2615` — `Case SyntaxKind.LabelStatement` / `' TODO (tomat): should be added to the initializers` / `Exit Select`（**丢弃点**）。**已检查。**
-- 同文件 `:2625-2637` — `Case Else`：`memberSyntax.Kind = SyntaxKind.EmptyStatement OrElse TypeOf memberSyntax Is ExecutableStatementSyntax` ⇒ 若 `binder.BindingTopLevelScriptCode` 则 `SourceNamedTypeSymbol.AddInitializer(instanceInitializers, initializer, members.InstanceSyntaxLength)`（**收集点**）。**已检查。**
-- `VB\Binding\Binder_Statements.vb:59-60` — `Case SyntaxKind.LabelStatement : Return BindLabelStatement(...)`（⇒ 顶层标签一旦入序列即可正常绑定）；`:926-948` `BindLabelStatement`（`:930-934` 注释逐字「A label symbol will always be found because all labels without syntax errors are put into the label map in the blockbasebinder.」）。**已检查。**
+- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2621-2633` — `Case Else`：`memberSyntax.Kind = SyntaxKind.EmptyStatement OrElse TypeOf memberSyntax Is ExecutableStatementSyntax` ⇒ 若 `binder.BindingTopLevelScriptCode` 则 `SourceNamedTypeSymbol.AddInitializer(instanceInitializers, initializer, members.InstanceSyntaxLength)`（**收集点**，顶层标签与其它顶层可执行语句由此入序列，该 `Select` 里无 `LabelStatement` 专用分支）。**已检查。**
+- `VB\Binding\Binder_Statements.vb:59-60` — `Case SyntaxKind.LabelStatement : Return BindLabelStatement(...)`（⇒ 顶层标签一旦入序列即可正常绑定）；`:949-972` `BindLabelStatement`（`:953-954` 注释逐字「A label symbol will always be found because all labels without syntax errors are put into the label map in the blockbasebinder.」）。**已检查。**
 - `VB\Binding\ExecutableCodeBinder.vb:24-74` — 标签由 `LabelVisitor` 扫**整棵语法根**收集（`:50-74` `BuildLabels`）⇒ 顶层标签的 `SourceLabelSymbol` 本来就存在，`GoTo` 因此能绑定成功、**零诊断**（这解释了「为何没有诊断却有分支目标」）。**已检查。**
 - `VB\Compilation\MethodCompiler.vb:1497-1509` — `BuildConstructorBody` / `BuildScriptInitializerBody` 分派（`:1504-1506`）。**已检查。**
 - `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:1565-1585` — `AddInitializer`（`aggregateSyntaxLength` 累加；`:1571-1574` 断言「initializers should be added in syntax order」）；`:1523` vs `:1524` 两桶 span 累加语义不对称（静态桶跳过元数据常量、实例桶无条件）。**已检查**（F11 的 `precedingInitializersLength` 与调试偏移必须沿用这条既有规则）。**参见 pitfalls P-011 / P-013**。
 
 ### 产物 / 构造器相关（F05）
 
-- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2726-2737` — submission 分支 `If Not isShared OrElse Me.AnyInitializerToBeInjectedIntoConstructor(initializers, False)` → `New SynthesizedSubmissionConstructorSymbol(syntaxRef, Me, isShared, binder, diagnostics)`（**isShared 原样透传**）。**已检查。**
+- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2722-2740` — submission 分支按 `isShared` 分叉：共享且静态桶有条目需注入时走 `EnsureCtor(members, isShared, isDebuggable:=True, diagnostics)`；实例分支仍 `New SynthesizedSubmissionConstructorSymbol(syntaxRef, Me, isShared, binder, diagnostics)`（**isShared 原样透传**）。**已检查。**
 - `VB\Symbols\Source\SynthesizedSubmissionConstructorSymbol.vb:31-38` / `:40-44` — 无条件造 `submissionArray As Object()` 形参、`Parameters` 直接回吐。**已检查。**
-- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2771-2802` — `EnsureCtor`（`:2800` `New SynthesizedConstructorSymbol`，形参恒空）；`:3195-3214` `CreateSharedConstructorsForConstFieldsIfRequired`（**既有同形先例**，由 `MethodCompiler.vb:630-655` 单独编译）。**已检查。**
+- `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:2774-2805` — `EnsureCtor`（`:2803` `New SynthesizedConstructorSymbol`，形参恒空）；`:3198-3217` `CreateSharedConstructorsForConstFieldsIfRequired`（**既有同形先例**，由 `MethodCompiler.vb:630-655` 单独编译）。**已检查。**
 - `VB\Symbols\SynthesizedSymbols\SynthesizedConstructorBase.vb:59-63`（`Name` 取 `.cctor`，承重行 `:61`）、`:190-194`（`MethodKind`，**承重行 `:192`**）。**已检查。**
 - `VB\Symbols\MethodSymbol.vb:517-521` — `IsScriptConstructor` 要求 `MethodKind = Constructor`（共享时为 `SharedConstructor` ⇒ 假）。**已检查。**
-- `VB\Emit\NamedTypeSymbolAdapter.vb:451-511`（`beforefieldinit`，**VB 主动打该标志**于 `:496-499`）— **参见 pitfalls P-001**：甲 之后共享初始化器仍进 `.cctor`，其时序仍是「首次访问该静态字段之前」，**不是**「`<Initialize>` 之前」。
+- `VB\Emit\NamedTypeSymbolAdapter.vb:451-511`（`beforefieldinit`，**VB 主动打该标志**于 `:496-499`）— **参见 pitfalls P-001**：共享初始化器落进 `.cctor`，其时序是「首次访问该静态字段之前」，**不是**「`<Initialize>` 之前」。
 
 ### 断言族（F07）
 
 - `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:233-240` — `DeclarationKind.ImplicitClass / Script / Submission` → `New ImplicitNamedTypeSymbol(...)`，其余 → `SourceNamedTypeSymbol`。**已检查。**
 - `VB\Symbols\Source\ImplicitNamedTypeSymbol.vb:25-37` — 类 `ImplicitNamedTypeSymbol` 与 `IsImplicitlyDeclared = IsImplicitClass OrElse IsScriptClass`。**已检查。**
 - `VB\Symbols\Source\SourceMemberContainerTypeSymbol.vb:1295-1300` — `IsScriptClass` = `DeclarationKind.Script OrElse Submission`。**已检查。**
-- `VB\Symbols\Source\SourceWithEventsBackingFieldSymbol.vb:61-78` — `AddSynthesizedAttributes`：`MyBase.AddSynthesizedAttributes(...)` → `Debug.Assert(Not Me.ContainingType.IsImplicitlyDeclared)`（`:66`）→ **无条件**加 `CompilerGenerated` / `DebuggerBrowsableNever` / `AccessedThroughProperty`。**已检查**（⇒ 断言**不是控制流**）。
+- `VB\Symbols\Source\SourceWithEventsBackingFieldSymbol.vb:61-78` — `AddSynthesizedAttributes`：`MyBase.AddSynthesizedAttributes(...)` → `Debug.Assert(Not Me.ContainingType.IsImplicitClass)`（`:66`）→ **无条件**加 `CompilerGenerated` / `DebuggerBrowsableNever` / `AccessedThroughProperty`。**已检查**（⇒ 断言**不是控制流**）。
 - `VB\Symbols\Source\SynthesizedEventAccessorSymbol.vb:492-506` — 同形：`:495` 断言 → **无条件**加 `CompilerGenerated`。**已检查。**
 - `VB\Symbols\Source\SynthesizedWithEventsAccessorSymbol.vb:93` — 同族第三处（issue 正文列为「未单独实测」，F07 一并收口）。**已检查（断言式已读）。**
 
 ### 接收者 / `Await` 判据（F08 / F06）
 
 - `VB\Binding\Binder_Expressions.vb:2235-2255` — `IsMeOrMyBaseOrMyClassInSharedContext()`（`SymbolKind.Method, Property` 分支 `:2244-2246`；`SymbolKind.Field` 分支 `:2248-2251`；兜底 `Return True` `:2254`）。**已检查。**
-- `VB\Binding\Binder_Expressions.vb:2257-2286` — `CheckMeOrMyBaseOrMyClassInSharedOrDisallowedContext`：`:2260-2261` 注释（「Any executable statement in a script class can access Me/MyClass/MyBase implicitly but not explicitly. / **No code in a script class is shared.**」）、`:2262-2270` 脚本类分支（隐式 ⇒ `Return True`；显式 ⇒ `ERR_KeywordNotAllowedInScript`）、`:2272-2278` BC30369 出口。**已检查。**
-- `VB\Binding\Binder_Expressions.vb:4720-4728` — `IsInAsyncContext()`（Method 分支 `:4722-4723`；Field/Property 分支 `:4726-4727` **只看 `IsScriptClass`、不查 `IsShared`**）。**已检查。**
-- `VB\Binding\Binder_Expressions.vb:4734-4749` — `BindAwait` 的调用结构（`:4740-4741` IsInQuery、`:4742-4743` `ElseIf Not IsInAsyncContext()` → `GetAwaitInNonAsyncError()`）。**已检查。**（乙 的落点依据：共享字段时 `IsInAsyncContext()` 为真 ⇒ `:4743` 不可达。）
+- `VB\Binding\Binder_Expressions.vb:2257-2289` — `CheckMeOrMyBaseOrMyClassInSharedOrDisallowedContext`：`:2260-2262` 注释（「Any executable statement in a script class can access Me/MyClass/MyBase implicitly but not explicitly. / **Shared members (and shared initializers) of a script class have no instance to offer, so an implicit reference made from them is an ordinary bad instance member access.**」）、`:2264-2273` 脚本类分支（**显式** ⇒ `ERR_KeywordNotAllowedInScript`（`:2266`）；**隐式**先查 `IsMeOrMyBaseOrMyClassInSharedContext()`（`:2270`），不命中才 `Return True`（`:2271`）；命中共享上下文则落到下面）、`:2275-2281` BC30369 出口。**已检查。**
+- `VB\Binding\Binder_Expressions.vb:4723-4731` — `IsInAsyncContext()`（Method 分支 `:4725-4726`；Field/Property 分支 `:4729-4730` **只看 `IsScriptClass`、不查 `IsShared`**）。**已检查。**
+- `VB\Binding\Binder_Expressions.vb:4743-4760` — `BindAwait` 的调用结构（`:4749-4750` IsInQuery、`:4751-4752` `ElseIf Not IsInAsyncContext()` → `GetAwaitInNonAsyncError()`、`:4753-4754` `ElseIf IsInSharedInitializerContext()` → `ERR_BadAwaitInSharedInitializer`）；共享初始化器判据在 `:4737-4741`。**已检查。**（乙 的落点依据：共享字段时 `IsInAsyncContext()` 为真 ⇒ `:4752` 不可达。）
 
 ### 扩展方法承载（F04）
 
 - `VB\Symbols\NamedTypeSymbolExtensions.vb:108-111` — `AllowsExtensionMethods(container)` = `TypeKind.Module OrElse IsScriptClass`（**全 VB 侧唯一容器判据**）。**已检查。**
-- `VB\Symbols\Source\SourceMethodSymbol.vb:1496-1523` — 早期解码分支：`:1500-1502` 的三重条件（`MethodKind` ∈ {Ordinary, DeclareMethod} ∧ `AllowsExtensionMethods()` ∧ `ParameterCount <> 0`）⇒ `:1504` `Debug.Assert(Me.IsShared)`。**已检查。**
-- `VB\Symbols\Source\SourceMethodSymbol.vb:1621-1648` — 完整解码分支序列：`:1624-1625` BC36550、`:1627-1628` BC36551、`:1630-1631` BC36552、`:1633-1634` `Debug.Assert(Me.IsShared)`、`:1636-1647` 首参 Optional/ParamArray/泛型约束（BC36548 / BC36554 / …）。**已检查。**
-- `VB\Errors\Errors.vb:1815` — `ERR_NextAvailable = 37341`（F06 的码位带）；`VB\Errors\Errors.vb:1634-1635` 之间（`37004` 之后直接 `37050`）**37005–37049 现为空**（F04 的码位带，见 `meeting-script-extension-methods.md` OPEN QUESTIONS）。**已检查（区间存在性按既有纪要与本任务 grep 复核；实现期须重跑 grep 确认）。**
+- `VB\Symbols\Source\SourceMethodSymbol.vb:1496-1524` — 早期解码分支：`:1500-1503` 的四重条件（`MethodKind` ∈ {Ordinary, DeclareMethod} ∧ `AllowsExtensionMethods()` ∧ `ParameterCount <> 0` ∧ `IsShared`）⇒ `:1505` `Debug.Assert(Me.IsShared)`。**已检查。**
+- `VB\Symbols\Source\SourceMethodSymbol.vb:1622-1652` — 完整解码分支序列：`:1625-1626` BC36550、`:1628-1629` BC36551、`:1631-1632` BC36552、`:1634-1635` `ERR_ExtensionMethodNotShared`、`:1638` `Debug.Assert(Me.IsShared)`、`:1642-1651` 首参 Optional/ParamArray/泛型约束（BC36553 / BC36554 / …）。**已检查。**
+- `VB\Errors\Errors.vb:1818` — `ERR_NextAvailable = 37342`（F06 的码位带，落在 `:1816` 的 `ERR_BadAwaitInSharedInitializer = 37341`）；F04 的 `ERR_ExtensionMethodNotShared = 37005` 落在 `:1636`，占用官方空带（`:1634` 的 `37004` 与 `:1637` 的 `37050` 之间）的起始槽位——**该带现余 37006–37049 为空**（见 `meeting-script-extension-methods.md` OPEN QUESTIONS）。**已检查（取值与剩余空位由本任务重跑 grep 复核）。**
 
 ### 测试基建
 
@@ -192,7 +195,7 @@
 | g8 | 普通 `Async Function` + `Catch`/`Finally` 内 `Await` | **1** | **BC36943 ×2**（指向 Catch 与 Finally）⇒ 普通上下文**报错** |
 | g9 | 顶层 `SyncLock Me` + `Await` | **1** | BC36966（探针写法问题：显式 `Me` 被脚本拒绝） |
 | g10 | 顶层 `Using` + `Await` | **0** | 正常 ⇒ `Using` **不在** BC36943 家族（与消息口径一致） |
-| g11 | 顶层**反向** `GoTo` 循环，无 `Await` | **3** | 同 g1 ⇒ 前向/反向都命中丢弃的标签 |
+| g11 | 顶层**反向** `GoTo` 循环，无 `Await` | **3** | 同 g1 ⇒ 前向 / 反向都命中同一崩点（标签语句未入初始化器序列） |
 | g12 | 顶层 `Event E As EventHandler` | **35** | 断言 `Not ContainingType.IsImplicitlyDeclared`（HEAD 复现 issue 07） |
 | g13 | 顶层 `Shared sx As Integer = 5` | **34** | `TypeLoadException: Could not load type 'Submission#0'`（HEAD 复现 issue 05） |
 | g14 | 顶层 `SyncLock <局部锁对象>` + `Await` | **24** | **编译通过**，运行期 `SynchronizationLockException` ⇒ 同一条缺失检查的第三种后果（**坏产物**，非崩溃） |
@@ -202,9 +205,9 @@
 | g1-R | 顶层 `GoTo` 无 `Await`（Release） | **3** | 与 Debug 同 ⇒ 11 也不是 Debug 特有 |
 | g4-R | 普通 async `GoTo`+`Await`（Release） | **0** | `A`→`C` |
 
-**设计期新发现（不在任何 issue 正文里，须在实现期纳入验收）**：**g14**——顶层 `SyncLock` 内的 `Await` 不会崩编译器，而是**编译通过并产出运行期损坏的 IL**（监视器在错误的块里被 `Exit`）。它是 issue 10 触发面的第三个子形状（Catch / Finally / SyncLock），也把 F10 的收益从「不崩」升级为「不再静默产出坏产物」。
+**设计期新发现（不在任何 issue 正文里，须在实现期纳入验收）**：**g14**——顶层 `SyncLock` 内的 `Await` 不会崩编译器，而是**编译通过并产出运行期损坏的 IL**（监视器在错误的块里被 `Exit`）。它是 issue 10 触发面的第三个子形状（Catch / Finally / SyncLock），F10 的收益因此不止于「不崩」，还包括「不再静默产出坏产物」。
 
-**未跑项（如实登记）**：HEAD 的 Release 构建（Release 目录只有较旧的 `e307d0f` 二进制，非 HEAD）；`issues\issue-*.md` 里各条「未复现 / 未查」节列举的其余形状（共享属性初始化器含 `Await`、失败提交的状态隔离、跨提交形状）。
+**未跑项（如实登记）**：`issues\issue-*.md` 里各条「未复现 / 未查」节列举的其余形状（共享属性初始化器含 `Await`、失败提交的状态隔离、跨提交形状）。（**HEAD 的 Release 构建已在收口轮跑**：HEAD `d7b0fc8` 于独立 worktree 构建 Release 后复跑 g1/g4/g12/g13 四探针，结果见 `design-detailed.md` §待定项 U5。）
 
 ---
 
@@ -216,15 +219,15 @@
 
 | # | 功能（design-detailed 章节） | pass 条件（全部满足才算过） | 前置 | 状态 |
 |---|---|---|---|---|
-| F09 | 初始化器绑定诊断 gate 发射（§F09） | 嵌套类型实例/共享字段与实例属性三种形状的 `Await` 初始化器：**报 BC36937 且不再发射**（进程不再被断言终止）；`v4/v5` 对照组结果不变（诊断照旧打印）；**warnings 不 gate**（`HasAnyErrors` 判定，非 `IsEmpty`）；`processedInitializers.HasAnyErrors` 的三项既有语义不变；**没有初始化器错误的编译零行为变化**（全量回归兜底） | 无 | 已落地 |
-| F05 | submission 共享分支改用无参共享构造器符号（甲）（§F05） | `Shared sx As Integer = 5` / `Shared ReadOnly sx As Integer = 5` / `Shared Dim arr(2) As Integer` 三种形状不再 `TypeLoadException`，且**共享初始化器在共享构造器里执行**；`Const d As Date = #…` 与 `Shared x As Integer = 5` **同文件**时两者落到同一个 `.cctor`（`meeting-submission-shared-members.md` R1 的 plan 前置实证项）；**非共享**实例初始化器路径逐字节不变 | 无 | todo |
-| F11 | 顶层标签语句纳入实例初始化器序列（§F11） | 顶层 `GoTo`（前向/反向）+ 顶层标签**不再崩**，且跳转**语义生效**（输出与普通 async 方法同形）；顶层 `GoTo` 无 `Await`（g1/g11 形状）同样通过；**顶层数字行号标签**与顶层 `On Error` 的既有诊断不变；`precedingInitializersLength` / 调试偏移的双桶规则不变 | 无（与 F05 同文件 ⇒ 串行） | todo |
-| F07 | 三处合成成员断言收窄（§F07） | 顶层 `Event` / `WithEvents`（实例与 `Shared` 各一）不再断言终止，且**发射与运行正确**（事件 raise→handler 计数、`WithEvents` 钩子生效）；嵌套类型同形状不变；未受影响的 `Debug.Assert` 语义（真正的 `ImplicitClass`）仍被保住 | 无 | todo |
-| F10 | 脚本顶层补跑 `Catch`/`Finally`/`SyncLock` 内的 `Await` 检查（§F10） | 顶层三处位置各写 `Await` → 报 **BC36943**（含 `Catch`/`Finally`/`SyncLock` 三种），**不崩**；`Try` 体内与 `Using` 内的 `Await` **仍合法**（g5/g10 形状零诊断）；普通 `Async Function` 同形状结果不变（BC36943 ×2）；**On Error / 行号标签诊断不因复用 walker 而改变**（只取 await 检查，见 §F10 裁决） | **F09** | todo |
-| F08 | 脚本类共享成员的隐式 `Me` → BC30369（§F08） | 共享方法体读实例字段、共享字段初始化器调实例方法两形状都报 **BC30369**（与普通类同码同形）；**实例成员里的隐式访问仍然合法**（回归锁死，`spec:243`）；显式 `Me` 仍报 BC36966；无新码 | F09（初始化器形状） | todo |
-| F06 | 共享字段/属性初始化器里的 `Await` → 新脚本专属码（乙）（§F06） | 共享字段、共享 `ReadOnly` 字段、共享属性、共享数组上界四条子情形全部报**新码**（消息点名「共享/静态初始化器在执行时是同步的共享构造器」）；**实例**初始化器里的 `Await` 仍合法；嵌套类型形状仍走 BC36937（F09 面）；新码走完 `Errors.vb` / `ErrorFacts.vb` / `VBResources.resx` / 13 `xlf` 全链；诊断**位置**落在肇事 `Await` 关键字 | **F05**、**F09** | todo |
-| F04 | `<Extension>` 施加于脚本类实例成员 → 新诊断（候选 B）（§F04） | 顶层 `<Extension>` 漏写 `Shared` → 报**新诊断且消息点名 `Shared`**（对齐 CS1105 句式），早期解码与完整解码**两处同批**；`<Extension> Shared Function` 正向用例（`ExtensionMethodTests.ScriptExtensionMethods` 形状）**零改动通过**；嵌套容器仍报 BC36551 / 新码 F，首参 Optional/ParamArray 仍报 BC36548 / BC36554（**序列顺序不变**）；普通 `Module` 侧零行为变化 | 无（与 F06 共享编号带/资源面 ⇒ 串行相邻） | todo |
-| W-GATE | 全量收口 gate（`test-plan.md` §8） | `Scripting\VisualBasicTest` 直跑 `-automated` 全量 **0 失败**；七门 gate 逐门数字与基线一致或按新增用例递增；`PublicAPI.*.txt` 零增量；`upstream-merge.md` 按 §账本与规范义务 补登记（F09 的两个文件 `Compilation\MethodCompiler.vb` / `Binding\Binder_Initializers.vb` 是 W1 批的唯一改动面，在 `upstream-merge.md` 中**均未在册**；后者在 `upstream-merge.md:250` 的 `7a0111e` 行被记为「未登」，补登后该行的「部分登记」说明须同步订正）；无遗留 Unresolved | F04–F11 全过 | todo |
+| F09 | 初始化器绑定诊断 gate 发射（§F09） | 嵌套类型实例/共享字段与实例属性三种形状的 `Await` 初始化器：**报 BC36937 且不再发射**（进程不再被断言终止）；**语句种类同被覆盖**：顶层语句报出的 bag-only 诊断（BC30582 / BC31003）gate 同一个桶，同桶内**不可发射**形状（顶层 `Try`/`Catch` 内 `Await`）在门不生效时会让 `Emit` 抛出（判别力两桶口径见 `test-plan.md` §3 F09 表下）；`v4/v5` 对照组结果不变（诊断照旧打印）；**warnings 不 gate**（`HasAnyErrors` 判定，非 `IsEmpty`）；`processedInitializers.HasAnyErrors` 的三项既有语义不变；**没有初始化器错误的编译零行为变化**（全量回归兜底） | 无 | 通过（判定来源：终验 `tmp\vortex-logs\script-top-level-crashes\22-verify-tail.md` §0 / §8；F09 行由实施者代判，该终验追认 PASS） |
+| F05 | submission 共享分支改用无参共享构造器符号（甲）（§F05） | `Shared sx As Integer = 5` / `Shared ReadOnly sx As Integer = 5` / `Shared Dim arr(2) As Integer` 三种形状不再 `TypeLoadException`，且**共享初始化器在共享构造器里执行**；`Const d As Date = #…` 与 `Shared x As Integer = 5` **同文件**时两者落到同一个 `.cctor`（`meeting-submission-shared-members.md` R1 的 plan 前置实证项）；**非共享**实例初始化器路径逐字节不变 | 无 | 通过 |
+| F11 | 顶层标签语句纳入实例初始化器序列（§F11） | 顶层 `GoTo`（前向/反向）+ 顶层标签**不再崩**，且跳转**语义生效**（输出与普通 async 方法同形）；顶层 `GoTo` 无 `Await`（g1/g11 形状）同样通过；**顶层重复标签**（带与不带 `GoTo` 两种）报**恰好一条 `BC30094`**（`ERR_MultiplyDefined1`，`Errors.vb:160`，与普通方法里的重复标签同号同名；诊断号口径见 `test-plan.md` §3）；**顶层数字行号标签**与顶层 `On Error` 的既有诊断不变；`precedingInitializersLength` / 调试偏移的双桶规则不变 | 无（与 F05 同文件 ⇒ 串行） | 通过 |
+| F07 | 三处合成成员断言收窄（§F07） | 顶层 `Event` / `WithEvents`（实例与 `Shared` 各一）不再断言终止，且**发射与运行正确**：两种 `WithEvents` 形状与 `Shared Event` 由**投递**判定（嵌套类的 raise 方法 / 顶层 `Shared Sub` 里的 `RaiseEvent` ⇒ handler 计数 = 1），实例 `Event` 由**合成 add/remove 访问器被真实调用**判定（可观测到的只有「顶层 `AddHandler` / `RemoveHandler` 调用到该访问器 + 运行不崩」，**不**作「订阅语义生效」这类强于证据的断言）；嵌套类型同形状不变；未受影响的 `Debug.Assert` 语义（真正的 `ImplicitClass`）仍被保住。**未覆盖（在册）**：实例 `Event` 的「raise→handler 计数」在本任务的**无副作用验收**约束下不可达——顶层 `RaiseEvent` 不是支持的语句（实测 BC30188 + BC30205），顶层实例 `Sub` / lambda 里的 `RaiseEvent` 撞 `Lowering\LocalRewriter\LocalRewriter_RaiseEvent.vb:36` 的断言（**独立缺陷，须单独立项**，见 §一 非范围）；且 VB 的 `RaiseEvent` 直读事件后备字段、**不经过** add/remove 访问器 ⇒ 该半对 F07 的改动面（`AddSynthesizedAttributes` 的断言收窄）判别力本就弱，实例 `Event` 的判别由 add/remove 访问器承担 | 无 | 通过 |
+| F10 | 脚本顶层补跑 `Catch`/`Finally`/`SyncLock` 内的 `Await` 检查（§F10） | 顶层三处位置各写 `Await` → 报 **BC36943**（含 `Catch`/`Finally`/`SyncLock` 三种），**不崩**；`Try` 体内与 `Using` 内的 `Await` **仍合法**（g5/g10 形状零诊断）；普通 `Async Function` 同形状结果不变（BC36943 ×2）；**On Error / 行号标签诊断不因复用 walker 而改变**（只取 await 检查，见 §F10 裁决） | **F09** | 通过 |
+| F08 | 脚本类共享成员的隐式 `Me` → BC30369（§F08） | 共享方法体读实例字段、共享字段初始化器调实例方法两形状都报 **BC30369**（与普通类同码同形）；**实例成员里的隐式访问仍然合法**（回归锁死，`spec:243`）；显式 `Me` 仍报 BC36966；无新码 | F09（初始化器形状） | 通过 |
+| F06 | 共享字段/属性初始化器里的 `Await` → 新脚本专属码（乙）（§F06） | 共享字段、共享 `ReadOnly` 字段、共享属性、共享数组上界四条子情形全部报 **BC37341**（`ERR_BadAwaitInSharedInitializer`，消息点名「共享/静态初始化器在执行时是同步的共享构造器」）；**实例**初始化器里的 `Await` 仍合法；嵌套类型形状仍走 BC36937（F09 面）；新码走完 `Errors.vb` / `ErrorFacts.vb` / `VBResources.resx` / 13 `xlf` 全链；诊断**位置**落在肇事 `Await` 关键字 | **F05**、**F09** | 通过 |
+| F04 | `<Extension>` 施加于脚本类实例成员 → 新诊断（候选 B）（§F04） | 顶层 `<Extension>` 漏写 `Shared` → 报 **BC37005**（`ERR_ExtensionMethodNotShared`）**且消息点名 `Shared`**（对齐 CS1105 句式），早期解码与完整解码**两处同批**；`<Extension> Shared Function` 正向用例（`ExtensionMethodTests.ScriptExtensionMethods` 形状）**零改动通过**；嵌套容器仍报 BC36551 / 新码 F，首参 Optional/ParamArray 仍报 BC36553 / BC36554（**序列顺序不变**）；普通 `Module` 侧零行为变化 | 无（与 F06 共享编号带/资源面 ⇒ 串行相邻） | 通过 |
+| W-GATE | 全量收口 gate（`test-plan.md` §8） | `Scripting\VisualBasicTest` 直跑 `-automated` 全量 **0 失败**（实测 `TestsTotal 344 / TestsFailed 0 / TestsSkipped 0`、退出码 0；`-class "*CrashTests*"` = `Total 25 / Failed 0`）；七门 gate 逐门数字与基线一致或按新增用例递增（实测 `Phase2 143/143`、`Syntax 4070/4067`、`Symbol 3407/3383`、`Semantic 5806/5702`、`IOperation 1574/1566`、`Emit 4370/4267`、`CommandLine 475/468`，**每门 `Failed = 0`**，末行 `All seven compiler test project net10.0 gates completed.`，脚本退出码 0）；`PublicAPI.*.txt` 零增量（实测 `git status --porcelain` 与 `git diff HEAD --numstat` 对 `*PublicAPI*` **零输出**，含未跟踪文件）；`upstream-merge.md` 按 §账本与规范义务 补登记（F09 的两个文件 `Compilation\MethodCompiler.vb` / `Binding\Binder_Initializers.vb` 是 W1 批的改动面，原**均未在册** ⇒ 已随本任务全部改动面补登进 **§2.20**；`Binder_Initializers.vb` 在 `..\..\upstream-merge.md` §二·补 的 `7a0111e` 行原被记为「未登」，该行说明已同步订正）；无遗留 Unresolved（`design-detailed.md` §待定项 U1–U5 **均已给结论**：U4 = 未引入行为差异 + 新增判别性断言，U5 = HEAD Release 构建与四探针已实测） | F04–F11 全过 | 通过 |
 
 > **执行范围**：全部为**无人值守串行**项（pass 条件全自动判，无真实网络 / 进程 / 写盘）。本任务不引入任何需要人工或真实外部环境的验收项。
 
@@ -237,7 +240,7 @@
 3. **前置决定未被推翻**：05＝甲、06＝乙 与两份会议 RESOLUTION 一致（§九 冲突登记里的偏差已显式声明）。
 4. **pass 条件可判**：§七 每行的 pass 条件客观、可自动判，无「实现时再定」的悬空项。
 5. **测试计划齐备**：`test-plan.md` 的 L1–L4 矩阵与 §七 各行一一对应；无副作用纪律与全量回归口径明确。
-6. **零越权承诺**：不改 `Compilers\Core\Portable\CodeGen\`（共享发射层）、不改容器种类、不新增 public API、不动 `spec\`/`meetings\`/`proposals\`/`issues\` 文本。
+6. **零越权承诺**：不改 `Compilers\Core\Portable\CodeGen\`（共享发射层）、不改容器种类、不新增 public API；本任务**变更面白名单不含** `spec\` / `meetings\` / `proposals\` / `issues`（其正文修订是登记义务，由后续规范 / issue 阶段执行）⇒ 这四个目录的**整体** `git diff` 状态不是本任务的验收判据。（**收口轮实测**：`git status --porcelain` 对 `Compilers/Core/Portable/CodeGen/`、`Compilers/VisualBasic/Portable/CodeGen/`、`*PublicAPI*` 及未跟踪文件均**零输出**；`Compilers\` 下的改动面 = `design-detailed.md` §变更面汇总 白名单内的 **12 个**编译器文件（`Compilation\MethodCompiler.vb` 已随 HEAD 提交、不在工作树 diff 内）+ 4 个 Emit 测试文件（3 个新增 `SubmissionSharedInitializerTests.vb` / `SubmissionTopLevelLabelTests.vb` / `SubmissionEventMemberTests.vb` + 改动 `InitializerDiagnosticGatingTests.vb`）。）
 7. **文档纪律**：正文简体中文；引用仓库相对路径；无本机绝对路径 / 用户名 / 机器特定状态；无过程日志文体。
 
 ---
@@ -250,26 +253,26 @@
    `meeting-submission-shared-members.md` R7 与 Implication 节要求 issue 07 / 08 / 09「**分别立项**，不要把三条并进同一份设计」。本任务按作者指示把这 8 条放进**一个**文件夹。
    **本计划的处置**：只共用**文档容器**，不共用**设计**——F04–F11 各自独立成章、独立验收、独立 pass 条件，无跨单元的共享机制设计（唯一跨单元耦合是 §四 的**依赖顺序**与 **W3 批**的**共享资源文件串行**，二者都是工程约束而非设计合并）。若作者要求严格按会议口径拆分，可把 `design-detailed.md` 的 §F07 / §F08 / §F09 章节原文抽成三个独立任务文件夹，**无需改动内容**。
 2. **issue 11 的根因订正**（实证推翻 issue 正文的推测）。
-   `issues\issue-script-top-level-goto-await-crash.md` 的「根因方向」写「与 `issue-script-top-level-await-in-try-crash.md` 同源：顶层语句住在合成的异步宿主 `<Initialize>` 里，该宿主在发射前置检查上与普通 `Async Function` 不一致」——**该推测被 g1/g11 实测证伪**（无 `Await` 的顶层 `GoTo` 同样崩；g3 证明顶层 Try 无 `Await` 正常）。真实根因是 `SourceMemberContainerTypeSymbol.vb:2613-2615` 丢弃 `LabelStatement`（含上游 `TODO (tomat)`）。**本计划不改 `issues\` 文本**，订正作为义务记在 `design-detailed.md` §账本与规范义务。
+   `issues\issue-script-top-level-goto-await-crash.md` 的「根因方向」写「与 `issue-script-top-level-await-in-try-crash.md` 同源：顶层语句住在合成的异步宿主 `<Initialize>` 里，该宿主在发射前置检查上与普通 `Async Function` 不一致」——**该推测被 g1/g11 实测证伪**（无 `Await` 的顶层 `GoTo` 同样崩；g3 证明顶层 Try 无 `Await` 正常）。真实根因在**顶层 `LabelStatement` 的收集路**：它由 `SourceMemberContainerTypeSymbol.vb:2621-2633` 的 `Case Else` 与其它顶层可执行语句**同款**收集（无专用分支），标签语句不入 `instanceInitializers` 时 `GoTo` 的分支目标就没有落地块。**本计划不改 `issues\` 文本**，订正作为义务记在 `design-detailed.md` §账本与规范义务。
 3. **issue 10 的实际触发面比登记宽**（新增实测）。
-   登记只写「`Try`/`Catch`/`Finally` 里写 `Await`」。新增实测 g14：顶层 `SyncLock` 内的 `Await` **不崩**，而是编译通过、运行期抛 `SynchronizationLockException`（exit 24）——**坏产物**。F10 的验收必须覆盖 `SyncLock` 这一子形状（`CheckOnErrorAndAwaitWalker.VisitSyncLockStatement` 已把 `SyncLock` 置入 `_isInCatchFinallyOrSyncLock`，`:579-591`），并把它写回 issue 10 的义务清单。
+   登记只写「`Try`/`Catch`/`Finally` 里写 `Await`」。新增实测 g14：顶层 `SyncLock` 内的 `Await` **不崩**，而是编译通过、运行期抛 `SynchronizationLockException`（exit 24）——**坏产物**。F10 的验收必须覆盖 `SyncLock` 这一子形状（`CheckOnErrorAndAwaitWalker.VisitSyncLockStatement` 已把 `SyncLock` 置入 `_isInCatchFinallyOrSyncLock`，`:602-615`），并把它写回 issue 10 的义务清单。
 4. **规范文本冲突（`spec-scripting-dialect.md`）**：规范 `:266-268` 把顶层 `GoTo` 的运行时效果写成 "outside the guarantees of this specification"，并有一条 **Decision**。F11 判「修好」在**结论上**与该 Decision 的保守口径相反（变成「有保证」）。
-   **依据**：判据是「同形状在普通上下文里合法且可运行」（g4），且该 Decision 的上文正是对 `:2613` 那个上游 TODO 的描述（规范自己写「Because the label statement is not emitted into the initializer body」）。
-   **处置**：F11 落地时必须同步改 `spec:266-268`（把 Decision 改写为「顶层 `GoTo` 与普通方法内的 `GoTo` 同义、跳转生效」，并删去「不保证」句）；`spec:347` 的 Boundaries 条目同样要改。**本计划不碰 spec 文件**，改动作为义务写入 `design-detailed.md`。若作者认为该 Decision 必须保留（即维持「不保证」并改为报诊断），则 F11 的判定翻转为「报错」——**这一条是本计划唯一需要作者显式确认的判定**（见 §十 待确认项）。
+   **依据**：判据是「同形状在普通上下文里合法且可运行」（g4）；该 Decision 的前提是**标签语句不进初始化器体**（规范自己写「Because the label statement is not emitted into the initializer body」），而顶层标签与其它顶层可执行语句同款收集后该前提不再成立 ⇒ Decision 必须随义务一并改写。
+   **处置**：F11 落地时必须同步改 `spec:266-268`（把 Decision 改写为「顶层 `GoTo` 与普通方法内的 `GoTo` 同义、跳转生效」，并删去「不保证」句）；`spec:347` 的 Boundaries 条目同样要改。**本计划不碰 spec 文件**，改动作为义务写入 `design-detailed.md`。若作者认为该 Decision 必须保留（即维持「不保证」并改为报诊断），则 F11 的判定翻转为「报错」——**这一条是本计划唯一需要作者显式确认的判定**——**已裁决：修好**（见 §十 第 1 条）。
 5. **`spec:56` / `:273` 的「穷尽」主张**与 issue 07 相关：规范说四形式映射穷尽，实测顶层 `Event`/`WithEvents`/`Property` 也被送进脚本类（`DeclarationTreeBuilder.vb:175-198`）。F07 判「修好」（让 `Event`/`WithEvents` 正常工作）⇒ 规范必须把这两形式写进映射表或其邻域。`meeting-submission-shared-members.md` R8(c) 已把这两句的改写「照单接受」。
 6. **无其它冲突**：05＝甲、06＝乙、容器种类保持 `TypeKind.Submission`、07/08/09 的边界划分（06 面孔② 归 09）四条均与本计划一致。
 
 ---
 
-## 十、待作者显式确认项
+## 十、作者裁决与备案登记
 
-1. **F11 的判定**（§九 第 4 条）：维持本计划的「**修好**」（顶层 `GoTo` 跳转生效，需同步放宽 `spec:266-268` 的 Decision），还是改为「**报错**」（对顶层 `GoTo` 指向顶层标签报诊断，保留规范的「不保证」口径）？
-   本计划推荐「修好」：同形状在普通上下文里合法**且跳转确实生效**（g4），规范那句 Decision 的上下文是对上游 TODO 的描述，且「修好」只需要 1 处收集点改动，而「报错」要在 VB 里新增一条**别处不存在**的 GoTo 限制（与 `spec:266`「A top-level `GoTo` is an ordinary executable statement」自相矛盾）。
+1. **F11 的判定：已裁决「修好」**（§九 第 4 条）。该条已无待决内容——按**修好**收口（顶层 `GoTo` 跳转生效），不取「改为**报错**」（对顶层 `GoTo` 指向顶层标签报诊断）：后者会让 VB 新增一条**别处不存在**的 GoTo 限制，与 `spec:266`「A top-level `GoTo` is an ordinary executable statement」自相矛盾。
+   依据：①作者给定的判定原则——同形状在普通编译上下文里合法 ⇒ 走「**修好**」（§一）；②判据本身——同形状在普通 `Async Function` 里合法**且跳转确实生效**（g4，§六 实测清单）；③已按此实施并经 F11 验证通过（`tmp\vortex-logs\script-top-level-crashes\5-impl-f11.md` / `7-verify-w2.md`）。**剩余义务**：`spec:266-268` 的 Decision 与 `:347` 的 Boundaries 条目改写为「顶层 `GoTo` 与普通方法内的 `GoTo` 同义、跳转生效」并删去「不保证」句（登记在 `design-detailed.md` §账本与规范义务 第 5 条），由后续 spec 阶段执行。**该待决项在任务文件夹之外的第二处引用**是 `issues\issue-script-top-level-goto-await-crash.md:97` 的「修复方向」句（仍写「该取舍待作者确认」；`grep "待作者确认"` 在本任务文件夹之外的命中仅此一处）；该句不改正文，已登记为 §账本与规范义务 的 **issue 义务 #1**，由后续 issue 阶段改写。
 2. **F09 的修法选型**（A 标错节点 / B 让发射门看见 / C `GetInstance` 复制诊断）：本计划取 **B**（见 `design-detailed.md` §F09 修法选型表），仅作备案登记，无需作者决策，除非作者偏好 A 的最小面。
 
 ## 状态行
 
-- **计划状态**：四件套已产出；**Accepted 门前**（待 author/验证者核对 §八 七条）。
-- **实现状态**：F09 已落地（工作树：`Compilation\MethodCompiler.vb`、`Binding\Binder_Initializers.vb`；新增 `Compilers\VisualBasicEmitTest\Emit\InitializerDiagnosticGatingTests.vb` 与 `Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb`，`scripts\verify-vb-compiler-tests.ps1` 的 Emit 期望值同步）；§七 其余单元（F04–F08 / F10 / F11）与 W-GATE 未开始（对应行仍 `todo`）。
+- **计划状态**：四件套已产出，并已按本计划实施、验证收口（§八 七条未单独留档；F09 系 author 直接指令先行落地，见下行「实现状态」）。
+- **实现状态**：F09 已落地（工作树：`Compilation\MethodCompiler.vb`、`Binding\Binder_Initializers.vb`；新增 `Compilers\VisualBasicEmitTest\Emit\InitializerDiagnosticGatingTests.vb` 与 `Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb`，`scripts\verify-vb-compiler-tests.ps1` 的 Emit 期望值同步）。**F05 / F11 / F07 已实施、验证通过**（工作树：`Symbols\Source\SourceMemberContainerTypeSymbol.vb`（F05 + F11）、`Symbols\Source\SynthesizedEventAccessorSymbol.vb` + `SourceWithEventsBackingFieldSymbol.vb` + `SynthesizedWithEventsAccessorSymbol.vb`（F07）；新增 `Compilers\VisualBasicEmitTest\Emit\SubmissionSharedInitializerTests.vb`（6 条）/ `SubmissionTopLevelLabelTests.vb`（8 条）/ `SubmissionEventMemberTests.vb`（7 条），`Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb` 追加 14 条；`scripts\verify-vb-compiler-tests.ps1` 的 Emit 期望值同步为 4370/4267/103）。**F10 / F08 已实施、验证通过**（工作树：`Binding\Binder_Statements.vb` + `Binding\Binder_Initializers.vb`（F10）、`Binding\Binder_Expressions.vb`（F08）；新增 `Compilers\VisualBasicSemanticTest\Semantics\ScriptSemanticsTests.vb` 15 条，`Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb` 追加 5 条；`scripts\verify-vb-compiler-tests.ps1` 的 Semantic 期望值同步为 5799/5695/104）。**F06 / F04 已实施、验证通过**（工作树：`Binding\Binder_Expressions.vb`（F06）、`Symbols\Source\SourceMethodSymbol.vb`（F04）、`Errors\Errors.vb` + `Errors\ErrorFacts.vb` + `VBResources.resx` + 13 份 `xlf`（两枚新码 `ERR_ExtensionMethodNotShared = 37005` / `ERR_BadAwaitInSharedInitializer = 37341`）；新增 `Compilers\VisualBasicSemanticTest\Semantics\ScriptSemanticsTests.vb` 7 条与 `Compilers\VisualBasicSymbolTest\SymbolsTests\ExtensionMethods\ExtensionMethodTests.vb` 7 条，`Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb` 追加 2 条；`scripts\verify-vb-compiler-tests.ps1` 的 Symbol 期望值同步为 3407/3383/24、Semantic 期望值同步为 5806/5702/104）。**W-GATE 收口轮已完成**（逐条记录见 `tmp\vortex-logs\script-top-level-crashes\19-wgate.md`）：宿主全量 `344 / 0`、七门逐门 `Failed = 0`、`PublicAPI.*.txt` 零增量、`upstream-merge.md` 的改动面补登进 §2.20、§待定项 U1–U5 全部有结论（U4 补一条判别性断言、U5 跑通 HEAD Release 构建与四探针）；同轮收回 W3b 验证留下的 6 条文档 / 计数 minor。**收尾轮已完成**（逐条记录见 `tmp\vortex-logs\script-top-level-crashes\21-tail.md`）：F09 的语句种类用例换用**不可发射**载体（原 `GoTo` 载体被 F11 修好后判别力归零）并登记判别力两桶口径、订正 `Errors.vb` 的 37006–37049 注释、收回 W-GATE 留下的 4 处文档 minor、对 §F09 做终扫。§七 F09 行 pass 条件补语句种类与判别力口径；**F04–F11 八行与 W-GATE 行由 `待验证` / `todo` 判为 `通过`**（八个单元 + W-GATE 的客观条件全部满足，收尾轮只动注释、测试与文档）。其中 **F04–F08 / F10 / F11 / W-GATE 八行**系**代录**前序验证轮（`2-` / `7-` / `9-` / `13-` / `15-` / `18-` / `20-`）的已有结论；**F09 行**由实施者代判（其收尾改动在代判时未经验证），该 `通过` 由终验 `tmp\vortex-logs\script-top-level-crashes\22-verify-tail.md`（§0 自跑 F09 单类 19/19、F09+F11 27/27；§8 结论）追认。
 - **F09 的读取口径**：F09 系 author 直接指令先行落地（未走 §八 的 Accepted 门）⇒ `design-detailed.md` 的 §F09 蓝图、不变量与 pass 条件按**已落地**读并据此核对；§七 其余单元行仍按蓝图读。
-- **待确认**：§十 第 1 条（F11 判定方向）。
+- **待确认**：无（§十 第 1 条的 F11 判定方向已按「**修好**」裁决并落地）；该待决项在任务文件夹之外的第二处引用只有 `issues\issue-script-top-level-goto-await-crash.md:97`（`grep "待作者确认"` 在本任务文件夹之外的命中仅此一处），该句不改正文、已登记为 `design-detailed.md` §账本与规范义务 的 **issue 义务 #1**。

@@ -2439,6 +2439,135 @@ o.F()]]>
             Assert.True(comp.SourceAssembly.MightContainExtensionMethods)
         End Sub
 
+        ''' <summary>
+        ''' An extension method of a script class has to be 'Shared' - a standard module gets that for free because its
+        ''' members are implicitly shared, a script class does not. The missing diagnostic used to be a
+        ''' <c>Debug.Assert(Me.IsShared)</c> in both the early and the full attribute decoding path.
+        ''' </summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodWithoutShared_ReportsExtensionMethodNotShared()
+            Dim comp = CreateCompilationWithMscorlib461(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+<Extension>
+Function Twice(s As String) As String
+    Return s & s
+End Function]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics(
+                Diagnostic(ERRID.ERR_ExtensionMethodNotShared, "Extension"))
+        End Sub
+
+        ''' <summary>The positive shape of a script class extension method is unchanged.</summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodWithShared_NoDiagnostics()
+            Dim comp = CreateCompilationWithMscorlib461(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+<Extension>
+Shared Function Twice(s As String) As String
+    Return s & s
+End Function
+Dim s = "abc".Twice()]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics()
+            Assert.True(comp.SourceAssembly.MightContainExtensionMethods)
+        End Sub
+
+        ''' <summary>A nested container keeps reporting BC36551; the new check sits after it in the sequence.</summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodInNestedClass_ReportsExtensionMethodNotInModule()
+            Dim comp = CreateCompilationWithMscorlib461(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+Class C
+    <Extension>
+    Function F(o As Object) As Object
+        Return o
+    End Function
+End Class]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics(
+                Diagnostic(ERRID.ERR_ExtensionMethodNotInModule, "Extension"))
+        End Sub
+
+        ''' <summary>
+        ''' A standard module member is implicitly shared, so the new check cannot fire there. A top level module of a
+        ''' script is itself a nested type, and one that is not a top level container keeps its extension methods
+        ''' silently ignored (a separate, unfixed issue) - the new check must not report them either.
+        ''' </summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodInModule_NoDiagnostics()
+            Dim comp = CreateCompilationWithMscorlib461AndVBRuntime(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+Module M
+    <Extension>
+    Function F(o As Object) As Object
+        Return o
+    End Function
+End Module]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>A shared script class extension method without parameters still reports BC36552.</summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodWithoutParams_ReportsExtensionMethodNoParams()
+            Dim comp = CreateCompilationWithMscorlib461(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+<Extension>
+Shared Function F() As Integer
+    Return 1
+End Function]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics(
+                Diagnostic(ERRID.ERR_ExtensionMethodNoParams, "F"))
+        End Sub
+
+        ''' <summary>A shared script class extension method with an optional first parameter still reports BC36553.</summary>
+        <Fact>
+        Public Sub ScriptExtensionMethodWithOptionalFirstArg_ReportsExtensionMethodOptionalFirstArg()
+            Dim comp = CreateCompilationWithMscorlib461(
+                {VisualBasicSyntaxTree.ParseText(<![CDATA[
+Imports System.Runtime.CompilerServices
+<Extension>
+Shared Function F(Optional o As Object = Nothing) As Object
+    Return o
+End Function]]>.Value, TestOptions.Script)})
+
+            comp.VerifyDiagnostics(
+                Diagnostic(ERRID.ERR_ExtensionMethodOptionalFirstArg, "o"))
+        End Sub
+
+        ''' <summary>
+        ''' An ordinary class does not allow extension methods at all, so it keeps reporting BC36551 whether or not the
+        ''' member is shared.
+        ''' </summary>
+        <Fact>
+        Public Sub OrdinaryClassExtensionMethod_ReportsExtensionMethodNotInModule()
+            Dim compilation1 = CompilationUtils.CreateCompilationWithMscorlib40AndReferences(
+    <compilation name="OrdinaryClassExtensionMethod">
+        <file name="a.vb"><![CDATA[
+Imports System.Runtime.CompilerServices
+Class C1
+    <Extension()>
+    Public Shared Function F(o As Object) As Object
+        Return o
+    End Function
+End Class
+        ]]></file>
+    </compilation>, {Net40.References.SystemCore})
+
+            Dim expectedErrors1 = <errors><![CDATA[
+BC36551: Extension methods can be defined only in modules.
+    <Extension()>
+     ~~~~~~~~~~~
+     ]]></errors>
+            CompilationUtils.AssertTheseDeclarationDiagnostics(compilation1, expectedErrors1)
+        End Sub
+
         <Fact>
         Public Sub InteractiveExtensionMethods()
             Dim references = {Net40.References.mscorlib, Net40.References.SystemCore}

@@ -1558,7 +1558,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                      ERRID.ERR_AttributeCannotBeAppliedManually,
                      ERRID.ERR_StructLayoutAndExtendedLayout,
                      ERRID.ERR_RuntimeDoesNotSupportExtendedLayoutTypes,
-                     ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess
+                     ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess,
+                     ERRID.ERR_BadAwaitInSharedInitializer,
+                     ERRID.ERR_ExtensionMethodNotShared
                     Return False
                 Case Else
                     ' NOTE: All error codes must be explicitly handled in the below select case statement

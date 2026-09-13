@@ -14,9 +14,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
     ''' type whose initializer carries it.
     ''' <para>
     ''' The initializers are bound by <c>Binder.BindFieldAndPropertyInitializers</c> into the compilation-wide
-    ''' bag (<c>Compilation\MethodCompiler.vb:599-607</c>), while the per-method emit gate
-    ''' (<c>MethodCompiler.vb:1272</c>) used to look only at bound-node error flags. A diagnostic that does not
-    ''' mark its bound node - BC36937 from <c>Binder_Expressions.vb:4742-4743</c> is the canonical one - was
+    ''' bag (<c>Compilation\MethodCompiler.vb:599-623</c>), while the per-method emit gate
+    ''' (<c>MethodCompiler.vb:1288</c>) used to look only at bound-node error flags. A diagnostic that does not
+    ''' mark its bound node - BC36937 from <c>Binder_Expressions.vb:4751-4752</c> is the canonical one - was
     ''' therefore reported and then ignored: code generation ran on the un-lowered <c>AwaitOperator</c> and
     ''' <c>CodeGen\EmitExpression.vb:207</c> asserted ("Code gen should not be invoked if there are errors.").
     ''' In the test host that assertion surfaces as an <c>InvalidOperationException</c> ("Unexpected value
@@ -30,10 +30,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
     ''' </para>
     ''' <para>
     ''' <c>Binder.BindFieldAndPropertyInitializers</c> also binds the <b>top-level statements</b> of a script class
-    ''' (<c>Binder_Initializers.vb:203-227</c> <c>BindGlobalStatement</c>) and files them into the instance
+    ''' (<c>Binder_Initializers.vb:212-236</c> <c>BindGlobalStatement</c>) and files them into the instance
     ''' bucket together with the instance field/property initializers. Diagnostics those statements report -
     ''' again several of them without marking the bound tree - gate the <c>&lt;Initialize&gt;</c> method for
     ''' exactly the same reason, so statements are covered here as the second statement kind.
+    ''' </para>
+    ''' <para>
+    ''' The cases here differ in how much they say about the gate, and the difference matters when one of them is
+    ''' changed. A case fails when the gate does not fire only if the bucket holds a shape code generation cannot
+    ''' survive - then the ungateable compilation throws out of <c>Emit</c> instead of returning a failed result.
+    ''' Note that a failed result on its own proves nothing: any error in the bag makes <c>Emit</c> report failure
+    ''' whether or not code generation ran (<c>Core\Portable\Compilation\Compilation.cs:3030-3033</c> sets
+    ''' "success = false" for any unsuppressed error), so <c>Assert.False(result.Success)</c> cannot distinguish
+    ''' the gate. The cases built on shapes that emit fine are regression locks: they pin the diagnostic set,
+    ''' which is worth pinning, but the gate itself is discriminated elsewhere in this file.
     ''' </para>
     ''' <para>
     ''' The shapes below are script (submission) compilations: only there is the whole file parsed as an async
@@ -84,6 +94,38 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
             Dim errors = GetErrors(diagnostics)
             Assert.True(errors.Length = 1 AndAlso errors(0).StartsWith(expectedId), String.Join(" | ", errors))
         End Sub
+
+        ''' <summary>
+        ''' Asserts the whole error set of the compilation, so a case can neither pass with fewer errors than the
+        ''' shape produces nor with more.
+        ''' </summary>
+        Private Shared Sub AssertErrorsAre(diagnostics As ImmutableArray(Of Diagnostic), ParamArray expectedIds As String())
+            Dim errors = GetErrors(diagnostics)
+            Assert.True(errors.Length = expectedIds.Length, String.Join(" | ", errors))
+            For Each expectedId In expectedIds
+                Assert.True(errors.Any(Function(e) e.StartsWith(expectedId)), String.Join(" | ", errors))
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' A top level statement that a bucket must never hand to code generation: an <c>Await</c> inside a
+        ''' <c>Catch</c> block.
+        ''' <para>
+        ''' The walker that reports BC36943 for it runs on top level statements only, because their synthesized
+        ''' host body is a stub (<c>SynthesizedInteractiveInitializerMethod.vb:135-142</c>, the check is re-run
+        ''' from <c>Binder_Initializers.vb:238-248</c>), and it reports the diagnostic without marking the bound
+        ''' tree. The per-bucket diagnostic bag is therefore the only thing that can keep the
+        ''' bucket out of code generation. Emitting the shape is not possible: with the gate out of the way the
+        ''' compilation ran into a <c>NullReferenceException</c> inside the IL builder (probe g6/g7 for
+        ''' <c>Core\CodeGen\ILBuilder.cs</c>, probe g15 for the <c>Finally</c> twin), which is why this shape -
+        ''' unlike a diagnostic that emits fine - makes a case fail when the gate does not fire.
+        ''' </para>
+        ''' </summary>
+        Private Const UnemittableTopLevelStatement As String =
+            "Try" & vbCrLf &
+            "Catch ex As System.Exception" & vbCrLf &
+            "    Await System.Threading.Tasks.Task.Delay(1)" & vbCrLf &
+            "End Try" & vbCrLf
 
         <Fact>
         Public Sub NestedClassInstanceFieldInitializerAwait_IsReportedAndGated()
@@ -348,6 +390,10 @@ End Class
         ''' not a reference type) must gate the emission of the script class just like an initializer error does.
         ''' The clean statement and the clean nested class show that nothing else is reported and nothing else is
         ''' affected.
+        ''' <para>
+        ''' This case is a regression lock, not a discriminating one: this shape emits fine when the gate does not
+        ''' fire, and the failed emit it asserts comes from the bag alone. See the class remarks.
+        ''' </para>
         ''' </summary>
         <Fact>
         Public Sub TopLevelStatementBindingError_IsReportedAndGated()
@@ -367,10 +413,11 @@ End Class
         End Sub
 
         ''' <summary>
-        ''' Same statement-kind shape, but the statement list also contains a shape code generation cannot
-        ''' handle at all (a top-level <c>GoTo</c> to a top-level label, see issue 11). Before the gate covered
-        ''' the instance bucket this compilation threw out of <c>Emit</c>; the failed emit now comes from the
-        ''' reported binding error and code generation of the whole bucket does not run.
+        ''' Same statement-kind shape, and the same bucket also holds a shape code generation cannot survive
+        ''' (<see cref="UnemittableTopLevelStatement"/>). Before the gate covered the instance bucket this
+        ''' compilation threw out of <c>Emit</c>; the failed emit now comes from the reported binding errors and
+        ''' code generation of the whole bucket does not run. This is the case that discriminates the gate for
+        ''' top level statements: reverting the gate makes <c>Emit</c> throw instead of returning.
         ''' </summary>
         <Fact>
         Public Sub TopLevelStatementBindingError_StopsCodeGenerationOfTheWholeBucket()
@@ -378,19 +425,22 @@ End Class
                 "SyncLock 5" & vbCrLf &
                 "    System.Console.WriteLine(""lock"")" & vbCrLf &
                 "End SyncLock" & vbCrLf &
-                "GoTo skip" & vbCrLf &
-                "skip:" & vbCrLf &
-                "System.Console.WriteLine(""after"")")
+                UnemittableTopLevelStatement &
+                "System.Console.WriteLine(""after"")" & vbCrLf &
+                "Class C" & vbCrLf &
+                "    Dim u As Integer = 1" & vbCrLf &
+                "End Class")
 
             Dim result = EmitToMemory(compilation)
 
             Assert.False(result.Success)
-            AssertOnlyErrorIs(result.Diagnostics, "BC30582")
+            AssertErrorsAre(result.Diagnostics, "BC30582", "BC36943")
         End Sub
 
         ''' <summary>
         ''' The same channel also carries errors reported from a nested block *inside* a top-level statement: the
-        ''' error of the inner <c>SyncLock</c> does not mark any bound node, yet it has to gate.
+        ''' error of the inner <c>SyncLock</c> does not mark any bound node, yet it has to gate. The appended
+        ''' <see cref="UnemittableTopLevelStatement"/> is what makes this case fail when the gate does not fire.
         ''' </summary>
         <Fact>
         Public Sub NestedBlockOfTopLevelStatementBindingError_IsReportedAndGated()
@@ -400,28 +450,32 @@ End Class
                 "        System.Console.WriteLine(""lock"")" & vbCrLf &
                 "    End SyncLock" & vbCrLf &
                 "End If" & vbCrLf &
+                UnemittableTopLevelStatement &
                 "System.Console.WriteLine(""after"")")
 
             Dim result = EmitToMemory(compilation)
 
             Assert.False(result.Success)
-            AssertOnlyErrorIs(result.Diagnostics, "BC30582")
+            AssertErrorsAre(result.Diagnostics, "BC30582", "BC36943")
         End Sub
 
         ''' <summary>
         ''' The second statement kind that reports into the same bucket bag without marking its bound node: a bare
-        ''' expression statement that is not the final statement of an interactive submission (BC31003).
+        ''' expression statement that is not the final statement of an interactive submission (BC31003). The
+        ''' appended <see cref="UnemittableTopLevelStatement"/> is what makes this case fail when the gate does
+        ''' not fire.
         ''' </summary>
         <Fact>
         Public Sub NonFinalBareExpressionAtTopLevel_IsReportedAndGated()
             Dim compilation = CreateSubmissionCompilation(
                 "1 + 2" & vbCrLf &
+                UnemittableTopLevelStatement &
                 "System.Console.WriteLine(""after"")")
 
             Dim result = EmitToMemory(compilation)
 
             Assert.False(result.Success)
-            AssertOnlyErrorIs(result.Diagnostics, "BC31003")
+            AssertErrorsAre(result.Diagnostics, "BC31003", "BC36943")
         End Sub
 
         ''' <summary>

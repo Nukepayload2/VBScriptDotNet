@@ -1499,7 +1499,8 @@ lReportErrorOnTwoTokens:
 
                     If Not (Me.MethodKind <> MethodKind.Ordinary AndAlso Me.MethodKind <> MethodKind.DeclareMethod) AndAlso
                         m_containingType.AllowsExtensionMethods() AndAlso
-                        Me.ParameterCount <> 0 Then
+                        Me.ParameterCount <> 0 AndAlso
+                        Me.IsShared Then
 
                         Debug.Assert(Me.IsShared)
 
@@ -1629,6 +1630,9 @@ lReportErrorOnTwoTokens:
 
                 ElseIf Me.ParameterCount = 0 Then
                     diagnostics.Add(ERRID.ERR_ExtensionMethodNoParams, Me.GetFirstLocation())
+
+                ElseIf Not Me.IsShared Then
+                    diagnostics.Add(ERRID.ERR_ExtensionMethodNotShared, arguments.AttributeSyntaxOpt.GetLocation())
 
                 Else
                     Debug.Assert(Me.IsShared)

@@ -2258,14 +2258,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             errorId = Nothing
 
             ' Any executable statement in a script class can access Me/MyClass/MyBase implicitly but not explicitly.
-            ' No code in a script class is shared.
+            ' Shared members (and shared initializers) of a script class have no instance to offer, so an implicit
+            ' reference made from them is an ordinary bad instance member access.
             Dim containingType = Me.ContainingType
             If containingType IsNot Nothing AndAlso containingType.IsScriptClass Then
-                If implicitReference Then
-                    Return True
-                Else
+                If Not implicitReference Then
                     errorId = ERRID.ERR_KeywordNotAllowedInScript
                     Return False
+                End If
+
+                If Not IsMeOrMyBaseOrMyClassInSharedContext() Then
+                    Return True
                 End If
             End If
 
@@ -4731,6 +4734,12 @@ lElseClause:
             Return ContainingMember.Kind = SymbolKind.Method AndAlso DirectCast(ContainingMember, MethodSymbol).IsIterator
         End Function
 
+        Private Function IsInSharedInitializerContext() As Boolean
+            Dim containingMember = Me.ContainingMember
+            Return (containingMember.Kind = SymbolKind.Field OrElse containingMember.Kind = SymbolKind.Property) AndAlso
+                containingMember.IsShared
+        End Function
+
         Private Function BindAwait(
             node As AwaitExpressionSyntax,
             diagnostics As BindingDiagnosticBag,
@@ -4741,6 +4750,8 @@ lElseClause:
                 ReportDiagnostic(diagnostics, node.AwaitKeyword, ERRID.ERR_BadAsyncInQuery)
             ElseIf Not IsInAsyncContext() Then
                 ReportDiagnostic(diagnostics, node.AwaitKeyword, GetAwaitInNonAsyncError())
+            ElseIf IsInSharedInitializerContext() Then
+                ReportDiagnostic(diagnostics, node.AwaitKeyword, ERRID.ERR_BadAwaitInSharedInitializer)
             End If
 
             Dim operand As BoundExpression = BindExpression(node.Expression, diagnostics)
