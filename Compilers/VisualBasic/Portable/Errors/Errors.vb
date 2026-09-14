@@ -1814,8 +1814,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         ERR_EncUpdateRequiresEmittingExplicitInterfaceImplementationNotSupportedByTheRuntime = 37339
         ERR_ExpressionTreeContainsAbstractStaticMemberAccess = 37340
         ERR_BadAwaitInSharedInitializer = 37341
+        ERR_SubmissionCannotDeclareInstanceConstructor = 37342
+        ERR_WithEventsVariableNotInContainingType = 37343
 
-        ERR_NextAvailable = 37342
+        ERR_NextAvailable = 37344
 
         '// WARNINGS BEGIN HERE
         WRN_UseOfObsoleteSymbol2 = 40000

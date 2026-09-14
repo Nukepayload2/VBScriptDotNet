@@ -1560,6 +1560,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                      ERRID.ERR_RuntimeDoesNotSupportExtendedLayoutTypes,
                      ERRID.ERR_ExpressionTreeContainsAbstractStaticMemberAccess,
                      ERRID.ERR_BadAwaitInSharedInitializer,
+                     ERRID.ERR_SubmissionCannotDeclareInstanceConstructor,
+                     ERRID.ERR_WithEventsVariableNotInContainingType,
                      ERRID.ERR_ExtensionMethodNotShared
                     Return False
                 Case Else

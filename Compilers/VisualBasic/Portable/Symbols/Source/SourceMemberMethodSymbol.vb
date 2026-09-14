@@ -699,7 +699,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
                 ' if was found in one of bases, need to override it
                 If isFromBase Then
-                    witheventsPropertyInCurrentClass = DirectCast(Me.ContainingType, SourceNamedTypeSymbol).GetOrAddWithEventsOverride(witheventsProperty)
+                    ' A submission class has no base type. A 'WithEvents' variable that the submission lookup
+                    ' chain surfaces from a previous submission or from the host object is therefore visible
+                    ' without being inherited, and the override that the hookup needs cannot be synthesized
+                    ' for it: that override forwards to a base member and is dispatched by an assignment to
+                    ' the variable, neither of which exists outside the inheritance chain.
+                    Dim witheventsDeclaringType = TryCast(Me.ContainingType, SourceNamedTypeSymbol)
+                    If witheventsDeclaringType Is Nothing Then
+                        Binder.ReportDiagnostic(diagBag, singleHandleClause.EventContainer, ERRID.ERR_WithEventsVariableNotInContainingType, witheventsName)
+                        Return Nothing
+                    End If
+
+                    witheventsPropertyInCurrentClass = witheventsDeclaringType.GetOrAddWithEventsOverride(witheventsProperty)
                 Else
                     witheventsPropertyInCurrentClass = witheventsProperty
                 End If
@@ -764,8 +775,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                     ' Handles clause is invalid in this context. 
                     Return Nothing
 
-                Case TypeKind.Class, TypeKind.Module
-                    ' Valid context
+                Case TypeKind.Class, TypeKind.Module, TypeKind.Submission
+                    ' Valid context. A submission class is a class container and the hookup host of the
+                    ' Handles clause is an instance or shared constructor, which it has as well.
 
                 Case Else
                     Throw ExceptionUtilities.UnexpectedValue(ContainingType.TypeKind)

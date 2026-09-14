@@ -139,6 +139,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         ' statement just bound, so that the binder matches the tree the statement came from.
                         CheckAwaitInTryHandler(parentBinder, globalStatement, diagnostics)
 
+                        ' For the same reason the control flow pass never sees a branch out of a top level 'Finally'.
+                        ' Run only that check here, on the statement just bound.
+                        CheckBranchOutOfTopLevelFinally(parentBinder, scriptInitializerOpt, globalStatement, diagnostics)
+
                         Continue For
                     End If
 
@@ -246,6 +250,68 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             CheckOnErrorAndAwaitWalker.VisitBlockOnlyCheckAwaitInTryHandler(binder, block, diagnostics)
         End Sub
+
+        ''' <summary>
+        ''' Reports a branch that leaves a 'Finally' block of a top level statement.
+        ''' </summary>
+        ''' <remarks>
+        ''' A branch out of a 'Finally' block is only rejected by the control flow pass, which runs on a
+        ''' real method body. Top level statements are bound into the stub body of the synthesized script
+        ''' initializer, so a 'Finally' there kept its unresolvable branch all the way to emit. The check
+        ''' runs here, on the statement just bound, and is limited to the statements that contain a
+        ''' 'Try' statement with a 'Finally' block.
+        ''' </remarks>
+        Private Shared Sub CheckBranchOutOfTopLevelFinally(binder As Binder,
+                                                          scriptInitializerOpt As SynthesizedInteractiveInitializerMethod,
+                                                          globalStatement As BoundInitializer,
+                                                          diagnostics As BindingDiagnosticBag)
+
+            Debug.Assert(TypeOf globalStatement Is BoundGlobalStatementInitializer)
+            Debug.Assert(scriptInitializerOpt IsNot Nothing)
+
+            Dim statementSyntax = globalStatement.Syntax
+            If statementSyntax Is Nothing OrElse Not ContainsFinallyBlock(statementSyntax) Then
+                Return
+            End If
+
+            Dim statement = DirectCast(globalStatement, BoundGlobalStatementInitializer).Statement
+            Dim block As New BoundBlock(statementSyntax,
+                                        Nothing,
+                                        ImmutableArray(Of LocalSymbol).Empty,
+                                        ImmutableArray.Create(statement))
+
+            ' The control flow pass also flags unreachable code, unassigned variables and yields; none of
+            ' those belong to top level statements yet, so its diagnostics are filtered down to the
+            ' branch-out-of-finally check.
+            Dim flowDiagnostics = DiagnosticBag.GetInstance()
+            ControlFlowPass.Analyze(New FlowAnalysisInfo(binder.Compilation, scriptInitializerOpt, block),
+                                    flowDiagnostics,
+                                    suppressConstantExpressionsSupport:=True)
+
+            For Each flowDiagnostic In flowDiagnostics.ToReadOnlyAndFree(Of Diagnostic)()
+                If flowDiagnostic.Code = CInt(ERRID.ERR_BranchOutOfFinally) Then
+                    diagnostics.Add(DirectCast(flowDiagnostic, DiagnosticWithInfo).Info, flowDiagnostic.Location)
+                End If
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' Returns true when the syntax or one of its descendants is a 'Try' statement with a 'Finally' block.
+        ''' </summary>
+        Private Shared Function ContainsFinallyBlock(syntax As SyntaxNode) As Boolean
+            Dim tryBlock = TryCast(syntax, TryBlockSyntax)
+            If tryBlock IsNot Nothing AndAlso tryBlock.FinallyBlock IsNot Nothing Then
+                Return True
+            End If
+
+            For Each child In syntax.ChildNodes()
+                If ContainsFinallyBlock(child) Then
+                    Return True
+                End If
+            Next
+
+            Return False
+        End Function
 
         ''' <summary>
         ''' Bind an initializer for an implicitly allocated array field (for example: Private F(2) As Object).

@@ -5034,6 +5034,11 @@
         <target state="translated">Параметры-типы нельзя использовать в качестве определителей.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces">
+        <source>Target runtime doesn't support static abstract members in interfaces.</source>
+        <target state="new">Target runtime doesn't support static abstract members in interfaces.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_TypeParamMissingCommaOrRParen">
         <source>Comma or ')' expected.</source>
         <target state="translated">Требуется запятая или ")".</target>
@@ -7779,6 +7784,31 @@
         <target state="translated">#R допускается только в скриптах</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_LoadDirectiveOnlyAllowedInScripts">
+        <source>#Load is only allowed in scripts</source>
+        <target state="new">#Load is only allowed in scripts</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_PPLoadFollowsToken">
+        <source>Cannot use #Load after first token in file</source>
+        <target state="new">Cannot use #Load after first token in file</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_ShebangDirectiveOnlyAllowedInScripts">
+        <source>'#!' directives can be only used in scripts</source>
+        <target state="new">'#!' directives can be only used in scripts</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_ShebangDirectiveNotOnFirstLine">
+        <source>'#!' must be the first characters on the first line of the file</source>
+        <target state="new">'#!' must be the first characters on the first line of the file</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_PPReferenceFollowsToken">
+        <source>Cannot use #r after first token in file</source>
+        <target state="new">Cannot use #r after first token in file</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ERR_NamespaceNotAllowedInScript">
         <source>You cannot declare Namespace in script code</source>
         <target state="translated">Нельзя объявить пространство имен в коде скрипта</target>
@@ -8304,6 +8334,17 @@
         <target state="new">'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ERR_SubmissionCannotDeclareInstanceConstructor">
+        <source>An instance constructor cannot be declared in a script class because the script instance is created by the generated entry point and its constructor is compiler-synthesized. Put initialization code in top-level statements.</source>
+        <target state="new">An instance constructor cannot be declared in a script class because the script instance is created by the generated entry point and its constructor is compiler-synthesized. Put initialization code in top-level statements.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_WithEventsVariableNotInContainingType">
+        <source>'Handles' cannot refer to '{0}'. A 'WithEvents' variable declared in a previous submission or in the host object is visible in a script class, but the class does not inherit it. Declare the 'WithEvents' variable in the same submission as the handler method.</source>
+        <target state="new">'Handles' cannot refer to '{0}'. A 'WithEvents' variable declared in a previous submission or in the host object is visible in a script class, but the class does not inherit it. Declare the 'WithEvents' variable in the same submission as the handler method.</target>
+        <note />
+      </trans-unit>
+
       <trans-unit id="ERR_StatementLambdaInExpressionTree">
         <source>Statement lambdas cannot be converted to expression trees.</source>
         <target state="translated">Лямбды оператора невозможно преобразовать в деревья выражений.</target>
@@ -9272,6 +9313,11 @@
       <trans-unit id="ERR_RefReturningCallInExpressionTree">
         <source>An expression tree may not contain a call to a method or property that returns by reference.</source>
         <target state="translated">Дерево выражений не может содержать вызов метода или свойства, которые возвращают данные по ссылке.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ERR_ExpressionTreeContainsAbstractStaticMemberAccess">
+        <source>An expression tree may not contain an access of static virtual or abstract interface member.</source>
+        <target state="new">An expression tree may not contain an access of static virtual or abstract interface member.</target>
         <note />
       </trans-unit>
       <trans-unit id="ERR_CannotEmbedWithoutPdb">

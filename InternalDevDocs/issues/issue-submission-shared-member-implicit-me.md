@@ -1,6 +1,6 @@
 # [BUG] 提交类的共享成员不报 BC30369：隐式 `Me` 到实例成员 → 运行期 `InvalidProgramException`
 
-**状态**：Open（2026-09-12 登记）
+**状态**：**Fixed**（48d8edb；2026-09-12 登记）
 **证据等级**：**已运行**（Debug `2.0.0-Beta+5816a5c`，本机实测，含普通类对照）
 **严重度**：高（用户可达、编译期零诊断、运行期抛 `InvalidProgramException`；共享字段初始化器形状叠加 issue 05）
 **影响面**：任何 `TypeKind.Submission` 编译（`.vbx` 脚本执行、vbi REPL 提交）里的**共享方法体**与**共享字段/属性初始化器**；`vbc` 不产生提交编译，不受影响

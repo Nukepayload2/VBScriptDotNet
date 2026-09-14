@@ -1,6 +1,6 @@
 # 脚本顶层 `GoTo` + `Await` → 编译器 `NullReferenceException`
 
-* 状态：**Open**
+* 状态：**Fixed**（48d8edb）
 * 发现日期：2026-09-13
 * 发现场景：调查「`.vbx` 顶层变量做成 locals」的可行性时顺带撞见
 

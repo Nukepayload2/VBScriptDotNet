@@ -21,7 +21,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim result As BoundStatement
             Dim receiver = raiseCallExpression.ReceiverOpt
 
-            If receiver Is Nothing OrElse receiver.IsMeReference Then
+            ' The receiver of a raise that calls the event's RaiseEvent accessor (a custom event) is an instance
+            ' reference, not the event field: Me in a regular class, but the previous submission reference in a
+            ' submission class, where unqualified member references are bound (see TryBindInteractiveReceiver).
+            If receiver Is Nothing OrElse receiver.IsMeReference OrElse receiver.Kind = BoundKind.PreviousSubmissionReference Then
                 result = New BoundExpressionStatement(
                                 syntax,
                                 VisitExpressionNode(raiseCallExpression))
@@ -29,13 +32,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Else
                 Debug.Assert(receiver.Kind = BoundKind.FieldAccess)
 
-#If DEBUG Then
-                ' NOTE: The receiver is always as lowered as it's going to get (generally, a MeReference), so there's no need to Visit it.
-                Dim fieldAccess As BoundFieldAccess = DirectCast(receiver, BoundFieldAccess)
-                Dim fieldAccessReceiver = fieldAccess.ReceiverOpt
-                Debug.Assert(fieldAccessReceiver Is Nothing OrElse
-                             fieldAccessReceiver.Kind = BoundKind.MeReference)
-#End If
+                ' The receiver of the event field is not necessarily a MeReference: an unqualified reference in a
+                ' submission class binds to the previous submission reference, which has to be lowered as well.
+                receiver = VisitExpressionNode(receiver)
 
                 If node.EventSymbol.IsWindowsRuntimeEvent Then
                     receiver = GetWindowsRuntimeEventReceiver(syntax, receiver)

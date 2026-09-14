@@ -2371,7 +2371,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             If Not CanAccessMyBase(False, err) Then
                 ReportDiagnostic(diagnostics, node, err, SyntaxFacts.GetText(node.Keyword.Kind))
-                Return New BoundMyBaseReference(node, If(Me.ContainingType IsNot Nothing, Me.ContainingType.BaseTypeNoUseSiteDiagnostics, ErrorTypeSymbol.UnknownResultType), hasErrors:=True)
+                ' A submission class has no base type, so the fallback keeps the error node constructible.
+                Return New BoundMyBaseReference(node, If(Me.ContainingType?.BaseTypeNoUseSiteDiagnostics, ErrorTypeSymbol.UnknownResultType), hasErrors:=True)
             End If
 
             Dim containingMethod = TryCast(ContainingMember, MethodSymbol)

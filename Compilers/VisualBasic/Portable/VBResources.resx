@@ -4727,6 +4727,12 @@
   <data name="ERR_BadAwaitInSharedInitializer" xml:space="preserve">
     <value>'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous.</value>
   </data>
+  <data name="ERR_SubmissionCannotDeclareInstanceConstructor" xml:space="preserve">
+    <value>An instance constructor cannot be declared in a script class because the script instance is created by the generated entry point and its constructor is compiler-synthesized. Put initialization code in top-level statements.</value>
+  </data>
+  <data name="ERR_WithEventsVariableNotInContainingType" xml:space="preserve">
+    <value>'Handles' cannot refer to '{0}'. A 'WithEvents' variable declared in a previous submission or in the host object is visible in a script class, but the class does not inherit it. Declare the 'WithEvents' variable in the same submission as the handler method.</value>
+  </data>
   <data name="ERR_StatementLambdaInExpressionTree" xml:space="preserve">
     <value>Statement lambdas cannot be converted to expression trees.</value>
   </data>

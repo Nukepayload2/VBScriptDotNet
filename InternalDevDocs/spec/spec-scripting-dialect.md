@@ -226,7 +226,7 @@ The scripting dialect selects its compilation options by default:
 
 ### Script-specific restrictions and diagnostics
 
-The scripting dialect introduces a small family of diagnostics. They are layered: `Namespace` is reported while parsing; the remaining restrictions are reported while binding.
+The scripting dialect introduces a small family of diagnostics. They are layered: `Namespace` is reported while parsing; the remaining restrictions are reported after parsing, while binding and while the containing type's members are built.
 
 | Code | Diagnostic | Condition | C# counterpart |
 |---|---|---|---|
@@ -236,6 +236,9 @@ The scripting dialect introduces a small family of diagnostics. They are layered
 | BC30545 | `ERR_PropertyAccessIgnored` | A property access or late-bound property group used as a statement. The diagnostic is suppressed for the final statement of the compilation unit's top-level code. | none |
 | BC36964 | `ERR_ReferenceDirectiveOnlyAllowedInScripts` | `#R` in ordinary compilation. | CS7011 |
 | BC36967 | `ERR_LoadDirectiveOnlyAllowedInScripts` | `#Load` in ordinary compilation. | CS8097 |
+| BC37341 | `ERR_BadAwaitInSharedInitializer` | `Await` in a shared field or property initializer. The shared initializer runs in the shared constructor, which is synchronous; the instance initializer is the asynchronous one, so `Await` is allowed there. The diagnostic is reachable only in a script class, because a field or property is treated as an async context only when its containing type is a script class. | CS8100, same condition; the message says "static script variable initializer" |
+| BC37342 | `ERR_SubmissionCannotDeclareInstanceConstructor` | An instance constructor declared in a script class. Both kinds of script class have a single instance-constructor slot: a submission class is instantiated by the host and a non-submission script class by the compiler-generated entry point, and each calls the constructor the compiler synthesizes. A declared constructor cannot occupy that slot, so nothing calls it. A shared constructor is unaffected. | none; the shape cannot be written in C# — a member of a script class cannot be a constructor of the compiler-generated class — so no diagnostic is needed for it |
+| BC37343 | `ERR_WithEventsVariableNotInContainingType` | A `Handles` clause naming a `WithEvents` variable that the containing submission class does not declare, because the variable reached it from an earlier submission of the chain or from the host object. | none; C# has no `Handles` clause |
 | BC42367 | `WRN_MainIgnored` | A `Main` entry point is ignored because the compilation has a script class: global code is the entry point. Reported as a warning, not silently. | CS7022, same name and meaning |
 
 The directive diagnostics above are mode gates only; the semantics of the directives themselves are specified separately, as is the `#!` shebang directive.
@@ -263,9 +266,19 @@ The restriction has a portability consequence for code moved from the C# scripti
 
 #### Top-level labels and `GoTo`
 
-A `LabelStatement` at the top level is not added to the instance initializer sequence, so a top-level label does not itself contribute a statement to the initializer body. A top-level `GoTo` is an ordinary executable statement and is part of the initializer sequence; it binds to a top-level label because labels are collected for the whole compilation unit rather than from the initializer sequence, so no diagnostic is reported. Because the label statement is not emitted into the initializer body, the runtime effect of the jump is likewise not guaranteed.
+A `LabelStatement` at the top level is an executable statement, and every top-level executable statement is recorded as an initializer entry. A top-level label therefore contributes a statement to the initializer body, and a top-level `GoTo` does the same. Label binding is the ordinary binding: the binder for top-level code collects the labels of the whole compilation unit, so a `GoTo` binds to a top-level label and no diagnostic is reported. The jump takes effect at run time — a forward `GoTo` skips the statements it branches over, and a backward `GoTo` returns to the labeled statement.
 
-**Decision**: the behavior of a top-level `GoTo` that targets a top-level label is outside the guarantees of this specification. Scripts that need control flow express it with the ordinary block statements, which are fully supported at the top level.
+```vbnet
+Console.WriteLine("A")
+GoTo done
+Console.WriteLine("not printed")   ' Okay: the branch above skips this statement
+done:
+Console.WriteLine("B")
+```
+
+**Decision**: a top-level `GoTo` and its label are covered by the guarantees of this specification, with the semantics of an ordinary `GoTo` and label in a method body. The two constructs differ from their ordinary counterparts only in their container, which is the synthesized initializer described above.
+
+A label name must be unique within the compilation unit. A repeated top-level label is reported on the later declaration with the ordinary duplicate-label diagnostic, BC30094.
 
 ## Soundness
 [soundness]: #soundness
@@ -344,8 +357,8 @@ Under `Option Strict Off`, a trailing late-bound member access on an `Object` re
 
 The following items follow from the implementation and are stated rather than left implicit:
 
-- **Top-level labels and `GoTo`.** As specified above, a top-level label is not part of the initializer sequence and is not emitted into the initializer body; a top-level `GoTo` is part of the sequence. The runtime effect of the jump is outside the guarantees of this specification.
-- **`WithEvents` in a submission class.** The synthesis of `WithEvents` hookup constructors is dispatched by the kind of the script class. A non-submission script class follows the ordinary class path; a submission class synthesizes no hookup constructors. A `Handles` clause in a submission class is not supported: no diagnostic is reported for it, and the compilation does not complete. This boundary is stated, not specified.
+- **Top-level labels and `GoTo`.** As specified above, both a top-level label and a top-level `GoTo` are initializer entries and the jump takes effect at run time. The two statements are not given a placement of their own: they execute where the initializer reaches them, like any other top-level statement, and a label name must be unique within the compilation unit.
+- **`WithEvents` in a submission class.** The synthesis of `WithEvents` hookup constructors is dispatched by the kind of the script class. A non-submission script class follows the ordinary class path; a submission class synthesizes no hookup constructor, because the instance constructor a hookup constructor would be is already synthesized for it as the submission constructor. A `Handles` clause is supported when the `WithEvents` variable is declared in the same submission as the clause: the hookup is performed by the synthesized setter of that variable, which the submission itself declares. A variable that reaches the submission class from a previous submission of the chain, or from the host object, is reported with BC37343 instead — the submission class does not declare it, so the requirement that the first identifier of a `Handles` clause "must be an instance or shared variable in the containing type that specifies the `WithEvents` modifier or the `MyBase` or `MyClass` or `Me` keyword" ([type-members][vblang-type-members]) is not satisfied, and a compile-time error occurs.
 - **Alias and XML-prefix collisions between accumulated clauses.** The rules above define which clause wins and which diagnostic is reported. A project-level import diagnostic carries no source location, so the losing clause is identified only by its text in the message; it cannot be located by line number, and a losing clause written in an earlier submission is no exception.
 
 ## Testing
@@ -356,7 +369,7 @@ The dialect is exercised by in-memory compilation and execution tests that have 
 - **Declaration-model and session tests.** A top-level `Dim` declared in one submission is readable in the next. A top-level `Function`, `Class`, `Module`, and `Delegate` declared in one submission are each usable in a later submission: an instance of the type is constructed with an object initializer, the address of the function is taken, and a member of the module is called. An import written in one submission is in effect in the next and does not replace imports supplied through the host's options.
 - **Entry-point and result tests.** A typed script ignores a trailing expression, and a typed script's bare `Return` yields the default value; an explicit top-level `Return` value is the result and takes precedence over a trailing expression; top-level executable statements run in source order. In file execution, a trailing expression and a `?` statement do not set the exit code, an explicit `Return` does, and a bare `Return` yields zero.
 - **Async and event tests.** A top-level `Await` in a script file, a bare `Await` statement, and an `Await` whose value is the result all compile and run. A top-level `AddHandler` with a lambda, a top-level `AddHandler` whose handler was declared in a previous submission, and a top-level `RemoveHandler` compile and take effect.
-- **Restriction tests.** In script mode, a `Namespace` declaration reports BC36965, and an explicit `Me`, `MyBase`, or `MyClass` reports BC36966 — including when it appears inside the body of a top-level `Sub`. A top-level `GoTo` and its label compile without errors. A top-level `On Error Resume Next` and a top-level `RaiseEvent` report their unsupported-statement diagnostics.
+- **Restriction tests.** In script mode, a `Namespace` declaration reports BC36965, and an explicit `Me`, `MyBase`, or `MyClass` reports BC36966 — including when it appears inside the body of a top-level `Sub`. A top-level `GoTo` and its label compile without errors. A top-level `On Error Resume Next` and a top-level `RaiseEvent` report their unsupported-statement diagnostics. An `Await` in a shared field or property initializer reports BC37341; an instance constructor declared in a script class reports BC37342, while a shared constructor and a constructor of a class nested in the script class are unaffected; a `Handles` clause whose `WithEvents` variable reaches the submission class from an earlier submission or from the host object reports BC37343, while a clause over a variable declared in the same submission binds and runs.
 - **Statement-form tests.** A bare expression that is not the final statement of the top-level code reports BC31003, and a member access in the same position reports BC30545; in file execution both forms are accepted and ignored. A bare expression inside a nested `Sub` still reports its ordinary diagnostic, and a trailing late-bound member access on an `Object` receiver is not printed.
 - **Session-isolation tests.** A failed submission does not change the state of the session.
 

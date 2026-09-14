@@ -695,6 +695,502 @@ End Sub", parseOptions:=TestOptions.Script)
 
 #End Region
 
+#Region "Top level scripts: explicit MyBase (script-top-level-crashes-2, U4)"
+
+        ''' <summary>
+        ''' A submission class has no base type, so the error path of an explicit 'MyBase' has to fall back to an error
+        ''' type: the diagnostic is reported instead of terminating the process (the bound node used to be constructed
+        ''' with a <c>Nothing</c> type and tripped its non-null assertion).
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelBareMyBase_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission("MyBase.ToString()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelMyBaseInInstanceMethod_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Sub Go()" & vbLf &
+                "    System.Console.WriteLine(MyBase.ToString())" & vbLf &
+                "End Sub" & vbLf &
+                "Go()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelMyBaseInSharedMethod_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Shared Sub Go()" & vbLf &
+                "    System.Console.WriteLine(MyBase.ToString())" & vbLf &
+                "End Sub" & vbLf &
+                "Go()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
+        End Sub
+
+        ''' <summary>
+        ''' The control: an ordinary class with a base type keeps its working 'MyBase' (the same shape as the
+        ''' <c>mybase-ordinary-class</c> probe).
+        ''' </summary>
+        <Fact>
+        Public Sub OrdinaryClassMyBase_StillWorks()
+            Dim source =
+                "Class Base2" & vbLf &
+                "    Public Overrides Function ToString() As String" & vbLf &
+                "        Return ""B""" & vbLf &
+                "    End Function" & vbLf &
+                "End Class" & vbLf &
+                "Class Derived" & vbLf &
+                "    Inherits Base2" & vbLf &
+                "    Public Function Go() As String" & vbLf &
+                "        Return MyBase.ToString()" & vbLf &
+                "    End Function" & vbLf &
+                "End Class" & vbLf &
+                "Module Entry" & vbLf &
+                "    Sub Main()" & vbLf &
+                "        System.Console.WriteLine(New Derived().Go())" & vbLf &
+                "    End Sub" & vbLf &
+                "End Module"
+
+            Dim c = CreateCompilationWithMscorlib461AndVBRuntime(source, options:=TestOptions.ReleaseExe)
+
+            CompileAndVerify(c, expectedOutput:="B").VerifyDiagnostics()
+        End Sub
+
+#End Region
+
+#Region "Top level scripts: instance constructors (script-top-level-crashes-2, U1)"
+
+        ''' <summary>
+        ''' The host creates the submission instance and the compiler synthesizes its constructor, so a declared
+        ''' instance constructor has nothing to run and cannot take that member slot. It used to be added next to
+        ''' the synthesized one, which ended in the lexical order assertion of <c>LexicalOrderSymbolComparer</c>
+        ''' (constructor first in the file) or in <c>NamedTypeSymbol.GetScriptConstructor</c> throwing
+        ''' <c>InvalidOperationException</c> (anything before the constructor).
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelParameterlessInstanceConstructor_ReportsSubmissionCannotDeclareInstanceConstructor()
+            Dim c = CreateSubmission(
+                "Sub New()" & vbLf &
+                "End Sub",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, "Sub New()")
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelInstanceConstructorWithParameters_ReportsSubmissionCannotDeclareInstanceConstructor()
+            Dim c = CreateSubmission(
+                "Sub New(x As Integer)" & vbLf &
+                "End Sub",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, "Sub New(x As Integer)")
+        End Sub
+
+        ''' <summary>
+        ''' The access modifiers do not change the decision, and the diagnostic is anchored to the declaration.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelInstanceConstructorWithAccessModifier_ReportsSubmissionCannotDeclareInstanceConstructor()
+            For Each modifier In {"Protected", "Private", "Public"}
+                Dim c = CreateSubmission(
+                    modifier & " Sub New()" & vbLf &
+                    "End Sub",
+                    options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+                AssertSingleError(c, ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, modifier & " Sub New()")
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' The shape whose declaration is not the first thing in the file - the one that used to throw out of
+        ''' <c>GetScriptConstructor</c> instead of asserting.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelInstanceConstructorAfterStatement_ReportsSubmissionCannotDeclareInstanceConstructor()
+            Dim c = CreateSubmission(
+                "System.Console.WriteLine(""X"")" & vbLf &
+                "Sub New()" & vbLf &
+                "End Sub",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, "Sub New()")
+        End Sub
+
+        ''' <summary>A shared constructor is not the synthesized one, so it keeps compiling.</summary>
+        <Fact>
+        Public Sub TopLevelSharedConstructor_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Shared Sub New()" & vbLf &
+                "End Sub",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>A nested class of a script class may declare an instance constructor as usual.</summary>
+        <Fact>
+        Public Sub NestedClassInstanceConstructor_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Class Widget" & vbLf &
+                "    Public Sub New()" & vbLf &
+                "    End Sub" & vbLf &
+                "End Class" & vbLf &
+                "Dim w As New Widget" & vbLf &
+                "System.Console.WriteLine(""OK"")",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>An ordinary class keeps declaring constructors with either form.</summary>
+        <Fact>
+        Public Sub OrdinaryClassInstanceConstructors_StillCompile()
+            Dim source =
+                "Class Widget" & vbLf &
+                "    Sub New()" & vbLf &
+                "    End Sub" & vbLf &
+                "    Sub New(x As Integer)" & vbLf &
+                "    End Sub" & vbLf &
+                "End Class" & vbLf &
+                "Module Entry" & vbLf &
+                "    Sub Main()" & vbLf &
+                "        Dim w As New Widget" & vbLf &
+                "        Dim v As New Widget(1)" & vbLf &
+                "        System.Console.WriteLine(""OK"")" & vbLf &
+                "    End Sub" & vbLf &
+                "End Module"
+
+            Dim c = CreateCompilationWithMscorlib461AndVBRuntime(source, options:=TestOptions.ReleaseExe)
+
+            CompileAndVerify(c, expectedOutput:="OK").VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>
+        ''' A script class that is not a submission class: the compiler synthesizes its constructor and the
+        ''' generated entry point constructs the script instance, the same relationship the host has with a
+        ''' submission, so a declared instance constructor takes the synthesized one's member slot here as well.
+        ''' </summary>
+        Private Shared Function CreateScriptClassCompilation(source As String) As VisualBasicCompilation
+            Return VisualBasicCompilation.Create(
+                "ScriptClassInstanceConstructor",
+                {SyntaxFactory.ParseSyntaxTree(source, options:=TestOptions.Script)},
+                {MscorlibRef_v4_0_30316_17626, MsvbRef_v4_0_30319_17929},
+                New VisualBasicCompilationOptions(OutputKind.ConsoleApplication).WithScriptClassName("Script"))
+        End Function
+
+        ''' <summary>
+        ''' Asserts that the compilation reports one BC37342 on <paramref name="squiggledText"/>, and that analysis
+        ''' and emit survive it: both threw <c>InvalidCastException</c> out of
+        ''' <c>NamedTypeSymbol.GetScriptConstructor</c> while the declared constructor reached the member table.
+        ''' </summary>
+        Private Shared Sub AssertScriptClassInstanceConstructorRejected(source As String, squiggledText As String)
+            Dim c = CreateScriptClassCompilation(source)
+
+            AssertSingleError(c, ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, squiggledText)
+
+            Dim result = c.Emit(peStream:=New System.IO.MemoryStream())
+            Assert.False(result.Success)
+        End Sub
+
+        <Fact>
+        Public Sub ScriptClassParameterlessInstanceConstructor_ReportsSubmissionCannotDeclareInstanceConstructor()
+            AssertScriptClassInstanceConstructorRejected(
+                "Sub New()" & vbLf &
+                "End Sub",
+                "Sub New()")
+        End Sub
+
+        <Fact>
+        Public Sub ScriptClassInstanceConstructorWithParameters_ReportsSubmissionCannotDeclareInstanceConstructor()
+            AssertScriptClassInstanceConstructorRejected(
+                "Sub New(x As Integer)" & vbLf &
+                "End Sub",
+                "Sub New(x As Integer)")
+        End Sub
+
+        ''' <summary>The declaration is not the first thing in the file, so the entry point is generated first.</summary>
+        <Fact>
+        Public Sub ScriptClassInstanceConstructorAfterStatement_ReportsSubmissionCannotDeclareInstanceConstructor()
+            AssertScriptClassInstanceConstructorRejected(
+                "System.Console.WriteLine(""X"")" & vbLf &
+                "Sub New()" & vbLf &
+                "End Sub",
+                "Sub New()")
+        End Sub
+
+        ''' <summary>
+        ''' Discriminating contrast for the widened gate: an ordinary class nested in the same script class keeps
+        ''' declaring instance constructors.
+        ''' </summary>
+        <Fact>
+        Public Sub ScriptClassNestedClassInstanceConstructor_NoDiagnostics()
+            Dim c = CreateScriptClassCompilation(
+                "Class Widget" & vbLf &
+                "    Public Sub New()" & vbLf &
+                "    End Sub" & vbLf &
+                "End Class" & vbLf &
+                "Dim w As New Widget" & vbLf &
+                "System.Console.WriteLine(""OK"")")
+
+            c.VerifyDiagnostics()
+        End Sub
+
+#End Region
+
+#Region "Top level scripts: branching out of a 'Finally' block (script-top-level-crashes-2, U5)"
+
+        ''' <summary>
+        ''' Asserts that the submission reports one BC30101 on <paramref name="squiggledText"/> and nothing else.
+        ''' </summary>
+        Private Shared Sub AssertSingleBranchOutOfFinally(source As String,
+                                                          squiggledText As String,
+                                                          Optional returnType As Type = Nothing)
+            Dim c = CreateSubmission(source,
+                                     options:=ScriptCompilationOptions(),
+                                     parseOptions:=TestOptions.Script,
+                                     returnType:=returnType)
+
+            AssertSingleError(c, ERRID.ERR_BranchOutOfFinally, squiggledText)
+        End Sub
+
+        ''' <summary>
+        ''' A branch out of a 'Finally' block is rejected by the control flow pass, which never ran on top level
+        ''' statements: their host is the stub body of the synthesized script initializer. The branch survived into
+        ''' code generation and the produced method was rejected by the runtime
+        ''' (<c>InvalidProgramException</c>). The reported span is the 'GoTo' label, as in an ordinary method body.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelGoToOutOfFinally_ReportsBranchOutOfFinally()
+            AssertSingleBranchOutOfFinally(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    GoTo after" & vbLf &
+                "End Try" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                "after")
+        End Sub
+
+        ''' <summary>
+        ''' Every branch kind out of the 'Finally', not just the 'GoTo'. Enumerating statement kinds is what would
+        ''' miss the 'Return' / 'Exit' / 'Continue' family, so each one is pinned here.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelBranchOutOfFinally_ReportsBranchOutOfFinallyForEveryBranchKind()
+            AssertSingleBranchOutOfFinally(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    Return" & vbLf &
+                "End Try",
+                "Return")
+
+            AssertSingleBranchOutOfFinally(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    Return 3" & vbLf &
+                "End Try",
+                "Return 3",
+                returnType:=GetType(Integer))
+
+            AssertSingleBranchOutOfFinally(
+                "For i As Integer = 1 To 3" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        Exit For" & vbLf &
+                "    End Try" & vbLf &
+                "Next",
+                "Exit For")
+
+            AssertSingleBranchOutOfFinally(
+                "While True" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        Exit While" & vbLf &
+                "    End Try" & vbLf &
+                "End While",
+                "Exit While")
+
+            AssertSingleBranchOutOfFinally(
+                "Do" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        Exit Do" & vbLf &
+                "    End Try" & vbLf &
+                "Loop",
+                "Exit Do")
+
+            AssertSingleBranchOutOfFinally(
+                "Select Case 1" & vbLf &
+                "    Case 1" & vbLf &
+                "        Try" & vbLf &
+                "        Finally" & vbLf &
+                "            Exit Select" & vbLf &
+                "        End Try" & vbLf &
+                "End Select",
+                "Exit Select")
+
+            AssertSingleBranchOutOfFinally(
+                "For i As Integer = 1 To 3" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        Continue For" & vbLf &
+                "    End Try" & vbLf &
+                "Next",
+                "Continue For")
+        End Sub
+
+        ''' <summary>
+        ''' The shapes where the 'Try/Finally' is not the top level statement itself: nested 'Finally', a 'Finally'
+        ''' inside 'Using' or 'Catch', a 'Try' with several 'Catch' blocks, and a 'Finally' that follows an 'Await'.
+        ''' </summary>
+        ''' <summary>
+        ''' A branch that leaves a 'Finally' nested inside another 'Finally' is reported once per enclosing
+        ''' 'Finally' block: the control flow pass reports the leftover pending branch in every 'VisitFinallyBlock'
+        ''' it propagates through. An ordinary method body shows the same duplication at the
+        ''' <c>Compilation.GetDiagnostics</c> layer, so only the diagnostic identity and the anchor are asserted
+        ''' here.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelNestedFinally_ReportsBranchOutOfFinally()
+            Dim c = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        Return" & vbLf &
+                "    End Try" & vbLf &
+                "End Try", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            Dim diagnostics = c.GetDiagnostics()
+            Assert.NotEmpty(diagnostics)
+            Assert.True(diagnostics.All(Function(d) d.Id = ErrorCode(ERRID.ERR_BranchOutOfFinally)),
+                        String.Join(" | ", diagnostics.Select(Function(d) d.ToString())))
+
+            Dim first = diagnostics(0)
+            Assert.Equal("Return", first.Location.SourceTree.GetText().ToString(first.Location.SourceSpan))
+        End Sub
+
+        <Fact>
+        Public Sub TopLevelNestedFinallyShapes_ReportBranchOutOfFinally()
+            AssertSingleBranchOutOfFinally(
+                "Using d As New System.IO.MemoryStream" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        GoTo after" & vbLf &
+                "    End Try" & vbLf &
+                "End Using" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                "after")
+
+            AssertSingleBranchOutOfFinally(
+                "Try" & vbLf &
+                "    Throw New System.Exception()" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    Try" & vbLf &
+                "    Finally" & vbLf &
+                "        GoTo after" & vbLf &
+                "    End Try" & vbLf &
+                "End Try" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                "after")
+
+            AssertSingleBranchOutOfFinally(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Catch ex As System.ArgumentException" & vbLf &
+                "    System.Console.WriteLine(""A"")" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    System.Console.WriteLine(""B"")" & vbLf &
+                "Finally" & vbLf &
+                "    GoTo after" & vbLf &
+                "End Try" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                "after")
+
+            AssertSingleBranchOutOfFinally(
+                "Await System.Threading.Tasks.Task.Yield()" & vbLf &
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    GoTo after" & vbLf &
+                "End Try" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                "after")
+        End Sub
+
+        ''' <summary>
+        ''' The controls: branches out of a 'Try' or a 'Catch' block stay legal, a 'Finally' with no branch at all
+        ''' stays legal, and a 'GoTo' whose target is inside the same 'Finally' block is not a branch out of it.
+        ''' </summary>
+        <Fact>
+        Public Sub TopLevelBranchesThatStayInsideTheEnclosingRegion_NoDiagnostics()
+            Dim outOfCatch = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Catch ex As System.Exception" & vbLf &
+                "    GoTo after" & vbLf &
+                "Finally" & vbLf &
+                "    System.Console.WriteLine(""F"")" & vbLf &
+                "End Try" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            outOfCatch.VerifyDiagnostics()
+
+            Dim outOfUsingBody = CreateSubmission(
+                "Using d As New System.IO.MemoryStream" & vbLf &
+                "    Try" & vbLf &
+                "        System.Console.WriteLine(""T"")" & vbLf &
+                "    Finally" & vbLf &
+                "        System.Console.WriteLine(""F"")" & vbLf &
+                "    End Try" & vbLf &
+                "    GoTo after" & vbLf &
+                "End Using" & vbLf &
+                "after:" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            outOfUsingBody.VerifyDiagnostics()
+
+            Dim noBranch = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    System.Console.WriteLine(""F"")" & vbLf &
+                "End Try" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            noBranch.VerifyDiagnostics()
+
+            Dim targetInsideFinally = CreateSubmission(
+                "Try" & vbLf &
+                "    System.Console.WriteLine(""T"")" & vbLf &
+                "Finally" & vbLf &
+                "    If True Then" & vbLf &
+                "        GoTo skip" & vbLf &
+                "    End If" & vbLf &
+                "skip:" & vbLf &
+                "    System.Console.WriteLine(""F"")" & vbLf &
+                "End Try" & vbLf &
+                "System.Console.WriteLine(""A"")",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            targetInsideFinally.VerifyDiagnostics()
+        End Sub
+
+#End Region
+
     End Class
 End Namespace
 

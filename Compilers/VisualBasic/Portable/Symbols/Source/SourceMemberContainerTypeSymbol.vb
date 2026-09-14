@@ -2569,9 +2569,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                     End If
 
                     Dim methodSymbol = CreateMethodMember(methodDecl, binder, diagBag.DiagnosticBag)
-                    If methodSymbol IsNot Nothing Then
-                        AddMember(methodSymbol, binder, members, omitDiagnostics:=False)
-                    End If
+                    AddMethodMember(methodSymbol, methodDecl, binder, diagBag, members)
 
                 Case _
                     SyntaxKind.SubStatement,
@@ -2588,9 +2586,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                     End If
 
                     Dim methodSymbol = CreateMethodMember(DirectCast(memberSyntax, MethodBaseSyntax), binder, diagBag.DiagnosticBag)
-                    If methodSymbol IsNot Nothing Then
-                        AddMember(methodSymbol, binder, members, omitDiagnostics:=False)
-                    End If
+                    AddMethodMember(methodSymbol, methodDecl, binder, diagBag, members)
 
                 Case SyntaxKind.PropertyBlock
                     Dim propertyDecl = DirectCast(memberSyntax, PropertyBlockSyntax)
@@ -2687,6 +2683,32 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Dim propertySymbol = New SourceEventSymbol(Me, binder, syntax, blockSyntaxOpt, diagBag)
 
             AddEventAndAccessors(propertySymbol, binder, members)
+        End Sub
+
+        ''' <summary>
+        ''' Adds a method created by <see cref="CreateMethodMember"/> to the member list.
+        ''' </summary>
+        ''' <remarks>
+        ''' A script class rejects instance constructors: the instance is created by the host or by the
+        ''' generated entry point, which calls the compiler-synthesized constructor, so a declared one
+        ''' would occupy the same member slot and could never run. Shared constructors are unaffected.
+        ''' </remarks>
+        Private Sub AddMethodMember(methodSymbol As SourceMethodSymbol,
+                                    methodDecl As MethodBaseSyntax,
+                                    binder As Binder,
+                                    diagBag As BindingDiagnosticBag,
+                                    members As MembersAndInitializersBuilder)
+
+            If methodSymbol Is Nothing Then
+                Return
+            End If
+
+            If Me.IsScriptClass AndAlso methodSymbol.MethodKind = MethodKind.Constructor Then
+                diagBag.Add(ERRID.ERR_SubmissionCannotDeclareInstanceConstructor, methodDecl.GetLocation())
+                Return
+            End If
+
+            AddMember(methodSymbol, binder, members, omitDiagnostics:=False)
         End Sub
 
         Private Function CreateMethodMember(methodBaseSyntax As MethodBaseSyntax,

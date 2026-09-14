@@ -8,7 +8,7 @@ $gates = @(
     @{ Name = 'Phase2'; Project = 'Compilers\VisualBasicTest\Microsoft.CodeAnalysis.VisualBasic.UnitTests.vbproj'; Total = 143; Passed = 143; Skipped = 0; Failed = 0 }
     @{ Name = 'Syntax'; Project = 'Compilers\VisualBasicSyntaxTest\Microsoft.CodeAnalysis.VisualBasic.Syntax.UnitTests.vbproj'; Total = 4070; Passed = 4067; Skipped = 3; Failed = 0 }
     @{ Name = 'Symbol'; Project = 'Compilers\VisualBasicSymbolTest\Microsoft.CodeAnalysis.VisualBasic.Symbol.UnitTests.vbproj'; Total = 3407; Passed = 3383; Skipped = 24; Failed = 0 }
-    @{ Name = 'Semantic'; Project = 'Compilers\VisualBasicSemanticTest\Microsoft.CodeAnalysis.VisualBasic.Semantic.UnitTests.vbproj'; Total = 5806; Passed = 5702; Skipped = 104; Failed = 0 }
+    @{ Name = 'Semantic'; Project = 'Compilers\VisualBasicSemanticTest\Microsoft.CodeAnalysis.VisualBasic.Semantic.UnitTests.vbproj'; Total = 5826; Passed = 5722; Skipped = 104; Failed = 0 }
     @{ Name = 'IOperation'; Project = 'Compilers\VisualBasicIOperationTest\Roslyn.Compilers.VisualBasic.IOperation.UnitTests.vbproj'; Total = 1574; Passed = 1566; Skipped = 8; Failed = 0 }
     @{ Name = 'Emit'; Project = 'Compilers\VisualBasicEmitTest\Microsoft.CodeAnalysis.VisualBasic.Emit.UnitTests.vbproj'; Total = 4370; Passed = 4267; Skipped = 103; Failed = 0 }
     @{ Name = 'CommandLine'; Project = 'Compilers\VisualBasicCommandLineTest\Microsoft.CodeAnalysis.VisualBasic.CommandLine.UnitTests.vbproj'; Total = 475; Passed = 468; Skipped = 7; Failed = 0 }

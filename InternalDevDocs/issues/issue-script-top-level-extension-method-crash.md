@@ -1,6 +1,6 @@
 # [BUG] 脚本顶层 `<Extension>` 成员缺 `Shared` 时无诊断：Debug 断言终止进程，Release 落到 codegen NRE
 
-- **状态**：Open
+- **状态**：Fixed（48d8edb）
 - **发现**：2026-09-10（复核 `spec-scripting-dialect.md` 的脚本类修饰符段落时附带发现）
 - **严重度**：中高（Debug 构建**进程被断言终止**，非普通诊断；输入是普通用户可写的顶层代码）
 - **影响面**：`.vbx` 脚本与交互式会话（任何 `SourceCodeKind.Script` / `Submission` 编译的宿主，含 vbi REPL、`vbi script.vbx`、`Scripting` API 消费者）。`vbc` 不产生脚本编译，不受影响。

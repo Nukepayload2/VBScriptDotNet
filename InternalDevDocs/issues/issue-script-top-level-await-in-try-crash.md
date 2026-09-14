@@ -1,6 +1,6 @@
 # 脚本顶层 `Try`/`Catch`/`Finally`/`SyncLock` 里的 `Await`：`BC36943` 判据未生效（Catch/Finally → 编译器 `NullReferenceException`；SyncLock → 静默产出运行期坏产物）
 
-* 状态：**Open**
+* 状态：**Fixed**（48d8edb）
 * 发现日期：2026-09-13（同日扩展触发面：补入第三子形状 `SyncLock`）
 * 发现场景：调查「`.vbx` 顶层变量做成 locals」的可行性时顺带撞见
 

@@ -1,6 +1,6 @@
 # [BUG] 提交类顶层 `Event` / `WithEvents` 成员 → Debug 断言终止（提交类 `IsImplicitlyDeclared` 为 True）
 
-**状态**：Open（2026-09-12 登记）
+**状态**：**Fixed**（48d8edb；2026-09-12 登记）
 **证据等级**：**已运行**（Debug `2.0.0-Beta+5816a5c`，本机实测，含嵌套类容器对照）
 **严重度**：高（用户可达、编译期零诊断、Debug 直接终止进程）
 **影响面**：任何 `TypeKind.Submission` 编译（`.vbx` 脚本执行、vbi REPL 提交）；`vbc` 不产生提交编译，不受影响

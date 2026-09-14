@@ -270,11 +270,9 @@ Public Class ScriptTopLevelCrashTests
     ''' assert on that and terminated the process while emitting. The synthesized add/remove accessors are emitted
     ''' and run.
     ''' <para>
-    ''' The delivery itself (raise -&gt; handler count) cannot be observed for an <em>instance</em> event declared by
-    ''' the submission class: <c>RaiseEvent</c> is not a supported top-level statement, direct access to the event is
-    ''' rejected (BC32022) and a <c>RaiseEvent</c> inside a top-level instance <c>Sub</c> or lambda trips a separate,
-    ''' unrelated assertion (<c>LocalRewriter_RaiseEvent.vb:36</c>, a container-agnostic shape that predates this
-    ''' change). Delivery is therefore covered by the <c>Shared Event</c> and <c>WithEvents</c> cases below.
+    ''' The delivery of an <em>instance</em> event (raise -&gt; handler count) is covered by the
+    ''' <c>TopLevelInstanceEvent_*</c> cases below; the <c>Shared Event</c> and <c>WithEvents</c> cases cover the
+    ''' registration paths.
     ''' </para>
     ''' </summary>
     <Fact>
@@ -294,9 +292,8 @@ Public Class ScriptTopLevelCrashTests
 
     ''' <summary>
     ''' A <c>Shared Event</c> declared by the submission class: registration goes through the synthesized add/remove
-    ''' accessors and the delivery really reaches the handler. A top-level <c>Shared Sub</c> is what raises it - the
-    ''' same <c>RaiseEvent</c> in an instance member trips the unrelated assertion mentioned above, which is why the
-    ''' instance shape is covered by accessor registration only.
+    ''' accessors and the delivery really reaches the handler. A top-level <c>Shared Sub</c> raises it - the instance
+    ''' counterpart is covered by the <c>TopLevelInstanceEvent_*</c> cases below.
     ''' </summary>
     <Fact>
     Public Async Function TopLevelSharedEvent_RaiseReachesTheHandler() As Task
@@ -314,6 +311,142 @@ Public Class ScriptTopLevelCrashTests
 
         Assert.Equal(1, state.ReturnValue)
     End Function
+
+    ''' <summary>
+    ''' An <em>instance</em> event of the submission class raised from a top-level <c>Sub</c>. The event field is
+    ''' reached through the previous submission reference instead of <c>Me</c>, so the raise has to lower that
+    ''' receiver: it used to trip the assertion of <c>Lowering\LocalRewriter\LocalRewriter_RaiseEvent.vb</c> and, past
+    ''' it, reach code generation with an unlowered node.
+    ''' </summary>
+    <Fact>
+    Public Async Function TopLevelInstanceEvent_RaiseInTopLevelSub_ReachesTheHandler() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            "Event E As System.EventHandler" & vbCrLf &
+            "Dim count = 0" & vbCrLf &
+            "AddHandler E, Sub(s As Object, e As System.EventArgs)" & vbCrLf &
+            "                  count += 1" & vbCrLf &
+            "              End Sub" & vbCrLf &
+            "Sub RaiseIt()" & vbCrLf &
+            "    RaiseEvent E(Nothing, System.EventArgs.Empty)" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "RaiseIt()" & vbCrLf &
+            "Return count", s_defaultOptions)
+
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>The same raise from a lambda of the submission class.</summary>
+    <Fact>
+    Public Async Function TopLevelInstanceEvent_RaiseInLambda_ReachesTheHandler() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            "Event E As System.EventHandler" & vbCrLf &
+            "Dim count = 0" & vbCrLf &
+            "AddHandler E, Sub(s As Object, e As System.EventArgs)" & vbCrLf &
+            "                  count += 1" & vbCrLf &
+            "              End Sub" & vbCrLf &
+            "Dim raiseIt As System.Action = Sub() RaiseEvent E(Nothing, System.EventArgs.Empty)" & vbCrLf &
+            "raiseIt()" & vbCrLf &
+            "Return count", s_defaultOptions)
+
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' A top-level <c>Handles</c> clause on an instance <c>WithEvents</c> field. The hookup is hosted by the
+    ''' synthesized instance constructor of the submission class, which <c>BindSingleHandlesClause</c> did not accept
+    ''' as a container; the handler really runs when the event is raised.
+    ''' </summary>
+    <Fact>
+    Public Async Function TopLevelHandlesClauseOnInstanceWithEventsField_Delivers() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            RaiserAndHookupSource & vbCrLf &
+            "WithEvents hooked As New Raiser" & vbCrLf &
+            "Dim count = 0" & vbCrLf &
+            "Sub OnIt(s As Object, e As System.EventArgs) Handles hooked.SomethingHappened" & vbCrLf &
+            "    count += 1" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "hooked.RaiseIt()" & vbCrLf &
+            "Return count", s_defaultOptions)
+
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' The <c>Shared</c> variant: the hookup is hosted by the shared constructor of the submission class. The
+    ''' counter is shared as well - a shared handler cannot touch an instance field (BC30369).
+    ''' </summary>
+    <Fact>
+    Public Async Function TopLevelHandlesClauseOnSharedWithEventsField_Delivers() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            RaiserAndHookupSource & vbCrLf &
+            "Class Counter" & vbCrLf &
+            "    Public Shared Value As Integer" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Shared WithEvents hooked As New Raiser" & vbCrLf &
+            "Shared Sub OnIt(s As Object, e As System.EventArgs) Handles hooked.SomethingHappened" & vbCrLf &
+            "    Counter.Value += 1" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "hooked.RaiseIt()" & vbCrLf &
+            "Return Counter.Value", s_defaultOptions)
+
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' An explicit 'MyBase' in a submission class is a diagnostic, not a terminated process: the error path builds the
+    ''' bound node from the base type, and a submission class has none (BC36966 is the diagnostic the ordinary
+    ''' 'MyBase' error paths of this compiler family already file).
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelMyBase_IsReportedInsteadOfTerminatingTheProcess()
+        Dim script = VisualBasicScript.Create("MyBase.ToString()", s_defaultOptions)
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC36966" AndAlso d.Severity = DiagnosticSeverity.Error)
+
+        Dim ex = Assert.Throws(Of CompilationErrorException)(Sub() script.RunAsync().GetAwaiter().GetResult())
+        Assert.Contains(ex.Diagnostics, Function(d) d.Id = "BC36966")
+    End Sub
+
+    ''' <summary>The REPL variant: the session survives the submission with 'MyBase'.</summary>
+    <Fact>
+    Public Sub ReplTopLevelMyBase_IsReportedAndTheSessionContinues()
+        Dim runner = CreateRunner(input:=
+            "MyBase.ToString()" & vbCrLf &
+            "? 1 + 2" & vbCrLf)
+
+        runner.RunInteractive()
+
+        Assert.Contains("BC36966", runner.Console.Error.ToString())
+
+        ' The session survives the failed submission: the next submission runs.
+        Assert.Contains(vbCrLf & "3" & vbCrLf, runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' The REPL counterpart of the instance event raise: the event belongs to an earlier submission than the
+    ''' top-level <c>Sub</c> that raises it, so the raise reaches the handler of the first submission.
+    ''' </summary>
+    <Fact>
+    Public Sub ReplTopLevelInstanceEvent_RaiseReachesTheHandlerAndTheSessionContinues()
+        Dim runner = CreateRunner(input:=
+            "Event E As System.EventHandler" & vbCrLf &
+            "Dim count = 0" & vbCrLf &
+            "AddHandler E, Sub(s As Object, e As System.EventArgs) count += 1" & vbCrLf &
+            "Sub RaiseIt()" & vbCrLf &
+            "    RaiseEvent E(Nothing, System.EventArgs.Empty)" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "RaiseIt()" & vbCrLf &
+            "? count" & vbCrLf)
+
+        Dim exitCode = runner.RunInteractive()
+        Dim transcript = runner.Console.Out.ToString() & " || " & runner.Console.Error.ToString()
+
+        Assert.True(exitCode = 0, transcript)
+        Assert.True(runner.Console.Error.ToString() = "", transcript)
+        Assert.True(runner.Console.Out.ToString().Contains(vbCrLf & "1" & vbCrLf), transcript)
+    End Sub
 
     ''' <summary>
     ''' A <c>WithEvents</c> field of the submission class: the hookup really delivers - the handler is invoked when
@@ -534,6 +667,280 @@ Public Class ScriptTopLevelCrashTests
         Assert.Equal(mainFile, lineSpans(1).Path)
         Assert.Equal(4, lineSpans(1).StartLinePosition.Line)
     End Sub
+
+    ''' <summary>
+    ''' The host creates the submission instance and the compiler synthesizes its constructor, so a declared
+    ''' instance constructor of the submission class is a diagnostic. It used to be added next to the synthesized
+    ''' one and ended the process: a lexical order assertion when the declaration came first, and an
+    ''' <c>InvalidOperationException</c> out of <c>NamedTypeSymbol.GetScriptConstructor</c> otherwise.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelInstanceConstructor_IsReportedInsteadOfTerminatingTheProcess()
+        Dim script = VisualBasicScript.Create(
+            "Sub New()" & vbCrLf &
+            "End Sub", s_defaultOptions)
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37342" AndAlso d.Severity = DiagnosticSeverity.Error)
+
+        Dim ex = Assert.Throws(Of CompilationErrorException)(Sub() script.RunAsync().GetAwaiter().GetResult())
+        Assert.Contains(ex.Diagnostics, Function(d) d.Id = "BC37342")
+    End Sub
+
+    ''' <summary>
+    ''' The declaration that is not the first thing in the file: the one that used to reach the member table and
+    ''' make the constructor lookup throw while the type was compiled.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelInstanceConstructorAfterStatement_IsReportedInsteadOfTerminatingTheProcess()
+        Dim script = VisualBasicScript.Create(
+            "System.Console.WriteLine(""X"")" & vbCrLf &
+            "Protected Sub New()" & vbCrLf &
+            "End Sub", s_defaultOptions)
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37342" AndAlso d.Severity = DiagnosticSeverity.Error)
+        Assert.Contains(diagnostics, Function(d) d.Location.GetLineSpan().StartLinePosition.Line = 1)
+    End Sub
+
+    ''' <summary>
+    ''' The <c>Shared</c> constructor is not the synthesized one, so the submission keeps compiling and running -
+    ''' a lock on the decision being 'instance constructor', not 'constructor'.
+    ''' </summary>
+    <Fact>
+    Public Async Function TopLevelSharedConstructor_StillCompiles() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            "Shared Sub New()" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "Return ""OK""", s_defaultOptions)
+
+        Assert.Equal("OK", state.ReturnValue)
+    End Function
+
+    ''' <summary>The REPL variant: the session survives the submission with the rejected constructor.</summary>
+    <Fact>
+    Public Sub ReplTopLevelInstanceConstructor_IsReportedAndTheSessionContinues()
+        Dim runner = CreateRunner(input:=
+            "Sub New()" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "? 1 + 2" & vbCrLf)
+
+        runner.RunInteractive()
+
+        Assert.Contains("BC37342", runner.Console.Error.ToString())
+
+        ' The session survives the failed submission: the next submission runs.
+        Assert.Contains(vbCrLf & "3" & vbCrLf, runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' A branch out of a top level 'Finally' block is rejected by the control flow pass, which never ran on top
+    ''' level statements (their host is the stub body of the synthesized script initializer). The branch reached code
+    ''' generation instead and the produced method was rejected by the runtime
+    ''' (<c>InvalidProgramException</c>), so the diagnostic is what keeps the broken artifact out.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelBranchOutOfFinally_IsReportedInsteadOfReachingCodeGeneration()
+        Dim script = VisualBasicScript.Create(
+            "Try" & vbCrLf &
+            "    System.Console.WriteLine(""T"")" & vbCrLf &
+            "Finally" & vbCrLf &
+            "    GoTo after" & vbCrLf &
+            "End Try" & vbCrLf &
+            "after:" & vbCrLf &
+            "System.Console.WriteLine(""A"")", s_defaultOptions)
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC30101" AndAlso d.Severity = DiagnosticSeverity.Error)
+
+        Dim ex = Assert.Throws(Of CompilationErrorException)(Sub() script.RunAsync().GetAwaiter().GetResult())
+        Assert.Contains(ex.Diagnostics, Function(d) d.Id = "BC30101")
+    End Sub
+
+    ''' <summary>The branch kinds other than 'GoTo' take the same path and are rejected as well.</summary>
+    <Fact>
+    Public Sub TopLevelReturnOutOfFinally_IsReportedInsteadOfReachingCodeGeneration()
+        Dim script = VisualBasicScript.Create(
+            "Try" & vbCrLf &
+            "    System.Console.WriteLine(""T"")" & vbCrLf &
+            "Finally" & vbCrLf &
+            "    Return" & vbCrLf &
+            "End Try", s_defaultOptions)
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC30101" AndAlso d.Severity = DiagnosticSeverity.Error)
+    End Sub
+
+    ''' <summary>The REPL variant: the session survives the submission with the rejected branch.</summary>
+    <Fact>
+    Public Sub ReplTopLevelBranchOutOfFinally_IsReportedAndTheSessionContinues()
+        Dim runner = CreateRunner(input:=
+            "Try" & vbCrLf &
+            "    System.Console.WriteLine(""T"")" & vbCrLf &
+            "Finally" & vbCrLf &
+            "    Return" & vbCrLf &
+            "End Try" & vbCrLf &
+            "? 1 + 2" & vbCrLf)
+
+        runner.RunInteractive()
+
+        Assert.Contains("BC30101", runner.Console.Error.ToString())
+
+        ' The session survives the failed submission: the next submission runs.
+        Assert.Contains(vbCrLf & "3" & vbCrLf, runner.Console.Out.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' A script class may span several trees (a '#Load' directive). Each top level statement is checked with the
+    ''' binder of its own tree, so a 'Finally' branch in each file is reported once and anchored to its own file and
+    ''' line - neither duplicated nor dropped.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelBranchOutOfFinally_AcrossLoadedFiles_IsReportedOncePerTree()
+        Dim loadedFile = "C:\scripts\loaded.vbx"
+        Dim mainFile = "C:\scripts\main.vbx"
+        Dim offendingSource =
+            "Try" & vbCrLf &
+            "    System.Console.WriteLine(""OK"")" & vbCrLf &
+            "Finally" & vbCrLf &
+            "    GoTo after" & vbCrLf &
+            "End Try" & vbCrLf &
+            "after:" & vbCrLf &
+            "System.Console.WriteLine(""A"")"
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {loadedFile, offendingSource},
+            {mainFile, "#Load ""loaded.vbx""" & vbCrLf & offendingSource}
+        }
+
+        Dim options = s_defaultOptions.WithFilePath(mainFile).WithSourceResolver(New InMemorySourceReferenceResolver(files))
+        Dim script = VisualBasicScript.Create(files(mainFile), options)
+
+        Dim branchDiagnostics = script.GetCompilation().GetDiagnostics().Where(Function(d) d.Id = "BC30101").ToArray()
+
+        Dim lineSpans = branchDiagnostics.Select(Function(d) d.Location.GetLineSpan()).OrderBy(Function(s) s.Path).ToArray()
+
+        Assert.Equal(2, lineSpans.Length)
+        Assert.Equal(loadedFile, lineSpans(0).Path)
+        Assert.Equal(3, lineSpans(0).StartLinePosition.Line)
+        Assert.Equal(mainFile, lineSpans(1).Path)
+        Assert.Equal(4, lineSpans(1).StartLinePosition.Line)
+    End Sub
+
+    ''' <summary>
+    ''' A <c>Handles</c> clause may only refer to a <c>WithEvents</c> variable of the class that declares the
+    ''' clause or of one of its base types. The submission lookup chain also surfaces the variables of the
+    ''' previous submissions and of the host object, and a submission class has no base type - the found variable
+    ''' is visible without being inherited. The overriding property that would carry the event hookup of such a
+    ''' variable cannot be synthesized (its accessors forward to a base member and an assignment to the variable of
+    ''' another object never dispatches it), so the clause used to end the process with an
+    ''' <c>InvalidCastException</c> (the submission class is not a <c>SourceNamedTypeSymbol</c>).
+    ''' </summary>
+    <Fact>
+    Public Sub CrossSubmissionHandles_IsReportedInsteadOfTerminatingTheProcess()
+        Dim script = VisualBasicScript.
+            Create(RaiserAndHookupSource & vbCrLf &
+                   "WithEvents hooked As New Raiser" & vbCrLf &
+                   "Dim count = 0", s_defaultOptions).
+            ContinueWith("Sub OnIt(s As Object, e As System.EventArgs) Handles hooked.SomethingHappened" & vbCrLf &
+                         "    count += 1" & vbCrLf &
+                         "End Sub")
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37343" AndAlso d.Severity = DiagnosticSeverity.Error)
+
+        ' It is the WithEvents container of the Handles clause that is reported (line 0 of the continuation).
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37343" AndAlso d.Location.GetLineSpan().StartLinePosition.Line = 0)
+
+        ' The reported diagnostic is what reaches the host: no other exception type escapes the failed submission.
+        Dim ex = Assert.Throws(Of CompilationErrorException)(Sub() script.RunAsync().GetAwaiter().GetResult())
+        Assert.Contains(ex.Diagnostics, Function(d) d.Id = "BC37343")
+    End Sub
+
+    ''' <summary>
+    ''' The same rule for a <c>WithEvents</c> variable of the host object (the globals type): it is visible in the
+    ''' submission class without being inherited, so the clause is reported instead of ending the process.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectWithEventsHandles_IsReportedInsteadOfTerminatingTheProcess()
+        Dim script = VisualBasicScript.
+            Create("Dim count = 0", s_defaultOptions, globalsType:=GetType(WithEventsHost)).
+            ContinueWith("Sub OnIt(s As Object, e As System.EventArgs) Handles Hooked.SomethingHappened" & vbCrLf &
+                         "    count += 1" & vbCrLf &
+                         "End Sub")
+
+        Dim diagnostics = script.Compile()
+
+        Assert.Contains(diagnostics, Function(d) d.Id = "BC37343" AndAlso d.Severity = DiagnosticSeverity.Error)
+
+        Dim ex = Assert.Throws(Of CompilationErrorException)(
+            Sub() script.RunAsync(New WithEventsHost()).GetAwaiter().GetResult())
+        Assert.Contains(ex.Diagnostics, Function(d) d.Id = "BC37343")
+    End Sub
+
+    ''' <summary>
+    ''' The REPL variant: the <c>WithEvents</c> variable is declared by one submission and the clause by the next
+    ''' one. The submission is rejected with the diagnostic and the session survives it.
+    ''' </summary>
+    <Fact>
+    Public Sub ReplCrossSubmissionHandles_IsReportedAndTheSessionContinues()
+        Dim runner = CreateRunner(input:=
+            "Class Raiser" & vbCrLf &
+            "    Event SomethingHappened As System.EventHandler" & vbCrLf &
+            "End Class" & vbCrLf &
+            "WithEvents hooked As New Raiser" & vbCrLf &
+            "Sub OnIt(s As Object, e As System.EventArgs) Handles hooked.SomethingHappened" & vbCrLf &
+            "    System.Console.WriteLine(""H"")" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "? 1 + 2" & vbCrLf)
+
+        Dim exitCode = runner.RunInteractive()
+        Dim transcript = runner.Console.Out.ToString() & " || " & runner.Console.Error.ToString()
+
+        Assert.True(exitCode = 0, transcript)
+        Assert.Contains("BC37343", runner.Console.Error.ToString())
+
+        ' The session survives the failed submission: the next submission runs.
+        Assert.True(runner.Console.Out.ToString().Contains(vbCrLf & "3" & vbCrLf), transcript)
+    End Sub
+
+    ''' <summary>
+    ''' A <c>WithEvents</c> variable of the submission class itself keeps working: the hookup is hosted by the
+    ''' synthesized setter of the variable, which the same submission declares and can see (the counterpart that
+    ''' keeps the new diagnostic on the 'other container' side of the line).
+    ''' </summary>
+    <Fact>
+    Public Async Function SameSubmissionHandles_StillDelivers() As Task
+        Dim state = Await VisualBasicScript.RunAsync(
+            RaiserAndHookupSource & vbCrLf &
+            "WithEvents hooked As New Raiser" & vbCrLf &
+            "Dim count = 0" & vbCrLf &
+            "Sub OnIt(s As Object, e As System.EventArgs) Handles hooked.SomethingHappened" & vbCrLf &
+            "    count += 1" & vbCrLf &
+            "End Sub" & vbCrLf &
+            "hooked.RaiseIt()" & vbCrLf &
+            "Return count", s_defaultOptions)
+
+        Assert.Equal(1, state.ReturnValue)
+    End Function
+
+    ''' <summary>The host object (the globals type) of the <c>WithEvents</c> probe below.</summary>
+    Public Class WithEventsHost
+        Public WithEvents Hooked As New HostRaiser
+    End Class
+
+    Public Class HostRaiser
+        Public Event SomethingHappened As System.EventHandler
+
+        Public Sub RaiseIt()
+            RaiseEvent SomethingHappened(Me, System.EventArgs.Empty)
+        End Sub
+    End Class
 
     ''' <summary>Resolves '#Load' targets from memory so that no file has to be written.</summary>
     Private NotInheritable Class InMemorySourceReferenceResolver
