@@ -795,5 +795,181 @@ Return Count").
         Assert.Contains(diagnostics, Function(d) d.Id = "BC30451")
     End Sub
 
+    ' ---- U9 #6 · '#Load' return semantics (C# ReturnInLoadedFile* / MultipleLoadedFiles* / LoadedFileWithGoto,
+    '      CSharpTest\ScriptTests.cs:643,661,684,707,742,777,808,826) ----
+    '
+    ' Every case here is in memory: the '#Load' targets resolve from InMemorySourceReferenceResolver above and no
+    ' file is written. The VB texts are not the C# texts: a VB submission's top level statement list is the body of
+    ' the submission method, so an outer 'Return' and a loaded tree's 'Return' compete as returns of one function,
+    ' and the loaded tree is an extra tree of the same submission rather than a separate method - which is what makes
+    ' the cross tree 'GoTo' case below a diagnostic instead of a jump.
+
+    ''' <summary>
+    ''' U9 #6 cell one (C# <c>MultipleLoadedFilesWithReturnAndTrailingExpression</c>, ST:742): with two loaded trees
+    ''' the first one that returns decides. 1 (both return) and 20 (only b returns, a declares a field) pin that the
+    ''' decision follows the execution order of the trees and not the order of the directives alone; a host that
+    ''' looked at the last tree, or at the main tree first, would answer 2 / 30.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestMultipleLoadedFiles_FirstReturnDecides() As Task
+        Dim bothReturn = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""a.vbx""" & vbCrLf & "#Load ""b.vbx"""},
+            {"C:\scripts\a.vbx", "Return 1"},
+            {"C:\scripts\b.vbx", "Return 2"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(bothReturn("C:\scripts\main.vbx"), bothReturn)
+        Assert.DoesNotContain(script.Compile(), Function(d) d.Severity = DiagnosticSeverity.Error)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(1, state.ReturnValue)
+
+        Dim onlySecondReturns = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""a.vbx""" & vbCrLf & "#Load ""b.vbx""" & vbCrLf & "Return 30"},
+            {"C:\scripts\a.vbx", "Dim fromA As Integer = 1"},
+            {"C:\scripts\b.vbx", "Return 20"}
+        }
+
+        Dim other = CreateScriptWithLoadDirective(onlySecondReturns("C:\scripts\main.vbx"), onlySecondReturns)
+        Dim otherState = Await other.RunAsync()
+        Assert.Equal(20, otherState.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' U9 #6 cell two (C# <c>ReturnInLoadedFile</c>, ST:643, and <c>ReturnInLoadedFileTrailingExpression</c>,
+    ''' ST:661): the priority between a loaded tree's <c>Return</c> and the main tree's own last statement. A loaded
+    ''' <c>Return 42</c> wins over the main tree's <c>Return 17</c> (42), while a loaded tree without a reachable
+    ''' return hands the result back to the main tree (17) - including when its <c>Return</c> sits in a branch that is
+    ''' not taken. An implementation that inlined the loaded text (the shape issue-vbx-load-span-shift.md is about)
+    ''' would answer 17 in the first case, and one that always preferred the main tree would answer 17 both times.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestLoadedFileReturnPrecedesTheMainTreeReturn() As Task
+        Dim returning = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "Return 42"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(returning("C:\scripts\main.vbx"), returning)
+        Assert.DoesNotContain(script.Compile(), Function(d) d.Severity = DiagnosticSeverity.Error)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(42, state.ReturnValue)
+
+        Dim notTaken = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "If False Then" & vbCrLf & "    Return 42" & vbCrLf & "End If" & vbCrLf & "? 1"}
+        }
+
+        Dim other = CreateScriptWithLoadDirective(notTaken("C:\scripts\main.vbx"), notTaken)
+        Dim otherState = Await other.RunAsync()
+        Assert.Equal(17, otherState.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' U9 #6 cell three: the loaded tree's own trailing expression is a candidate for the submission's result when
+    ''' the main tree has none (<c>? 5</c> alone gives 5). The C# baseline answers null for that shape (ST:707); the
+    ''' VB answer is registered here, and the companion case shows the main tree taking the result back as soon as it
+    ''' has a value of its own (<c>? 99</c> in the loaded tree, <c>Return 17</c> in the main tree gives 17).
+    ''' </summary>
+    <Fact>
+    Public Async Function TestLoadedFileTrailingExpression_IsTheResultOnlyWithoutAMainTreeValue() As Task
+        Dim loadedOnly = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx"""},
+            {"C:\scripts\loaded.vbx", "? 5"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(loadedOnly("C:\scripts\main.vbx"), loadedOnly)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(5, state.ReturnValue)
+
+        Dim overridden = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "Dim x As Integer = 1" & vbCrLf & "? 99"}
+        }
+
+        Dim other = CreateScriptWithLoadDirective(overridden("C:\scripts\main.vbx"), overridden)
+        Dim otherState = Await other.RunAsync()
+        Assert.Equal(17, otherState.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' U9 #6 cell four (C# <c>LoadedFileWithReturnAndGoto</c>, ST:777). VB keeps 'GoTo' inside one tree: the loaded
+    ''' tree may jump over its own <c>Return 1</c> to a label it declares (2), but a jump across the tree boundary is
+    ''' reported as BC30132 at the <c>GoTo</c> line of the referring tree, because the two trees are not one method
+    ''' body. Both halves are asserted, so neither "the label is found" nor "the label is not found" can pass alone.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestLoadedFileGoto_StaysInsideItsOwnTree() As Task
+        Dim withinOneTree = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx"""},
+            {"C:\scripts\loaded.vbx", "GoTo done" & vbCrLf & "Return 1" & vbCrLf & "done:" & vbCrLf & "Return 2"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(withinOneTree("C:\scripts\main.vbx"), withinOneTree)
+        Assert.DoesNotContain(script.Compile(), Function(d) d.Severity = DiagnosticSeverity.Error)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(2, state.ReturnValue)
+
+        Dim acrossTrees = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "GoTo FromLoaded" & vbCrLf & "Return 1"},
+            {"C:\scripts\loaded.vbx", "Return 2" & vbCrLf & "FromLoaded:" & vbCrLf & "Return 3"}
+        }
+
+        Dim other = CreateScriptWithLoadDirective(acrossTrees("C:\scripts\main.vbx"), acrossTrees)
+        Dim unresolvedLabel = other.Compile().Single(Function(d) d.Id = "BC30132")
+        Assert.Equal("C:\scripts\main.vbx", unresolvedLabel.Location.GetLineSpan().Path)
+        Assert.Equal(2, GetLineNumber(unresolvedLabel))
+    End Function
+
+    ''' <summary>
+    ''' U9 #6 cell five (C# <c>VoidReturn</c>, ST:808, and <c>LoadedFileWithVoidReturn</c>, ST:826). A bare
+    ''' <c>Return</c> in the loaded tree ends the submission with no value at all (Nothing, even though the main tree
+    ''' has its own <c>Return 17</c>), and a loaded tree whose only statement is a call produces no value either, so
+    ''' the main tree answers. 17 and Nothing are the two discriminators: a host that treated a bare return as "keep
+    ''' looking" would answer 17 in the first case.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestLoadedFileBareReturn_EndsTheSubmissionWithoutAValue() As Task
+        Dim bareReturn = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "Return"}
+        }
+
+        Dim script = CreateScriptWithLoadDirective(bareReturn("C:\scripts\main.vbx"), bareReturn)
+        Dim state = Await script.RunAsync()
+        Assert.Null(state.ReturnValue)
+
+        Dim voidCall = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "System.Console.WriteLine(42)"}
+        }
+
+        Dim other = CreateScriptWithLoadDirective(voidCall("C:\scripts\main.vbx"), voidCall)
+        Dim otherState = Await other.RunAsync()
+        Assert.Equal(17, otherState.ReturnValue)
+    End Function
+
+    ''' <summary>
+    ''' U9 #6 cell six: the typed face of the same rule. A typed submission follows Function Main semantics, so a
+    ''' loaded tree that returns with no value gives the default of the return type (0) instead of Nothing - the C#
+    ''' baseline's <c>LoadedFileWithVoidReturn</c> answer, reached here from the loaded tree rather than from the main
+    ''' one. A host that let the main tree's <c>Return 17</c> win would answer 17.
+    ''' </summary>
+    <Fact>
+    Public Async Function TestLoadedFileBareReturn_InATypedSubmissionIsTheDefaultValue() As Task
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+            {"C:\scripts\main.vbx", "#Load ""loaded.vbx""" & vbCrLf & "Return 17"},
+            {"C:\scripts\loaded.vbx", "Dim i As Integer = 42" & vbCrLf & "Return" & vbCrLf & "i = -1"}
+        }
+
+        Dim options = s_defaultOptions.
+            WithFilePath("C:\scripts\main.vbx").
+            WithSourceResolver(New InMemorySourceReferenceResolver(files))
+        Dim script = VisualBasicScript.Create(Of Integer)(files("C:\scripts\main.vbx"), options)
+
+        Assert.DoesNotContain(script.Compile(), Function(d) d.Severity = DiagnosticSeverity.Error)
+        Dim state = Await script.RunAsync()
+        Assert.Equal(0, state.ReturnValue)
+    End Function
+
     ' TODO: port C# tests
 End Class

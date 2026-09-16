@@ -743,7 +743,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
                 ' consolidated generic arguments (includes arguments of all declaring types):
                 Dim genericArguments As Type() = type.GenericTypeArguments
-                Dim typeArgumentIndex As Integer = 0
 
                 Dim currentType As Type = If(type.IsGenericType, type.GetGenericTypeDefinition(), type)
                 Dim nestedTypes As ArrayBuilder(Of Type) = ArrayBuilder(Of Type).GetInstance()
@@ -759,7 +758,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                 End While
 
                 Dim i As Integer = nestedTypes.Count - 1
-                Dim symbol As NamedTypeSymbol = TryCast(GetTypeByReflectionType(nestedTypes(i)), NamedTypeSymbol)
+
+                ' A nested type reports the generic type definition of its enclosing type as DeclaringType - an
+                ' open type this method rejects - so close the outermost type with the arguments the original
+                ' type carries for it. They are consumed already and the loop below is entered past them.
+                Dim rootType As Type = nestedTypes(i)
+                Dim rootArity As Integer = rootType.GetGenericArguments().Length
+                If rootArity > 0 Then
+                    Debug.Assert(genericArguments.Length >= rootArity)
+                    Dim rootArguments(rootArity - 1) As Type
+                    Array.Copy(genericArguments, rootArguments, rootArity)
+                    rootType = rootType.MakeGenericType(rootArguments)
+                End If
+
+                Dim typeArgumentIndex As Integer = rootArity
+                Dim symbol As NamedTypeSymbol = TryCast(GetTypeByReflectionType(rootType), NamedTypeSymbol)
                 If symbol IsNot Nothing Then
                     While i > 0
                         i -= 1
@@ -817,6 +830,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End If
 
             Dim length As Integer = symbol.Arity
+            If length = 0 Then
+                ' A non generic type nested in a generic one has no type parameters of its own: the remaining
+                ' arguments belong to the enclosing types and there is nothing to construct.
+                Return symbol
+            End If
+
             Dim typeArgumentSymbols As ArrayBuilder(Of TypeSymbol) = ArrayBuilder(Of TypeSymbol).GetInstance(length)
             For i As Integer = 0 To length - 1
                 Dim argSymbol As TypeSymbol = GetTypeByReflectionType(typeArguments(currentTypeArgument))

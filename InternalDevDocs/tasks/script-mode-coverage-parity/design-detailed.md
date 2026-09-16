@@ -153,11 +153,11 @@
 
 ### U7 · PDB / 调试信息与栈帧行号
 
-对标 `Pdb_*` 12 格（`WithEmitDebugInformation` × `WithFilePath` × `WithFileEncoding` × string/stream 的 2×2×2 矩阵 + 无编码时的 `ERR_EncodinglessSyntaxTree`）。
+对标 `Pdb_*` 12 格。实测轴向是 **（字符串创建 / 流创建）×（代码来自文件 / 内联代码）**，编码开关折在第一组内（流的编码自带，该维度在流路径上恒真）⇒ **4 + 2 + 4 + 2 = 12**：`字符串 × 来自文件` 4 格、`流 × 来自文件` 2 格、`字符串 × 内联` 4 格、`流 × 内联` 2 格。⇒ 无编码时的 `ERR_EncodinglessSyntaxTree` 格是 `字符串 × 来自文件` 组的**第一个成员**，不是矩阵之外另加的一格。
 
 **为什么值得**：`#Load` 树的行号映射是本 fork **出过 bug 的区域**（`issues\issue-vbx-load-span-shift.md`）；既有用例 `ScriptTests.vb:526` 的注释（**实锤**，`:526-528` 逐字含 `Issue #01: main.vbx line 3 … The bug inlined loaded.vbx into main.vbx and reported line 7; it must report line 3`）就是那条回归的证据。PDB 面是把这类回归锁到**调试信息层**的一种手段（**非唯一手段**；初稿的「唯一」是未穷举的推定，已降级）。
 
-**无副作用注意**：**不落 PDB 文件**。断言落点改为：`Script.GetCompilation().Emit(MemoryStream, ...)` 的内存产物 + `ScriptOptions.EmitDebugInformation` / `FileEncoding` 落到 `VisualBasicCompilationOptions` 的形状。若某格**必须**落盘才能验（如真栈帧的 `GetFileName`），**停手问用户**，不静默跳过（`VBNetScriptMaintainer` 纪律）。
+**无副作用注意**：**不落 PDB 文件**。断言落点改为：`Script.GetCompilation().Emit(MemoryStream, ...)` 的内存产物，加上两个选项的**真实落点**——`EmitDebugInformation` **不**进 `VisualBasicCompilationOptions`（`CreateSubmission` 的提交创建段不读它；唯一消费者是 `Script.GetExecutor`，经 `ScriptBuilder.GetEmitOptions` 变成 `EmitOptions`）；`FileEncoding` 经 `SourceText` 进树。**真栈帧不落盘也可验**：生产把 PE 与 PDB 发到 `MemoryStream`（`ScriptBuilder.Build`）并从内存交给运行时（`CoreAssemblyLoaderImpl.LoadFromStream`），`StackFrame.GetFileName()` 读的是已加载的符号而非磁盘 ⇒ **本格不落盘**。
 
 ### U8 · ObjectFormatter 代理族与异常栈渲染
 
@@ -309,7 +309,7 @@
 | 11 | `StaticDelegate0/1/2` | 顶层 `static` 成员取方法组；泛型类/泛型方法的 `static` 委托（`ST:469,478,486`） | `ScriptModeSubmissionConformanceTests.vb:164`；`ScriptTopLevelCrashTests.vb:553` | 部分缺（泛型 `Shared` 成员取方法组） | 适用（`static` → `Shared`） | 中 |
 | 12 | `ReturnIntAsObject` `ReturnAwait` `ReturnInNestedScope*` `ReturnIntWithTrailingDoubleExpression` `ReturnGenericAsInterface` `ReturnNullable`（8 个） | 有类型脚本的返回值与尾表达式取值次序；嵌套块内 `return`；泛型/可空/接口协变（`ST:494,510,518,531,555,579,603,623`） | `ScriptTests.vb:158,167,177,210,216`；`CLR:436,449,461` | 部分缺（嵌套块内 `Return`、泛型/可空返回类型） | 适用 | 中（U9） |
 | 13 | `ReturnInLoadedFile*` `MultipleLoadedFiles*` `LoadedFileWithGoto` `VoidReturn` `LoadedFileWithVoidReturn`（8 个） | `#load` 的返回语义：载入文件的 `return` 是否截断外层尾表达式、多 `#load`、`goto` 跨文件（`ST:643,661,684,707,742,777,808,826`） | `ScriptTests.vb:224,590,605,681` | 部分缺（多文件组合、优先关系、跨文件 `goto`） | 适用（`.vbx` 特有面） | **高**（U9） |
-| 14 | `Pdb_*`（12 个） | `WithEmitDebugInformation` × `WithFilePath` × `WithFileEncoding` × string/stream 的 2×2×2 + 无编码 `ERR_EncodinglessSyntaxTree`；真栈帧 `GetFileName/Line/Column`（`ST:842–937`） | `ScriptOptionsTests.vb:153`（`MutationProperties_AreImmutableAndReturnSameInstanceWhenUnchanged`，仅选项属性） | **完全缺** | 适用 | **高**（U7） |
+| 14 | `Pdb_*`（12 个） | 字符串创建 / 流创建 × 代码来自文件 / 内联代码，编码开关折在第一组内 ⇒ 4 + 2 + 4 + 2 = 12，无编码 `ERR_EncodinglessSyntaxTree` 格是「字符串 × 来自文件」组的第一个成员；真栈帧 `GetFileName/Line/Column`（`ST:842–937`） | `ScriptOptionsTests.vb:153`（`MutationProperties_AreImmutableAndReturnSameInstanceWhenUnchanged`，仅选项属性） | **完全缺** | 适用 | **高**（U7） |
 | 15 | `CreateScriptWithFeatureThatIsNotSupportedInTheSelectedLanguageVersion` `CreateScriptWithNullableContextWithCSharp8` | 语言版本门控诊断（`ST:949,962`） | `ScriptOptionsTests.vb:19,40,57` | 部分缺（低版本报 BC 诊断的矩阵） | 适用 | 中 |
 | 16 | `SwitchPatternWithVar_*`（4 个） | C# `switch` 表达式 + 关系模式（`ST:974,997,1019,1044`） | **缺** | — | **不适用**（VB 无 switch 表达式/关系模式） | 低 |
 | 17 | `Function_ReturningPartialType` `_CSharp13` | 单行 `class partial;`、跨提交 partial 方法（`ST:1067,1087`） | **缺** | — | **不适用**（C# 专有） | 低 |

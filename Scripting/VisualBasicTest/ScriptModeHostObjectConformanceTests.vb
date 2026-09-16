@@ -20,11 +20,20 @@ Imports Xunit
 ''' <para>
 ''' <b>The C# to VB mapping is not a same-shape translation, and each cell says which part is not.</b> The C#
 ''' <c>static</c> modifier is <c>Shared</c> in VB; VB has no local function, so the C# static local function
-''' (<c>:1873</c>) is dualed by a lambda declared inside a top level <c>Shared</c> method; and the C# host object
-''' is resolved from the reflection type (<c>CSharpCompilation.cs:1873</c>) while the VB host object is resolved
-''' from <c>GlobalsType.FullName</c> (<c>Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb:933-945</c>),
-''' which is why the root namespace cell below asserts two different metadata names rather than reusing the C#
-''' fixture shape.
+''' (<c>:1873</c>) is dualed by a lambda declared inside a top level <c>Shared</c> method; and the host object
+''' type is resolved from the reflection type on both sides
+''' (<c>Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb:933</c>, <c>CSharpCompilation.cs:1873</c>).
+''' </para>
+''' <para>
+''' <b>Reflection shapes are resolved by <c>Assembly.GetTypeByReflectionType</c>, not by name.</b> The
+''' <c>FullName</c> of a constructed generic, of an array or of a nested type is a reflection form - it spells the
+''' type arguments out together with their assembly names - so it is not a metadata name and
+''' <c>GetTypeByMetadataName</c> cannot resolve it. The cells below therefore cover the shapes whose
+''' <c>FullName</c> is not an ordinary metadata name (constructed generics at file level and nested, arrays,
+''' nested types inside constructed generic outer types) and assert which type argument landed on which level,
+''' which is what makes the resolution mechanism, rather than the mere absence of an error, the subject of the
+''' assertion. The name based lookup with the '+' to '.' fallback
+''' (<c>VisualBasicCompilation.vb:945-952</c>) is kept as the fallback behind it.
 ''' </para>
 ''' <para>
 ''' <b>Discriminative argument.</b> Every positive cell below is falsified by removing the host object from the
@@ -180,59 +189,63 @@ Public Class ScriptModeHostObjectConformanceTests
     End Sub
 
     ''' <summary>
-    ''' Cell <c>HostObjectBinding_PublicGenericClassMembers</c> (<c>InteractiveSessionTests.cs:1545</c>) - <b>the
-    ''' VB cell diverges from the C# one, and this test pins the divergence on purpose.</b>
+    ''' Cell <c>HostObjectBinding_PublicGenericClassMembers</c> (<c>InteractiveSessionTests.cs:1545</c>): a
+    ''' constructed generic at file level as <c>globalsType</c> binds its members, and the type argument reaches the
+    ''' host object's own type parameter.
     ''' <para>
-    ''' C# resolves the host type from the reflection type (<c>CSharpCompilation.cs:1873</c>,
-    ''' <c>Assembly.GetTypeByReflectionType</c>), so a constructed generic host object binds and
-    ''' <c>InteractiveSessionTests.cs:1545</c> asserts the member value. VB resolves the host type from
-    ''' <c>GlobalsType.FullName</c> (<c>VisualBasicCompilation.vb:939</c>,
-    ''' <c>GetTypeByMetadataName(hostObjectType.FullName)</c>), and the <c>FullName</c> of a constructed generic is
-    ''' the reflection form with the type arguments spelled out - which is not a metadata name. The lookup therefore
-    ''' finds nothing, <c>GetHostObjectTypeSymbol</c> returns <c>Nothing</c> and no host object is bound at all.
-    ''' </para>
-    ''' <para>
-    ''' <b>CANARY, NOT A SPECIFICATION.</b> <c>BC30451</c> here is the evidence that the host object is missing,
-    ''' not the intended behaviour - the defect is filed as
-    ''' <c>InternalDevDocs\issues\issue-constructed-generic-host-object-not-bound.md</c> (issue 22). <b>When that
-    ''' issue is fixed this cell MUST be rewritten to the C# expectation: <c>? G() Is Nothing</c> evaluated to
-    ''' <c>True</c></b>, matching the assertion shape of
-    ''' <c>HostObjectBinding_ClosedGenericBaseMembers</c> below. A failure of this cell after a host object fix is
-    ''' the reminder to rewrite it, not a regression.
-    ''' </para>
-    ''' <para>
-    ''' A nested generic host type is worse than a top level one: the name then contains '+' and
-    ''' <c>AssemblySymbol.GetTypeByMetadataName</c>'s nested type walk (<c>Symbols\AssemblySymbol.vb:580-596</c>)
-    ''' feeds the bracket form to <c>MetadataTypeName.FromTypeName</c>, whose
-    ''' <c>Debug.Assert(!typeName.Contains(".") || typeName.IndexOf('&lt;') &gt;= 0)</c> is triggered
-    ''' (<c>Core\Portable\MetadataReader\MetadataTypeName.cs:154</c>). The character quoted there is
-    ''' <c>MetadataHelpers.MangledNameRegionStartChar</c>, whose literal is <c>'&lt;'</c> -
-    ''' <c>Core\Portable\MetadataReader\MetadataHelpers.cs:57</c> - so the condition reads "contains a dot but no
-    ''' mangled name region". The same issue records this as the second symptom of that defect. Because no cell may
-    ''' abort the test host, the fixture below is deliberately a top level type and the nested shape is left to the
-    ''' fix unit.
+    ''' The premise is verified at run time instead of assumed: the <c>FullName</c> of a constructed generic is the
+    ''' reflection form with the type arguments spelled out, so it is not a metadata name and the name based lookup
+    ''' cannot resolve it. This cell used to pin <c>BC30451</c> as the evidence of that defect
+    ''' (<c>InternalDevDocs\issues\issue-constructed-generic-host-object-not-bound.md</c>, issue 22); it now pins
+    ''' the C# expectation, which is what the issue records as the fixed behaviour. The second assertion is the
+    ''' discriminative one: it fails if the type argument is dropped or applied at the wrong level, which a mere
+    ''' "no diagnostic" assertion would not catch.
     ''' </para>
     ''' </summary>
     <Fact>
     Public Sub HostObjectBinding_PublicGenericClassMembers()
-        ' Premise of the cell, verified at run time instead of assumed: the globals type is a constructed generic
-        ' and its FullName is the reflection form with the type arguments spelled out.
         Dim globalsType = GetType(HostObjectGenericMembers(Of String))
         Assert.Contains("[[", globalsType.FullName, StringComparison.Ordinal)
 
-        ' Canary for issues\issue-constructed-generic-host-object-not-bound.md (issue 22). Rewrite BOTH lines
-        ' below to the C# expectation when that issue is fixed:
-        '     AssertHostChainRuns(globalsType, New HostObjectGenericMembers(Of String)(), True, "? G() Is Nothing")
-        AssertHostChainReports(
-            globalsType, New HostObjectGenericMembers(Of String)(), "BC30451",
-            "? G()")
+        ' C# asserts the member value itself (InteractiveSessionTests.cs:1545); the VB fixture returns the type
+        ' parameter's default value, so the C# assertion shape is '? G() Is Nothing'.
+        AssertHostChainRuns(globalsType, New HostObjectGenericMembers(Of String)(), True, "? G() Is Nothing")
+
+        AssertHostChainRuns(globalsType, New HostObjectGenericMembers(Of String)(), "String", "? TypeArgumentName()")
     End Sub
 
     ''' <summary>
-    ''' The positive partner of the cell above, which is what the C# cell would look like in VB if the lookup
-    ''' resolved the host type: the same generic class, closed by <c>Inherits</c> rather than by a type argument on
-    ''' <c>globalsType</c>, has a metadata name that <c>GetHostObjectTypeName</c> can resolve, so its inherited
-    ''' generic member binds.
+    ''' The nested counterpart of the cell above, and the second symptom of issue 22: a generic class nested in a
+    ''' non generic class. Its <c>FullName</c> carries both the reflection nesting separator and the type argument
+    ''' form, so the name based lookup entered the nested type walk
+    ''' (<c>Symbols\AssemblySymbol.vb:582-611</c>) and fed the bracket form to
+    ''' <c>MetadataTypeName.FromTypeName</c>, whose
+    ''' <c>Debug.Assert(!typeName.Contains(".") OrElse typeName.IndexOf("&lt;") &gt;= 0)</c> is triggered
+    ''' (<c>Core\Portable\MetadataReader\MetadataTypeName.cs:154</c>; the quoted character is
+    ''' <c>MetadataHelpers.MangledNameRegionStartChar</c>, whose literal is <c>'&lt;'</c> -
+    ''' <c>Core\Portable\MetadataReader\MetadataHelpers.cs:57</c>). In a host without a trace listener that
+    ''' assertion terminates the process, so this cell is also the regression guard against the crash: it could not
+    ''' exist before the fix because it aborts the test host instead of failing.
+    ''' </para>
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_NestedGenericClassMembers()
+        Dim globalsType = GetType(HostObjectNestedMembers.NestedGenericMembers(Of String))
+        Assert.Contains("+", globalsType.FullName, StringComparison.Ordinal)
+        Assert.Contains("[[", globalsType.FullName, StringComparison.Ordinal)
+
+        AssertHostChainRuns(
+            globalsType, New HostObjectNestedMembers.NestedGenericMembers(Of String)(), True, "? G() Is Nothing")
+
+        AssertHostChainRuns(
+            globalsType, New HostObjectNestedMembers.NestedGenericMembers(Of String)(), "String", "? TypeArgumentName()")
+    End Sub
+
+    ''' <summary>
+    ''' The control for the two cells above, and the one shape whose <c>FullName</c> <em>is</em> an ordinary
+    ''' metadata name: the same generic class, closed by <c>Inherits</c> instead of by a type argument on
+    ''' <c>globalsType</c>, is resolved by the name based lookup exactly as before the reflection route existed, so
+    ''' its inherited generic member binds.
     ''' </summary>
     <Fact>
     Public Sub HostObjectBinding_ClosedGenericBaseMembers()
@@ -242,6 +255,124 @@ Public Class ScriptModeHostObjectConformanceTests
         AssertHostChainRuns(
             GetType(HostObjectClosedGenericMembers), New HostObjectClosedGenericMembers(), True,
             "? G() Is Nothing")
+    End Sub
+
+#End Region
+
+#Region "cell 13-16: the remaining reflection shaped globals types"
+
+    ''' <summary>
+    ''' A nested type whose <em>enclosing</em> type is generic
+    ''' (<c>GetType(HostObjectGenericOuter(Of String).NestedPlainMembers)</c>). This shape is one step past the two
+    ''' symptoms of issue 22 and is what pushes the assertion out of the name based lookup and into
+    ''' <c>AssemblySymbol.GetTypeByReflectionType</c>: reflection reports the enclosing type as the generic type
+    ''' <em>definition</em> (<c>GetType(HostObjectGenericOuter(Of String).NestedPlainMembers).DeclaringType</c> is
+    ''' <c>HostObjectGenericOuter(Of T)</c>), which is an open type the reflection walk rejects. Closing it with the
+    ''' arguments the original type carries for it (<c>Symbols\AssemblySymbol.vb:765-774</c>) is what the cell
+    ''' pins, and the second assertion - the enclosing type's own type argument seen from the nested type - is the
+    ''' part that fails if the enclosing type is left unsubstituted.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_NestedTypeInConstructedGenericOuter()
+        Dim globalsType = GetType(HostObjectGenericOuter(Of String).NestedPlainMembers)
+        Assert.Contains("+", globalsType.FullName, StringComparison.Ordinal)
+        Assert.Contains("[[", globalsType.FullName, StringComparison.Ordinal)
+
+        AssertHostChainRuns(
+            globalsType, New HostObjectGenericOuter(Of String).NestedPlainMembers(), 1, "? G()")
+
+        AssertHostChainRuns(
+            globalsType, New HostObjectGenericOuter(Of String).NestedPlainMembers(), "String", "? OuterTypeArgumentName()")
+    End Sub
+
+    ''' <summary>
+    ''' The same shape one level further: a generic nested type inside a constructed generic enclosing type. Each
+    ''' level carries its own type argument, so the cell asserts which argument landed on which level - the enclosing
+    ''' type's and the nested type's. This is the part of the reflection walk that the consolidated argument index
+    ''' has to get right (<c>Symbols\AssemblySymbol.vb:774</c>): the outer argument is consumed before the walk
+    ''' descends into the nested type.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_GenericNestedTypeInConstructedGenericOuter()
+        Dim globalsType = GetType(HostObjectGenericOuter(Of String).NestedGenericMembers(Of Integer))
+
+        AssertHostChainRuns(
+            globalsType, New HostObjectGenericOuter(Of String).NestedGenericMembers(Of Integer)(), "Int32|String",
+            "? OwnTypeArgumentName() & ""|"" & OuterTypeArgumentName()")
+
+        ' The same type at the same nesting depth with the two arguments swapped: the pin above is not satisfiable
+        ' by an implementation that applies either argument at both levels.
+        AssertHostChainRuns(
+            GetType(HostObjectGenericOuter(Of Integer).NestedGenericMembers(Of String)),
+            New HostObjectGenericOuter(Of Integer).NestedGenericMembers(Of String)(), "String|Int32",
+            "? OwnTypeArgumentName() & ""|"" & OuterTypeArgumentName()")
+    End Sub
+
+    ''' <summary>
+    ''' Three levels of nesting with generic arguments at three different levels, which is the shape of the
+    ''' reflection <c>Type</c> resolution test on the C# side
+    ''' (<c>Compilers\CSharp\Test\Symbol\Symbols\TypeResolutionTests.cs:142</c>,
+    ''' <c>TypeSymbolFromReflectionType</c>; that test is gated on
+    ''' <c>[ConditionalFact(typeof(ClrOnly), typeof(DesktopOnly))]</c> and does not run here). Each of the five type
+    ''' arguments is asserted at the level it belongs to, so the walk has to resolve the outermost definition and
+    ''' apply arguments in the declaration order of the enclosing chain.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_DeeplyNestedGenericTypeArguments()
+        Dim globalsType = GetType(HostObjectDeepOuter(Of Integer, Boolean).Middle.Inner(Of Double, Single).Leaf(Of Byte))
+
+        AssertHostChainRuns(
+            globalsType,
+            New HostObjectDeepOuter(Of Integer, Boolean).Middle.Inner(Of Double, Single).Leaf(Of Byte)(),
+            "Int32,Boolean,Double,Single,Byte", "? Arguments()")
+    End Sub
+
+    ''' <summary>
+    ''' An array as <c>globalsType</c>. Its <c>FullName</c> (<c>"System.Int32[]"</c>,
+    ''' <c>"System.Int32[,,]"</c>) is a reflection form too, so before the reflection route these shapes bound no
+    ''' host object at all and reported <c>BC30451</c> for every member. <c>Length</c> is the member that only the
+    ''' array type itself provides, which is why it is the one asserted: it fails with <c>BC30451</c> both when the
+    ''' host object is missing and when the element type or the rank is lost.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_ArrayGlobalsType()
+        ' Premise: arrays pass Compilation.IsValidHostObjectType, which is what separates them from the rejected
+        ' shapes in the cell below.
+        Assert.True(GetType(Integer()).IsArray)
+        Assert.True(GetType(Integer(,,)).IsArray)
+
+        AssertHostChainRuns(GetType(Integer()), New Integer() {1, 2, 3}, 3, "? Length")
+        AssertHostChainRuns(GetType(Integer(,,)), New Integer(1, 1, 1) {}, 8, "? Length")
+
+        ' The element type is resolved by the same walk, so an array of a constructed generic is another shape
+        ' whose FullName is not a metadata name.
+        AssertHostChainRuns(
+            GetType(System.Collections.Generic.List(Of String)()),
+            New System.Collections.Generic.List(Of String)() {Nothing, Nothing}, 2, "? Length")
+    End Sub
+
+    ''' <summary>
+    ''' The shapes that <c>globalsType</c> rejects outright, recorded so the boundary of the fix is explicit and
+    ''' guarded rather than assumed. <c>Compilation.IsValidHostObjectType</c>
+    ''' (<c>Compilers\Core\Portable\Compilation\Compilation.cs:559-563</c>) refuses a value type, a pointer, a
+    ''' <c>ByRef</c> type and an open generic, and <c>ValidateScriptCompilationParameters</c> (<c>:250-255</c>)
+    ''' turns that into an <c>ArgumentException</c> naming <c>globalsType</c>. This is the pre-existing behaviour on
+    ''' both languages and it is why the reflection walk may assert "not ByRef, not open" - those shapes never reach
+    ''' it. The assertion is on the exception type only: the message is localized.
+    ''' </summary>
+    <Fact>
+    Public Sub HostObjectBinding_UnsupportedGlobalsTypeShapesAreRejected()
+        Dim unsupported = {
+            GetType(Integer),                                  ' value type
+            GetType(Integer).MakeByRefType(),                   ' ByRef
+            GetType(Integer).MakePointerType(),                 ' pointer
+            GetType(HostObjectGenericMembers(Of ))             ' open generic
+        }
+
+        For Each globalsType In unsupported
+            Assert.Throws(Of ArgumentException)(
+                Sub() VisualBasicScript.Create("? 1", ScriptModeConformance.DefaultOptions, globalsType).Compile())
+        Next
     End Sub
 
 #End Region
@@ -281,9 +412,10 @@ Public Class ScriptModeHostObjectConformanceTests
     ''' - the message names the member's own accessibility, the reason is the private container named in the same
     ''' string.
     ''' <para>
-    ''' This is also the cell that pins the VB host type lookup for a <em>nested</em> type: the reflection
-    ''' FullName uses '+' (<c>VisualBasicCompilation.vb:940-942</c> is the fallback for it), and the type is found
-    ''' even though it is NestedPrivate - metadata availability and accessibility are different questions.
+    ''' This is also the cell that pins the VB host type lookup for a <em>nested</em> type inside a non generic
+    ''' enclosing type, the one nested shape whose <c>FullName</c> the name based lookup can also handle
+    ''' (<c>VisualBasicCompilation.vb:945-952</c> is the fallback for it): the type is found even though it is
+    ''' NestedPrivate - metadata availability and accessibility are different questions.
     ''' </para>
     ''' <para>
     ''' The positive partner of this cell is <c>HostObjectBinding_PrivateClassImplementingPublicInterface</c>
@@ -413,9 +545,10 @@ Public Class ScriptModeHostObjectConformanceTests
     ''' (<c>VisualBasicScriptCompiler.vb:217</c>).
     ''' <para>
     ''' The two metadata names below are asserted at run time so the premise of the cell is not assumed: both
-    ''' shapes bind, which is the actual claim - the VB host object lookup goes through
-    ''' <c>GlobalsType.FullName</c> (<c>VisualBasicCompilation.vb:939</c>) and therefore never consults the script's
-    ''' own root namespace.
+    ''' shapes bind, which is the actual claim - the host object lookup resolves the type's own assembly name
+    ''' (<c>VisualBasicCompilation.vb:933</c> reaches <c>Assembly.GetTypeByReflectionType</c>, and the name based
+    ''' fallback behind it uses <c>GlobalsType.FullName</c>) and therefore never consults the script's own root
+    ''' namespace.
     ''' </para>
     ''' </summary>
     <Fact>
@@ -572,10 +705,9 @@ Public Class ProjectRootNamespaceHostObject
 End Class
 
 ''' <summary>
-''' C# <c>InteractiveSessionTests.M&lt;T&gt;</c> (<c>InteractiveSessionTests.cs:1519</c>), declared at file level on
-''' purpose: a nested generic host type turns the divergence documented on
-''' <c>HostObjectBinding_PublicGenericClassMembers</c> into a compiler assertion failure instead of a missing host
-''' object.
+''' C# <c>InteractiveSessionTests.M&lt;T&gt;</c> (<c>InteractiveSessionTests.cs:1519</c>). <c>TypeArgumentName</c> is
+''' added to the C# fixture shape on purpose: it is what lets the cells assert that the type argument reached this
+''' type's own type parameter instead of only asserting the absence of a diagnostic.
 ''' </summary>
 Public Class HostObjectGenericMembers(Of T)
 
@@ -587,14 +719,102 @@ Public Class HostObjectGenericMembers(Of T)
         Return Nothing
     End Function
 
+    Public Function TypeArgumentName() As String
+        Return GetType(T).Name
+    End Function
+
 End Class
 
 ''' <summary>
 ''' The generic class of the cell above, closed by inheritance instead of by a type argument on
-''' <c>globalsType</c>. Its metadata name is an ordinary one, so it is the positive partner of that cell.
+''' <c>globalsType</c>. Its metadata name is an ordinary one, so it is the control of that cell.
 ''' </summary>
 Public Class HostObjectClosedGenericMembers
     Inherits HostObjectGenericMembers(Of String)
+End Class
+
+''' <summary>
+''' The <c>Outer.GenericMembers(Of T)</c> shape of the second symptom of issue 22: a generic type nested in a non
+''' generic one. Its <c>FullName</c> carries the reflection nesting separator and the type argument form at once,
+''' which is what used to route the name based lookup into the nested type walk.
+''' </summary>
+Public Class HostObjectNestedMembers
+
+    Public Class NestedGenericMembers(Of T)
+
+        Public Function G() As T
+            Return Nothing
+        End Function
+
+        Public Function TypeArgumentName() As String
+            Return GetType(T).Name
+        End Function
+
+    End Class
+
+End Class
+
+''' <summary>
+''' A generic enclosing type. Reflection reports it as the generic type <em>definition</em> when a nested type
+''' reports its <c>DeclaringType</c>, so the nested types below are the shapes that need the enclosing type closed
+''' with the arguments the original type carries for it.
+''' </summary>
+Public Class HostObjectGenericOuter(Of T)
+
+    Public Class NestedPlainMembers
+
+        Public Function G() As Integer
+            Return 1
+        End Function
+
+        Public Function OuterTypeArgumentName() As String
+            Return GetType(T).Name
+        End Function
+
+    End Class
+
+    Public Class NestedGenericMembers(Of U)
+
+        Public Function G() As U
+            Return Nothing
+        End Function
+
+        Public Function OwnTypeArgumentName() As String
+            Return GetType(U).Name
+        End Function
+
+        Public Function OuterTypeArgumentName() As String
+            Return GetType(T).Name
+        End Function
+
+    End Class
+
+End Class
+
+''' <summary>
+''' The nesting depth of <c>TypeResolutionTests.TypeSymbolFromReflectionType</c>
+''' (<c>Compilers\CSharp\Test\Symbol\Symbols\TypeResolutionTests.cs:102-111,142</c>): a non generic type inside a
+''' generic type inside a generic type, with a type argument at three different levels.
+''' </summary>
+Public Class HostObjectDeepOuter(Of S, T)
+
+    Public Class Middle
+
+        Public Class Inner(Of U, V)
+
+            Public Class Leaf(Of W)
+
+                Public Function Arguments() As String
+                    Dim names = New String() {GetType(S).Name, GetType(T).Name, GetType(U).Name, GetType(V).Name, GetType(W).Name}
+                    Return String.Join(",", names)
+                End Function
+
+            End Class
+
+        End Class
+
+    End Class
+
 End Class
 
 ''' <summary>

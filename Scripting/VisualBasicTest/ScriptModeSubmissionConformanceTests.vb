@@ -4,6 +4,7 @@
 
 Imports System
 Imports System.Collections.Generic
+Imports System.Threading
 Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Scripting
@@ -278,6 +279,44 @@ Public Class ScriptModeSubmissionConformanceTests
             "1")
     End Sub
 
+    ''' <summary>
+    ''' The REPL face of <c>PreservingDeclarationsOnException</c> (roslyn
+    ''' <c>src\Scripting\CSharpTest\CommandLineRunnerTests.cs:848</c> attribute line, <c>PreservingDeclarationsOnException</c>
+    ''' declared at <c>:850</c>; the submission chain dual is <c>InteractiveSessionTests.cs:1919</c>,
+    ''' <c>PreservingDeclarationsOnException1</c>): the declaration made by a submission <em>before</em> the throwing one
+    ''' is still readable after the session reports the exception. <c>ReplUncaughtException_KeepsTheSessionAlive</c> above
+    ''' is the weaker half (session survives); this cell pins the value, so an implementation that discarded the earlier
+    ''' submission state would fail here instead of passing on the marker alone.
+    ''' </summary>
+    <Fact>
+    Public Sub ReplUncaughtException_PreservesEarlierSubmissionDeclaration()
+        ScriptModeConformance.AssertReplSession(
+            {
+                "Dim kept As Integer = 7",
+                "Throw New System.InvalidOperationException(""boom"")",
+                "? kept"
+            },
+            "7")
+    End Sub
+
+    ''' <summary>
+    ''' The same shape as the C# REPL cell, statement for statement (<c>CommandLineRunnerTests.cs:850</c>: <c>i</c> alone,
+    ''' then <c>j</c> + throw + <c>k</c> in one submission, then <c>i + j + k</c>). Expected 120 is the C# baseline's
+    ''' 120: the throwing submission's own residual <c>k</c> survives as a declaration but its initializer never ran.
+    ''' The cell can fail two ways - a rolled back throwing submission does not resolve <c>j</c>/<c>k</c>, and a host that
+    ''' re-ran the pending initializer answers 123.
+    ''' </summary>
+    <Fact>
+    Public Sub ReplUncaughtException_KeepsTheThrowingSubmissionsOwnDeclaration()
+        ScriptModeConformance.AssertReplSession(
+            {
+                "Dim i As Integer = 100",
+                "Dim j As Integer = 20 : Throw New System.InvalidOperationException(""Bang!"") : Dim k As Integer = 3",
+                "? i + j + k"
+            },
+            "120")
+    End Sub
+
     ''' <summary>An Await in a submission: the interactive host compiles the submission as an async method.</summary>
     <Fact>
     Public Sub ReplAwaitInSubmission_Conforms()
@@ -288,6 +327,289 @@ Public Class ScriptModeSubmissionConformanceTests
             },
             "7")
     End Sub
+
+#End Region
+
+#Region "exception and cancellation chains"
+
+    ' The cells below are the VB duals of the seven C# baseline cells
+    '   PreservingDeclarationsOnException1-4 (roslyn src\Scripting\CSharpTest\InteractiveSessionTests.cs:1919,1942,1969,1997)
+    '   PreservingDeclarationsOnCancellation1-3 (same file :2025,2059,2093)
+    ' and they run through the same mechanism the C# baseline relies on: when catchException accepts the exception, the
+    ' submissions that did not run - and the current one - are instantiated without executing user code
+    ' (Scripting\Core\ScriptExecutionState.cs:125-151), so their declarations exist in the chain. A continuation from that
+    ' state reuses those instances instead of re-running the chain (Script.cs:536-545, TryGetPrecedingExecutors walks back
+    ' only as far as the state's own submission, and FreezeAndClone keeps the instances), which is why the never executed
+    ' submissions answer with default values and not with their initializers.
+    ' The VB differences from the C# text are two, both structural:
+    '   - VB has no local functions, so the C# "int F() => i + j" is a top level Function of a submission.
+    '   - a typed submission follows Function Main semantics, so the result comes from "Return", not from a trailing
+    '     expression (Analysis\InitializerRewriter.vb:206-207 in the fork).
+    ' No cell uses a timer, a sleep or a delay: the cancellation cells cancel the token from inside the script, and the
+    ' token is only observed at submission boundaries (ScriptExecutionState.cs:90 before each preceding executor and
+    ' :106 before the current one), so the outcome is decided by submission order alone.
+
+    ''' <summary>Runs a chain to its end with the C# baseline's <c>catchException: e =&gt; true</c> and returns the state
+    ''' the exception was stored on.</summary>
+    Private Shared Function RunCatching(script As Script(Of Object), globals As Object, token As CancellationToken) As ScriptState(Of Object)
+        Return script.RunAsync(globals, Function(e As Exception) True, token).GetAwaiter().GetResult()
+    End Function
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnException1</c> (<c>InteractiveSessionTests.cs:1919</c>). The first submission
+    ''' initialises <c>i</c>, throws, and declares <c>j</c> after the throw; the continuation declares <c>Total</c> over
+    ''' both names. Expectation 10 is the C# baseline's 10 - <c>i</c> plus the never initialised <c>j</c>. The cell can
+    ''' fail two ways: an implementation that rolled the throwing submission back leaves <c>Total</c> unbound (the
+    ''' continuation raises CompilationErrorException, not 10), and one that re-ran the pending initializers after the
+    ''' throw would answer 12.
+    ''' </summary>
+    <Fact>
+    Public Sub ExceptionSubmission_DeclarationsAroundTheThrow_ArePreserved()
+        Dim first = VisualBasicScript.Create(
+            "Dim i As Integer = 10" & vbCrLf &
+            "Throw New System.Exception(""Bang!"")" & vbCrLf &
+            "Dim j As Integer = 2",
+            ScriptModeConformance.DefaultOptions)
+
+        Dim continuation = first.ContinueWith(
+            "Function Total() As Integer" & vbCrLf &
+            "    Return i + j" & vbCrLf &
+            "End Function")
+
+        Dim caught = RunCatching(continuation, Nothing, Nothing)
+        Dim thrown = Assert.IsType(Of Exception)(caught.Exception)
+        Assert.Equal("Bang!", thrown.Message)
+
+        Dim resumed = caught.ContinueWithAsync(Of Integer)("Return Total()").GetAwaiter().GetResult()
+        Assert.Equal(10, resumed.ReturnValue)
+    End Sub
+
+    ''' <summary>
+    ''' The falsifiability witness of the preservation cells: the same first submission as the cell above with <c>j</c>
+    ''' left out, and the same continuation over <c>i + j</c>. It is rejected where the full shape returned 10, so the
+    ''' number in the cell above is only meaningful because the continuation really does need the declaration. Without
+    ''' this control "the continuation returned 10" could not be told apart from a continuation that never resolved
+    ''' <c>j</c> at all.
+    ''' </summary>
+    <Fact>
+    Public Sub ContinuationWithoutTheDeclaration_IsRejected()
+        Dim first = VisualBasicScript.Create(
+            "Dim i As Integer = 10" & vbCrLf &
+            "Throw New System.Exception(""Bang!"")",
+            ScriptModeConformance.DefaultOptions)
+        Dim continuation = first.ContinueWith(
+            "Function Total() As Integer" & vbCrLf &
+            "    Return i + j" & vbCrLf &
+            "End Function")
+
+        Dim ids = continuation.Compile().Select(Function(d) d.Id).ToArray()
+        Assert.True(ids.Contains("BC30451"),
+                    "expected BC30451 for the missing declaration, got: " & String.Join(", ", ids))
+    End Sub
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnException2</c> (<c>InteractiveSessionTests.cs:1942</c>): the throw is in the
+    ''' middle submission, whose own <c>j</c> was initialised before it and whose <c>k</c> comes after it. Expectation
+    ''' 120 distinguishes the three declarations (100 + 20 + 0); a chain that lost the throwing submission would not
+    ''' bind <c>j</c> or <c>k</c> at all, and one that re-ran the pending initializer would answer 123.
+    ''' </summary>
+    <Fact>
+    Public Sub ExceptionInMiddleSubmission_KeepsDeclarationsOnBothSidesOfTheThrow()
+        Dim first = VisualBasicScript.Create("Dim i As Integer = 100", ScriptModeConformance.DefaultOptions)
+        Dim second = first.ContinueWith(
+            "Dim j As Integer = 20" & vbCrLf &
+            "Throw New System.Exception(""Bang!"")" & vbCrLf &
+            "Dim k As Integer = 3")
+        Dim third = second.ContinueWith(
+            "Function Total() As Integer" & vbCrLf &
+            "    Return i + j + k" & vbCrLf &
+            "End Function")
+
+        Dim caught = RunCatching(third, Nothing, Nothing)
+        Dim thrown = Assert.IsType(Of Exception)(caught.Exception)
+        Assert.Equal("Bang!", thrown.Message)
+
+        Dim resumed = caught.ContinueWithAsync(Of Integer)("Return Total()").GetAwaiter().GetResult()
+        Assert.Equal(120, resumed.ReturnValue)
+    End Sub
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnException3</c> (<c>InteractiveSessionTests.cs:1969</c>): the submission that
+    ''' is never reached at all (the one after the throwing submission) also keeps its declaration, because the catch
+    ''' path instantiates it without running its code (ScriptExecutionState.cs:131-140). Expectation 1200 = 1000 + 200
+    ''' + 0 + 0; a chain that dropped the unreached submission would fail to bind <c>l</c>.
+    ''' </summary>
+    <Fact>
+    Public Sub ExceptionSubmission_UnreachedSuccessorDeclaration_IsPreserved()
+        Dim first = VisualBasicScript.Create("Dim i As Integer = 1000", ScriptModeConformance.DefaultOptions)
+        Dim second = first.ContinueWith(
+            "Dim j As Integer = 200" & vbCrLf &
+            "Throw New System.Exception(""Bang!"")" & vbCrLf &
+            "Dim k As Integer = 30")
+        Dim third = second.ContinueWith("Dim l As Integer = 4")
+        Dim fourth = third.ContinueWith(
+            "Function Total() As Integer" & vbCrLf &
+            "    Return i + j + k + l" & vbCrLf &
+            "End Function")
+
+        Dim caught = RunCatching(fourth, Nothing, Nothing)
+        Dim thrown = Assert.IsType(Of Exception)(caught.Exception)
+        Assert.Equal("Bang!", thrown.Message)
+
+        Dim resumed = caught.ContinueWithAsync(Of Integer)("Return Total()").GetAwaiter().GetResult()
+        Assert.Equal(1200, resumed.ReturnValue)
+    End Sub
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnException4</c> (<c>InteractiveSessionTests.cs:1997</c>): two consecutive
+    ''' throwing submissions, the second one declaring <c>l</c> before it throws. This is the cell that separates
+    ''' "declaration exists" from "initializer ran": with <c>i</c> = 1000 and <c>j</c> = 200 fixed, the four reachable
+    ''' sums are 1200 (<c>k</c> and <c>l</c> both uninitialised), 1230 (<c>k</c> ran), 1204 (<c>l</c> ran), 1234 (both
+    ''' ran). 1204 is the C# baseline's 1204, so an implementation that keeps the second throwing submission's declaration
+    ''' but not the user code that initialises <c>l</c> - its instance rebuilt as the catch path rebuilds submissions that
+    ''' never ran (the guard at ScriptExecutionState.cs:142-151 not holding), instead of the instance its own user code
+    ''' already ran on - answers 1200, and one that re-ran the initializer of the never reached <c>k</c> answers 1230.
+    ''' </summary>
+    <Fact>
+    Public Sub TwoConsecutiveExceptionSubmissions_KeepEveryDeclaration()
+        Dim state0 = RunCatching(
+            VisualBasicScript.Create("Dim i As Integer = 1000", ScriptModeConformance.DefaultOptions), Nothing, Nothing)
+
+        Dim state1 = state0.ContinueWithAsync(
+            "Dim j As Integer = 200" & vbCrLf &
+            "Throw New System.Exception(""Bang 1!"")" & vbCrLf &
+            "Dim k As Integer = 30",
+            catchException:=Function(e As Exception) True).GetAwaiter().GetResult()
+        Dim thrown1 = Assert.IsType(Of Exception)(state1.Exception)
+        Assert.Equal("Bang 1!", thrown1.Message)
+
+        Dim state2 = state1.ContinueWithAsync(Of Integer)(
+            "Dim l As Integer = 4" & vbCrLf &
+            "Throw New System.Exception(""Bang 2!"")" & vbCrLf &
+            "Return 1",
+            catchException:=Function(e As Exception) True).GetAwaiter().GetResult()
+        Dim thrown2 = Assert.IsType(Of Exception)(state2.Exception)
+        Assert.Equal("Bang 2!", thrown2.Message)
+
+        Dim resumed = state2.ContinueWithAsync("Return i + j + k + l").GetAwaiter().GetResult()
+        Assert.Equal(1204, CInt(resumed.ReturnValue))
+    End Sub
+
+    ''' <summary>
+    ''' The rejecting half of the <c>catchException</c> contract (the C# baseline only exercises the accepting filter,
+    ''' <c>InteractiveSessionTests.cs:1931</c>). Same chain and same source as
+    ''' <c>ExceptionSubmission_DeclarationsAroundTheThrow_ArePreserved</c>, opposite filter, opposite outcome: the
+    ''' exception has to escape <c>RunAsync</c> rather than land on the state. The pair is what makes both cells
+    ''' falsifiable - a host that always captured would fail here, a host that never captured would fail there.
+    ''' </summary>
+    <Fact>
+    Public Sub ExceptionSubmission_CatchFilterRejects_PropagatesOutOfRunAsync()
+        Dim first = VisualBasicScript.Create(
+            "Dim i As Integer = 10" & vbCrLf &
+            "Throw New System.Exception(""Bang!"")",
+            ScriptModeConformance.DefaultOptions)
+
+        Dim thrown = Assert.Throws(Of Exception)(
+            Sub() first.RunAsync(Nothing, Function(e As Exception) False).GetAwaiter().GetResult())
+        Assert.Equal("Bang!", thrown.Message)
+    End Sub
+
+    ''' <summary>
+    ''' The globals of the cancellation cells. The script cancels its own token from inside the chain, exactly as the C#
+    ''' baseline does (<c>InteractiveSessionTests.cs:2038</c>, <c>Value.Cancel()</c> in a submission of the chain, with
+    ''' the <c>StrongBox</c> globals built at <c>:2029-2030</c>), which keeps the trigger off any clock.
+    ''' </summary>
+    Public Class CancellationGlobals
+        Public ReadOnly TokenSource As CancellationTokenSource
+
+        ' The parameter is deliberately not named 'tokenSource': VB is case insensitive, so that name would shadow the
+        ' field and turn the assignment into a self assignment, leaving the field Nothing.
+        Public Sub New(cancellationSource As CancellationTokenSource)
+            TokenSource = cancellationSource
+        End Sub
+    End Class
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnCancellation1</c> (<c>InteractiveSessionTests.cs:2025</c>). The second
+    ''' submission cancels the token; the third is never executed because the token is observed at the submission
+    ''' boundary (ScriptExecutionState.cs:90) and the catch path only constructs it (ScriptExecutionState.cs:131-140).
+    ''' Expectation 1230 is the C# baseline's 1230: continuing from the state the cancellation was stored on reuses the
+    ''' frozen submission instances (<c>Script.cs:536-545</c>, <c>TryGetPrecedingExecutors</c> + <c>FreezeAndClone</c>),
+    ''' so <c>l</c> stays at its default while <c>i</c>, <c>j</c> and <c>k</c> keep the values of the cancelled run. A
+    ''' chain that discarded the cancelled part would not bind <c>Total</c> at all, and one that re-ran the never
+    ''' reached submission would answer 1234.
+    ''' </summary>
+    <Fact>
+    Public Sub CancelledChain_DeclarationsOfEverySubmission_ArePreserved()
+        Dim source = New CancellationTokenSource()
+        Dim fourth = BuildCancellationChain(source, cancelInSubmission:=2)
+
+        Dim caught = RunCatching(fourth, New CancellationGlobals(source), source.Token)
+        Assert.IsType(Of OperationCanceledException)(caught.Exception)
+
+        Dim resumed = caught.ContinueWithAsync(Of Integer)("Return Total()").GetAwaiter().GetResult()
+        Assert.Equal(1230, resumed.ReturnValue)
+    End Sub
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnCancellation2</c> (<c>InteractiveSessionTests.cs:2059</c>): the cancelling
+    ''' submission declares <c>l</c> just before it cancels, so the cancelled submission is the third one and its own
+    ''' declaration is the one at stake. 1234 (not 1230) pins that <c>l</c> was declared and initialised before the
+    ''' cancellation was observed.
+    ''' </summary>
+    <Fact>
+    Public Sub CancelledSubmission_OwnDeclaration_IsPreserved()
+        Dim source = New CancellationTokenSource()
+        Dim fourth = BuildCancellationChain(source, cancelInSubmission:=3)
+
+        Dim caught = RunCatching(fourth, New CancellationGlobals(source), source.Token)
+        Assert.IsType(Of OperationCanceledException)(caught.Exception)
+
+        Dim resumed = caught.ContinueWithAsync(Of Integer)("Return Total()").GetAwaiter().GetResult()
+        Assert.Equal(1234, resumed.ReturnValue)
+    End Sub
+
+    ''' <summary>
+    ''' Dual of <c>PreservingDeclarationsOnCancellation3</c> (<c>InteractiveSessionTests.cs:2093</c>): a filter that
+    ''' rejects <see cref="OperationCanceledException"/> turns the same cancellation into a propagating exception, so
+    ''' the cancellation is not silently absorbed. Together with the two cells above this pins both directions of the
+    ''' filter for cancellation, not just the accepting one.
+    ''' </summary>
+    <Fact>
+    Public Sub CancelledChain_RejectingCatchFilter_PropagatesOperationCanceled()
+        Dim source = New CancellationTokenSource()
+        Dim fourth = BuildCancellationChain(source, cancelInSubmission:=2)
+
+        Assert.Throws(Of OperationCanceledException)(
+            Sub() fourth.RunAsync(
+                     New CancellationGlobals(source),
+                     Function(e As Exception) TypeOf e IsNot OperationCanceledException,
+                     source.Token).GetAwaiter().GetResult())
+    End Sub
+
+    ''' <summary>
+    ''' The chain of the three cancellation cells, the same five submissions in both: <c>i = 1000</c>, <c>j = 200</c>
+    ''' (+ <c>TokenSource.Cancel()</c> when <paramref name="cancelInSubmission"/> is 2), <c>k = 30</c>, then <c>l = 4</c>
+    ''' (+ <c>TokenSource.Cancel()</c> when it is 3), then the <c>Total</c> declaration that ties all four names
+    ''' together. Only the cancellation point moves between the cells, so their expected sums differ by exactly the
+    ''' submission that the cancelled run did or did not reach: with the cancel at 2 the never reached <c>l</c> keeps
+    ''' the default 0 (1230), with it at 3 <c>l</c> was already initialised (1234).
+    ''' </summary>
+    Private Shared Function BuildCancellationChain(source As CancellationTokenSource, cancelInSubmission As Integer) As Script(Of Object)
+        Dim options = ScriptModeConformance.DefaultOptions
+        Dim first = VisualBasicScript.Create("Dim i As Integer = 1000", options, GetType(CancellationGlobals))
+        Dim second = first.ContinueWith(
+            "Dim j As Integer = 200" & vbCrLf &
+            If(cancelInSubmission = 2, "TokenSource.Cancel()" & vbCrLf, "") &
+            "Dim k As Integer = 30")
+        Dim third = second.ContinueWith(
+            "Dim l As Integer = 4" & vbCrLf &
+            If(cancelInSubmission = 3, "TokenSource.Cancel()" & vbCrLf, ""))
+        Return third.ContinueWith(
+            "Function Total() As Integer" & vbCrLf &
+            "    Return i + j + k + l" & vbCrLf &
+            "End Function")
+    End Function
 
 #End Region
 

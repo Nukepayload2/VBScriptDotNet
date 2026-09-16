@@ -51,12 +51,53 @@
 - `SourceCodeKind.Script` 支撑 `.vbx` 与交互提交；`Return` 按 `Function Main` 语义处理（typed submission → vbx exit code）。
 - `Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs` — `RunScriptAsync` 用 `CreateInitialScript<int>` 直接返回退出码（2.0 修复，见 `spec\README.md` 版本历史）。
 
-### 2.7 新增（相对上游的新文件/项目）
+### 2.7 新增（相对上游的新文件/项目）——**先区分「上游目录」与「真 fork 新增」**
 
-- `Interactive\vbi\` — vbi 交互解释器宿主。
-- `Scripting\Core\`（common scripting fork）、`Scripting\VisualBasic\` — 脚本运行时。
-- `Workspaces\SharedUtilitiesAndExtensions\Compiler\` — CompilerExtensions 局部移植（.shproj）。
-- `Samples\`、`Installer\` — 样例与分发。
+**判据**（本轮复跑；基线 commit 见 §一，上游树路径前缀为 `src\`，本 fork 已把 `src\` 摊平到仓库根）：
+对任一 fork 路径 `X` 取 `git cat-file -e <基准commit>:src/X` —— **rc=0 ⇒ 上游原有**，**rc=128 ⇒ fork 新增**。
+**目录级的「新增」是伪分类**：一个目录在上游树内、其内部仍有 fork 新增文件，两者必须分开记。
+
+**（a）上游目录（目录本身在上游树内；fork 只在其内增删文件 ⇒ 合并时必须逐文件比对上游改动）**
+
+- `Scripting\Core\`、`Scripting\VisualBasic\` — **上游目录**，**不是**「本 fork 新增的目录」。
+  上游同名文件在册：`src\Scripting\Core\ScriptOptions.cs`、`src\Scripting\VisualBasic\VisualBasicScript.vb`、
+  `src\Scripting\VisualBasic\VisualBasicScriptCompiler.vb`、两个 `.vbproj`/`.csproj`（`cat-file -e` 均 **rc=0**）。
+  **目录内 fork 新增文件**（`rc=128`，共 16 个）：
+  - `Scripting\Core\`：`Hosting\CommandLine\INuGetRestoreCoordinator.cs`（§2.12）、
+    `Hosting\AssemblyLoader\NativeLibraryProbe.cs`（§2.13）、`CoreLightup.cs`、`ScriptingResources.Designer.cs`。
+  - `Scripting\VisualBasic\`：`Hosting\NuGetJson.vb`、`NuGetMissingNativeAssetsDetector.vb`、
+    `NuGetPackageResolverImpl.vb`、`NuGetPackageSession.vb`、`NuGetProjectGenerator.vb`、`NuGetRestoreAssets.vb`、
+    `NuGetRestoreCache.vb`、`NuGetRestoreCoordinator.vb`、`NuGetRestoreDiagnostics.vb`、`NuGetRestorePolicy.vb`、
+    `NuGetRestoreRunner.vb`（§2.10 / §2.12 / §2.13 / §2.14）、`VBScriptingResources.Designer.vb`。
+  - **其中 3 个不是 fork 自己写的**：`CoreLightup.cs` 与两份 `*.Designer.*` 是整目录引入时的**旧快照残留**。
+    本 fork 的 `Scripting\` 由 commit `a5e5286`（`Add source code of Microsoft.CodeAnalysis.Scripting (VS 17.6)`）
+    整体引入（**早于基准 commit，且此后未随上游刷新** ⇒ 该目录内未被本 fork 改动过的文件停在旧上游版本，
+    合并时按**大跨度 3-way** 处理，不能假定「与基准逐字一致」）；`CoreLightup.cs` 上游已于
+    `59981258f6d`（`Remove assembly loading light-up from scripting (#74409)`，**经 `merge-base --is-ancestor`
+    实锤是本基准 commit 的祖先**）删除；`*.Designer.*` 上游已改为构建期生成（不入库）。⇒ 合并时按上游删/不追踪处理。
+    （三态：**实锤**——`cat-file -e` 判据 + 两侧 `git log` 引用；「早于基准且未刷新」为**实锤**，
+    由 `git log -- Scripting/Core/ScriptOptions.cs` 只命中 `a5e5286` 得出。）
+- `Interactive\vbi\` — **上游目录**（`src\Interactive\vbi\` 在册：`App.config`、`Vbi.vb`、`vbi.coreclr.rsp`、
+  `vbi.desktop.rsp`、`vbi.vbproj`，`cat-file -e` 均 rc=0）。**目录内 fork 新增文件**（3 个）：
+  `Vbi.Compile.vb`、`app.manifest`、`My Project\PublishProfiles\FolderProfile.pubxml`。
+- `Workspaces\SharedUtilitiesAndExtensions\Compiler\` — **上游目录**（`src\Workspaces\SharedUtilitiesAndExtensions\Compiler\`
+  在册）。本 fork 只保留其 `Core\` 子树（393 个文件**全部**是上游原有路径，逐条 `cat-file -e` rc=0，
+  **零 fork 新增文件**，含 `Core\CompilerExtensions.shproj` / `.projitems` 亦为上游原有）；
+  上游同级的 `CSharp\` / `Extensions\` / `VisualBasic\` 被裁剪。⇒ 合并按「裁剪 + 跟随上游」处理，无本地分叉。
+
+**（b）真 fork 新增（上游树内无对应路径，rc=128）**
+
+- `Samples\` — 样例脚本（12 个文件，全部 `rc=128`；上游全树**无**名为 `Samples` 的目录）。
+- `Installer\` — 分发工程（`StoreAssets\` / `Toolset\` / `vbichooser\` / `vbicore\` / `vbifw\` /
+  `VBInteractive.WindowsDesktop.Installer\`，80 个文件，全部 `rc=128`；`vbicore` / `vbifw` / `vbichooser` /
+  `VBInteractive` / `StoreAssets` 五个名字在上游全树 grep **零命中**）。
+- 另两个同属真新增、本节开列时漏登的面：`InternalDevDocs\`（上游树内 **rc=128**，全树无此目录）、
+  `Scripting\VisualBasicTest\` 下的 fork 新增测试文件（`Scripting\` 的 43 条 `rc=128` 路径中，除上列 16 个
+  产品/生成文件外的 27 个测试与 Helpers 文件）。
+
+> **本节的错误曾经外溢**：把 `Scripting\Core\` / `Scripting\VisualBasic\` 记成「fork 新增目录」直接派生了
+> `issues\issue-warning-level-not-plumbed.md` 的「不增加上游合并冲突面」错误主张（已改正，见该 issue）。
+> 合并前读本节时，**目录名在册 ≠ 目录是新增**。
 
 ### 2.8 #! shebang 指令（新增）
 
@@ -293,6 +334,30 @@
 - 折抵：U2 / U3 / U4 / U12 只让**本族形状**从「崩」变「正常跑」（普通编译上下文对照零行为变化）；U1 与 U9 只**新增**诊断（用户可见行为由「进程终止」变「一条编译错误」）；U5 只**新增**一条既有诊断（`BC30101`）在顶层语句路径上的报点；资源侧只补 13 份 xlf 的缺失条目。无一条改变合法既有代码的语义。
 - 合并前评估义务：合并前读本条目对下列符号做 3-way 评审——`Binder_Expressions.BindMyBaseExpression` 错误路径、`Binder_Initializers` 的顶层语句绑定尾（`CheckBranchOutOfTopLevelFinally` / `ContainsFinallyBlock`）、`SourceMemberContainerTypeSymbol.AddMethodMember`（判据 `IsScriptClass`，覆盖提交类与非提交脚本类；与 §2.20 的 F05 提交构造器分叉同文件、一起看）、`SourceMemberMethodSymbol.BindSingleHandlesClause` 的 `Select Case` 与 `isFromBase` 分支、`LocalRewriter_RaiseEvent.VisitRaiseEventStatement` 的接收者判据（含被删除的 `#If DEBUG` 断言块）、`Errors.vb` 的 37342 / 37343 / `ERR_NextAvailable`。上游若日后以其它形状实现同类脚本诊断、`Handles` 宿主枚举或事件降级，按上游形状对齐并回退本 fork 改法。
 - 对应设计：`tasks\script-top-level-crashes-2\`（`README.md` 判定表与非范围 / `design-overview.md` 总体设计与全称主张剪枝 / `design-detailed.md` 逐单元蓝图与 pass 条件 / `test-plan.md` L1–L4 矩阵与无副作用纪律）；判定与依据的会议 / 提案出处见 `issues\issue-cross-submission-handles-clause-crash.md`（19）。
+
+### 2.22 脚本宿主对象按反射类型解析（修改；修复 issue 22）
+
+`Compilers\` 下两个文件、三处，全部落在 `Friend` 面。
+
+- `Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb`（`+14 −4`）—— `GetHostObjectTypeSymbol`（`:933-957`）由「反射 `FullName` 当元数据名用」改为**先 `GetTypeByReflectionType`、失败再落回字符串路径**（镜像 `CSharpCompilation.cs:1873`）；字符串回退（含 `+`→`.` 的嵌套兜底）**保留**于 `:945-952`，`:935` 的 `FullName Is Nothing` 前置检查收窄为该回退的门。**语义变化**：`globalsType` 为构造泛型（顶层或嵌套）/ 数组 / 泛型外层里的嵌套类型时，宿主对象由「不绑定（`BC30451`）」或「断言终止（`EXIT=35`）」变为**正常绑定**。字符串路径能解析的形状（普通类型 / 继承闭合的泛型 / 非泛型外层里的嵌套类型）逐字节不变（实测：`HostObjectBinding_ClosedGenericBaseMembers`、`HostObjectBinding_PrivateClass`、`HostObjectInRootNamespace` 等既有格全绿）。
+- `Compilers\VisualBasic\Portable\Symbols\AssemblySymbol.vb`（`+21 −2`）—— `GetTypeByReflectionType` 的嵌套分支（`:741`）：`:765-772` 在递归解析最外层类型前用「本类型为外层携带的实参」把外层泛型定义闭合（`Type.DeclaringType` 对嵌套类型返回的是**外层泛型定义**，是个开放类型，原样递归会撞 `:723` 的 `Debug.Assert(Not type.ContainsGenericParameters)`）；`:774` 实参游标初始化改为 `rootArity`；`ApplyGenericArguments`（`:822`）增 `length = 0` 早退（`:833-837`）。
+- **C# 侧不改**（`Compilers\CSharp\Portable\Symbols\AssemblySymbol.cs` 保持上游形状）—— 本 fork 的产品路径是 VB（`Scripting\VisualBasic` / `Interactive\vbi`），C# 脚本侧无产品入口。**这是本条目的一处有意两侧不对称**：同一形状在 C# 上仍断言终止（实测 `cs:782` ← 递归 `cs:830`），在 VB 上正常绑定。
+- **零公共面**：三处均为 `Friend`/`Private`（`GetHostObjectTypeSymbol` / `GetTypeByReflectionType` / `ApplyGenericArguments`），`PublicAPI.*.txt` 零动（实测 `git status` 对 `*PublicAPI*` 零输出）。`Compilers\Core\` **零改动**（`IsValidHostObjectType` / `ValidateScriptCompilationParameters` 为既有上游代码，只被消费）。
+- 折抵：「崩编译器是 bug」是按作者原则的判定出口，两条症状都属「修错」而非「回归」：`BC30451` 侧改的是**从未绑定**的宿主对象（C# 同格 `InteractiveSessionTests.cs:1545` 本来就通过），断言侧改的是**进程级失败**。无一条改变合法既有代码的语义。
+- 合并前评估义务：合并前读本条目对 `VisualBasicCompilation.GetHostObjectTypeSymbol` 与 `AssemblySymbol.GetTypeByReflectionType` / `ApplyGenericArguments` 做 3-way 评审。上游若日后自行给 C# 侧补同款嵌套修复（或对 `GetTypeByReflectionType` 做等价重构），**按上游形状对齐**——届时两语言可重新同形；本 fork **不得**因「C# 那边没修」而回退 VB 侧的修法。
+- **有意分歧·不镜像 C# 的 `MissingMetadataTypeSymbol` 兜底（合并时不得补回）**：C# 在反射解析失败时返回 `MissingMetadataTypeSymbol.TopLevel`（`CSharpCompilation.cs:1881-1885`），本 fork 的 VB 侧**有意保持 `Nothing`**——该兜底在 VB 侧无消费点，补回等于引入死代码。理由与逐调用方取证见 `issues\issue-constructed-generic-host-object-not-bound.md` 的「兜底评估：VB 侧不加 `MissingMetadataTypeSymbol`（证据）」节：VB 四个调用方全部不消费错误类型——`Binder_Lookup.vb:921`（成员查找）、`:2046`（补全符号表）、`Lowering\SynthesizedSubmissionFields.vb:56`（`<host-object>` 字段）三处显式过滤 `SymbolKind.ErrorType`，第四处 `Binder_Expressions.TryBindInteractiveReceiver`（`:2620-2629`）以 `TypeSymbol.Equals` 逐个比对宿主类型、错误类型永不命中；⇒ 返回错误类型与返回 `Nothing` 在全部调用点行为一致（C# 侧这份兜底的唯一可见作用是由 `HostObjectModelBinder` 转成 `CS0103`，VB 无对应 binder）。**合并义务**：上游若给 VB 补兜底语义、或给 VB 引入消费错误类型宿主的 binder，落点是 binder 侧的 `SymbolKind.ErrorType` 过滤面，**不在** `GetHostObjectTypeSymbol`；届时按上游形状做 3-way 评审并对齐，回退本 fork 的 `Nothing` 语义。
+- 对应缺陷：`issues\issue-constructed-generic-host-object-not-bound.md`（22）；用例锁定 `Scripting\VisualBasicTest\ScriptModeHostObjectConformanceTests.vb`（`HostObjectBinding_PublicGenericClassMembers` 改写 + 6 条新增），`Scripting` 程序集 480 → 486 passed / 0 failed。
+
+### 2.23 元数据引用别名在 VB 侧生效（修改；合并时必须保住）
+
+**本条登记的是既有本地偏差**（清点表 §二·补 的 `80eff5f` 行，标「未登记」），本次一并补登记，不随 §2.22 的改动进入。规范化描述在 `spec\spec-reference-directive.md`（别名规则：无别名或含 `global` 的引用并入全局命名空间，带其它别名的引用**不**并入；VB 无 `extern alias` ⇒ 隐藏是绝对的）。
+
+- `Compilers\VisualBasic\Portable\Symbols\MergedNamespaceSymbol.vb:101-121`（`ConstituentGlobalNamespaces`）—— 组装合并全局命名空间时，只并入 `referencedAssemblies(i)` 的 `GlobalNamespace` **当** `referenceManager.DeclarationsAccessibleWithoutAlias(i)` 为真（判据在 `:114`）；文件内 `:106-109` 的注释是本 fork 自写的 deviating 标注（「This mirrors C# (extern aliases) …」）。**上游 VB 无这道过滤**（同文件上游形状直接并入每个引用程序集模块的全局命名空间）。
+- `Compilers\Core\Portable\ReferenceManager\CommonReferenceManager.State.cs:721-725` —— `DeclarationsAccessibleWithoutAlias`：`aliases.Length == 0 || aliases.IndexOf(GlobalAlias) >= 0`。**共享层既有 API，本 fork 未改**（C# 侧同款消费者：`CSharpCompilation.cs:1393`、`:1417`、`Binder\ImportChain.cs:148`）；本 fork 的改动只是**让 VB 也消费它**。
+- 宿主侧别名来源（`Scripting\Core\`，本地文件）：`Script.cs:237-239` 对宿主对象程序集施加 `<host>` 且 `WithRecursiveAliases(true)`；`Hosting\Resolvers\RuntimeMetadataReferenceResolver.cs:29` 对补位程序集施加 `<implicit>`。
+- 折抵：本 fork 的 VB 有意尊重元数据引用别名（原版上游 VB 忽略别名）——`Scripting` 的 `<host>` / `<implicit>` 语义依赖此行为（别名程序集里的类型从 VB 源码完全不可达），且 `/nostdlib` 下命令行编译器对真实核心库施加非全局别名时同样依赖它。
+- 合并前评估义务：合并前读 `MergedNamespaceSymbol.ConstituentGlobalNamespaces` 与 `spec\spec-reference-directive.md` 做 3-way 评审；**上游若日后给 VB 补上同类别名过滤，按上游形状对齐并回退本 fork 改法；上游若仍然忽略别名，不得把这道过滤当「本地无谓改动」精简掉**（会连带打断 `<host>` / `<implicit>` 的隐藏语义）。同时核 `DeclarationsAccessibleWithoutAlias` 在上游是否仍只有这三个 C# 消费者（若上游给 VB 也接上，本条目随之关闭）。
+- 对应规范与测试：`spec\spec-reference-directive.md`；`Scripting\VisualBasicTest\ScriptModeReferenceAliasTests.vb`（本任务 U4 单元）。
 
 ## 二·补、已知欠账：尚未登记的修改面（2026-09-11 清点）
 

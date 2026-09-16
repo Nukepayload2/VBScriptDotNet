@@ -1,7 +1,8 @@
 # 构造泛型 / 嵌套泛型类型作 `globalsType` 时宿主对象不绑定（嵌套泛型还会崩断言）
 
-* 状态：**Open**
+* 状态：**Fixed**（已验证，commit 待作者提交后补）
 * 发现日期：2026-09-15
+* 修复日期：2026-09-16
 * 发现场景：U3「宿主对象（`globalsType`）绑定语义」补测单元对标 C# `HostObjectBinding_PublicGenericClassMembers`（`{{Roslyn}}\src\Scripting\CSharpTest\InteractiveSessionTests.cs:1545`）时，VB 对偶格**无法照抄 C# 期望值**，遂按「补测不顺手改产品码」的纪律取证上报（`../tasks/script-mode-coverage-parity/design-detailed.md` §U3 pass 条件第 5 条）。
 * **性质**：**实现缺陷**（VB 侧缺 C# 已有的解析手段），**且含进程级失败**。产品源码零改动，本 issue 只登记与取证。
 
@@ -138,6 +139,8 @@ C# 走 `Assembly.GetTypeByReflectionType(Type)`，**不经字符串**，所以�
 2. 症状 B 的形状（嵌套泛型 `globalsType`）今天**零诊断 + 断言**；修复后应正常绑定，须新增一条覆盖嵌套泛型的用例（本单元为避开进程级失败而**未**纳入，见下「已有护栏」的说明）。
 3. 数组 / `ByRef` 等其它「`FullName` 非普通元数据名」的 `globalsType` 形是否有同类症状：**未查**（补测单元未穷举入口），修复单元须一并扫。
 
+**上述三项的落地状态（2026-09-16 修复单元）**：第 1 项**已改写**（并追加实参落点断言）；第 2 项**已新增**；第 3 项**已扫**（数组有同类症状、已一并修复与覆盖；`ByRef` / 开放泛型 / 值类型 / 指针由 `IsValidHostObjectType` 提前拒绝、行为未改）。逐形读数见下「修复」节的扫描表。
+
 ## 已有护栏（本 issue 的用例落点）
 
 `Scripting\VisualBasicTest\ScriptModeHostObjectConformanceTests.vb`（U3 单元新增，13 格全绿）：
@@ -147,12 +150,97 @@ C# 走 `Assembly.GetTypeByReflectionType(Type)`，**不经字符串**，所以�
 | **金丝雀**（症状 A） | `HostObjectBinding_PublicGenericClassMembers` | `:217` |
 | 正向配对（证明缺陷在 `globalsType` 入口而非泛型成员） | `HostObjectBinding_ClosedGenericBaseMembers` | `:238` |
 
-**未纳入护栏**：症状 B（嵌套泛型）**故意不写用例**——它会终止进程/xunit 运行，把「补测单元必须全绿」的验收打成不可判定。这正是本 issue 需要修复单元介入的直接理由。
+**未纳入护栏**：症状 B（嵌套泛型）在修复前**故意不写用例**——它会终止进程/xunit 运行，把「补测单元必须全绿」的验收打成不可判定。这正是本 issue 需要修复单元介入的直接理由。（修复后该缺口已由 `HostObjectBinding_NestedGenericClassMembers` 闭合，见下。）
+
+## 修复（2026-09-16）
+
+### 主路径：镜像 C# 的反射类型解析
+
+`Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb` 的 `GetHostObjectTypeSymbol`（`:933-957`）由「反射 `FullName` 当元数据名用」改为**先按反射类型解析、失败再落回字符串路径**：
+
+```vb
+If hostObjectType Is Nothing Then Return Nothing                          ' :935
+Dim result As TypeSymbol = GetTypeByReflectionType(hostObjectType)        ' :943（镜像 CSharpCompilation.cs:1873）
+If result Is Nothing AndAlso hostObjectType.FullName IsNot Nothing Then
+    result = GetTypeByMetadataName(hostObjectType.FullName)                ' :948 保留的字符串回退
+    If result Is Nothing AndAlso hostObjectType.FullName.Contains("+"c) Then
+        result = GetTypeByMetadataName(hostObjectType.FullName.Replace("+"c, "."c))   ' :950
+    End If
+End If
+```
+
+* `VisualBasicCompilation.GetTypeByReflectionType`（`:2055`）是**既有**方法（转调 `Assembly.GetTypeByReflectionType`），本 issue 之前只有 `SynthesizedInteractiveInitializerMethod.vb:169` 一个调用方。
+* `:940-942` 的 `+`→`.` 回退**保留**（VB 侧有意的嵌套类型兜底），角色由「主路径」降为「回退」。
+* `:935` 的 `FullName Is Nothing` 前置检查由「整个函数的门」收窄为**字符串回退的门**（反射路径不需要名字）。
+* **未加 `MissingMetadataTypeSymbol` 兜底**（与 C# 的唯一有意差异，理由见下节「兜底评估」）。
+
+### 第二处缺陷：反射行走无法处理「泛型外层里的嵌套类型」
+
+镜像 C# 后，**嵌套类型且外层泛型**的形状（`GetType(Outer(Of String).Inner)`）并不随之修好：`Type.DeclaringType` 对嵌套类型返回**外层类型的泛型定义**（**实锤**：`GetType(GenericOuter(Of String).NestedPlain).DeclaringType` 实测为 `GenericOuter`1[T]`，`ContainsGenericParameters=True`），而 `AssemblySymbol.GetTypeByReflectionType` 的 `Debug.Assert(Not type.ContainsGenericParameters)`（`Symbols\AssemblySymbol.vb:723`）随即被触发 ⇒ 换了条断言的**同样崩溃**。
+
+C# 侧**同形同崩**（**实锤**，独立 C# 探针：`CSharp\Portable\Symbols\AssemblySymbol.cs:782` 的断言，递归点在 `:830`）⇒ 这是**两语言共享的上游限制**，不是 VB 特有缺口。按作者原则「崩编译器是 bug」仍须修，故在 VB 侧修 `Symbols\AssemblySymbol.vb:GetTypeByReflectionType`（C# 侧不动，偏差登记见 `../upstream-merge.md` §2.22）：
+
+* `:765-772` —— 递归解析最外层类型前，先用「本类型为外层携带的实参」把外层泛型定义**闭合**（`MakeGenericType`）；
+* `:774` —— 实参游标由 0 改为 `rootArity`（外层实参已在闭合时消耗）；
+* `:833-837` —— `ApplyGenericArguments` 增 `length = 0` 早退（非泛型嵌套类型自己没有类型参数；原先会走到 `symbol.Construct(空)`，对已替换类型抛 `InvalidOperationException` —— **实锤**，修复中途的用例实跑栈顶即 `SubstitutedNamedType.SpecializedNonGenericType.Construct`）。
+
+### 兜底评估：VB 侧不加 `MissingMetadataTypeSymbol`（证据）
+
+C# 在查不到时给 `MissingMetadataTypeSymbol`（`CSharpCompilation.cs:1881-1885`），其**唯一可见作用**是让 `HostObjectModelBinder` 把错误类型转成 `CS0103`（消息含缺失程序集名，`Compilers\CSharp\Portable\Binder\HostObjectModeBinder.cs:36-44`）。**VB 没有对应 binder，且四个调用方全都过滤错误类型**：
+
+| 调用方 | 判据 |
+|---|---|
+| `Binding\Binder_Lookup.vb:920-921` | `If hostObjectType IsNot Nothing AndAlso hostObjectType.Kind <> SymbolKind.ErrorType Then` |
+| `Binding\Binder_Lookup.vb:2045-2046` | 同款过滤 |
+| `Lowering\SynthesizedSubmissionFields.vb:55-56` | 同款过滤 |
+| `Binding\Binder_Expressions.vb:2620-2629` | 与 `memberDeclaringType` 逐个 `TypeSymbol.Equals` 比对（错误类型永不命中），实际等价于过滤 |
+
+`CommonScriptGlobalsType`（`:927-931`）是唯一的直通调用方，但 `Compilation.ScriptGlobalsType`（`Compilation.cs:1046`）的**唯一消费者**是 C# 的 `SymbolDisplayVisitor.cs:454`，VB 侧无消费者。⇒ 在 VB 侧返回错误类型与返回 `Nothing` **在全部调用点行为完全一致**，加兜底等于引入死代码（还要新增 `AssemblyIdentity.FromAssemblyDefinition` 依赖与一条错误文案）。**故不加**；若日后需要「宿主类型不可解析时给诊断」，落点应在 binder，不在 `GetHostObjectTypeSymbol`。
+
+### 修复后的实测读数
+
+独立探针（`tmp\probes\u13-impl\`，git-ignored，`ProjectReference` 指向本仓 Scripting 项目，**不改产品源码**），每形**单进程**运行（断言会终止宿主，故必须一形一进程）：
+
+| # | 形状 | 修复前 | 修复后 |
+|---|---|---|---|
+| 1 | 对照 `GetType(PlainMembers)`，`? X` | 0 诊断，`RUN OK ReturnValue=1` | 同左 |
+| 2 | **症状 A** 顶层构造泛型，`? G()` | `BC30451`，无宿主对象 | **0 诊断，`RUN OK ReturnValue=(null)`** |
+| 3 | **症状 B** 嵌套泛型，`? G()` | **断言，`EXIT=35`** | **0 诊断，`RUN OK ReturnValue=(null)`** |
+| 4 | 泛型外层里的非泛型嵌套类型，`? G()` | **断言，`EXIT=35`** | **0 诊断，`RUN OK ReturnValue=1`** |
+| 5 | 泛型外层里的泛型嵌套类型，`? G()` | **断言，`EXIT=35`** | **0 诊断，`RUN OK ReturnValue=0`** |
+| 6 | 数组 `GetType(Integer())`，`? Length` | `BC30451` | **0 诊断，`RUN OK ReturnValue=0`** |
+| 7 | 三维数组 `GetType(Integer(,,))`，`? Length` | `BC30451` | **0 诊断，`RUN OK ReturnValue=0`** |
+| 8 | 构造泛型的数组，`? Length` | `BC30451` | **0 诊断，`RUN OK ReturnValue=0`** |
+| 9 | `ByRef`（`MakeByRefType`） | `COMPILE THREW ArgumentException` | 同左（未改） |
+| 10 | 开放泛型（`GetType(OpenGenericMembers(Of ))`） | `COMPILE THREW ArgumentException` | 同左（未改） |
+| 11 | 值类型 `GetType(Integer)` | `COMPILE THREW ArgumentException` | 同左（未改） |
+| 12 | 指针（`MakePointerType`） | `COMPILE THREW ArgumentException` | 同左（未改） |
+| 13 | 开放泛型外层的嵌套泛型 | `COMPILE THREW ArgumentException` | 同左（未改） |
+
+第 9–13 行的异常是 `Compilation.IsValidHostObjectType`（`Compilers\Core\Portable\Compilation\Compilation.cs:559-563`）经 `ValidateScriptCompilationParameters`（`:250-255`）抛的 `ArgumentException`（消息 `ReturnTypeCannotBeValuePointerbyRefOrOpen`），**修复前后一致**；它同时是「反射行走里的 `Debug.Assert(Not type.IsByRef)` / `Debug.Assert(Not type.ContainsGenericParameters)` 不可达」的依据。
+
+**实参落点读数**（把「有没有崩」升级为「实参有没有落在正确的层」，`? TypeArgumentName()` 一类调用）：顶层构造泛型 → `String`；嵌套泛型 → `String`；泛型外层里的非泛型嵌套类型 → `String`；泛型外层里的泛型嵌套类型 → `Int32|String`（自身实参 `Int32`、外层实参 `String`）。
+
+### 修复后的用例落点
+
+`Scripting\VisualBasicTest\ScriptModeHostObjectConformanceTests.vb`：
+
+| 用途 | 方法 | 状态 |
+|---|---|---|
+| **金丝雀**（症状 A） | `HostObjectBinding_PublicGenericClassMembers` | **改写为 C# 期望**：`? G() Is Nothing` → `True` ＋ `? TypeArgumentName()` → `"String"` |
+| 对照（`FullName` 是普通元数据名，走字符串回退） | `HostObjectBinding_ClosedGenericBaseMembers` | 不变 |
+| 症状 B（嵌套泛型） | `HostObjectBinding_NestedGenericClassMembers` | **新增** |
+| 泛型外层里的嵌套类型（非泛型 / 泛型 + 实参互换判别对） | `HostObjectBinding_NestedTypeInConstructedGenericOuter` / `HostObjectBinding_GenericNestedTypeInConstructedGenericOuter` | **新增** |
+| 三层嵌套（C# `TypeResolutionTests.cs:142` 的形状） | `HostObjectBinding_DeeplyNestedGenericTypeArguments` | **新增** |
+| 数组（一维 / 三维 / 构造泛型的数组） | `HostObjectBinding_ArrayGlobalsType` | **新增** |
+| 被拒形状边界 | `HostObjectBinding_UnsupportedGlobalsTypeShapesAreRejected` | **新增** |
+
+`Scripting\VisualBasicTest` 程序集全量：修复前 **480 passed / 0 failed**，修复后 **486 passed / 0 failed**（净增 6 条：改写 1 条 + 新增 6 条 − 改写仍计 1 条）。
 
 ## 相关
 
 * C# 基准格：`{{Roslyn}}\src\Scripting\CSharpTest\InteractiveSessionTests.cs:1545`（`HostObjectBinding_PublicGenericClassMembers`）、夹具 `:1519-1525`（`M<T>`）。
-* 生产锚点：`Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb:933-945`（VB 侧）/ `Compilers\CSharp\Portable\Compilation\CSharpCompilation.cs:1866-1885`（C# 蓝本）。
+* 生产锚点：`Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb:933-957`（VB 侧，修复后）/ `Compilers\CSharp\Portable\Compilation\CSharpCompilation.cs:1866-1885`（C# 蓝本）。
 * 崩溃链：`Symbols\AssemblySymbol.vb:580,582,596` + `Compilers\Core\Portable\MetadataReader\MetadataTypeName.cs:154`（`MangledNameRegionStartChar` 的字面值在 `Compilers\Core\Portable\MetadataReader\MetadataHelpers.cs:57`）。
 * 同一解析器的调用方（修复时须一并复核）：`Binding\Binder_Lookup.vb:920`（成员查找）、`:2045`（补全用符号表）、`Lowering\SynthesizedSubmissionFields.vb:55`（`<host-object>` 字段类型）、`Binding\Binder_Expressions.vb:2620`（宿主对象接收者构造）。
 * 任务上下文：`../tasks/script-mode-coverage-parity/design-detailed.md` §U3、`../tasks/script-mode-coverage-parity/test-plan.md` §U3。

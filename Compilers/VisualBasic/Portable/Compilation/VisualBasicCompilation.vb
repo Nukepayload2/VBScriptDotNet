@@ -932,13 +932,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
         Friend Function GetHostObjectTypeSymbol() As TypeSymbol
             Dim hostObjectType = Me.HostObjectType
-            If hostObjectType Is Nothing OrElse hostObjectType.FullName Is Nothing Then
+            If hostObjectType Is Nothing Then
                 Return Nothing
             End If
 
-            Dim result As TypeSymbol = GetTypeByMetadataName(hostObjectType.FullName)
-            If result Is Nothing AndAlso hostObjectType.FullName.Contains("+"c) Then
-                result = GetTypeByMetadataName(hostObjectType.FullName.Replace("+"c, "."c))
+            ' A constructed generic, an array or a nested type has no name that GetTypeByMetadataName can resolve -
+            ' its FullName spells the type arguments out together with their assembly names - so resolve it from the
+            ' reflection type, as CSharpCompilation.GetHostObjectTypeSymbol does. HostObjectType is validated by
+            ' Compilation.IsValidHostObjectType, so it is never a value type, a pointer, ByRef or open generic.
+            Dim result As TypeSymbol = GetTypeByReflectionType(hostObjectType)
+
+            If result Is Nothing AndAlso hostObjectType.FullName IsNot Nothing Then
+                ' Name based fallback for whatever the reflection route cannot resolve. '+' is the reflection
+                ' nesting separator and '.' the source level one.
+                result = GetTypeByMetadataName(hostObjectType.FullName)
+                If result Is Nothing AndAlso hostObjectType.FullName.Contains("+"c) Then
+                    result = GetTypeByMetadataName(hostObjectType.FullName.Replace("+"c, "."c))
+                End If
             End If
 
             Return result

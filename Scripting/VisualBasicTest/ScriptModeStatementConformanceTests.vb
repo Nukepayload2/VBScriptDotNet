@@ -12,6 +12,11 @@ Imports Xunit
 ''' Statement, reference and option cells of the matrix (design-detailed.md §U7 维度三/四/五). The top level host
 ''' is the synthesized script initializer, so statements that need a real method or an async context behave
 ''' differently here than in an ordinary method body - each cell pins which of the two it is.
+''' <para>
+''' The member declaration cells at the end of the file are here rather than in the declaration class because the
+''' declaration they pin is the <c>Sub</c> / <c>Property</c> header a statement list hangs off, not a field of
+''' the submission class.
+''' </para>
 ''' </summary>
 Public Class ScriptModeStatementConformanceTests
 
@@ -668,6 +673,135 @@ Public Class ScriptModeStatementConformanceTests
             "System.Console.WriteLine(1)" & vbCrLf &
             "Option Infer On" & vbCrLf &
             "Return ""OPTS""", "BC30627")
+    End Sub
+
+#End Region
+
+#Region "Error and Resume statements"
+
+    ''' <summary>
+    ''' <c>Error n</c> at the top level. The statement raises the VB error the number names, and it raises it as an
+    ''' ordinary .NET exception, so the top level <c>Try</c> around it catches it and the statements after
+    ''' <c>End Try</c> still run - the cell pins both halves (the raise and the survival) in one value, because an
+    ''' uncaught top level <c>Error n</c> leaves the submission without a return value at all.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelErrorStatement_IsCaughtByTheEnclosingTry()
+        ScriptModeConformance.AssertRuns(
+            "Dim state As Integer = 0" & vbCrLf &
+            "Try" & vbCrLf &
+            "    Error 5" & vbCrLf &
+            "Catch ex As System.Exception" & vbCrLf &
+            "    state += 1" & vbCrLf &
+            "End Try" & vbCrLf &
+            "state += 10" & vbCrLf &
+            "Return state", 11)
+    End Sub
+
+    ''' <summary>
+    ''' A bare <c>Resume</c> at the top level: its host is the async script initializer, which is not an error
+    ''' handling method, so BC36956 is reported. The same statement inside a top level <c>Sub</c> is ordinary VB
+    ''' (the <c>OnErrorInsideMethod_Conforms</c> cell above covers the handler it needs).
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelResumeStatement_IsReported()
+        ScriptModeConformance.AssertReports("Resume", "BC36956")
+    End Sub
+
+    ''' <summary>The <c>Resume Next</c> form of the same statement, rejected the same way.</summary>
+    <Fact>
+    Public Sub TopLevelResumeNextStatement_IsReported()
+        ScriptModeConformance.AssertReports("Resume Next", "BC36956")
+    End Sub
+
+#End Region
+
+#Region "Member declaration forms"
+
+    ''' <summary>
+    ''' <c>Optional</c> parameters on a <c>Function</c> the submission class declares. The call site is the
+    ''' discriminator: <c>Tell()</c> takes both defaults, <c>Tell(2)</c> overrides only the first, and
+    ''' <c>Tell(, 3)</c> overrides only the second, so all three signatures of the one declaration have to be
+    ''' built with the right default per parameter.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelOptionalParameters_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Function Tell(Optional x As Integer = 5, Optional y As Integer = 8) As String" & vbCrLf &
+            "    Return x & "","" & y" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return Tell() & ""/"" & Tell(2) & ""/"" & Tell(, 3)", "5,8/2,8/5,3")
+    End Sub
+
+    ''' <summary>
+    ''' A <c>ParamArray</c> parameter on a top level <c>Function</c>. The three call shapes are the ones the
+    ''' modifier exists for: no argument (an empty array is synthesized), one argument, and several.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelParamArrayParameters_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Function SumAll(ParamArray items As Integer()) As Integer" & vbCrLf &
+            "    Dim total As Integer = 0" & vbCrLf &
+            "    For Each item In items" & vbCrLf &
+            "        total += item" & vbCrLf &
+            "    Next" & vbCrLf &
+            "    Return total" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return SumAll() & ""/"" & SumAll(1) & ""/"" & SumAll(1, 2, 3)", "0/1/6")
+    End Sub
+
+    ''' <summary>
+    ''' A <c>Partial</c> method split over two <c>Partial Class</c> declarations of the submission class. The
+    ''' discriminator is that the body declared in the second declaration is the one the call in the first
+    ''' declaration reaches: the signature only, or a call left unmerged, answers <c>False</c>.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelPartialMethods_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Partial Class Part" & vbCrLf &
+            "    Private _built As Boolean" & vbCrLf &
+            "    Partial Private Sub OnBuild()" & vbCrLf &
+            "    End Sub" & vbCrLf &
+            "    Public Sub Go()" & vbCrLf &
+            "        OnBuild()" & vbCrLf &
+            "    End Sub" & vbCrLf &
+            "    Public Function Built() As Boolean" & vbCrLf &
+            "        Return _built" & vbCrLf &
+            "    End Function" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Partial Class Part" & vbCrLf &
+            "    Private Sub OnBuild()" & vbCrLf &
+            "        _built = True" & vbCrLf &
+            "    End Sub" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Dim made As New Part" & vbCrLf &
+            "made.Go()" & vbCrLf &
+            "Return made.Built()", True)
+    End Sub
+
+    ''' <summary>
+    ''' An <c>Iterator</c> property declared by a type the submission class nests, consumed by a top level
+    ''' <c>For Each</c>. The sum is over three <c>Yield</c> statements, so the property access has to produce the
+    ''' state machine the <c>Iterator</c> modifier asks for rather than a single value.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelIteratorProperty_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Class Bag" & vbCrLf &
+            "    Iterator ReadOnly Property Items As System.Collections.Generic.IEnumerable(Of Integer)" & vbCrLf &
+            "        Get" & vbCrLf &
+            "            Yield 1" & vbCrLf &
+            "            Yield 2" & vbCrLf &
+            "            Yield 3" & vbCrLf &
+            "        End Get" & vbCrLf &
+            "    End Property" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Dim held As New Bag" & vbCrLf &
+            "Dim total As Integer = 0" & vbCrLf &
+            "For Each value In held.Items" & vbCrLf &
+            "    total += value" & vbCrLf &
+            "Next" & vbCrLf &
+            "Return total", 6)
     End Sub
 
 #End Region
