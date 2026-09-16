@@ -359,6 +359,27 @@
 - 合并前评估义务：合并前读 `MergedNamespaceSymbol.ConstituentGlobalNamespaces` 与 `spec\spec-reference-directive.md` 做 3-way 评审；**上游若日后给 VB 补上同类别名过滤，按上游形状对齐并回退本 fork 改法；上游若仍然忽略别名，不得把这道过滤当「本地无谓改动」精简掉**（会连带打断 `<host>` / `<implicit>` 的隐藏语义）。同时核 `DeclarationsAccessibleWithoutAlias` 在上游是否仍只有这三个 C# 消费者（若上游给 VB 也接上，本条目随之关闭）。
 - 对应规范与测试：`spec\spec-reference-directive.md`；`Scripting\VisualBasicTest\ScriptModeReferenceAliasTests.vb`（本任务 U4 单元）。
 
+### 2.24 脚本模式覆盖对齐轮：上游原有测试文件的增量 + fork 自有测试/文档面（修改 + 新增）
+
+**产品面改动已由 §2.22 在册，本条不重复登记**：本轮对 `Compilers\` 的改动只有 `6772cc7` 的 `Compilers\VisualBasic\Portable\Compilation\VisualBasicCompilation.vb` 与 `Symbols\AssemblySymbol.vb` 两处（泛型 `globalsType` 宿主对象一档，即 §2.22 的 `+14 −4` / `+21 −2`）；工作区对 `Compilers\` 零改动（`git diff --name-only HEAD -- Compilers/` 零输出，**实锤**）。本条只登记本轮在 `Scripting\VisualBasicTest\` 与 `InternalDevDocs\` 的文件面。这些增量绝大多数落在 **fork 自有路径**（无 3-way 面）；**唯一有 3-way 面的是对上游原有文件的一处增量**。
+
+**（a）上游原有文件（合并时必须保住）**
+
+- `Scripting\VisualBasicTest\ScriptTests.vb`（`+176 −0`，纯追加于文件末尾，`6772cc7`）—— 新增 `#Load` 返回语义族 **7** 条 `<Fact>`（`TestMultipleLoadedFiles_FirstReturnDecides`、`TestLoadedFileReturnPrecedesTheMainTreeReturn` 等；C# 蓝本 `CSharpTest\ScriptTests.cs:643/661/684/707/742/777/808/826`）。**该文件为上游原有**（判据见下）。**3-way 注意**：这些断言锁的是 `#Load` 目标树并入**同一提交**、外层 `Return` 与载入树的 `Return` 在同一条提交方法里竞争（§2.5 的产品面），**不是**上游 C# 的「载入文件独立方法」形状；上游若重写该文件或改 `#Load` 的并入形状，按上游形状对齐并重评这 7 条，**不得**在合并时整体采用上游版本而丢掉这 176 行。该文件自 `c490340` 起被本 fork 反复改动（`git log -- Scripting/VisualBasicTest/ScriptTests.vb` 共 **11** 个提交），合并前须逐段 3-way。
+
+**（b）fork 自有路径（无 3-way 面；登记以正文件面分类）**
+
+- `Scripting\VisualBasicTest\` —— **上游目录**（基准 commit 的 `src\Scripting\VisualBasicTest\` 内含 `.vbproj`、`My Project\launchSettings.json` 与 **5** 个 `.vb`：`ScriptTests.vb` / `InteractiveSessionTests.vb` / `ObjectFormatterTests.vb` / `CommandLineRunnerTests.vb` / `PrintOptionsTests.vb`；**无** `Helpers\` 目录）。**§2.7 只在 (b) 里提到该目录**（`:94-96` 登记「`Scripting\VisualBasicTest\` 下的 fork 新增测试文件」），**未列入 (a) 的「上游目录 ⇒ 合并时必须逐文件比对上游改动」清单** ⇒ 读 §2.7 时**不得**把该目录整体当 fork 新增。本轮新增的 fork 自有文件：**15** 个 `.vb`（`ScriptModeApiSurfaceConformanceTests` / `ScriptModeArgsTests` / `ScriptModeErrorHandlingAndStaticsTests` / `ScriptModeLexicalConformanceTests` / `ScriptModeObjectFormatterTests` 与配套 `ScriptModeObjectFormatterFixtures` / `ScriptModeOperatorConformanceTests` / `ScriptModeParserArmConformanceTests` / `ScriptModePdbTests` / `ScriptModeQueryAndXmlConformanceTests` / `ScriptModeReferenceAliasTests` / `ScriptModeRuntimeFunctionTests` —— 以上 `6772cc7`；`ScriptModeTopLevelInferenceTests` —— `441395c`；`ScriptModeNestedContainerConformanceTests` / `ScriptModeExpressionArmConformanceTests` —— 未跟踪）＋ `Helpers\` **9** 个文件（上游基准树内无该目录，**实锤**）。其中 `ScriptModeReferenceAliasTests.vb` 的规范对应关系已在 §2.23 在册、`ScriptModeHostObjectConformanceTests.vb` 的用例锁定已在 §2.22 在册。
+  该目录 fork 自有文件的**现值**：`.vb` **32** 个（37 个 `.vb` 减上游原有的 5 个）＋ `Helpers\` **9** 个 = **41**。§2.7(b) 记的「27 个测试与 Helpers 文件」（`:94-96`）是**该节清点时的读数**，与本轮新增的 **14** 个相加恰为 41，也与 §2.7 同处记的「`Scripting\` 的 43 条 `rc=128` 路径」相符（43 − 16 产品/生成 = 27；27 + 14 = 41，**实锤**）。**§2.7 的正文数字按原样保留，不因本条修改**；合并前复跑其判据时按 41 起数。
+- `InternalDevDocs\spec\spec-scripting-dialect.md` —— Testing 节补「Container tests」与「Syntax-family tests」两节（嵌套容器面与语法族面）。`InternalDevDocs\` 全树为 fork 新增（§2.7(b) `:94`），无上游对照。
+- 说明：`6772cc7` 的 `M` 文件里另有 5 个（`InteractiveSessionReferencesTests.vb` / `ScriptModeHostObjectConformanceTests.vb` / `ScriptModeStatementConformanceTests.vb` / `ScriptModeSubmissionConformanceTests.vb` / `ScriptOptionsTests.vb`）是 **fork 自有文件**的增量（上游基准树内无这些路径），无 3-way 面。
+
+**判据（上游/本地的分类口径，实锤）**：本机 fork 仓**不含**基准 commit 对象（`git cat-file -t 0e401fcf66cbfd4aeb27a78408ab91cab3a6f207` 报 `could not get object info`，**实锤**）⇒ §2.7 的 `cat-file -e` 判据**在 fork 仓内当前复跑不了**：任一路径都返回 128，含 §2.7 自记 rc=0 的 `src\Scripting\Core\ScriptOptions.cs` ⇒ 该通道现为**假阴性**，不得据其判「fork 新增」。本条的（a）/（b）分类改取同版本的 `{{Roslyn}}` 仓 —— **其 HEAD 即基准 commit**（`git log -1` = `0e401fcf66c 2026-07-27`，**实锤**），以该仓的 tracked 树核对上游路径：`git ls-tree -r --name-only HEAD -- src/Scripting/VisualBasicTest` 实测 **7** 条（5 个 `.vb` + `.vbproj` + `My Project\launchSettings.json`，实锤）。**换机器或取到基准对象后，§2.7 与本条的分类都须复跑核对。**
+
+**合并前评估义务**：合并前读本条对 `Scripting\VisualBasicTest\ScriptTests.vb` 做逐段 3-way 评审（上游侧改动与本 fork 的 176 行同处一文件；`6772cc7` 对 `Scripting\VisualBasicTest\` 的净改动为 `+7638 −58`，其中 58 行删除**全部**落在 `ScriptModeHostObjectConformanceTests.vb`（`+278 −58`，该文件的改写已在 §2.22 在册），其余 `M` 文件均为纯增量）；(b) 的路径与上游不重叠，按 fork 自有文件处理。
+
+**对应规范与测试**：`spec\spec-scripting-dialect.md`（方言规范，其 Testing 节含本轮补的两节）；`tasks\script-mode-coverage-parity\`（`test-plan.md` §C 的语法 ledger 与 §C.3.P / §C.3.Q 两轮的收口读数）。
+
 ## 二·补、已知欠账：尚未登记的修改面（2026-09-11 清点）
 
 > **先读口径与限制**：本节的判定方法是「**文件面筛 + diff 复核**」，**未**逐个读 diff 判定每个改动点是否恰好落在既有 §2.x 条目的语义面内。因此「未登记」是**文件面级**结论，完整度标 `Suspect`——**补登记时必须逐 diff 复核心态，不得直接采信本表**。
