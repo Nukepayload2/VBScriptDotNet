@@ -978,4 +978,39 @@ Public Class ScriptModeApiSurfaceConformanceTests
 
 #End Region
 
+#Region "extra family 45 - LocalFunction_PreviousSubmissionAndGlobal"
+
+    ''' <summary>
+    ''' Extra family 45 (C# <c>LocalFunction_PreviousSubmissionAndGlobal</c>, IS:2126). VB has no local function
+    ''' (<c>LocalFunctionStatementSyntax</c> has no occurrence in <c>Compilers\VisualBasic</c>; the only member of
+    ''' that name is the empty <c>UsedLocalFunctions</c> override), so the VB dual of the C# cell is a lambda in
+    ''' place of the local function: the later submission's lambda calls the function the earlier submission
+    ''' declared, and reads the host object's member. Both halves have to arrive for the value to be 4 - <c>Y</c>
+    ''' is the host object's and <c>InInitialSubmission</c> is submission 0's, and the call has to reach the
+    ''' previous submission's body rather than answer 2. A lambda that could not see the earlier submission's member
+    ''' would fail to compile (BC30451), and one bound to a private copy of <c>Y</c> could not answer 4.
+    ''' </summary>
+    <Fact>
+    Public Async Function LocalFunctionDual_LaterLambdaCallsThePreviousSubmissionsFunction() As Task
+        Dim state = Await VisualBasicScript.
+            Create("Function InInitialSubmission() As Integer" & vbCrLf &
+                   "    Return Y" & vbCrLf &
+                   "End Function",
+                   s_options, globalsType:=GetType(LocalFunctionDualGlobals)).
+            ContinueWith("Dim lambda As System.Func(Of Integer) = Function()" & vbCrLf &
+                         "    Return Y + InInitialSubmission()" & vbCrLf &
+                         "End Function" & vbCrLf &
+                         "Return lambda()").
+            RunAsync(New LocalFunctionDualGlobals())
+
+        Assert.Equal(4, state.ReturnValue)
+    End Function
+
+    ''' <summary>The host object of the cell above; its single member is the global the C# fixture calls <c>Y</c>.</summary>
+    Public Class LocalFunctionDualGlobals
+        Public ReadOnly Property Y As Integer = 2
+    End Class
+
+#End Region
+
 End Class

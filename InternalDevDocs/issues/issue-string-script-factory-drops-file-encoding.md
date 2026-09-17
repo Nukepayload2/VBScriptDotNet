@@ -44,10 +44,10 @@ VisualBasicScript.Create(ThrowingCode, ScriptOptions … .WithFilePath("debug.vb
 
 | # | 向量 | 读数 | 三态 |
 |---|---|---|---|
-| 1 | 字符串 + 路径 + 开调试信息 + **无**编码（①，选项 `Nothing`） | 树的 `GetText().Encoding Is Nothing`；内存发射 `result.Success = False`，诊断**恰好 1 条** `BC37236`、严重级 `Error`、锚点 `debug.vbx:1`；宿主运行脚本时收到含同一 ID 的 `CompilationErrorException` | **实锤**（U7 格 1，`ScriptModePdbTests.vb:303`） |
-| 2 | 字符串 + 路径 + 开调试信息 + **设**编码（①，`Assert.Same(Encoding.UTF8, options.FileEncoding)` 为真） | **与第 1 行逐项相同**：选项已设，树**仍然无编码**，发射仍报 1 条 `BC37236`、锚点 `debug.vbx:1`。C# 在同一形状下**发 PDB 成功**、帧名为 `debug.csx` | **实锤**（U7 格 2，`:340`；C# 对标 `ScriptTests.cs:859`） |
-| 3 | **流** + 路径 + 开调试信息（②，不设编码） | 树**带**编码（`SourceText.From(Stream, Nothing, …)` 补 UTF-8 无 BOM，`Compilers\Core\Portable\Text\SourceText.cs`，符号 `From`，`:201`）；PE 的 portable CodeView 指向 `<asm>.pdb`；帧 = `debug.vbx` **1:1** | **实锤**（U7 格 5，`:415`） |
-| 4 | 字符串 + **无**路径 + 开调试信息（①） | 门**不触发**（条件的 `Not String.IsNullOrEmpty(FilePath)` 半边为假），发射**成功**，帧 = `""` **1:1** | **实锤**（U7 格 7，`:458`） |
+| 1 | 字符串 + 路径 + 开调试信息 + **无**编码（①，选项 `Nothing`） | 树的 `GetText().Encoding Is Nothing`；内存发射 `result.Success = False`，诊断**恰好 1 条** `BC37236`、严重级 `Error`、锚点 `debug.vbx:1`；宿主运行脚本时收到含同一 ID 的 `CompilationErrorException` | **实锤**（U7 格 1，`ScriptModePdbTests.vb:385`，`Pdb_String_CodeFromFile_WithDebugInformation_WithoutEncoding_ReportsBC37236`） |
+| 2 | 字符串 + 路径 + 开调试信息 + **设**编码（①，`Assert.Same(Encoding.UTF8, options.FileEncoding)` 为真） | **与第 1 行逐项相同**：选项已设，树**仍然无编码**，发射仍报 1 条 `BC37236`、锚点 `debug.vbx:1`。C# 在同一形状下**发 PDB 成功**、帧名为 `debug.csx` | **实锤**（U7 格 2，`:422`，`Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236`；C# 对标 `ScriptTests.cs:859`） |
+| 3 | **流** + 路径 + 开调试信息（②，不设编码） | 树**带**编码（`SourceText.From(Stream, Nothing, …)` 补 UTF-8 无 BOM，`Compilers\Core\Portable\Text\SourceText.cs`，符号 `From`，`:201`）；PE 的 portable CodeView 指向 `<asm>.pdb`；帧 = `debug.vbx` **1:1** | **实锤**（U7 格 5，`:497`，`Pdb_Stream_CodeFromFile_WithDebugInformation_FrameNamesTheScriptFile`） |
+| 4 | 字符串 + **无**路径 + 开调试信息（①） | 门**不触发**（条件的 `Not String.IsNullOrEmpty(FilePath)` 半边为假），发射**成功**，帧 = `""` **1:1** | **实锤**（U7 格 7，`:540`，`Pdb_String_InlineCode_WithDebugInformation_WithoutEncoding_FrameNamesTheEmptyPath`） |
 
 **第 2 行与第 3 行的对照是本 issue 的判别对**：同一路径、同一调试信息开关、同一（缺省）编码来源，只因**创建重载**不同（字符串 vs 流），一侧失败一侧成功 ⇒ 差异**只**来自字符串重载丢弃了选项。第 4 行排除「字符串路径本身发不出 PDB」这一相反解释。
 
@@ -77,9 +77,9 @@ VisualBasicScript.Create(ThrowingCode, ScriptOptions … .WithFilePath("debug.vb
 
 ## 可判的断言已就位（修复的报警线）
 
-U7 的格 2（`ScriptModePdbTests.vb:340`）与格 8（`:483`）把该不对称**本身**做成了断言：`options.FileEncoding` 已设（`Assert.Same`）而树**仍无编码**，且门触发报 `BC37236`。
+U7 的格 2（`ScriptModePdbTests.vb:422`，`Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236`）与格 8（`:565`，`Pdb_String_InlineCode_WithDebugInformation_WithEncoding_FrameNamesTheEmptyPath`）把该不对称**本身**做成了断言：`options.FileEncoding` 已设（`Assert.Same`）而树**仍无编码**，且门触发报 `BC37236`。
 
-⇒ **这是修复的报警线**：字符串重载一旦开始尊重该选项，格 2 与格 8 的树断言会**立刻变红**。替换断言已一并写好——格 5（`:415`）走流路径到达同一状态，其「调试目录 / 文档表 / 帧」三层断言即修复后字符串格应改成的形态。
+⇒ **这是修复的报警线**：字符串重载一旦开始尊重该选项，格 2 与格 8 的树断言会**立刻变红**。替换断言已一并写好——格 5（`:497`，`Pdb_Stream_CodeFromFile_WithDebugInformation_FrameNamesTheScriptFile`）走流路径到达同一状态，其「调试目录 / 文档表 / 帧」三层断言即修复后字符串格应改成的形态。
 
 ## 预期行为（两种，交用户裁决）
 

@@ -43,6 +43,12 @@
 ' what the C# baseline's TestEmit_PortablePdb delegates to PdbValidation.ValidateDebugDirectory
 ' ({{Roslyn}}\src\Test\PdbUtilities\Reader\PdbValidation.cs, `ValidateDebugDirectory`, :563).
 '
+' Pdb_PortablePdb_DebugDirectoryMatchesThePdb is the other half and is the C# baseline's own cell for it
+' (ScriptTests.cs, `TestEmit`, :74): it ports ValidateDebugDirectory's assertions one by one, so the entry in the
+' PE and the PDB stream are compared with each other instead of each being checked on its own. It is the cell
+' that corresponds to `TestEmit_PortablePdb` (:75) - the `TestEmit_WindowsPdb` variant (:78) has no counterpart
+' here and cannot have one on this host; that cell's summary states why.
+'
 ' Where the two options land - and one divergence
 ' ----------------------------------------------
 ' design-detailed.md section U7 asks for "EmitDebugInformation / FileEncoding landing on
@@ -230,6 +236,82 @@ Public Class ScriptModePdbTests
             Return reader.Documents.Select(Function(handle) reader.GetString(reader.GetDocument(handle).Name)).ToArray()
         End Using
     End Function
+
+#End Region
+
+#Region "the debug directory of the emitted PE"
+
+    ''' <summary>
+    ''' The in-memory port of the C# baseline's <c>TestEmit_PortablePdb</c> (ScriptTests.cs, `TestEmit`, :74) and of
+    ''' what it delegates to: <c>PdbValidation.ValidateDebugDirectory</c>
+    ''' ({{Roslyn}}\src\Test\PdbUtilities\Reader\PdbValidation.cs, `ValidateDebugDirectory`, :563-639). The emitting
+    ''' cells above check that the PE carries a portable CodeView entry naming the PDB; this cell is the half this
+    ''' file was missing - the entry and the PDB stream have to describe the same artifact.
+    ''' <para>
+    ''' The baseline asserts the same things through the same production emit options
+    ''' (ScriptBuilder.GetEmitOptions(emitDebugInformation:=True), :168-169, the call ScriptBuilder.Emit makes at
+    ''' :172-186), so the two languages are compared on one code path rather than on two hand built option sets.
+    ''' </para>
+    ''' <para>
+    ''' Why it can fail: every assertion names a different way for the PE and the PDB to disagree. The CodeView
+    ''' entry has to be the portable flavour (major 0x0100, minor 0x504D) - a native PDB entry carries the other
+    ''' pair; the identity has to hold - <c>pdbReader.DebugMetadataHeader.Id</c> is the GUID and the stamp the PE
+    ''' advertises, so an emit that hands out a PDB other than the one the entry names fails; <c>Age</c> has to be
+    ''' 1; the path has to be padded to the 260 byte target (PeWriter.PadPdbPath, :367-371) because this compilation
+    ''' is not deterministic (<c>CompilationOptions.Deterministic</c> defaults to false and no ScriptOptions surface
+    ''' sets it), which is why the baseline's other branch - the exact length assertion - is not the one used here;
+    ''' and the directory has to hold that single entry, so a PDB checksum entry, a reproducible entry or an
+    ''' embedded PDB would each make the count wrong.
+    ''' </para>
+    ''' <para>
+    ''' The C# baseline's <c>TestEmit_WindowsPdb</c> ([ConditionalFact(WindowsOnly)], :78) has no counterpart here
+    ''' and cannot have one: the emit options are built once, from
+    ''' <c>PdbHelpers.GetPlatformSpecificDebugInformationFormat</c> (Scripting\Core\ScriptBuilder.cs, :51-53), and
+    ''' that helper returns PortablePdb whenever CoreCLR or Mono is loaded
+    ''' (Scripting\Core\Utilities\PdbHelpers.cs, `GetPlatformSpecificDebugInformationFormat`, :14-24). No other
+    ''' options object reaches the emit, so on this host the format is fixed at PortablePdb and the Windows axis is
+    ''' unreachable rather than untested. The portable assertions below are what pin that fixed choice.
+    ''' </para>
+    ''' </summary>
+    <Fact>
+    Public Sub Pdb_PortablePdb_DebugDirectoryMatchesThePdb()
+        Dim script = VisualBasicScript.Create("1 + 2", OptionsFor(True, Nothing, Nothing))
+        Dim compilation = script.GetCompilation()
+        Assert.False(compilation.Options.Deterministic, "the padded path length below is the non deterministic branch")
+
+        Dim pe As MemoryStream = Nothing
+        Dim pdb As MemoryStream = Nothing
+        Dim result = EmitInMemory(script, emitDebugInformation:=True, peStream:=pe, pdbStream:=pdb)
+
+        Assert.True(result.Success, "the emit reported: " & String.Join("; ", result.Diagnostics.Select(Function(d) d.ToString())))
+
+        pe.Position = 0
+        Using reader = New PEReader(pe, PEStreamOptions.LeaveOpen)
+            Dim entries = reader.ReadDebugDirectory()
+            Assert.Equal(1, entries.Length)
+
+            Dim codeViewEntry = entries(0)
+            Assert.Equal(DebugDirectoryEntryType.CodeView, codeViewEntry.Type)
+            Assert.Equal(CInt(&H100), CInt(codeViewEntry.MajorVersion))
+            Assert.Equal(CInt(&H504D), CInt(codeViewEntry.MinorVersion))
+
+            Dim codeViewData = reader.ReadCodeViewDebugDirectoryData(codeViewEntry)
+            Assert.Equal(1, codeViewData.Age)
+            Assert.Equal(compilation.AssemblyName & ".pdb", codeViewData.Path)
+
+            ' CodeView data layout: "RSDS" (4) + GUID (16) + Age (4) + NUL terminated path.
+            Dim paddedPathLength = CInt(codeViewEntry.DataSize) - 24
+            Assert.True(paddedPathLength >= 260, "the path field has to be padded to MAX_PATH, was " & paddedPathLength)
+
+            pdb.Position = 0
+            Using provider = MetadataReaderProvider.FromPortablePdbStream(pdb, MetadataStreamOptions.LeaveOpen)
+                Dim pdbReader = provider.GetMetadataReader()
+
+                Assert.Equal(New BlobContentId(codeViewData.Guid, codeViewEntry.Stamp),
+                             New BlobContentId(pdbReader.DebugMetadataHeader.Id))
+            End Using
+        End Using
+    End Sub
 
 #End Region
 

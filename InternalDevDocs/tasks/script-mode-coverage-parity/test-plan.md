@@ -1135,3 +1135,154 @@ dotnet Scripting/VisualBasicTest/bin/Debug/net10.0/Microsoft.CodeAnalysis.Visual
 **三态标注**：上表 2 行的 4 个 `已覆盖` 格全部为**实锤**（用例已在本机跑通并断言，实测读数逐格写在行内）；`NotInheritable` 的 residual 为**实锤**（33 行 / 17 文件、含 `"` 行 0）；`End`/`Stop` 的重复计行事实为**实锤**（arm 行号 + `statements.md` 节标题）。**未闭合项**：无（§C.3.E 标题行数由 27 改正为 32 后，与 §C.3.0 的 B 行、本节数据行数三者自洽）。
 
 **推测项（本轮未闭合，留 U11 复核）**：本轮的差集清单**取自 U11b 的结论**（`NameOf` 与条件访问运算符两构造），**未重新独立推导全量差集**。为负责任起见做了一次旁证扫描（`ParseExpression.vb` 项分派器 `:190-431` 的 56 个关键字 arm 对照本文件全文），**推测**（非实锤）：唯一未被本文件逐字命名的三个 token 是 `UInteger`／`ULong`／`Variant`，而三者与 `Integer`／`Long`／`String` 等 15 个类型关键字**共用同一个 `Case` 块**（`:380-398`，体为 `ParseTypeName()`），不构成独立 arm；这 15 个关键字所在的「类型名出现在项位」构造由 `### Simple Name Expressions` 行（`test-plan.md:451`，两栏 `已覆盖`）承载，`Variant` 另按 `lexical-grammar.md:360` 的「retained as keywords, although they are no longer used」（与 `EndIf`/`GoSub`/`Let`/`Wend` 同类）属保留关键字面。⇒ **推测无残留行集缺口**；若 U11 复核要判据①为「零差集」，须用 U11b 的同一命令**重新独立推导**并核对该块。
+
+---
+
+## 6. B 矩阵闭口轮（U15a，2026-09-17）
+
+**触发**：`README.md` §三 的结束条件之一是「§B.1 矩阵的 47 个适用族（高档 20 + 中档 27）逐行闭口」。U14 只读调查逐行核实后报出：§B.1「VB 侧对应覆盖」列**以裸 `缺` 起头（即无任何指针）**的适用族共 13 个，其中 10 个是**纯文档滞后**（矩阵列未随单元完成更新，实际已有 `<Fact>` 钉住）、2 个是**真缺口**（族 3 PDB、族 36 扩展名优先级），第 13 个（族 45）未列入本轮范围。本轮把前 **12** 个逐个处置。
+
+**范围**：`design-detailed.md` §B.1 的 **12** 行（族 3、21、34、36、40、43、44、52、53、61、62、63）＋ §B.1 族 36 的「档」列不自洽修正；新增测试 **1** 个 `<Fact>`（`Scripting\VisualBasicTest\ScriptModePdbTests.vb`）。**生产源码零改动**（`Compilers\` 与 `Scripting\Core\` 零 diff）。
+
+### 6.1 十个「文档滞后」族的闭口（族 21、34、40、43、44、52、53、61、62、63）
+
+十行全部改为「`文件:行号`（方法名）＋ `缺口性质` = `—`」。**每个指针都逐条打开文件复核过（方法名与行号双锚，行号取本轮实际读取值）**，且「同时订正了当时为真、现已失效的检索断言」——订正只写在「缺口性质」列，**历史判定依据按纪律保留**（族 40 的原依据留在 §U4「为什么是高价值」段，其余各族的原依据即本表该行原措辞，已在列内引作订正对象）。
+
+| 族 | 新依据（方法名 + 行号双锚，**实锤**） | 一并订正掉的已失效断言 |
+|---|---|---|
+| 21 | `ScriptModeApiSurfaceConformanceTests.vb:698`（`DynamicExpando_LateBoundMembersAcrossSubmissions`） | —（原列无检索断言，只有 `完全缺`） |
+| 34 | `ScriptModeApiSurfaceConformanceTests.vb:361`（`InteractiveSession_ImportScopes`） | —（同上） |
+| 40 | `ScriptModeReferenceAliasTests.vb:213,243,265,305,457,495,535,615`（8 个 `<Fact>`，即 §U4 用例表 1–7 项） | 「以 `host`/`implicit` 两个纯模式检索…**无一处引用别名**」——该检索在 U4 补测前为真，现已失效 |
+| 43 | `ScriptModeSubmissionConformanceTests.vb:367,417,443,474`（对 C# 1–4）＋ 加强格 `:395`、`:506` ＋ REPL 面 `:257`、`:268` | 「`catchException` 零命中，**实锤**」——已失效（`catchException` 现见 `:352`/`:482`/`:490`/`:499`） |
+| 44 | `ScriptModeSubmissionConformanceTests.vb:543,561,579`（对 C# 1–3） | —（原列只有 `完全缺`） |
+| 52 | `ScriptModeArgsTests.vb:422,472,519,578`（对 C# 1/2/4/3） | 「`loadpath`/`libpath`/`SourcePaths`/`ReferencePaths` 零命中，**实锤**」与「完全缺（`/lib*`）」——两条均已失效（`:427`/`:526`） |
+| 53 | `ScriptModeApiSurfaceConformanceTests.vb:871`（对 `CLR:779`）＋ `:912`（成对负向格） | —（原列只有 `完全缺`） |
+| 61 | `ScriptModeObjectFormatterTests.vb:269`＋`:214`/`:373`/`:385`/`:405`＋`:570,614,633,651,664,682,695,707,719,741,759,777,806,825,851,873,906,934,963`（共 24 个 `<Fact>`；对账表在文件头 `:96-130`） | 「夹具已移植，测试零引用，**实锤**」——该检索在 U8 开工前为真，现已失效 |
+| 62 | `ScriptModeObjectFormatterTests.vb:555`（`FormatConstructorSignature`） | 「`ObjectFormatterTests.vb:101` 只测 `FormatMethodSignature`」——现状描述已被 U8 补测取代 |
+| 63 | `ScriptModeObjectFormatterTests.vb:1007,1025,1042,1060,1085,1107,1127,1148`（8 个 `<Fact>`；C# 的 `StackTrace_RefOutParameters` 在 VB 拆成 `ByRef`/`Out` 两格） | 「`FormatException`/`StackFrame` 零命中，**实锤**」——在 U8 补测前为真，现已失效 |
+
+### 6.2 族 3（PDB）：新补 1 格（**内存，无副作用**）
+
+新增 `ScriptModePdbTests.vb:277`（`Pdb_PortablePdb_DebugDirectoryMatchesThePdb`，`<Fact>` 在 `:276`），是 C# `TestEmit_PortablePdb`（`ST:75` → `ScriptTests.cs` 的 `TestEmit` `:74`）的逐条移植，即 `PdbValidation.ValidateDebugDirectory`（`{{Roslyn}}\src\Test\PdbUtilities\Reader\PdbValidation.cs:563-639`）的 VB 重写（本仓测试项目不引用 `PdbValidation`）。原 `AssertPeNamesThePortablePdb`（`:196`）只钉「便携 CodeView 存在」＋「path 以 `AssemblyName.pdb` 结尾」，本格补齐调查轮列出的四项：
+
+| # | 断言 | C# 基线对应 |
+|---|---|---|
+| 1 | **PE↔PDB 身份一致**：`New BlobContentId(codeViewData.Guid, codeViewEntry.Stamp)` == `New BlobContentId(pdbReader.DebugMetadataHeader.Id)` | `ValidateDebugDirectory` 的 `ValidatePortablePdbId`（`:641-646`） |
+| 2 | `codeViewData.Age = 1` | `:577` |
+| 3 | 非确定性下 path 字段填充长度：`codeViewEntry.DataSize - 24 >= 260`（并先断言 `compilation.Options.Deterministic = False`，`CompilationOptions.Deterministic` 默认 `false` 且无 `ScriptOptions` 面设置它） | `:585,593`（`PadPdbPath`，`PeWriter.cs:367-371`） |
+| 4 | Debug 目录**无多余条目**、**无嵌入式 PDB**：`entries.Length = 1` 且该条目 `Type = CodeView` | `:638` 的 `Assert.Equal(entries.Length, entryIndex)` |
+
+同格另断言便携版本对 `MajorVersion = 0x0100` / `MinorVersion = 0x504D`（`PdbValidation.cs:573-574`）。
+
+**Windows PDB 变体（`TestEmit_WindowsPdb`，`ST:78`）在本 fork 不可达**（**实锤**，读源码）：emit 选项只在 `ScriptBuilder.cs:51-53` 构造一次，其 `debugInformationFormat` 取自 `PdbHelpers.GetPlatformSpecificDebugInformationFormat`，而该 helper 在 CoreCLR / Mono 存在时恒返回 `PortablePdb`（`Scripting\Core\Utilities\PdbHelpers.cs:14-24`）；`ScriptBuilder.Emit`（`:172-186`）不另建选项对象 ⇒ 没有可与该格对偶的路径。故**不硬测**，只在本节与该族矩阵行内载明；新格的便携版本断言即这一固定选择的钉点。
+
+### 6.3 族 36（扩展名优先级）：机制层已闭口，端到端受无副作用纪律限制
+
+| 层 | 状态 | 证据 |
+|---|---|---|
+| 机制层 | **已闭口（实锤）** | `InteractiveSessionReferencesTests.vb:185`（`ExtensionPriority_DllIsProbedBeforeExe`，`Assert.Equal({".dll", ".exe"}, …AssemblyExtensions.ToArray())`）与 `:196`（`ExtensionPriority_WinmdIsNotProbed`，`Assert.DoesNotContain` + `Assert.Equal(2, …Length)`）钉住常量的顺序与成员；常量声明在 `RuntimeMetadataReferenceResolver.cs:44`，**三个消费者同读它**（`RuntimeMetadataReferenceResolver.cs:127`、`InteractiveAssemblyLoader.cs:451`、`:467`，本轮逐处打开复核，三处均以 `File.Exists(<name> & <ext>)` 逐扩展名探测） |
+| 端到端（同名 `.dll` 与 `.exe` 同时在盘时实际选中哪个） | **无新增用例，受硬禁令限制** | 该形状必须**真在磁盘上放两个同名文件**，与 `test-plan.md` §2「**禁止**：网络请求、写文件、起进程、写注册表」（`:25`）及 §2.1.1「新用例**不得**复用 `CreateIsolatedTempDirectory` / `CreateLibraryAssembly`」（`:36`、`:42-43`）直接冲突。**既有落盘用例亦无该形状**（检索证据：`grep -nE '\.exe\|AssemblyExtensions' Scripting/VisualBasicTest/*.vb` → 仅 `InteractiveSessionReferencesTests.vb:181` 的散文与该两格；两处 `CreateLibraryAssembly` 只落 `<name>.dll`：`InteractiveSessionReferencesTests.vb:27`、`CommandLineRunnerTests.vb:49`） |
+
+**结论**：本行的「缺口性质」列**不记 `—`**（那不是真闭口），按现状如实写为「机制层已闭口，端到端受无副作用纪律限制」，并把上面两条依据链与检索证据写进该列。
+
+### 6.4 §B.1 族 36 档列不自洽的修正（**实锤**）
+
+§B.1 族 36 的「档」列原写 `中（U9）`，而 §B.2 把它单列为**跨档**且不计入任何一档 ⇒ 两处不自洽，按 §B.1 逐行重数会得 48 而非 47。本轮把 §B.1 该列改为 **`跨档（优先级→中；extern alias→低）`**，与 §B.2 一致。**§B.2 的数字一字未动**（`20 + 27 + 8 + 13 = 68`，加跨档 1 = **69** ✓，与 §B.1 的 69 行一致）。
+
+### 6.5 回归读数
+
+**改前 724 passed / 0 failed → 改后 725 passed / 0 failed**（净增 **1** 个用例，即本轮新增的那一个 `<Fact>`；`TestsNotRun` / `TestsSkipped` 均为 0，故新增格确实跑过）。**全量 0 failed，无既有用例被打破。**
+
+```
+dotnet Scripting/VisualBasicTest/bin/Debug/net10.0/Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated
+```
+
+**测试无副作用**：新格只用既有内存 helper（`EmitInMemory` / `OptionsFor`，`ScriptModePdbTests.vb:180`/`:137`）＋ `PEReader` / `MetadataReaderProvider` 读内存流；不写文件、不起进程、不写注册表、不访问网络。
+
+### 6.6 三态标注、未闭合项与口径分歧
+
+**三态标注**：§6.1 的 12 族指针、§6.2 的新格、§6.3 的机制层与消费者落点、§6.4 的两处档列原文，全部为**实锤**（本轮逐条打开文件读取并把方法名与行号双锚写进矩阵）。**无推测项**。
+
+**未闭合项（诚实列）**：
+
+1. **族 36 的端到端**：如 §6.3，机制层已钉、端到端受 §2/§2.1.1 硬禁令限制，**未新增用例**（该行已如实写明，不记 `—`）。
+2. **族 45（`LocalFunction_PreviousSubmissionAndGlobal`，中档，在分母 47 内）未处置**：该行「VB 侧对应覆盖」列**仍以裸 `缺` 起头**，即按 `README.md` §三 的逐字判据**尚未闭口** ⇒ **47 族全闭口尚未达成**。本轮**未处置它**（不在派单的 12 族内，且其处置涉及「VB 无局部函数」这一适用性判断，不宜由本轮自行定调）。**候选落点**（**推测**，未逐条打开核对，故未写入矩阵）：`ScriptModeApiSurfaceConformanceTests.vb:725`（`ClosureCapture_CrossesSubmissions`，前序提交的顶层字段被后续提交的 lambda 捕获并回写）——但它按 C# 锚点是对 `IS:982` 的 `TestInteractiveClosures`（族 31），族 45 的 C# 主体是**局部函数**（`IS:2126` 的 `lambda` 里调用**前序提交的局部函数** `LocalFunction()`），VB 无局部函数 ⇒ 该族可对偶的只有「前序提交**声明**被后续提交 lambda 捕获」这一半，派单方需先裁定这是 `已覆盖` 还是「部分适用＋残余缺口」。**需裁决**。
+3. **`README.md` §三 判据的复核口径**：本轮把「闭口」理解为「该列**以裸 `缺` 起头**（无任何指针）」。按此口径，本轮后 47 族里仅**族 45** 未闭口；其余各族该列均已是指针（其残余缺口写在「缺口性质」列，不在判据所指的列内）。若判据要覆盖「缺口性质」列的字面，则本表仍有 37 行的该列含 `部分缺`/`完全缺` 一类措辞——那些是**残余缺口描述**，不是「无依据」。**该口径分歧需派单方确认**（本轮的读数已在上文逐条给出，两种口径都可复核）。其中最刺眼的一行是**族 14（`Pdb_*` 12 格，高档、在分母内）**：其「VB 侧对应覆盖」列只指着 `ScriptOptionsTests.vb:153`（`MutationProperties_AreImmutableAndReturnSameInstanceWhenUnchanged`，仅选项属性），而 `ScriptModePdbTests.vb` 整文件就是这 12 格的移植（文件头 `:8-27` 把 12 个 C# 方法逐字列出并与 12 格一一对应）——**同属文档滞后，本轮未处置**（不在派单的 12 族内，且与族 3 同属 U7，建议由派单方按同一处置补）。
+4. **旁证（§B.2 未改，如实登记）**：§B.2「中档」的「对应单元」列把族 3 归入 U9，而 §B.1 族 3 的「档」列写 `中（并入 U7）`。本轮按派单只修族 36 的档列，未动此处的单元映射（它不改任何数字，只影响「谁负责」的指向）。
+
+---
+
+## 7. B 矩阵闭口轮（U15b，2026-09-17）
+
+**触发**：U15a（§6）闭口 12 族后，§6.6 的未闭合项 2 与 3 各登记了一个未处置的族 —— **族 45**（裸 `缺`，在分母 47 内）与**族 14**（指针陈旧，只指 `ScriptOptionsTests.vb:153` 的选项属性测试，高档、在分母内）。本轮把这两族处置掉，§B.1 的适用族（高档 20 + 中档 27）至此逐行闭口。
+
+**范围**：`design-detailed.md` §B.1 的 **2** 行（族 14、族 45）；新增测试 **1** 个 `<Fact>`（`Scripting\VisualBasicTest\ScriptModeApiSurfaceConformanceTests.vb`）。**生产源码零改动**（`Compilers\` 与 `Scripting\Core\` 零 diff）。
+
+### 7.1 族 14（`Pdb_*` 12 格，高档）：指针改指 `ScriptModePdbTests.vb` 的 12 个 `<Fact>`
+
+复查方法：打开 `ScriptModePdbTests.vb` **逐条**核 12 格的归属，而不是照抄行号（12 个方法声明行本轮重新 grep 复核，值同 U15a 记录的现值）：
+
+| # | C# 的方法（`ScriptTests.cs`，文件头 `:11-22` 逐字列出的顺序） | VB 格（`<Fact>` 方法声明行 + 方法名） |
+|---|---|---|
+| 1 | `Pdb_CreateFromString_CodeFromFile_WithEmitDebugInformation_WithoutFileEncoding_CompilationErrorException`（`ST:842`） | `:385` `Pdb_String_CodeFromFile_WithDebugInformation_WithoutEncoding_ReportsBC37236` |
+| 2 | `…_WithFileEncoding_ResultInPdbEmitted`（`ST:859`） | `:422` `Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236` |
+| 3 | `…_WithoutEmitDebugInformation_WithoutFileEncoding_ResultInPdbNotEmitted`（`ST:866`） | `:448` `Pdb_String_CodeFromFile_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation` |
+| 4 | `…_WithoutEmitDebugInformation_WithFileEncoding_ResultInPdbNotEmitted`（`ST:873`） | `:464` `Pdb_String_CodeFromFile_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation` |
+| 5 | `Pdb_CreateFromStream_CodeFromFile_WithEmitDebugInformation_ResultInPdbEmitted`（`ST:881`） | `:497` `Pdb_Stream_CodeFromFile_WithDebugInformation_FrameNamesTheScriptFile` |
+| 6 | `Pdb_CreateFromStream_CodeFromFile_WithoutEmitDebugInformation_ResultInPdbNotEmitted`（`ST:888`） | `:519` `Pdb_Stream_CodeFromFile_WithoutDebugInformation_FrameHasNoFileInformation` |
+| 7 | `Pdb_CreateFromString_InlineCode_WithEmitDebugInformation_WithoutFileEncoding_ResultInPdbEmitted`（`ST:896`） | `:540` `Pdb_String_InlineCode_WithDebugInformation_WithoutEncoding_FrameNamesTheEmptyPath` |
+| 8 | `…_InlineCode_WithEmitDebugInformation_WithFileEncoding_ResultInPdbEmitted`（`ST:904`） | `:565` `Pdb_String_InlineCode_WithDebugInformation_WithEncoding_FrameNamesTheEmptyPath` |
+| 9 | `…_InlineCode_WithoutEmitDebugInformation_WithoutFileEncoding_ResultInPdbNotEmitted`（`ST:911`） | `:588` `Pdb_String_InlineCode_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation` |
+| 10 | `…_InlineCode_WithoutEmitDebugInformation_WithFileEncoding_ResultInPdbNotEmitted`（`ST:918`） | `:601` `Pdb_String_InlineCode_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation` |
+| 11 | `Pdb_CreateFromStream_InlineCode_WithEmitDebugInformation_ResultInPdbEmitted`（`ST:926`） | `:618` `Pdb_Stream_InlineCode_WithDebugInformation_FrameNamesTheEmptyPath` |
+| 12 | `Pdb_CreateFromStream_InlineCode_WithoutEmitDebugInformation_ResultInPdbNotEmitted`（`ST:933`） | `:639` `Pdb_Stream_InlineCode_WithoutDebugInformation_FrameHasNoFileInformation` |
+
+**对应关系为实锤**：每一格的 `<summary>` 都逐字写出自己的 C# 基线方法名，且 12 格的顺序与文件头 `:11-22` 列出的 12 个 C# 方法名**同序**（该清单由 `:23-27` 的散文声明「Cells 1 to 12 below are one for one with those twelve methods, in the same order」）；`ScriptModePdbTests.vb` 另有 2 格不属本族（`:684` 的 `Pdb_LoadedFileKeepsItsOwnFileAndLineInTheFrame` 是 `#Load` 格 cell 13，C# 无对应；`:277` 的 `Pdb_PortablePdb_DebugDirectoryMatchesThePdb` 已归族 3）。族 14 的矩阵行按此改为 12 个指针，**「缺口性质」列写 `—`**。
+
+**C# 侧「真栈帧」那一半的落点（本轮新核）**：该族 C# 基线除 PDB 目录外还断言真栈帧的 `GetFileName`/`GetFileLineNumber`/`GetFileColumnNumber`（`ST:842–937`，经 `VerifyStackTraceAsync`）。VB 侧**覆盖到 10/12 格**：4 格 emitting 断言「脚本路径或空串 + line 1 + column 1」，6 格 not-emitting 断言 `Nothing`/0/0；余 2 格（`:385`/`:422`）的树无编码、emit 被 `BC37236` 拒绝，**无帧可断言**，断言的是该诊断落在脚本自身路径与首行且宿主收到同一条（与 C# 格 1 的 `CompilationErrorException` 位置同位）。这 10/12 的落点已写进该行的「缺口性质」列。
+
+**一处如实记录的分歧（不判缺口）**：格 2（`:422`）与 C# 蓝本**行为不同** —— C# 的 `CSharpScript.cs:37` 把 `FileEncoding` 也交给字符串形式，故同形状发射 PDB 并得 `debug.csx` 帧；VB 的字符串形式不把该选项传给 `SourceText.From`（`Scripting\VisualBasic\VisualBasicScript.vb` 的 `Create(Of T)` `:29`）⇒ 报 `BC37236`。该分歧**继承自上游**（上游 VB 的同一工厂调用相同，且无流重载）、**无产品路径**触发（`WithFileEncoding` 是给外部宿主的公共 API 轴），且 VB 侧那一格正是**分歧的钉点**（选项被设且不传递，两条断言同时成立）。按原设计记录在矩阵列内。
+
+### 7.2 族 45（`LocalFunction_PreviousSubmissionAndGlobal`，中档）：走**路径 (b)**，新补 1 格
+
+**先核 (a) 是否存在既有覆盖 —— 结论是没有（实锤）**：
+
+| 检索 | 命令 | 命中 | 判定 |
+|---|---|---|---|
+| 后续提交的 lambda 体里带语句调用（跨行形状） | `rg -U '(Sub\|Function)\([^)]*\)[\r\n]+\s*"?\s*[A-Za-z_]\w*\s*\('` | 1 处，`ScriptModeHostObjectConformanceTests.vb:456-457`，是断言代码不是脚本源码 ⇒ 无用例 | 无覆盖 |
+| 测试源串里出现的所有 lambda | `rg '"[^"]*\b(Sub\|Function)\('`（**正对照**：该模式在 `Scripting\VisualBasicTest\*.vb` 上命中 **60+** 处真实 lambda 源串，如 `ScriptModeApiSurfaceConformanceTests.vb:730`、`ScriptModeSubmissionConformanceTests.vb:686`、`ScriptModeConformanceTests.vb:443` ⇒ 非静默零命中） | 逐条打开：`ScriptModeErrorHandlingAndStaticsTests.vb:320` 的 `Sub() Swallow()` 是**同一提交内**的调用；`ScriptModeHostObjectConformanceTests.vb:656`/`:678` 的 `Function() Value` 是**同一提交内**读宿主成员；其余是事件处理器、LINQ lambda、匿名类型形状 | 无覆盖 |
+| `AddressOf` 跨提交取方法组 | `rg 'AddressOf'` | 7 处：`InteractiveSessionTests.vb:93`（前序提交的 `Function` 取 `AddressOf`，但**在顶层**、不在 lambda 体内）、`ScriptModeSubmissionConformanceTests.vb:175`（前序提交实例方法的 `AddressOf`，同为顶层）、`ScriptTests.vb:340,341,350`、`ScriptModeObjectFormatterTests.vb:907` | 无覆盖 |
+| 多行 lambda 体内 `Return <名字>(…)` | `rg -U '(Sub\|Function)\(\)[\s\S]{0,300}?Return\s+\w+\('` | 6 处，其中脚本源码里的唯一一处是 `ScriptModeHostObjectConformanceTests.vb:656` 的 `Return read()`（调用的是**同一方法体内**声明的 `read` 局部变量） | 无覆盖 |
+
+⇒ **不存在**「后续提交的 lambda 调用前序提交声明的 `Sub`/`Function`」形状的既有测试，**(a) 不成立**。
+
+**为什么不是 (c)**：(c) 要求论证「VB 里连 lambda 对偶都写不出来」。VB **有** lambda（`Function()`/`Sub()` 表达式），且**跨提交引用前序提交的成员在 VB 里是既有能力**（`ScriptModeApiSurfaceConformanceTests.vb:82` 的 `first.Script.ContinueWith("? M(5)")` 调用前序提交的 `Function M`；`ScriptModeSubmissionConformanceTests.vb:165` 取前序提交实例方法的委托；`ScriptTests.vb:348` 的后续提交读前序提交的委托值）。「缺的只是**把该调用放进 lambda 体内**」这一点 —— 那是能写的，故 (c) 的论证不成立，**不能**把「适用性」改为 `不适用`。**§B.2 的分母不变（仍 47）**。
+
+**新格**：`ScriptModeApiSurfaceConformanceTests.vb:994`（`LocalFunctionDual_LaterLambdaCallsThePreviousSubmissionsFunction`，`<Fact>` 在 `:993`），宿主对象 `LocalFunctionDualGlobals`（`:1010`，`Y = 2`）。
+
+- 提交 0：`Function InInitialSubmission() As Integer` → `Return Y`（**实锤**：宿主对象成员在顶层方法体里可读，族 42 的 `HostObjectBinding_InstanceContextCanReadHostInstanceMember` 已钉同形）。
+- 提交 1：`Dim lambda As System.Func(Of Integer) = Function()` → `Return Y + InInitialSubmission()`；随后 `Return lambda()`。
+- 断言 `4`：`Y`（宿主 = 2）与 `InInitialSubmission()`（前序提交 = 2）两半都到位才有 4；lambda 若读不到前序提交的成员则该提交报 `BC30451`、链被拒（不是断言松弛）。
+
+**与 C# 基线的逐半对齐**（`IS:2126`）：C# 的 `InInitialSubmission()` 体内调**局部函数**、局部函数读 **global** `Y`，后续提交的 lambda 再调 `InInitialSubmission()` 并声明自己的局部函数读 `Y` ⇒ 4。VB 无局部函数（见下），故「局部函数」这一层塌缩掉：前序提交的 `Function` 直接读 `Y`，后续提交的 lambda 直接调它 **且** 读同一个 `Y`。C# 的两处调用点（局部函数调前序提交、lambda 调前序提交）在 VB 侧合为「lambda 调前序提交」，**值 4 与两半的可见性都仍在**。
+
+**「VB 无局部函数」的检索证据（实锤，带正对照）**：`rg 'LocalFunctionStatement'` 在 `C:\Users\james\Projects\VBScriptDotNet\Compilers\VisualBasic` 得 **0（0 文件）**；**正对照**：同一模式在 `C:\Users\james\Projects\roslyn\src\Compilers\CSharp\Portable` 得 **245 次 / 46 文件** ⇒ 模式有效、零命中为真。另有 `UsedLocalFunctions` 在 VB 侧的唯一命中 `Compilers\VisualBasic\Portable\Analysis\FlowAnalysis\VisualBasicDataFlowAnalysis.vb:289`（硬编码 `Empty` 的桩），与既有提案 `InternalDevDocs\proposals\proposal-local-functions.md` 的 B1 条一致。
+
+### 7.3 回归读数
+
+**改前 725 passed / 0 failed → 改后 726 passed / 0 failed**（净增 **1** 个用例，即本轮新增的那一个 `<Fact>`；`TestsNotRun` / `TestsSkipped` 均为 0，故新增格确实跑过）。
+
+```
+dotnet Scripting/VisualBasicTest/bin/Debug/net10.0/Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests.dll -automated
+```
+
+**测试无副作用**：新格只用 `ScriptModeConformance.DefaultOptions` 与 `VisualBasicScript.Create(...).ContinueWith(...).RunAsync(globals)` 的内存 API（既有 `InteractiveSessionTests.vb:348` 的同一形状），宿主对象是测试进程内的普通 `Class`；不写文件、不起进程、不写注册表、不访问网络。
+
+### 7.4 三态标注与未闭合项
+
+**三态标注**：§7.1 的 12 个指针、10/12 的真栈帧落点、格 2 的分歧三条来源、「缺口性质 = `—`」的判断，全部为**实锤**（本轮逐格打开 `ScriptModePdbTests.vb` 读取并重 grep 行号，方法名与行号双锚）。§7.2 的四条检索结论、「VB 无局部函数」、新格的四条断言，全部为**实锤**（命令 + 命中 + 正对照已列在表内；新格已在本机跑通并断言 4）。**无推测项**。
+
+**未闭合项（诚实列）**：
+
+1. **族 45 的 C# 第一半「局部函数看到外层作用域」在 VB 里没有对偶**（VB 无局部函数，实锤）。本轮的处置是：该半**并入**新格的宿主对象读取（同一个 lambda 同时承担「调前序提交」与「读 global」两半），C# 的「局部函数」这一语法层本身**不可能**有 VB 对偶。这不是残余缺口，是语言能力差异 —— 故「适用性」列**不变**（`部分适用（VB 无局部函数；lambda 捕获对偶）`），**§B.2 的分母保持 47、数字一字未动**。
+2. **§6.6 的未闭合项 1（族 36 端到端）与 4（§B.2 族 3 的单元映射）本轮未动**：不在派单范围内。族 36 的端到端仍是受 §2/§2.1.1 硬禁令限制的如实记录（该行不记 `—`）。

@@ -77,7 +77,8 @@
 |---|---|---|
 | 统计范围 | `CSharpTest\*.cs` + `CoreTest\*.cs` 的 `[Fact]`/`[Theory]`/`[ConditionalFact]`/`[ConditionalTheory]` | 同目录 `*.vb` 的 `<Fact>`/`<Theory>` |
 | 计数值 | **265 个 `[Fact]`/`[Theory]` + 38 个 `[Conditional*]` = 303**（逐文件计数见 `design-detailed.md` §B.0） | **451 个属性**（21 个文件）；含 `<Fact, WorkItem(...)>` 形式时为 **454**；`Helpers\*.vb` 的 `<Fact>` 计数实测为 **0**（故「451 减 Helpers 与夹具」这一步的减法对象是**测试类内的非 Fact 成员**，不是 Helpers） |
-| 是否计入 Desktop 变体 | 否（`CSharpTest.Desktop\*` / `CoreTest.Desktop\*` 不在统计面） | 否（`VisualBasicTest.Desktop\` 只有 3 个用例） |
+| 是否计入 Desktop 变体 | 否（`CSharpTest.Desktop\*` / `CoreTest.Desktop\*` 不在统计面） | 否（`VisualBasicTest.Desktop\` 实测 **5** 个 `<Fact>`：`ObjectFormatterTests.vb` 的 `ArrayList`/`Hashtable`/`Queue`/`Stack`/`SortedList`；`InteractiveSessionTests.vb` 是空壳，只有 `' TODO: port tests from C#`） |
+| Desktop 变体的可跑性 | 不适用（不在统计面） | **当前跑不了**：该项目的 `TargetFramework` 是 `net6.0`，而其依赖（`Microsoft.CodeAnalysis.Test.Utilities` / `Roslyn.Test.PdbUtilities` / `Microsoft.CodeAnalysis.Compiler.Test.Resources`）已是 `net10.0`，`dotnet build` 报 3 个 `NU1201`。文件自 2023-10-14（`232d946`）后未改动，且不在任何 `.sln` 里 ⇒ 属**预存在的失修**，不构成本任务的缺口（两侧 Desktop 变体**对称地**不入统计面） |
 
 **口径的重要性**：本任务的结束条件之一是「达到 C# 同等或超过」，若不给口径就无法判定。上表的 VB 侧计数是**方法计数**，不是**覆盖率**——本任务不承诺「用例数超过 303」，承诺的是 **§三 矩阵的每一行闭口**（B 组）与 **§四 ledger 的三项合取判据**（C 组）。用例数只作**副产品指标**记录，不作验收判据。这一点是**剪枝结果**：以用例数当验收会诱导造冗余用例，与「覆盖缺口」的真实目标错位。
 
