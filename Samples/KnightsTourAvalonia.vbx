@@ -1,0 +1,220 @@
+' Avalonia port of the Small Basic "sVB" Knight's Tour demo (.vbx).
+'
+' The board is filled with Warnsdorff's Rule: from the current square, jump to the unvisited
+' neighbour that itself has the fewest onward moves, so the tour reaches all 64 squares without
+' backtracking. A blue disc and the step number are left behind on every visited square while the
+' red triangle plays the part of the horse.
+'
+' Requires the .NET (net10) vbi host and .NET SDK.
+
+#R "NuGet:Avalonia, 12.1.1"
+#R "NuGet:Avalonia.Desktop, 12.1.1"
+#R "NuGet:Avalonia.Themes.Fluent, 12.1.1"
+#R "NuGet:Avalonia.Fonts.Inter, 12.1.1"
+
+Imports System.Threading.Tasks
+Imports Avalonia
+Imports Avalonia.Controls
+Imports Avalonia.Controls.ApplicationLifetimes
+Imports Avalonia.Controls.Shapes
+Imports Avalonia.Media
+Imports Avalonia.Themes.Fluent
+
+Public Class KnightsTourApp
+    Inherits Application
+
+    Public Overrides Sub Initialize()
+        Styles.Add(New FluentTheme())
+    End Sub
+
+    Public Overrides Sub OnFrameworkInitializationCompleted()
+        Dim lifetime = TryCast(ApplicationLifetime, IClassicDesktopStyleApplicationLifetime)
+        If lifetime IsNot Nothing Then
+            lifetime.MainWindow = New KnightsTourWindow()
+            lifetime.ShutdownMode = ShutdownMode.OnMainWindowClose
+        End If
+        MyBase.OnFrameworkInitializationCompleted()
+    End Sub
+End Class
+
+Public Class KnightsTourWindow
+    Inherits Window
+
+    Private Const BoardSize As Integer = 8
+    Private Const CellSize As Double = 60
+    Private Const Diameter As Double = 40
+    Private Const DiscInset As Double = (CellSize - Diameter) / 2
+    Private Const BoardPixels As Double = BoardSize * CellSize
+    Private Const JumpDelay As Integer = 1000
+
+    ' The horse's eight jumps as parallel (dx, dy) displacements, 1-based board coordinates.
+    Private Shared ReadOnly s_dx() As Integer = {2, 1, -1, -2, -2, -1, 1, 2}
+    Private Shared ReadOnly s_dy() As Integer = {1, 2, 2, 1, -1, -2, -2, -1}
+
+    Private ReadOnly _board(BoardSize, BoardSize) As Integer
+    Private ReadOnly _boardSurface As New Canvas()
+
+    ' ZIndex keeps the horse above the discs that are appended to the same surface later on.
+    Private ReadOnly _horse As New Polygon With {
+        .Points = New Points(New Point() {
+            New Point(0, Diameter),
+            New Point(Diameter, Diameter),
+            New Point(Diameter / 2, 0)
+        }),
+        .Fill = Brushes.Red,
+        .ZIndex = 1
+    }
+
+    Private _x As Integer = 1
+    Private _y As Integer = 1
+
+    Public Sub New()
+        Title = "Knight's Tour (Warnsdorff's Rule)"
+        Background = Brushes.LightGray
+        ClientSize = New Size(BoardPixels, BoardPixels)
+        WindowStartupLocation = WindowStartupLocation.CenterScreen
+        CanResize = False
+
+        _boardSurface.Width = BoardPixels
+        _boardSurface.Height = BoardPixels
+        DrawBoard()
+        _boardSurface.Children.Add(_horse)
+        Content = _boardSurface
+
+        AddHandler Me.Opened, AddressOf OnWindowOpened
+    End Sub
+
+    Private Sub DrawBoard()
+        For x = 1 To BoardSize
+            For y = 1 To BoardSize
+                ' sVB flips the brush colour before each FillRectangle, so its top-left square is white:
+                ' paint white wherever col + row is even. Reading "odd column starts black" instead
+                ' inverts every square on the board.
+                AddCell((x - 1) * CellSize, (y - 1) * CellSize, (x + y) Mod 2 = 0)
+            Next
+        Next
+    End Sub
+
+    Private Sub AddCell(left As Double, top As Double, paintWhite As Boolean)
+        Dim cell As New Rectangle With {
+            .Width = CellSize,
+            .Height = CellSize,
+            .Fill = If(paintWhite, Brushes.White, Brushes.Black),
+            .Stroke = Brushes.Black
+        }
+        Canvas.SetLeft(cell, left)
+        Canvas.SetTop(cell, top)
+        _boardSurface.Children.Add(cell)
+    End Sub
+
+    Private Async Sub OnWindowOpened(sender As Object, e As EventArgs)
+        _board(_x, _y) = 1
+        MarkSquare(1)
+        MoveHorse()
+
+        For moveNumber = 2 To BoardSize * BoardSize
+            If Not JumpToNextSquare(moveNumber) Then
+                Title = $"Knight's Tour stuck after {moveNumber - 1} squares"
+                Return
+            End If
+            MarkSquare(moveNumber)
+            MoveHorse()
+            PlayClick()
+            Await Task.Delay(JumpDelay)
+        Next
+
+        PlayChime()
+        Title = "Knight's Tour complete"
+    End Sub
+
+    ' Warnsdorff's Rule: take the unvisited neighbour with the fewest onward moves.
+    Private Function JumpToNextSquare(moveNumber As Integer) As Boolean
+        Dim fewestOnward = Integer.MaxValue
+        Dim targetX = -1, targetY = -1
+
+        For k = 0 To s_dx.Length - 1
+            Dim candidateX = _x + s_dx(k)
+            Dim candidateY = _y + s_dy(k)
+            If candidateX >= 1 AndAlso candidateX <= BoardSize AndAlso
+               candidateY >= 1 AndAlso candidateY <= BoardSize AndAlso
+               _board(candidateX, candidateY) = 0 Then
+                Dim onward = CountOnwardMoves(candidateX, candidateY)
+                If onward < fewestOnward Then
+                    fewestOnward = onward
+                    targetX = candidateX
+                    targetY = candidateY
+                End If
+            End If
+        Next
+
+        If targetX < 0 Then
+            Return False
+        End If
+
+        _x = targetX
+        _y = targetY
+        _board(_x, _y) = moveNumber
+        Return True
+    End Function
+
+    Private Function CountOnwardMoves(fromX As Integer, fromY As Integer) As Integer
+        Dim count = 0
+        For k = 0 To s_dx.Length - 1
+            Dim toX = fromX + s_dx(k)
+            Dim toY = fromY + s_dy(k)
+            If toX >= 1 AndAlso toX <= BoardSize AndAlso
+               toY >= 1 AndAlso toY <= BoardSize AndAlso
+               _board(toX, toY) = 0 Then
+                count += 1
+            End If
+        Next
+        Return count
+    End Function
+
+    Private Sub MarkSquare(moveNumber As Integer)
+        Dim left = (_x - 1) * CellSize
+        Dim top = (_y - 1) * CellSize
+
+        Dim disc As New Ellipse With {
+            .Width = Diameter,
+            .Height = Diameter,
+            .Fill = Brushes.Blue
+        }
+        Canvas.SetLeft(disc, left + DiscInset)
+        Canvas.SetTop(disc, top + DiscInset)
+        _boardSurface.Children.Add(disc)
+
+        Dim label As New TextBlock With {
+            .Text = moveNumber.ToString(),
+            .Foreground = Brushes.White,
+            .FontSize = 16,
+            .FontFamily = New FontFamily("Inter")
+        }
+        Canvas.SetLeft(label, left + DiscInset + 6)
+        Canvas.SetTop(label, top + DiscInset + 6)
+        _boardSurface.Children.Add(label)
+    End Sub
+
+    Private Sub MoveHorse()
+        Canvas.SetLeft(_horse, (_x - 1) * CellSize + DiscInset)
+        Canvas.SetTop(_horse, (_y - 1) * CellSize + DiscInset)
+    End Sub
+
+    ' Sound.PlayClick / Sound.PlayChime stand-ins: Beep runs on a worker so the UI thread keeps painting.
+    Private Shared Sub PlayClick()
+        Task.Run(Sub() Console.Beep(1200, 50))
+    End Sub
+
+    Private Shared Sub PlayChime()
+        Task.Run(
+            Sub()
+                Console.Beep(660, 150)
+                Console.Beep(990, 300)
+            End Sub)
+    End Sub
+End Class
+
+AppBuilder.Configure(Of KnightsTourApp).
+    UsePlatformDetect.
+    WithInterFont.
+    StartWithClassicDesktopLifetime(Environment.GetCommandLineArgs, ShutdownMode.OnMainWindowClose)
