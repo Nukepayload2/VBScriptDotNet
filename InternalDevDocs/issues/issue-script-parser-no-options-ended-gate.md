@@ -1,6 +1,6 @@
 # 脚本解析器缺 `optionsEnded` 门：`--` 之后的 token 仍按 switch 处理，裸 `@` token 触发断言
 
-- **状态**：**Open**（**交用户裁决 / 停手上报**；不自行改语义、不自行改产品源码，不预填 commit）
+- **状态**：**Fixed**（已验证，commit 待作者提交后补）——**方向 A（对齐全 csi）已落地**：主循环补 `optionsEnded` 门（`VisualBasicCommandLineParser.vb:172`/`:199`/`:203`，唯一写点 `:481` 在 `IsScriptCommandLineParser` 块内 ⇒ vbc 面可证零影响）。主线复跑 `CommandLine` 门 483/476/7/0、`Scripting\VisualBasicTest` 直跑 766/0、重建 Debug 宿主三格实跑（档 2：`vbi -- a.vbx` 跑通、`vbi -- @x` 不再撞断言转 `BC2001`、`vbi -` stdin 仍可用）。账本 `..\upstream-merge.md` §2.25(e)；计划 `..\tasks\script-parser-options-ended-gate\`。下方取证段为**登记时（修复前）**的原样记录，保留不改。
 - **发现日期**：2026-09-16
 - **发现场景**：`../tasks/script-mode-coverage-parity/` 的 U6（命令行参数 `Args` 与搜索路径）补测。登记依据同任务 `README.md` **§八 义务 1** 末句（「实施期若发现别的真缺陷，同样按此登记」）。
 - **影响面**：`vbi` 的**脚本解析路径** —— `VisualBasicCommandLineParser.Script`，即 `vbi`（无参 REPL）、`vbi /i`、`vbi -- …`、`vbi script.vbx`。编译模式（`VisualBasicCommandLineParser.Default`）**不可达**本断言（取证见「根因」第 3 条）；**编译模式下 `Case "-"`（`:1339`，位于 `:475` 的 `If IsScriptCommandLineParser Then` 的 `Else` 分支 ⇒ 编译模式专属）同样把 `--` 当标准输入开关**，`@` token 则落响应文件分支（实测读数见「实测读数」第 5 行）。

@@ -20,6 +20,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         ' The type of the field. Set to Nothing if not computed yet.
         Private _lazyType As TypeSymbol
 
+        ' Guards against re-entrant inference for script top-level `Dim x = <expr>` (e.g. `Dim x = x`).
+        Private _computingScriptFieldType As Boolean
+
         Private _lazyMeParameter As ParameterSymbol
 
         Protected Sub New(container As SourceMemberContainerTypeSymbol,
@@ -89,6 +92,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         End Property
 
         Private Function ComputeType(diagBag As BindingDiagnosticBag) As TypeSymbol
+            ' Issue 32: a top-level `Dim x = <expr>` in a SCRIPT class carries the same Option-Infer-
+            ' inferred static type an equivalent method-body local would, instead of Object. Gated to
+            ' IsScriptClass so ordinary VB fields (which must declare a type) are byte-for-byte unchanged.
+            If Not IsConst AndAlso ContainingType.IsScriptClass Then
+                Dim inferredType = TryComputeScriptFieldType(diagBag)
+                If inferredType IsNot Nothing Then
+                    Return inferredType
+                End If
+            End If
+
             Dim declaredType = GetDeclaredType(diagBag)  ' needed for diagnostic creation in all cases
 
             If Not HasDeclaredType Then
@@ -96,6 +109,66 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             Else
                 Return declaredType
             End If
+        End Function
+
+        ' Returns the inferred field type for a script top-level `Dim x = <expr>`, or Nothing to fall
+        ' back to the ordinary (Object / As-clause) path. Mirrors the Option-Infer decision in
+        ' Binder.DecodeVarTypeOrInfer for a local.
+        Private Function TryComputeScriptFieldType(diagBag As BindingDiagnosticBag) As TypeSymbol
+            If _computingScriptFieldType Then
+                Return Nothing
+            End If
+
+            Dim modifiedIdentifier As ModifiedIdentifierSyntax = DirectCast(Syntax, ModifiedIdentifierSyntax)
+            Dim declarator = DirectCast(modifiedIdentifier.Parent, VariableDeclaratorSyntax)
+
+            ' Only a plain, unmodified `Dim x = <expr>` with no As clause infers here.
+            If declarator.AsClause IsNot Nothing Then Return Nothing
+            If modifiedIdentifier.Identifier.GetTypeCharacter() <> TypeCharacter.None Then Return Nothing
+            If modifiedIdentifier.Nullable.Node IsNot Nothing Then Return Nothing
+            If modifiedIdentifier.ArrayBounds IsNot Nothing Then Return Nothing
+            If Not modifiedIdentifier.ArrayRankSpecifiers.IsEmpty Then Return Nothing
+
+            Dim equalsValueOpt = TryCast(declarator.Initializer, EqualsValueSyntax)
+            If equalsValueOpt Is Nothing Then Return Nothing
+
+            Dim binder As Binder = BinderBuilder.CreateBinderForType(
+                DirectCast(Me.ContainingModule, SourceModuleSymbol), Me.SyntaxTree, ContainingType)
+            binder = New LocationSpecificBinder(BindingLocation.FieldType, Me, binder)
+
+            ' Option Infer Off keeps today's Object behavior, exactly like a local.
+            If Not binder.OptionInfer Then Return Nothing
+
+            _computingScriptFieldType = True
+            Try
+                ' Bind the initializer only to read its type. Diagnostics are discarded here; the
+                ' emitted value is bound separately during <Initialize> and reports everything once.
+                Dim value As BoundExpression = binder.BindValue(equalsValueOpt.Value, BindingDiagnosticBag.Discarded)
+
+                If value Is Nothing OrElse value.IsNothingLiteral Then Return Nothing
+
+                Dim inferFrom As BoundExpression = value
+                If Not inferFrom.IsNothingLiteral Then
+                    inferFrom = inferFrom.GetMostEnclosedParenthesizedExpression()
+                End If
+
+                Dim inferredType As TypeSymbol
+                Select Case inferFrom.Kind
+                    Case BoundKind.UnboundLambda
+                        inferredType = DirectCast(inferFrom, UnboundLambda).InferredAnonymousDelegate.Key
+                    Case BoundKind.ArrayLiteral
+                        inferredType = DirectCast(inferFrom, BoundArrayLiteral).InferredType
+                    Case BoundKind.TupleLiteral
+                        inferredType = DirectCast(inferFrom, BoundTupleLiteral).InferredType
+                    Case Else
+                        inferredType = inferFrom.Type
+                End Select
+
+                If inferredType Is Nothing OrElse inferredType.IsErrorType() Then Return Nothing
+                Return inferredType
+            Finally
+                _computingScriptFieldType = False
+            End Try
         End Function
 
         Private Function GetDeclaredType(diagBag As BindingDiagnosticBag) As TypeSymbol

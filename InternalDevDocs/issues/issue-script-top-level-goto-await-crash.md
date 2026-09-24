@@ -94,4 +94,4 @@ Console.WriteLine("C")
 ## 相关
 
 - 姊妹问题（**根因不同**，勿混）：`issue-script-top-level-await-in-try-crash.md`。
-- 本条的修复方向见 `../tasks/script-top-level-crashes/`：**判「修好」**——但会使 `spec-scripting-dialect.md:266-268` 那条「顶层 `GoTo` 运行效果不保证」的 Decision 失效，**须与规范同步**（该取舍待作者确认）。
+- 本条的修复方向见 `../tasks/script-top-level-crashes/`：**判「修好」**——但会使 `spec-scripting-dialect.md:275-277` 那条「顶层 `GoTo` 运行效果不保证」的 Decision 失效，**须与规范同步**（该取舍待作者确认）。

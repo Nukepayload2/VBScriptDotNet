@@ -16,7 +16,7 @@
 [motivation]: #motivation
 
 - **`WithEvents` / `Handles` 在脚本里不是冷门组合。** 它是 VB 用户表达「把某个对象的某个事件绑到这个方法」的声明式写法，`Handles` 更是 VB 相对 C# 的招牌语法。`.vbx` 与 REPL 面向的是 VB6/VBA 迁移用户，这批人写 `WithEvents` 的默认动作是声明式而不是命令式 `AddHandler`。今天他们得到的是**编译器崩溃**，不是错误信息。
-- **现状违反两条已生效的纪律。** `meeting-scripting-dialect.md` RESOLUTION **R11** 裁决「`WithEvents`/`Handles` 不得静默，实现挂钩或给显式诊断，二选一」（`:150`），spec 也已在方言边界段落把该行为划到保证之外（`spec\spec-scripting-dialect.md:348`）。但 spec 的措辞（「a submission class synthesizes no hookup constructors」）描述的是 `AddWithEventsHookupConstructorsIfNeeded` 的 TODO 分支，不是用户实际遭遇的行为——用户遭遇的是异常终止。
+- **现状违反两条已生效的纪律。** `meeting-scripting-dialect.md` RESOLUTION **R11** 裁决「`WithEvents`/`Handles` 不得静默，实现挂钩或给显式诊断，二选一」（`:150`），spec 也已在方言边界段落把该行为划到保证之外（`spec\spec-scripting-dialect.md:357`）。但 spec 的措辞（「a submission class synthesizes no hookup constructors」）描述的是 `AddWithEventsHookupConstructorsIfNeeded` 的 TODO 分支，不是用户实际遭遇的行为——用户遭遇的是异常终止。
 - **它是 `spec-scripting-dialect` 的最后一个未闭合结构面。** 该 spec 已把声明模型、提交链、入口点、结果规则、`#Load` 多树、`Imports` 累积都钉成基线；唯独事件挂钩一句带过，且那一句对「非提交脚本类」的描述与注入层实现不符（见 Detailed design §4 子情形 (vi) 与 §7）。
 - **`decisions.md` D5 要求基础功能的落地细节以 C# / csi 为蓝本，并说明「为什么 VB 必须分叉」。** 事件挂钩正好落在 D5 的点名范围（构造器、初始化器、类型落点）。本提案按 D5 的要求把对照做到底，结论是：分叉**解释得了**（`WithEvents`/`Handles` 是 C# 没有的语言概念），但**解释不了当前的崩溃**——上游 Roslyn 自己把它登记为 dotnet/roslyn#14073（`ImplicitNamedTypeSymbol.vb:217`）。缺口的性质是「移植不完整」，这也是它必须走完整流程、而不是当 bug 顺手改的原因：补齐它要新定义规则，不是恢复既有行为。
 
@@ -255,7 +255,7 @@ C# 里让一个订阅生效必须由用户写代码：`E += handler;`（脚本�
 | (v) | 顶层 `WithEvents` 仅声明（无 `Handles`） | Release 可用；Debug 断言误伤 | 可用 | 放宽 `SourceWithEventsBackingFieldSymbol.vb:66` 断言 |
 | (vi) | 非提交脚本类（`DeclarationKind.Script` → `TypeKind.Class`，`SourceMemberContainerTypeSymbol.vb:156-157`） | **符号层走 Class 分支，注入层被 `MethodCompiler.vb:1482` 跳过** | 与 (i) 同 | 与 (i) 同 |
 
-子情形 (vi) 是既有资料的第二处转述差异：`meeting-scripting-dialect.md:150` 与 `spec:348` 都说「非提交脚本类走普通 Class 路径」。这在**符号合成层**（`SourceMemberContainerTypeSymbol.vb:2808`）成立，在**挂钩注入层**不成立——`IsScriptConstructor` 对 `DeclarationKind.Script` 的合成构造器同样为真（`MethodSymbol.vb:517-521` + `SourceMemberContainerTypeSymbol.vb:1295-1300`），于是 `MethodCompiler.vb:1482` 同样让它 `body = block`。**已检查（代码路径）；运行后果未实证（§8 第 2 项）。**
+子情形 (vi) 是既有资料的第二处转述差异：`meeting-scripting-dialect.md:150` 与 `spec:357` 都说「非提交脚本类走普通 Class 路径」。这在**符号合成层**（`SourceMemberContainerTypeSymbol.vb:2808`）成立，在**挂钩注入层**不成立——`IsScriptConstructor` 对 `DeclarationKind.Script` 的合成构造器同样为真（`MethodSymbol.vb:517-521` + `SourceMemberContainerTypeSymbol.vb:1295-1300`），于是 `MethodCompiler.vb:1482` 同样让它 `body = block`。**已检查（代码路径）；运行后果未实证（§8 第 2 项）。**
 
 **落地路径（推荐顺序，取舍留 LDM）：**
 
@@ -396,7 +396,7 @@ Return 0
 - **脚本类的声明模型、提交链、`<Initialize>`/`<Main>`/`<Factory>` 合成、跨提交可见性** —— `proposals\proposal-scripting-dialect.md`（本文只写事件挂钩这一面）。**特别地，`<Initialize>` 的调用时机与「每提交实例化」模型**属该提案的领域，本文 §2.6 只引用其结论。
 - **顶层 `AddHandler` / `RemoveHandler` 作为可执行语句** —— 已由 `spec\spec-scripting-dialect.md:182-196` 规定，是**命令式**订阅面，与本文的声明式 `Handles` 面互补且不重叠。
 - **`#Load` 多树提交** —— `proposals\proposal-load-directive.md`（本文 §2.6 与 Unresolved 5 只写它与挂钩写入宿主的相互作用面）。
-- **spec 的方言边界段订正** —— `spec\spec-scripting-dialect.md:348` 现文称「A non-submission script class follows the ordinary class path」，该句在符号合成层成立、在挂钩注入层不成立（§4 (vi)）；且「a submission class synthesizes no hookup constructors」未描述用户实际遭遇的崩溃。spec 订正归 `spec\` 侧，本文只记事实与锚点。
+- **spec 的方言边界段订正** —— `spec\spec-scripting-dialect.md:357` 现文称「A non-submission script class follows the ordinary class path」，该句在符号合成层成立、在挂钩注入层不成立（§4 (vi)）；且「a submission class synthesizes no hookup constructors」未描述用户实际遭遇的崩溃。spec 订正归 `spec\` 侧，本文只记事实与锚点。
 
 ### 8. 本阶段的证据边界（未复现项）
 
@@ -445,7 +445,7 @@ Return 0
 - **证据等级**：已检查。
 
 **D. 维持现状 + 文档化边界。**
-当前 spec 已按这条写（`spec\spec-scripting-dialect.md:348` 把该行为划出保证范围）。**不可取**，两条理由：① 现状不是「静默失效」而是**进程终止**，把崩溃写进「边界」不成立——Release 下未处理 `InvalidOperationException`（退出码 9）没有任何用户体验可言，Debug 下断言终止更直接；② 与 `meeting-scripting-dialect.md:150` R11 的「不接受静默」裁决冲突，也与「不留遗留问题」的收口纪律冲突。列出此项是为了让会议有明确的否决记录。
+当前 spec 已按这条写（`spec\spec-scripting-dialect.md:357` 把该行为划出保证范围）。**不可取**，两条理由：① 现状不是「静默失效」而是**进程终止**，把崩溃写进「边界」不成立——Release 下未处理 `InvalidOperationException`（退出码 9）没有任何用户体验可言，Debug 下断言终止更直接；② 与 `meeting-scripting-dialect.md:150` R11 的「不接受静默」裁决冲突，也与「不留遗留问题」的收口纪律冲突。列出此项是为了让会议有明确的否决记录。
 
 **E. 复用 `WithEvents` 容器的既有挂载机制，不新建 hookup 机制（本提案倾向的路径）。**
 `WithEvents` 容器的挂/摘钩已经完整实现于属性 `Set` 访问器（`SynthesizedPropertyAccessorBase.vb:143-196`、`:201-271`、`:273-300`、`:302-345`），且与类型种类无关（该文件 `TypeKind` 零命中）；脚本类顶层 `Dim x As New R` 的赋值进 `<Initialize>` 作为初始化器语句，`Set` 被触发（§2.5）。
@@ -478,14 +478,14 @@ Return 0
 6. **`Handles MyBase.E` 在提交类上的语义。** 提交类无基类型（`ImplicitNamedTypeSymbol.vb:51-60`、`SourceNamedTypeSymbol.vb:1431-1436`），该子句语义为空。三选一：报错 / 报诊断 / 与 `Me` 等价。C# 无对应物可参照。
 7. **诊断码选址与 xlf 义务（若采候选 C）。** 既有 `Handles` 诊断族语义不匹配（`VBResources.resx:2358-2370`），需新增码 → 走 VB 资源 + 13 语言同步；同时要决定诊断覆盖范围是否包含非提交脚本类（子情形 (vi)）与 Debug 断言点。
 8. **`SourceWithEventsBackingFieldSymbol.vb:66` 的断言该怎么处理。** 对脚本类它必然为假（`ImplicitNamedTypeSymbol.vb:33-37`），Release 下被编译掉且产物正确（§1 (d) 已运行）。是放宽为 `Not Me.ContainingType.IsImplicitlyDeclared OrElse Me.ContainingType.IsScriptClass`，还是让脚本类的 `WithEvents` 后备字段不走这条断言，需与本主题的实现一起定，否则在断言存在的期间，Debug 构建下顶层 `WithEvents`（连带 P-A1 的任何用例）都测不了。该断言在 Debug 下还会**遮蔽 (c) 的跨提交崩溃**：跨提交用例的前序提交含顶层 `WithEvents`，Debug 实测终止于 `:66` 断言（退出码 35）而非 `:702`（§1 表 (c) 行），因此「断言存在期间测不了顶层 `WithEvents`」也包括 (c) 族。
-9. **子情形 (vi)（非提交脚本类）是否一并覆盖。** 该形态的构造入口是「Script 解析选项 + `Create(..., isSubmission:=False)`」（`VisualBasicCompiler.vb:96` 是解析侧的构造点），与本 fork 的脚本宿主（`vbi` 文件执行与 REPL 都走 `CreateScriptCompilation(..., isSubmission:=True)`，`VisualBasicScriptCompiler.vb:208` → `VisualBasicCompilation.vb:368-389`）不是同一条路；本轮与外部复验都**未复现**该形态（§8 第 2 项）。若不一并覆盖，`spec:348` 与 `meeting:150` 中「非提交脚本类走普通 Class 路径」的表述必须订正为「符号层成立、注入层不成立」。
+9. **子情形 (vi)（非提交脚本类）是否一并覆盖。** 该形态的构造入口是「Script 解析选项 + `Create(..., isSubmission:=False)`」（`VisualBasicCompiler.vb:96` 是解析侧的构造点），与本 fork 的脚本宿主（`vbi` 文件执行与 REPL 都走 `CreateScriptCompilation(..., isSubmission:=True)`，`VisualBasicScriptCompiler.vb:208` → `VisualBasicCompilation.vb:368-389`）不是同一条路；本轮与外部复验都**未复现**该形态（§8 第 2 项）。若不一并覆盖，`spec:357` 与 `meeting:150` 中「非提交脚本类走普通 Class 路径」的表述必须订正为「符号层成立、注入层不成立」。
 10. **`WithEvents` 容器的挂载时机与 `Nothing` 保护。** `Set` 访问器路径只在**属性被赋值**时挂钩（§2.2）；`WithEvents x As Raiser`（无初始化器、也无后续赋值）在普通 VB 里同样不挂钩。需确认这是有意语义还是缺口，并在 spec 里明确脚本侧的同一规则——这一条与 §2.6 的「同提交」前提叠加后，会决定用户能写出的最小可用形态。
 11. **`Suspect`：本主题在 `upstream-merge.md` 无台账条目。** 现有账本未记录 `SourceMemberContainerTypeSymbol.vb:2806` 的 TODO 与 `ImplicitNamedTypeSymbol.vb:213-219` 的上游短路是否属于 fork 改动面。**未与 `upstream-merge.md:10` 的基准 commit 做 diff**，故标 `Suspect`；落实实现前需确认这两处在基准 commit 中的原状。
 
 ## 相关文档
 
 - `InternalDevDocs\meetings\meeting-scripting-dialect.md:150`（RESOLUTION R11：「`WithEvents`/`Handles` 不得静默，实现挂钩或给显式诊断，二选一」）、`:172`（对应 TODO）
-- `InternalDevDocs\spec\spec-scripting-dialect.md:348`（方言边界段「`WithEvents` in a submission class」；本文 §4 (vi) 与 §7 指出其两处与实现不符）、`:182-196`（顶层 `AddHandler`/`RemoveHandler` 作为可执行语句）
+- `InternalDevDocs\spec\spec-scripting-dialect.md:357`（方言边界段「`WithEvents` in a submission class」；本文 §4 (vi) 与 §7 指出其两处与实现不符）、`:182-196`（顶层 `AddHandler`/`RemoveHandler` 作为可执行语句）
 - `InternalDevDocs\proposals\proposal-scripting-dialect.md`（脚本声明与提交模型，本文的父邻域；`<Initialize>` 的调用时机与每提交实例化模型属该提案）
 - `InternalDevDocs\proposals\proposal-load-directive.md`（多树提交，本文 Unresolved 5 的邻域）
 - `InternalDevDocs\decisions.md` D5（基础功能以 C# / csi 为蓝本，须给「VB 特有的理由」排查结论；本文 §3 为该要求在本主题上的落实）
@@ -493,4 +493,4 @@ Return 0
 - `Compilers\VisualBasic\Portable\Compilation\MethodCompiler.vb`、`Analysis\InitializerRewriter.vb`、`Binding\SyntheticBoundTrees\SynthesizedPropertyAccessorBase.vb`、`Symbols\Source\SynthesizedEntryPointSymbol.vb`（挂钩注入层与提交实例化）
 - `Compilers\CSharp\Portable\Symbols\Synthesized\SynthesizedSubmissionConstructor.cs`、`Symbols\Synthesized\SynthesizedEventAccessorSymbol.cs`、`Compiler\MethodBodySynthesizer.cs`、`Lowering\InitializerRewriter.cs`（C# 对照基准）
 - `Compilers\VisualBasicEmitTest\CodeGen\CodeGenWithEvents.vb`（普通类 `WithEvents`/`Handles` 回归网）
-- `InternalDevDocs\spec\spec-scripting-dialect.md:344` 的边界条目与 `InternalDevDocs\spec\README.md`（方言能力的归档面）
+- `InternalDevDocs\spec\spec-scripting-dialect.md:353` 的边界条目与 `InternalDevDocs\spec\README.md`（方言能力的归档面）

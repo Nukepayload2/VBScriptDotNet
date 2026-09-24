@@ -1932,6 +1932,55 @@ ResolutionComplete:
         End Function
 
         ''' <summary>
+        ''' Compares the submissions that declared the two candidates by their position in the interactive
+        ''' submission chain. No winner is reported unless both candidates are declared by submissions of
+        ''' different compilations whose slots are allocated and differ, so that members of the same submission,
+        ''' and everything that is not a submission, keep the outcome the rest of overload resolution produces.
+        ''' </summary>
+        Friend Shared Function TryGetSubmissionSlotWinner(
+            leftCandidate As CandidateAnalysisResult, rightCandidate As CandidateAnalysisResult,
+            ByRef leftWins As Boolean, ByRef rightWins As Boolean
+        ) As Boolean
+            Dim leftSymbol As Symbol = leftCandidate.Candidate.UnderlyingSymbol
+            Dim rightSymbol As Symbol = rightCandidate.Candidate.UnderlyingSymbol
+
+            If leftSymbol.ContainingType.TypeKind <> TypeKind.Submission OrElse
+               rightSymbol.ContainingType.TypeKind <> TypeKind.Submission Then
+                Return False
+            End If
+
+            Dim leftCompilation = leftSymbol.DeclaringCompilation
+            Dim rightCompilation = rightSymbol.DeclaringCompilation
+
+            If leftCompilation Is Nothing OrElse rightCompilation Is Nothing OrElse
+               leftCompilation Is rightCompilation Then
+                Return False
+            End If
+
+            ' Submission slots are allocated lazily and are negative for anything that is not a submission.
+            ' Equal slots mean the two compilations occupy the same position in the chain (a submission without
+            ' code to emit does not advance the slot), so nothing distinguishes them.
+            Dim leftSlotIndex As Integer = leftCompilation.GetSubmissionSlotIndex()
+            Dim rightSlotIndex As Integer = rightCompilation.GetSubmissionSlotIndex()
+
+            If leftSlotIndex < 0 OrElse rightSlotIndex < 0 Then
+                Return False
+            End If
+
+            If leftSlotIndex > rightSlotIndex Then
+                leftWins = True
+                Return True
+            End If
+
+            If rightSlotIndex > leftSlotIndex Then
+                rightWins = True
+                Return True
+            End If
+
+            Return False
+        End Function
+
+        ''' <summary>
         ''' Implements shadowing based on
         ''' §11.8.1 Overloaded Method Resolution.
         '''    7.10.	If the overload resolution is being done to resolve the target of a
@@ -4433,6 +4482,18 @@ Bailout:
                     If Not someCandidatesHaveOverloadResolutionPriority AndAlso ShadowBasedOnExtensionMethodTargetTypeGenericity(existingCandidate, newCandidate, existingWins, newWins) Then
                         GoTo DeterminedTheWinner
                     End If
+                End If
+
+                ' Position in interactive submission chain. The last definition wins.
+                ' This is the VB counterpart of the tie-break applied by the C# compiler
+                ' (CSharp OverloadResolution.BetterFunctionMember), and it is reached only for candidates whose
+                ' declared signatures match. Members of distinct submissions that merely overload each other
+                ' (different signatures) must both survive, so the signatureMatch guard is essential here:
+                ' the C# compiler, whose rule is guarded the same way, reports such a pair as ambiguous.
+                ' Duplicates declared by the *same* submission are intentionally not covered: they keep
+                ' reporting the diagnostics they report today.
+                If signatureMatch AndAlso TryGetSubmissionSlotWinner(existingCandidate, newCandidate, existingWins, newWins) Then
+                    GoTo DeterminedTheWinner
                 End If
 
 DeterminedTheWinner:

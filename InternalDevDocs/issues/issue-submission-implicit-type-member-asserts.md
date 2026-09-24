@@ -86,4 +86,4 @@ Not Me.ContainingType.IsImplicitlyDeclared
 - `InternalDevDocs\proposals\proposal-submission-shared-members.md`——本 issue 由该提案的「同一族还有别的缺口」清点发现（探针 A/B 原为「`Shared` 事件 / `Shared WithEvents` 字段」两问，实测发现与 `Shared` 无关）。
 - `InternalDevDocs\proposals\proposal-with-events-in-submissions.md`——提交里的 `WithEvents` / `Handles` 语义提案。该提案的实测面是**绑定期**崩溃（`SourceMemberMethodSymbol.BindSingleHandlesClause` 落 `UnexpectedValue`）与 `Handles` 挂/摘钩语义；本 issue 是**发射期**的断言族，两者触发点不同，不可互相覆盖。
 - `InternalDevDocs\issues\issue-script-top-level-extension-method-crash.md`（issue 04）——同属「提交类顶层成员遇到只为普通类写的前提」形状。
-- `InternalDevDocs\spec\spec-scripting-dialect.md:348`——「`WithEvents` in a submission class … A `Handles` clause in a submission class is not supported: no diagnostic is reported for it, and the compilation does not complete.」本 issue 是同一片边界的另一个终止点（无 `Handles` 子句也终止）。
+- `InternalDevDocs\spec\spec-scripting-dialect.md:357`——「`WithEvents` in a submission class … A `Handles` clause in a submission class is not supported: no diagnostic is reported for it, and the compilation does not complete.」本 issue 是同一片边界的另一个终止点（无 `Handles` 子句也终止）。

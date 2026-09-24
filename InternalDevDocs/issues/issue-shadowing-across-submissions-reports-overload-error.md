@@ -1,6 +1,6 @@
 # 跨提交同名重声明报 `BC30521`「重载决策失败」：容器把两个提交的同名成员当重载集，`Shadows` 无效
 
-- **状态**：**Open**（**停手上报 / 交用户裁决**；不自行改语义、不自行改产品源码，不预填 commit）
+- **状态**：**In Progress**（2026-09-22 按 `../decisions.md` **D7** 完成取证并**自动裁决为「可移植、改」**，不再"交用户裁决"：目标形状＝跨提交同名 `Function`/`Property` 重声明**合法、最新定义者独占、零诊断**。取证日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`；裁定与两处更正见下节「D7 裁定」；实施另行立项 `tasks\submission-member-redeclaration-tiebreak\`，本文件不改产品码）
 - **发现日期**：2026-09-16
 - **发现场景**：`../tasks/script-mode-coverage-parity/` 的 U9（脚本 API 面剩余缺口）。触发点是该单元的**格 1**：
   C# 基线 `TestBranchingSubscripts`（`{{Roslyn}}\src\Scripting\CSharpTest\ScriptTests.cs:452`）在两个分支链里
@@ -121,7 +121,42 @@
 不是「凡与 C# 不同就记为差异了事」。本 issue 把它**从「差异」升级为「登记在册的缺陷」**，理由见上。
 **钉住的那条用例保留**（它是修复的报警线：修复后行为一变，该用例即红）。
 
-## 两个候选方向（**不自行选，交用户裁决**）
+## D7 裁定（2026-09-22 只读取证批次；日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`）
+
+**先说结论**：判**「可移植、改」**，按 D7 自动裁，不再交人工。目标形状＝**跨提交同名 `Method`/`Property` 重声明合法、最新定义者独占、零诊断**。
+
+### 本仓树内的 C# 判据（档 3 读码；D7 前置纪律要求先量到树内锚点）
+
+1. **决策层有兜底择一**（这就是 VB 缺的那一环）：`Compilers\CSharp\Portable\Binder\Semantics\OverloadResolution\OverloadResolution.cs:2504-2523`，注释逐字 *"Otherwise: Position in interactive submission chain. The last definition wins."*，按 `GetSubmissionSlotIndex()`（共享设施 `Compilers\Core\Portable\Compilation\Compilation.cs:524-534`）比大小直接判胜，**不产生歧义诊断**。
+2. **查找层只对 Method/Indexer 继续合并**：`Binder\Binder_Lookup.cs:435-441`（`result.MergeEqual(...)` 后 `if (!IsMethodOrIndexer(firstSymbol)) break;`，`IsMethodOrIndexer` 定义 `:1390-1393`）⇒ field/property 就地 break、最近提交独占。
+3. **提交类无继承**：`Symbols\Source\ImplicitNamedTypeSymbol.cs:56-64` ⇒ 提交链上既无 CS0108 隐藏警告，也无 `new` 修饰符的用武之地。
+4. VB 侧对应面：查找层与 C# 同构（`Binder_Lookup.vb:893 If Not first.IsOverloadable Then Exit Do` ↔ C# `:438`），差别只在判据宽窄——`SymbolExtensions.vb:136-154` 的 `IsOverloadable` **把 Property 也算可重载**（C# 不含）；决策层 `Semantics\OverloadResolution.vb` 全文 **`Submission` 命中 0 次** ⇒ 无择一 ⇒ `Binder_Invocation.vb:1811-1869 ReportUnspecificProcedures` 报 BC30521。
+
+### 对本文件既有内容的四处更正
+
+1. **缺陷面按符号 kind 收窄**：`D4`/`D4b` 与本轮探针都表明 **`Dim`（field）跨提交重声明本已正常**（最新者胜、零诊断、甚至可跨类型改型：`Dim y As Integer = 7` ⇒ `Dim y As String = "hello"` ⇒ `?y` 得 `hello`）。真凶只有 **`Method` + `Property`**。⇒ 本 issue 标题下的「容器把两个提交的同名成员当重载集」须读成「把同名 **可重载** 成员当重载集」。
+2. **对等目标不是「降级成 `BC40003`」**：`BC40003 = WRN_MustOverloadBase4`（`Errors\Errors.vb:1825`，报点 `OverrideHidingHelper.vb:441`）是**继承**遮蔽警告，而提交类无基类型 ⇒ 提交链上两侧都**不可能**报它。"与 C# 对等"＝**无诊断**。「严重度被容器升级」作为**事实**仍然成立（普通编译只是警告），但它不是验收值。
+3. **方向 A 的落点表述被更正**：原文写「让 `LookupInSubmissions` 停止向上回溯」——**不采纳**。C# 是「**照旧合并候选** ＋ **决策层择一**」，若在查找层截断会砍掉真实的跨提交重载（异签名两形各自命中，本轮实测 `100`/`200`）。⇒ 采纳落点＝`OverloadResolution.vb` `CombineCandidates`（`:4419-4436` 之后，与 C# 同一 tie-break 链位置）新增「两候选分属不同 submission ⇒ slot 大者胜」。
+4. **方向 B 作废**：不新增诊断码。理由＝C# 侧无对应分叉需求，且「合法形状应能写」已被决策层择一解决；按 D6，beta 期也不得用「保留重载语义」作挡箭牌。
+
+`Shadows` 修饰符：**保持不参与、也不报错**（A2 的现状不变）。给它加「必须写/写了才生效」的要求属无 C# 依据的 VB 侧自造语义；若日后要让 `Shadows` 在提交链参与，那是 VB 专有设计，须另走 `proposals\`，不属 D7 自动裁范围。
+
+原「两个候选方向」一节按上述保留为**历史决策资料**（其中①「可见性保留多少」的担忧由落点更正自动消解：只在**同签名候选之间**择一，前序提交的其他成员照常可见）。
+
+### 仍属推测 / 实施时必须先证实
+
+| 项 | 态 |
+|---|---|
+| 「按此修好后 VB 零诊断并取最新定义（`M(5)=25`）」 | **推测**（形状由 C# 判据推得，未实跑）⇒ 实施第一步就是把它做成单测 |
+| 新规则必须只作用于**不同** submission 之间（`DeclaringCompilation` 不同且 slot 不等），同提交内同签名重复仍保留现有诊断 | 设计约束，未验证 |
+| `GetSubmissionSlotIndex()` 懒分配、对无代码提交返回同一值（`:526-534` 还带 `TODO (tomat): remove recursion`）、以及 VB 侧 `Debug.Assert(slotIndex >= 0)` 类假设（`SynthesizedSubmissionConstructorSymbol.vb:74`） | 风险面，须在实现时量负值/相等路径 |
+| C# 侧行为**未实跑**（本仓 `Scripting\` 下无 C# 测试资产、`CSharpTestBase` 无定义）⇒ 全部档 3 | 档位限制 |
+
+**账本义务（D7 测试回收）**：`Scripting\VisualBasicTest\ScriptModeApiSurfaceConformanceTests.vb:89-110` 现在把 BC30521 钉成期望值（注释还写着 "with and without an explicit `Shadows`"）——修复后按新语义改写为**断 25 且零诊断**，并补两条正向对照：异签名跨提交重载各自命中、field 面不受影响。
+
+
+
+## 两个候选方向（**历史资料**：写于 C# 判据取证之前，已被上节裁定取代）
 
 - **方向 A（按 D5 对齐语言侧语义：新提交的同名成员遮蔽前序提交的同名成员）**：让 `LookupInSubmissions` 在
   找到**当前提交自己的**同名成员后**停止向上回溯**（或把前序提交的命中降为「仅在没有当前命中的候选时使用」），

@@ -169,6 +169,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Dim skipAnalyzers As Boolean = False
             Dim publicSign As Boolean = False
             Dim interactiveMode As Boolean = False
+            Dim optionsEnded As Boolean = False
             Dim instrumentationKinds As ArrayBuilder(Of InstrumentationKind) = ArrayBuilder(Of InstrumentationKind).GetInstance()
             Dim sourceLink As String = Nothing
             Dim ruleSetPath As String = Nothing
@@ -195,11 +196,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End If
 
             For Each arg In flattenedArgs
-                Debug.Assert(Not arg.StartsWith("@", StringComparison.Ordinal))
+                Debug.Assert(optionsEnded OrElse Not arg.StartsWith("@", StringComparison.Ordinal))
 
                 Dim name As String = Nothing
                 Dim value As String = Nothing
-                If Not TryParseOption(arg, name, value) Then
+                If optionsEnded OrElse Not TryParseOption(arg, name, value) Then
                     Dim builder = ArrayBuilder(Of String).GetInstance()
                     ParseFileArgument(arg.AsMemory(), baseDirectory, builder, diagnostics)
                     For Each path In builder
@@ -475,6 +476,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 If IsScriptCommandLineParser Then
                     Select Case name
                         Case "-"
+                            ' Set only inside the script branch, so "--" can never end options for vbc.
+                            If arg = "--" Then
+                                optionsEnded = True
+                                Continue For
+                            End If
+
                             If Console.IsInputRedirected Then
                                 sourceFiles.Add(New CommandLineSourceFile("-", isScript:=True, isInputRedirected:=True))
                                 hasSourceFiles = True

@@ -164,7 +164,7 @@ VB 的闭包捕获只有一条实现路径（B6）：`LambdaRewriter` 分析捕�
 
 **③ 与扩展方法（实锤，定义上排除）。** 局部函数**不可能**是扩展方法：收集侧要求声明容器 `_containingSymbol.Kind = SymbolKind.Namespace`（B12），局部函数**不在任何类型内**；诊断侧 `<Extension>` 只允许在 `Module` / 脚本类的 `Sub`/`Function` 上（B12）。⇒ 建议：局部函数声明带 `<Extension>` 时给一条**明确诊断**，而不是静默失效——具体诊断取「复用 `ERR_ExtensionOnlyAllowedOnModuleSubOrFunction`（36550）」还是新造，**列入 Unresolved 6**。这与 `proposal-script-extension-methods.md`（Active #19）已确立的「通道要显式，不要静默」基调一致。
 
-**④ 与 `Handles`（实锤，同理排除）。** `Handles` 是**成员方法**的语法，其绑定要求同类型上存在 `WithEvents` 变量（B13）。局部函数不是成员 ⇒ 不可带 `Handles` 子句。⇒ 同样建议明确诊断。**另注**：`spec\spec-scripting-dialect.md:348` 已述「提交类里 `Handles` 今天不支持（不报诊断、编译不完成）」，即该区域本身就有一笔既有缺陷，本提案**不试图**在那里开出新面。
+**④ 与 `Handles`（实锤，同理排除）。** `Handles` 是**成员方法**的语法，其绑定要求同类型上存在 `WithEvents` 变量（B13）。局部函数不是成员 ⇒ 不可带 `Handles` 子句。⇒ 同样建议明确诊断。**另注**：`spec\spec-scripting-dialect.md:357` 已述「提交类里 `Handles` 今天不支持（不报诊断、编译不完成）」，即该区域本身就有一笔既有缺陷，本提案**不试图**在那里开出新面。
 
 **⑤ 与 `Async` / `Iterator` / 泛型 / 重载。** C# 的语法文法允许 `async` 与 `unsafe` 修饰局部函数（**实锤**：`proposals\csharp-7.0\local-functions.md` 的 `local-function-modifiers : (async | unsafe)`），C# 9 起还允许**特性**与 `extern`（**实锤**：`proposals\csharp-9.0\local-function-attributes.md` 逐字 `Local function declarations are now permitted to have attributes`）。VB 侧对应关系：
 
@@ -337,7 +337,7 @@ End Sub
 3. **「启用型」重绑定防护在本提案的确切形态**。§3 的「甲」把它作为**配套条件**（缺它不可接受）。照 `meeting-recursive-lambda-inference.md` RESOLUTION 5 逐字办，还是需要为「声明 vs 初始化」的差异改写？与 TypeOf 会议的双轨试探共写 speclet 是否仍然成立？
 4. **局部函数体内是否允许 `Static` 局部**（§5 ①）。沿用 B10 的禁止（v1 建议），还是放开？放开时 `SynthesizedStaticLocalBackingField` 的 `ContainingType` / `IsShared`（B11）取什么？
 5. **「不捕获」变体的关键字**（§5 ①）。C# 用 `static`；VB 的 `Static` 已被「局部变量持久化」占用（B10/B11）。用 `Shared`？还是 v1 不做？
-6. **`<Extension>` / `Handles` 落在局部函数上的诊断**（§5 ③④）。复用现有诊断码还是新造？`Handles` 一侧还要与 `spec\spec-scripting-dialect.md:348` 的既有缺陷（提交类 `Handles` 不报诊断、编译不完成）划清边界。
+6. **`<Extension>` / `Handles` 落在局部函数上的诊断**（§5 ③④）。复用现有诊断码还是新造？`Handles` 一侧还要与 `spec\spec-scripting-dialect.md:357` 的既有缺陷（提交类 `Handles` 不报诊断、编译不完成）划清边界。
 7. **`Async` / `Iterator` / 特性 / 重载 / 泛型局部函数**（§5 ⑤、§6 第 3 条）。v1 建议**全部收窄为不支持**并逐条给诊断——但这是范围决定，需会议确认，且「收窄」本身要给出一致的诊断族。
 8. **`Function` 缺 `As` 子句的语义**（§6 第 2 条）。VB 里那是**返回 `Object`**，不是推断。⇒ 局部函数是要求显式 `As` 子句（照 C# 对推断的收窄方向），还是接受 `Object`？两者用户可见后果不同。
 9. **与 `proposal-vbx-top-level-locals.md` 的接口**（Summary 边界四）。若那条提案复活，局部函数是否就是它 T2 的载体？**本提案不作承诺**——顶层过程的成员资格是那条提案的裁决点；本提案只保证「方法体内可以有具名过程」这个更窄的命题。

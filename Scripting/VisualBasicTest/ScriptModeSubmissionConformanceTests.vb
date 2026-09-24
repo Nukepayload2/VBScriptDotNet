@@ -52,6 +52,31 @@ Public Class ScriptModeSubmissionConformanceTests
             "123")
     End Sub
 
+    ''' <summary>
+    ''' R5 of auto-property-top-level-gate: an auto implemented property in one submission and the statement that
+    ''' reads it in the next one. Each submission is a tree of its own, so the pending block of the property closed
+    ''' at its end of file and this path never met the parse gate - the cell is here to keep it that way, since the
+    ''' fix is exactly about not treating a following statement as a declaration.
+    ''' <para>
+    ''' The value is read back through the host's print statement rather than by printing from inside the submission:
+    ''' <see cref="ScriptModeConformance.AssertReplSession"/> inspects the runner's own output buffer, and a
+    ''' <c>Console.WriteLine</c> executed by the script goes to the process console, not into that buffer (measured -
+    ''' the session ran to the marker and the expected line was simply absent). The real host, driven through a pipe,
+    ''' prints <c>5</c> for exactly this pair of submissions.
+    ''' </para>
+    ''' </summary>
+    <Fact>
+    Public Sub ReplAutoPropertyThenStatementInNextSubmission_Conforms()
+        ScriptModeConformance.AssertReplSession(
+            {
+                "Dim seen As Integer = 0",
+                "ReadOnly Property PR As Integer = 5",
+                "seen = PR",
+                "? seen"
+            },
+            "5")
+    End Sub
+
     ''' <summary>Imports clauses declared by one submission are seen by the next one.</summary>
     <Fact>
     Public Sub ReplSubmissionImportsAccumulate_Conforms()
@@ -663,6 +688,28 @@ Public Class ScriptModeSubmissionConformanceTests
         Assert.Equal(8, ScriptModeConformance.RunChain(files, mainFile,
             "Dim seed As Integer = 4",
             files(mainFile)))
+    End Sub
+
+    ''' <summary>
+    ''' R3 of auto-property-top-level-gate: the gate inside a loaded tree, plus the tree order. The loaded file
+    ''' declares an auto implemented property and the statement right behind it, which assigns the property's value
+    ''' to a field; the main tree reads both back. The reading is 15 + 5, so the loaded tree's initializer ran
+    ''' before the code of the tree that loads it, and the gate had to let the assignment through inside that tree -
+    ''' a rejected loaded tree fails the whole submission, which is what the assertion below observes.
+    ''' </summary>
+    <Fact>
+    Public Sub LoadedTreeAutoPropertyThenStatement_Conforms()
+        Dim mainFile = "C:\scripts\main.vbx"
+        Dim files = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From
+        {
+            {mainFile, "#Load ""loadedGate.vbx""" & vbCrLf & "Return accumulated + P"},
+            {"C:\scripts\loadedGate.vbx",
+                "Dim accumulated As Integer" & vbCrLf &
+                "ReadOnly Property P As Integer = 5" & vbCrLf &
+                "accumulated = P * 3"}
+        }
+
+        Assert.Equal(20, ScriptModeConformance.RunChain(files, mainFile, files(mainFile)))
     End Sub
 
 #End Region

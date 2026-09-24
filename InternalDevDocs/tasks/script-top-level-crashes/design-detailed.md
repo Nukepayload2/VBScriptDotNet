@@ -175,18 +175,18 @@
 | # | 落点 | 改动形状 |
 |---|---|---|
 | ① | `VB\Binding\Binder_Expressions.vb:2263-2273` | 脚本类分支里把「隐式 ⇒ 一律 `Return True`」改为：**隐式**引用先查 `IsMeOrMyBaseOrMyClassInSharedContext()`（`:2235-2255`，同一 `Binder` 内已存在），命中共享上下文则照常落 `:2275-2281` 的 `ERR_BadInstanceMemberAccess`（BC30369）；**不命中仍 `Return True`**（`spec:243` / `spec:258` 的隐式访问承诺） |
-| ② | 同上 | **显式**引用路径**逐字保持**：`errorId = ERRID.ERR_KeywordNotAllowedInScript`（BC36966，`:2266`） |
+| ② | 同上 | **显式**引用路径**逐字保持**：`errorId = ERRID.ERR_KeywordNotAllowedInScript`（BC36966，`:2266`）——**该口径已作废**：它在本单元的「只修崩溃」范围内成立，作为长期规则已由 `issues\issue-script-class-explicit-me-in-member-bodies.md` 判为缺陷（显式关键字只在顶层代码里拒；顶层实例成员体内走普通类规则，`Shared` 成员落 BC30043/BC30369） |
 
 ### 判据形状（落地时按此三条自检）
 
-1. 脚本类 + **显式** `Me`/`MyClass` → BC36966（不变）。**显式 `MyBase` 不在此列**：`Binder_Expressions.vb:2374` 在 `CanAccessMyBase` 返回 False（BC36966 已报出）**之后仍**构造 `BoundMyBaseReference`，而提交类 `BaseType` 为 Nothing ⇒ BoundNodes 的 type 非空断言先炸（exit 35）。属**独立缺陷、不在 F08 改动面**（顶层显式 `MyBase`：该处无条件构造 `BoundMyBaseReference`，而提交类 `BaseType` 为 Nothing ⇒ 绑定节点的 type 非空断言先炸；`issues\` 目录无对应条目，仅在本文件与流水账登记）。
+1. 脚本类 + **显式** `Me`/`MyClass` → BC36966（不变）。**这条「不变」随上文 ② 一并作废**（`issues\issue-script-class-explicit-me-in-member-bodies.md`：BC36966 只覆盖顶层脚本代码，成员体走普通类规则）。**显式 `MyBase` 不在此列**：`Binder_Expressions.vb:2374` 在 `CanAccessMyBase` 返回 False（BC36966 已报出）**之后仍**构造 `BoundMyBaseReference`，而提交类 `BaseType` 为 Nothing ⇒ BoundNodes 的 type 非空断言先炸（exit 35）。属**独立缺陷、不在 F08 改动面**（顶层显式 `MyBase`：该处无条件构造 `BoundMyBaseReference`，而提交类 `BaseType` 为 Nothing ⇒ 绑定节点的 type 非空断言先炸；`issues\` 目录无对应条目，仅在本文件与流水账登记）。
 2. 脚本类 + **隐式** 引用 + **实例**成员（`containingMember` 非共享、`ContainingType` 非模块）→ 合法（`IsMeOrMyBaseOrMyClassInSharedContext()` 返回 False）。
 3. 脚本类 + **隐式** 引用 + **共享**成员体/共享初始化器 → BC30369。
 
 ### 不变量（回归必须双向锁死）
 
 - **实例方法体里隐式读顶层 `Dim` 仍然合法**（`spec:243`；issue 08 正文点名为必锁回归项）。
-- 显式 `Me` 仍 BC36966（`spec:231-239` 的诊断族不变）。
+- 显式 `Me` 仍 BC36966（`spec:231-239` 的诊断族不变）。**该不变量已作废**：`issues\issue-script-class-explicit-me-in-member-bodies.md` 判为过宽，BC36966 限于顶层脚本代码。
 - 顶层**语句**（`<Initialize>` 体）里的隐式引用：`ContainingMember` 是 `<Initialize>`（`IsShared = False`）⇒ 按第 2 条走 ⇒ **合法**（这是顶层语句读顶层 `Dim` 的既有能力，必须保住）。
 - 普通类 / 嵌套类路径完全不变（BC30369 的既有行为不动）。
 - 无新错误码（复用 `VB\Errors\Errors.vb:323` 的 `ERR_BadInstanceMemberAccess`）。
@@ -272,7 +272,7 @@ BC36943 的检查住在 `BindMethodBlock` 的 `CheckOnErrorAndAwaitWalker`（`VB
 ### 为什么这样落（设计取舍记录）
 
 - **复用现有 walker + 开关**，而不是新造 walker：符合「延伸现有机制」；`_isInCatchFinallyOrSyncLock` 的状态机（`:548-565` Try / `:602-615` SyncLock / `:616-623` Using）已经完整，新造会重复实现且易漂移。
-- **只做 await 位置检查**（开关关掉 On Error 报告）：顶层 `On Error Resume Next` 的既有行为（`spec:359` 规定报 unsupported 诊断）不在本任务范围；把 `ERR_TryAndOnErrorDoNotMix` 一并带进顶层属**未要求的扩面**，会污染回归面。
+- **只做 await 位置检查**（开关关掉 On Error 报告）：顶层 `On Error Resume Next` 的既有行为（`spec:368` 规定报 unsupported 诊断）不在本任务范围；把 `ERR_TryAndOnErrorDoNotMix` 一并带进顶层属**未要求的扩面**，会污染回归面。
 - **不去改 `GetBoundMethodBody` 让它返回真实体**：初始化器绑定发生在类型编译的**前置**（`VB\Compilation\MethodCompiler.vb:599-623`），早于逐方法编译；把体搬进方法体路径是一次结构性重写，远超本缺陷的需要（**否决**，记录在此以免反复回归）。
 - **多树提交（`#Load`）**：`parentBinder` 会在换树时重建（`:120-129`），故 walk 需按树分界执行（或等价地保证同一树内语句与 binder 同源）。pass 条件含「多树提交下诊断只报一次、位置指向肇事树且行号正确」。
 
@@ -327,7 +327,7 @@ BC36943 的检查住在 `BindMethodBlock` 的 `CheckOnErrorAndAwaitWalker`（`VB
 
 ### 陷阱
 
-- **不要**把标签当成「空操作可省」而改成「给 `GoTo` 报诊断」——那会新增一条 VB 别处不存在的 GoTo 限制，与 `spec:266`「A top-level `GoTo` is an ordinary executable statement」正面冲突，也与「普通上下文合法即可修」的判据相反（见 `README.md` §十 第 1 条「已裁决：修好」）。
+- **不要**把标签当成「空操作可省」而改成「给 `GoTo` 报诊断」——那会新增一条 VB 别处不存在的 GoTo 限制，与 `spec:275`「A top-level `GoTo` is an ordinary executable statement」正面冲突，也与「普通上下文合法即可修」的判据相反（见 `README.md` §十 第 1 条「已裁决：修好」）。
 - 该改动使**规范** `:266-268` 的 Decision（「不保证运行效果」）失效 ⇒ 必须同步改 spec（见 §账本与规范义务），否则规范与实现反向漂移。
 - 本单元与 F05 同文件（`SourceMemberContainerTypeSymbol.vb`）：`:2621-2633` 与 `:2722-2740` 两区不重叠，但**必须串行落地**。
 
@@ -385,7 +385,7 @@ BC36943 的检查住在 `BindMethodBlock` 的 `CheckOnErrorAndAwaitWalker`（`VB
 
 | # | 位置 | 订正 |
 |---|---|---|
-| 1 | `issue-script-top-level-goto-await-crash.md` 的「根因方向」与「相关」节的「修复方向」句（`:97`） | ①「根因方向」的「与 #10 同源」被实测证伪（g1/g11）；正确根因是顶层 `LabelStatement` 的收集路——它由 `SourceMemberContainerTypeSymbol.vb:2621-2633` 的 `Case Else` 与其它顶层可执行语句**同款**收集（无专用分支），标签语句不入 `instanceInitializers` 时 `GoTo` 的分支目标没有落地块。②`:97` 的「修复方向」句写「**判「修好」**——…（**该取舍待作者确认**）」，是本任务文件夹之外**唯一**仍带「待作者确认」字样的正文（`grep "待作者确认"` 在本任务文件夹之外的命中仅此一处）；须随 F11 的「已裁决：修好」（`README.md` §十 第 1 条）改写：删去「该取舍待作者确认」，与 `spec:266-268` 的 Decision 改写同批落地 |
+| 1 | `issue-script-top-level-goto-await-crash.md` 的「根因方向」与「相关」节的「修复方向」句（`:97`） | ①「根因方向」的「与 #10 同源」被实测证伪（g1/g11）；正确根因是顶层 `LabelStatement` 的收集路——它由 `SourceMemberContainerTypeSymbol.vb:2621-2633` 的 `Case Else` 与其它顶层可执行语句**同款**收集（无专用分支），标签语句不入 `instanceInitializers` 时 `GoTo` 的分支目标没有落地块。②`:97` 的「修复方向」句写「**判「修好」**——…（**该取舍待作者确认**）」，是本任务文件夹之外**唯一**仍带「待作者确认」字样的正文（`grep "待作者确认"` 在本任务文件夹之外的命中仅此一处）；须随 F11 的「已裁决：修好」（`README.md` §十 第 1 条）改写：删去「该取舍待作者确认」，与 `spec:275-277` 的 Decision 改写同批落地 |
 | 2 | `issue-script-top-level-await-in-try-crash.md` 的标题与症状 | 触发面须补 `SyncLock` 子形状，且其后果是**编译通过 + 运行期 `SynchronizationLockException`**（坏产物，非崩溃）——g14 实测 |
 | 3 | `issue-submission-shared-field-initializer-typeload.md` 的触发边界表 | 「有初始化器」应读作「**静态桶里有需要注入构造器的条目**」（会议已定口径） |
 | 4 | `issue-initializer-diagnostic-does-not-gate-emit.md` | 根因链补 `VB\Compilation\MethodCompiler.vb:599-623` 这一环（会议 R6 明文要求） |

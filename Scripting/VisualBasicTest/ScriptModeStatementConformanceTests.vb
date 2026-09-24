@@ -471,8 +471,9 @@ Public Class ScriptModeStatementConformanceTests
     End Sub
 
     ''' <summary>
-    ''' An explicit 'Me' is not valid in script code: BC36966
-    ''' (<c>Binder_Expressions.vb:2257</c>, 'Me/MyClass/MyBase implicitly but not explicitly').
+    ''' An explicit 'Me' in top-level script code is BC36966: the ban spans the whole script class, so a member the
+    ''' script class declares is no escape either - which is what the member-body cells in this file and the next region
+    ''' pin. (scope restored to the C# scripting shape by script-class-explicit-keyword-parity-revert / decisions.md D7)
     ''' </summary>
     <Fact>
     Public Sub TopLevelExplicitMe_IsReported()
@@ -480,26 +481,30 @@ Public Class ScriptModeStatementConformanceTests
     End Sub
 
     ''' <summary>
-    ''' The surprising position: an explicit Me inside the body of a member the submission class declares itself -
-    ''' the whole script class is a script class, so the body is covered by the same rule.
+    ''' An explicit 'Me' in the body of a Function the submission class declares is BC36966: the ban spans the whole
+    ''' script class, so the member body is not ordinary class code any more (C# scripting parity, D7 revert).
     ''' </summary>
     <Fact>
     Public Sub TopLevelExplicitMeInMethodBody_IsReported()
         ScriptModeConformance.AssertReports(
-            "Function Describe() As String" & vbCrLf &
-            "    Return Me.ToString()" & vbCrLf &
+            "Dim count As Integer = 5" & vbCrLf &
+            "Function ReadField() As Integer" & vbCrLf &
+            "    Return Me.count" & vbCrLf &
             "End Function" & vbCrLf &
-            "Return Describe()", "BC36966")
+            "Return ReadField()", "BC36966")
     End Sub
 
-    ''' <summary>The same rule for an explicit MyClass.</summary>
+    ''' <summary>
+    ''' The same scope for an explicit 'MyClass': BC36966 in the body of a member of the submission class too.
+    ''' </summary>
     <Fact>
-    Public Sub TopLevelExplicitMyClass_IsReported()
+    Public Sub TopLevelExplicitMyClassInMethodBody_IsReported()
         ScriptModeConformance.AssertReports(
-            "Function Describe() As String" & vbCrLf &
-            "    Return MyClass.ToString()" & vbCrLf &
+            "Dim count As Integer = 5" & vbCrLf &
+            "Function ReadViaMyClass() As Integer" & vbCrLf &
+            "    Return MyClass.count" & vbCrLf &
             "End Function" & vbCrLf &
-            "Return Describe()", "BC36966")
+            "Return ReadViaMyClass()", "BC36966")
     End Sub
 
     ''' <summary>
@@ -518,6 +523,99 @@ Public Class ScriptModeStatementConformanceTests
         ScriptModeConformance.AssertReports(
             "Dim computer = My.Computer" & vbCrLf &
             "Return ""MY""", "BC30456")
+    End Sub
+
+#End Region
+
+#Region "Explicit Me / MyClass / MyBase scope (script-class-explicit-me-scope)"
+
+    ''' <summary>
+    ''' A2: the initializer of a top level variable belongs to the field it declares, but it is still top-level script
+    ''' code, so the explicit 'Me' is BC36966 there. This is the position a ready-made "am I binding the global
+    ''' statements" predicate answers False for, which is why it is pinned next to A4.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelExplicitMeInFieldInitializer_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Dim count As Integer = 5" & vbCrLf &
+            "Dim copied As Integer = Me.count" & vbCrLf &
+            "Return copied", "BC36966")
+    End Sub
+
+    ''' <summary>
+    ''' A4: a lambda written in the global statements is top-level script code too, and the other alarm line: the shape
+    ''' sits inside a block body just like B4 below, so only the member the lambda is written in tells the two apart.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelExplicitMeInLambda_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Dim count As Integer = 5" & vbCrLf &
+            "Dim getter As System.Func(Of Integer) = Function() Me.count" & vbCrLf &
+            "Return getter()", "BC36966")
+    End Sub
+
+    ''' <summary>
+    ''' B2: the shadowing escape hatch is closed again. Inside a member body the qualified 'Me.count' that once reached
+    ''' the field while a same-spelling local shadowed it is refused BC36966, exactly as the C# scripting dialect rejects
+    ''' an explicit 'this' there (D7 parity revert). The source shape is kept unchanged to pin that the hatch is gone.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelExplicitMeAgainstShadowingLocal_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Dim count As Integer = 5" & vbCrLf &
+            "Function ReadField() As Integer" & vbCrLf &
+            "    Dim count As Integer = 7" & vbCrLf &
+            "    Return Me.count" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Function ReadLocal() As Integer" & vbCrLf &
+            "    Dim count As Integer = 9" & vbCrLf &
+            "    Return count" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return ReadField() * 10 + ReadLocal()", "BC36966")
+    End Sub
+
+    ''' <summary>
+    ''' B4: the pair of A4. A lambda written in the body of a member of the submission class takes the same ban as its
+    ''' enclosing member, so the explicit 'Me' is BC36966 (whole-script-class scope, C# parity).
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelExplicitMeInLambdaInsideMethodBody_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Dim count As Integer = 5" & vbCrLf &
+            "Function ReadViaLambda() As Integer" & vbCrLf &
+            "    Dim getter As System.Func(Of Integer) = Function() Me.count + 1" & vbCrLf &
+            "    Return getter()" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return ReadViaLambda()", "BC36966")
+    End Sub
+
+    ''' <summary>
+    ''' C1: a Shared member of the submission class has no instance, and that ordinary answer (BC30043, "'Me' is valid
+    ''' only within an instance method") is what the shape gets now - the script rule does not preempt it.
+    ''' </summary>
+    <Fact>
+    Public Sub SharedMethodExplicitMe_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Dim count As Integer = 5" & vbCrLf &
+            "Shared Function ReadShared() As Integer" & vbCrLf &
+            "    Return Me.count" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return ReadShared()", "BC30043")
+    End Sub
+
+    ''' <summary>
+    ''' D1: an explicit 'MyBase' in the body of an instance member is refused BC36966 as well. The whole-script-class ban
+    ''' is restored and the old 'MyBase'-to-<c>System.Object</c> fallback is gone, so the shape no longer runs or prints
+    ''' the submission name (C# scripting parity, D7 revert). The keyword is rejected at binding, before member lookup
+    ''' of the 'ToString' would ever apply.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelMyBaseInMethodBody_IsReported()
+        ScriptModeConformance.AssertReports(
+            "Function Describe() As String" & vbCrLf &
+            "    Return MyBase.ToString()" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return Describe()", "BC36966")
     End Sub
 
 #End Region
@@ -603,12 +701,12 @@ Public Class ScriptModeStatementConformanceTests
     End Sub
 
     ''' <summary>
-    ''' The same 'Dim x = &lt;expr&gt;' at the top level does not infer, even with Option Infer On: the submission
-    ''' field is bound as Object (the overload of the Object parameter wins). Option Strict On reports BC30209 for
-    ''' the declaration, which is the same 'no As clause' diagnostic an inferred local would not get.
+    ''' Issue 32: the same 'Dim x = &lt;expr&gt;' at the top level now infers (Option Infer On), so the field's
+    ''' static type is Integer and the overload pair resolves to the Integer arm - identical to the method-body
+    ''' local control above. Before the fix this cell asserted "object" (the registered divergence).
     ''' </summary>
     <Fact>
-    Public Sub TopLevelInferredField_IsObject_Conforms()
+    Public Sub TopLevelInferredField_Infers_Conforms()
         ScriptModeConformance.AssertRuns(
             "Option Infer On" & vbCrLf &
             "Dim answer As String = """"" & vbCrLf &
@@ -620,16 +718,20 @@ Public Class ScriptModeStatementConformanceTests
             "End Function" & vbCrLf &
             "Dim inferred = 1" & vbCrLf &
             "answer = Tell(inferred)" & vbCrLf &
-            "Return answer", "object")
+            "Return answer", "integer")
     End Sub
 
-    ''' <summary>A top level 'Dim x = 1' has no As clause as far as Option Strict On is concerned: BC30209.</summary>
+    ''' <summary>
+    ''' Issue 32: with Option Strict On but Option Infer still On (the default), a top level 'Dim inferred = 1'
+    ''' infers Integer and is legal - matching an ordinary local (§七 row 1) - so it returns 1 instead of the old
+    ''' BC30209. (Option Infer Off + Strict On still reports BC30209; see ScriptTopLevelDimInferenceTests.T7.)
+    ''' </summary>
     <Fact>
-    Public Sub TopLevelInferredFieldWithStrictOn_IsReported()
-        ScriptModeConformance.AssertReports(
+    Public Sub TopLevelInferredFieldWithStrictOn_Infers()
+        ScriptModeConformance.AssertRuns(
             "Option Strict On" & vbCrLf &
             "Dim inferred = 1" & vbCrLf &
-            "Return inferred", "BC30209")
+            "Return inferred", 1)
     End Sub
 
     ''' <summary>Option Explicit Off still declares an implicit local inside a method body.</summary>

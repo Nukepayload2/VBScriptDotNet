@@ -2828,7 +2828,85 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         Private Sub AddWithEventsHookupConstructorsIfNeeded(members As MembersAndInitializersBuilder, diagBag As BindingDiagnosticBag)
             If TypeKind = TypeKind.Submission Then
-                'TODO: anything to do here?
+
+                ' A submission class is a class container, and a 'Handles' clause whose method and event are both
+                ' shared is hooked up in its shared constructor: SourceMemberMethodSymbol.BindSingleHandlesClause
+                ' takes ContainingType.SharedConstructors(0) for that shape. A submission class is given a shared
+                ' constructor by AddDefaultConstructorIfNeeded only when it has shared initializers, so a shared
+                ' hookup can find no host at all. Synthesize one here, for that shape only.
+
+                ' We need a separate list of methods since we may need to modify the members dictionary.
+                Dim sourceMethodsWithHandles As ArrayBuilder(Of SourceMethodSymbol) = Nothing
+
+                For Each membersOfSameName In members.Members.Values
+                    For Each member In membersOfSameName
+                        Dim sourceMethod = TryCast(member, SourceMethodSymbol)
+                        If sourceMethod IsNot Nothing Then
+                            If Not sourceMethod.HandlesEvents OrElse Not sourceMethod.IsShared Then
+                                ' A non-shared handler is hosted by an instance constructor, and a submission
+                                ' class always has the synthesized submission constructor. Nothing to synthesize.
+                                Continue For
+                            End If
+
+                            If sourceMethodsWithHandles Is Nothing Then
+                                sourceMethodsWithHandles = ArrayBuilder(Of SourceMethodSymbol).GetInstance
+                            End If
+                            sourceMethodsWithHandles.Add(sourceMethod)
+                        End If
+                    Next
+                Next
+
+                If sourceMethodsWithHandles Is Nothing Then
+                    ' no shared source methods with Handles - we are done
+                    Return
+                End If
+
+                For Each sourceMethod In sourceMethodsWithHandles
+                    Dim methodStatement = TryCast(sourceMethod.DeclarationSyntax, MethodStatementSyntax)
+                    If methodStatement Is Nothing Then
+                        Continue For
+                    End If
+
+                    For Each handlesClause In methodStatement.HandlesClause.Events
+                        ' Only a keyword container can denote an event of this class here: a 'WithEvents' container
+                        ' is hosted by the setter of that variable, and there is nothing to find in the base type
+                        ' because a submission class derives from System.Object.
+                        Dim keywordContainer = TryCast(handlesClause.EventContainer, KeywordEventContainerSyntax)
+                        If keywordContainer Is Nothing OrElse keywordContainer.Keyword.IsKind(SyntaxKind.MyBaseKeyword) Then
+                            Continue For
+                        End If
+
+                        ' find our event in the members of this submission:
+                        Dim eventName = handlesClause.EventMember.Identifier.ValueText
+                        Dim eventSym As EventSymbol = Nothing
+
+                        Dim candidates As ArrayBuilder(Of Symbol) = Nothing
+                        If members.Members.TryGetValue(eventName, candidates) Then
+                            If candidates.Count = 1 AndAlso candidates(0).Kind = SymbolKind.Event Then
+                                eventSym = DirectCast(candidates(0), EventSymbol)
+                            End If
+                        End If
+
+                        ' still nothing? The event may still resolve along the submission chain (a Shared Event
+                        ' declared in an earlier submission); the binder (BindSingleHandlesClause) reaches it that
+                        ' way and then takes ContainingType.SharedConstructors(0) unconditionally, so we must
+                        ' ensure a shared constructor here too or that index is empty -> IndexOutOfRangeException.
+                        ' If the event does not exist at all, the binder reports ERR_EventNotFound and the
+                        ' submission never emits, so this host stays inert.
+                        If eventSym Is Nothing Then
+                            EnsureCtor(members, isShared:=True, isDebuggable:=False, diagBag:=diagBag)
+                            Continue For
+                        End If
+
+                        ' the hookup goes into the shared constructor if and only if the event is shared too,
+                        ' which is exactly the host that BindSingleHandlesClause picks.
+                        If eventSym.IsShared Then
+                            EnsureCtor(members, isShared:=True, isDebuggable:=False, diagBag:=diagBag)
+                        End If
+                    Next
+                Next
+
+                sourceMethodsWithHandles.Free()
 
             ElseIf TypeKind = TypeKind.Class OrElse TypeKind = TypeKind.Module Then
 

@@ -19,7 +19,7 @@
 
 | 层 | 用例 | 断言 |
 |---|---|---|
-| L2 | 顶层裸 `MyBase.ToString()`；顶层 `Sub` 内；顶层 `Shared Sub` 内 | 三者都报 `BC36966`，且 `GetDiagnostics()` **不抛** |
+| L2 | 顶层裸 `MyBase.ToString()`；顶层 `Sub` 内；顶层 `Shared Sub` 内 | 三者都报 `BC36966`，且 `GetDiagnostics()` **不抛**（**后两格的期望值已由 `issues\issue-script-class-explicit-me-in-member-bodies.md` 作废**：成员体走普通类规则、`Shared` 落 BC30043；顶层裸 `MyBase` 格不变） |
 | L3 | 同形状的 `VisualBasicScript.Create(...).Compile()` | 诊断集合非空、`Compile` 返回而非终止 |
 | L4 | REPL 单条提交里写 `MyBase.ToString()` | 会话打印 `BC36966` 并**继续**（下一条提交仍执行） |
 | 对照 | 普通 `Module` / `Structure` 里同形状 | `BC32001` / `BC30044` 不变 |

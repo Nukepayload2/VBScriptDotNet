@@ -28,6 +28,26 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             End Get
         End Property
 
+        ''' <summary>
+        ''' A property whose accessors have not been seen yet is only a placeholder for the declaration itself: if it
+        ''' turns out to be an auto implemented property, <see cref="EndBlock"/> closes it without a block and hands
+        ''' the entry behind it to the context the property was pushed onto. Until then, that entry has to be judged
+        ''' by the context underneath, which is what this forwards to - a top level statement of a script following
+        ''' an auto implemented property is a statement, not a misplaced declaration.
+        ''' <para>
+        ''' Each part of the condition refuses something on its own. <c>Not IsPropertyBlock</c>: once a <c>Get</c> or
+        ''' a <c>Set</c> has arrived the property is an expanded one for good, and its body accepts accessors only.
+        ''' The outer context answering <c>True</c>: only the script's compilation unit does, so the same shape
+        ''' inside a type, a module or a namespace of a script stays a misplaced declaration; and the outer context
+        ''' answers through <c>Parser.IsScript</c>, so an ordinary compilation is not affected at all.
+        ''' </para>
+        ''' </summary>
+        Friend Overrides ReadOnly Property AcceptsScriptTopLevelStatement As Boolean
+            Get
+                Return Not IsPropertyBlock AndAlso PrevBlock IsNot Nothing AndAlso PrevBlock.AcceptsScriptTopLevelStatement
+            End Get
+        End Property
+
         Friend Overrides Function CreateBlockSyntax(endStmt As StatementSyntax) As VisualBasicSyntaxNode
 
             Dim beginBlockStmt As PropertyStatementSyntax = Nothing

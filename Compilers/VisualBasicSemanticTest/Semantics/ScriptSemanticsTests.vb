@@ -583,9 +583,16 @@ End Sub", parseOptions:=TestOptions.Script)
             c.VerifyDiagnostics()
         End Sub
 
-        ''' <summary>An explicit 'Me' in a script class keeps BC36966.</summary>
+        ''' <summary>
+        ''' An explicit 'Me' in the body of a top level <c>Sub</c> is refused BC36966: the ban spans the whole script
+        ''' class, not only the global statements, so a member the script class declares is no escape. This is the C#
+        ''' scripting dialect's shape (an explicit <c>this</c> is rejected throughout a script class), pinned here after
+        ''' the D7 parity revert; the top level statement form is the sibling cell
+        ''' <see cref="ExplicitMeInTopLevelStatement_ReportsKeywordNotAllowedInScript"/>.
+        ''' (script-class-explicit-me-scope, E1; reverted to the C# parity scope by script-class-explicit-keyword-parity-revert)
+        ''' </summary>
         <Fact>
-        Public Sub TopLevelExplicitMe_ReportsKeywordNotAllowedInScript()
+        Public Sub TopLevelExplicitMeInMethodBody_ReportsKeywordNotAllowedInScript()
             Dim c = CreateSubmission(
                 "Dim sx As Integer = 5" & vbLf &
                 "Sub S()" & vbLf &
@@ -709,6 +716,13 @@ End Sub", parseOptions:=TestOptions.Script)
             AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
         End Sub
 
+        ''' <summary>
+        ''' An explicit 'MyBase' in the body of a member the submission class declares is refused BC36966: the ban covers
+        ''' the whole script class, matching the C# scripting dialect, which rejects an explicit 'base' anywhere inside a
+        ''' script class (the D7 parity ruling that reverted this scope). The former 'MyBase'-to-<c>System.Object</c>
+        ''' fallback is gone, so the keyword no longer binds to a base type here.
+        ''' (script-class-explicit-me-scope, E2; reverted to the C# parity scope by script-class-explicit-keyword-parity-revert)
+        ''' </summary>
         <Fact>
         Public Sub TopLevelMyBaseInInstanceMethod_ReportsKeywordNotAllowedInScript()
             Dim c = CreateSubmission(
@@ -720,15 +734,20 @@ End Sub", parseOptions:=TestOptions.Script)
             AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
         End Sub
 
+        ''' <summary>
+        ''' A Shared member of the script class has no instance to bind an explicit keyword against, and the script scope
+        ''' of BC36966 does not override that ordinary answer: BC30043 rather than BC36966.
+        ''' (script-class-explicit-me-scope, E2)
+        ''' </summary>
         <Fact>
-        Public Sub TopLevelMyBaseInSharedMethod_ReportsKeywordNotAllowedInScript()
+        Public Sub TopLevelMyBaseInSharedMethod_ReportsUseOfKeywordNotInInstanceMethod()
             Dim c = CreateSubmission(
                 "Shared Sub Go()" & vbLf &
                 "    System.Console.WriteLine(MyBase.ToString())" & vbLf &
                 "End Sub" & vbLf &
                 "Go()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
 
-            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
+            AssertSingleError(c, ERRID.ERR_UseOfKeywordNotInInstanceMethod1, "MyBase")
         End Sub
 
         ''' <summary>
@@ -1187,6 +1206,354 @@ End Sub", parseOptions:=TestOptions.Script)
                 "System.Console.WriteLine(""A"")",
                 options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
             targetInsideFinally.VerifyDiagnostics()
+        End Sub
+
+#End Region
+
+#Region "Top level scripts: scope of the explicit Me / MyClass / MyBase ban (script-class-explicit-me-scope, F01)"
+
+        ' The criterion under test, in <c>Binder_Expressions.CheckMeOrMyBaseOrMyClassInSharedOrDisallowedContext</c>:
+        ' an explicit <c>Me</c>, <c>MyClass</c> or <c>MyBase</c> is BC36966 anywhere in the script class - the global
+        ' statements, the initializers of the script variables, any lambda or query expression written in either, and
+        ' the bodies of the members the script class declares alike. The shared-context question is answered before the
+        ' scripting gate, so a Shared member reports BC30043 (an implicit reference, BC30369) rather than BC36966. This
+        ' whole-class scope is the C# scripting parity shape (an explicit <c>this</c>/<c>base</c> is refused throughout
+        ' a C# script class), restored by the D7 conflict ruling (script-class-explicit-keyword-parity-revert).
+
+        ''' <summary>A1: an explicit 'Me' in a top-level statement keeps BC36966.</summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelStatement_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "System.Console.WriteLine(Me.counter)" & vbLf &
+                "System.Console.WriteLine(counter)", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' A2: a top-level variable initializer is top-level script code as well. The alarm line for the criterion:
+        ''' the ready-made <c>Binder.BindingTopLevelScriptCode</c> answers False here when the initializer is bound
+        ''' against the field symbol rather than against the method holding the global statements.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelFieldInitializer_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 42" & vbLf &
+                "Dim x As Integer = Me.counter" & vbLf &
+                "System.Console.WriteLine(x)", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' A3: the same for a property initializer. The property is not the last declaration of the submission: an
+        ''' auto implemented property used to leave a parse-level BC30188 window over the entry behind it
+        ''' (auto-property-top-level-gate), which a following statement would have fallen into; the rule under test
+        ''' is read here with that statement present, so the shape is the ordinary one.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelPropertyInitializer_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 42" & vbLf &
+                "ReadOnly Property P As Integer = Me.counter" & vbLf &
+                "System.Console.WriteLine(P)", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' A4: a lambda written in top-level script code is still top-level script code. The alarm line for the
+        ''' criterion: a 'lambda body' answer of 'False' would make this shape legal, and the shape is lexically as
+        ''' far from the global statements as B4 is, so only the enclosing member tells the two apart.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInLambdaWrittenInTopLevelCode_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 42" & vbLf &
+                "Dim act As Action = Sub()" & vbLf &
+                "                        System.Console.WriteLine(Me.counter)" & vbLf &
+                "                    End Sub" & vbLf &
+                "act.Invoke()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' A5: a query expression lowers to query lambdas, which are skipped by the criterion just like the lambda
+        ''' written above. Cascading diagnostics of the failed query are not pinned here; what is pinned is that the
+        ''' keyword is rejected as top-level script code and not as a shared-member access.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInQueryExpressionInTopLevelLambda_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Imports System.Linq" & vbLf &
+                "Dim counter As Integer = 42" & vbLf &
+                "Dim names = New String() {""a"", ""bb""}" & vbLf &
+                "Dim f = Function() As Integer" & vbLf &
+                "              Return (From n In names Select n.Length + Me.counter).Count()" & vbLf &
+                "          End Function" & vbLf &
+                "System.Console.WriteLine(f())", {SystemCoreRef}, options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            Dim diagnostics = c.GetDiagnostics()
+            Dim scriptErrors = diagnostics.Where(Function(d) d.Id = ErrorCode(ERRID.ERR_KeywordNotAllowedInScript)).ToList()
+            Assert.Equal(1, scriptErrors.Count)
+            Assert.Equal("Me", scriptErrors(0).Location.SourceTree.GetText().ToString(scriptErrors(0).Location.SourceSpan))
+            Assert.DoesNotContain(diagnostics, Function(d) d.Id = ErrorCode(ERRID.ERR_UseOfKeywordNotInInstanceMethod1))
+            Assert.DoesNotContain(diagnostics, Function(d) d.Id = ErrorCode(ERRID.ERR_BadInstanceMemberAccess))
+        End Sub
+
+        ''' <summary>
+        ''' B1: an explicit 'Me' in the body of a top-level instance Function is refused BC36966. The member body is no
+        ''' longer an escape from the ban; this matches the C# scripting dialect (D7 parity revert). The reference is
+        ''' rejected at binding, so no symbol/field assertion is made.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelFunctionBody_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Function ReadCounter() As Integer" & vbLf &
+                "    Return Me.counter" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(ReadCounter())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' B2: the shadowing shape that motivated the old escape hatch. A local of the same name as the field makes the
+        ''' bare read pick the local; the explicit <c>Me.counter</c> that used to disambiguate is now refused BC36966 in
+        ''' the member body (C# scripting parity, D7 revert), so the only way to reach the shadowed field is to rename
+        ''' the local. The source shape is kept to pin that the escape hatch is closed.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelFunctionBodyWithShadowingLocal_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Function ReadField() As Integer" & vbLf &
+                "    Dim counter As Integer = 7" & vbLf &
+                "    Return Me.counter" & vbLf &
+                "End Function" & vbLf &
+                "Function ReadLocal() As Integer" & vbLf &
+                "    Dim counter As Integer = 9" & vbLf &
+                "    Return counter" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(ReadField() & ReadLocal())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' B3: the same in a top-level Sub and in a Property accessor, and for 'MyClass'. This is the multi-keyword form:
+        ''' each explicit reference is refused its own BC36966, one per occurrence, the squiggle over the keyword.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeAndMyClassInTopLevelSubAndPropertyAccessor_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Sub Show()" & vbLf &
+                "    System.Console.WriteLine(Me.counter)" & vbLf &
+                "    System.Console.WriteLine(MyClass.counter)" & vbLf &
+                "End Sub" & vbLf &
+                "ReadOnly Property CurrentValue As Integer" & vbLf &
+                "    Get" & vbLf &
+                "        Return Me.counter" & vbLf &
+                "    End Get" & vbLf &
+                "End Property" & vbLf &
+                "Show()" & vbLf &
+                "System.Console.WriteLine(CurrentValue)", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics(
+                Diagnostic(ERRID.ERR_KeywordNotAllowedInScript, "Me").WithArguments("Me").WithLocation(3, 30),
+                Diagnostic(ERRID.ERR_KeywordNotAllowedInScript, "MyClass").WithArguments("MyClass").WithLocation(4, 30),
+                Diagnostic(ERRID.ERR_KeywordNotAllowedInScript, "Me").WithArguments("Me").WithLocation(8, 16))
+        End Sub
+
+        ''' <summary>
+        ''' B4: a lambda written inside a top-level Sub body takes the same ban as its enclosing member - the explicit
+        ''' <c>Me</c> is refused BC36966. Together with A4 this is the pair a purely lexical test cannot tell apart: both
+        ''' now report, because the ban spans the whole script class (C# parity, D7 revert).
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInLambdaWrittenInTopLevelSubBody_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 42" & vbLf &
+                "Sub Run()" & vbLf &
+                "    Dim f = Function() As Integer" & vbLf &
+                "                Return Me.counter" & vbLf &
+                "            End Function" & vbLf &
+                "    System.Console.WriteLine(f())" & vbLf &
+                "End Sub" & vbLf &
+                "Run()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "Me")
+        End Sub
+
+        ''' <summary>
+        ''' C1: a Shared member of a script class has no instance, and BC36966 must not take over the ordinary answer
+        ''' BC30043 (the G1 control: an ordinary class Shared member reports the same).
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMeInTopLevelSharedFunction_ReportsUseOfKeywordNotInInstanceMethod()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Shared Function SharedMe() As Integer" & vbLf &
+                "    Return Me.counter" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(SharedMe())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_UseOfKeywordNotInInstanceMethod1, "Me")
+        End Sub
+
+        ''' <summary>C2: the implicit half, i.e. the behaviour fixed by issue 08, which must not move.</summary>
+        ''' <remarks>Pinned by <see cref="TopLevelSharedMethodBody_ReadingInstanceField_ReportsBadInstanceMemberAccess"/>.</remarks>
+        <Fact>
+        Public Sub ImplicitMeInTopLevelSharedSub_ReportsBadInstanceMemberAccess()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Shared Sub Show()" & vbLf &
+                "    System.Console.WriteLine(counter)" & vbLf &
+                "End Sub" & vbLf &
+                "Show()", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_BadInstanceMemberAccess, "counter")
+        End Sub
+
+        ''' <summary>C3: 'MyBase' and 'MyClass' from a Shared member take the same ordinary route.</summary>
+        <Fact>
+        Public Sub ExplicitMyBaseAndMyClassInTopLevelSharedFunction_ReportsUseOfKeywordNotInInstanceMethod()
+            Dim baseCompilation = CreateSubmission(
+                "Shared Function Describe() As String" & vbLf &
+                "    Return MyBase.ToString()" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(Describe())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            AssertSingleError(baseCompilation, ERRID.ERR_UseOfKeywordNotInInstanceMethod1, "MyBase")
+
+            Dim classCompilation = CreateSubmission(
+                "Shared Function Describe() As String" & vbLf &
+                "    Return MyClass.ToString()" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(Describe())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+            AssertSingleError(classCompilation, ERRID.ERR_UseOfKeywordNotInInstanceMethod1, "MyClass")
+        End Sub
+
+        ''' <summary>
+        ''' D1: an explicit 'MyBase' in a top-level instance Function is refused BC36966. The old shape let it bind and
+        ''' resolve against <c>System.Object</c> (a submission class has no base type, so a fallback supplied Object);
+        ''' both the ban in member bodies and the Object fallback are removed by the C# parity revert, so the keyword is
+        ''' rejected at binding and no type assertion is made.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMyBaseInTopLevelFunctionBody_ReportsKeywordNotAllowedInScript()
+            Dim c = CreateSubmission(
+                "Dim counter As Integer = 5" & vbLf &
+                "Function Describe() As String" & vbLf &
+                "    Return MyBase.ToString()" & vbLf &
+                "End Function" & vbLf &
+                "System.Console.WriteLine(Describe())", options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            AssertSingleError(c, ERRID.ERR_KeywordNotAllowedInScript, "MyBase")
+        End Sub
+
+        ''' <summary>
+        ''' D1 (the non-submission half, and the shape of the old 'mybase-no-base-class' run control): a whole-script
+        ''' compilation is a script class too, so an explicit 'MyBase' in a member body is refused BC36966 and the
+        ''' program no longer compiles - it cannot run or print the script class name any more.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitMyBaseInScriptFunctionBody_ReportsKeywordNotAllowedInScript()
+            Dim source =
+                "Imports System" & vbLf &
+                "Function Describe() As String" & vbLf &
+                "    Return MyBase.ToString()" & vbLf &
+                "End Function" & vbLf &
+                "Console.WriteLine(Describe())"
+
+            Dim tree = SyntaxFactory.ParseSyntaxTree(source, options:=New VisualBasicParseOptions(kind:=SourceCodeKind.Script))
+            Dim c = CreateCompilationWithMscorlib461AndVBRuntime({tree}, options:=TestOptions.ReleaseExe.WithScriptClassName("Script"))
+
+            c.VerifyDiagnostics(Diagnostic(ERRID.ERR_KeywordNotAllowedInScript, "MyBase").WithArguments("MyBase").WithLocation(3, 12))
+        End Sub
+
+        ''' <summary>
+        ''' D2: a class declared by the script is an ordinary class; nothing about the three keywords changes there.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitKeywordsInClassDeclaredByScript_NoDiagnostics()
+            Dim c = CreateSubmission(
+                "Class Holder" & vbLf &
+                "    Dim counter As Integer = 5" & vbLf &
+                "    Function ReadField() As Integer" & vbLf &
+                "        Dim counter As Integer = 7" & vbLf &
+                "        Return Me.counter" & vbLf &
+                "    End Function" & vbLf &
+                "    Function ReadMyClass() As Integer" & vbLf &
+                "        Dim counter As Integer = 7" & vbLf &
+                "        Return MyClass.counter" & vbLf &
+                "    End Function" & vbLf &
+                "    Function Describe() As String" & vbLf &
+                "        Return MyBase.ToString()" & vbLf &
+                "    End Function" & vbLf &
+                "End Class" & vbLf &
+                "Dim h As New Holder()" & vbLf &
+                "System.Console.WriteLine(h.ReadField() & h.ReadMyClass() & h.Describe())",
+                options:=ScriptCompilationOptions(), parseOptions:=TestOptions.Script)
+
+            c.VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>
+        ''' D3: the issue 15 controls. 'MyBase' in a Module and in a Structure keeps its own diagnostic.
+        ''' </summary>
+        <Fact>
+        Public Sub MyBaseInModuleAndInStructure_ReportsOrdinaryDiagnostics()
+            Dim moduleSource =
+                "Module M" & vbLf &
+                "    Sub S()" & vbLf &
+                "        System.Console.WriteLine(MyBase.ToString())" & vbLf &
+                "    End Sub" & vbLf &
+                "End Module"
+            AssertSingleErrorInRegularCompilation(moduleSource, ERRID.ERR_UseOfKeywordFromModule1)
+
+            Dim structureSource =
+                "Structure S" & vbLf &
+                "    Public Function F() As String" & vbLf &
+                "        Return MyBase.ToString()" & vbLf &
+                "    End Function" & vbLf &
+                "End Structure"
+            AssertSingleErrorInRegularCompilation(structureSource, ERRID.ERR_UseOfKeywordFromStructure1)
+        End Sub
+
+        ''' <summary>
+        ''' D4: a regular compilation is untouched: the script-class branch must not be reachable for an ordinary class.
+        ''' </summary>
+        <Fact>
+        Public Sub ExplicitKeywordsInRegularCompilationClass_RunAsBefore()
+            Dim source =
+                "Class C" & vbLf &
+                "    Public x As Integer = 1" & vbLf &
+                "    Public Function F() As String" & vbLf &
+                "        Return Me.x & MyClass.x & MyBase.ToString()" & vbLf &
+                "    End Function" & vbLf &
+                "End Class" & vbLf &
+                "Module Entry" & vbLf &
+                "    Sub Main()" & vbLf &
+                "        System.Console.WriteLine(New C().F())" & vbLf &
+                "    End Sub" & vbLf &
+                "End Module"
+
+            Dim c = CreateCompilationWithMscorlib461AndVBRuntime(source, options:=TestOptions.ReleaseExe)
+
+            CompileAndVerify(c, expectedOutput:="11C").VerifyDiagnostics()
+        End Sub
+
+        ''' <summary>
+        ''' The diagnostic of a regular (non-script) compilation, which has to stay exactly one error.
+        ''' </summary>
+        Private Shared Sub AssertSingleErrorInRegularCompilation(source As String, errorId As ERRID)
+            Dim c = CreateCompilationWithMscorlib461AndVBRuntime(source, options:=TestOptions.ReleaseDll)
+
+            AssertSingleError(c, errorId, "MyBase")
         End Sub
 
 #End Region

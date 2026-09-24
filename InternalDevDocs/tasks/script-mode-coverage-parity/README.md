@@ -173,6 +173,17 @@ End Class
 
 **对 U10 的影响**：负向格**不必**转 `缺口`。U10 重判嵌套栏时，把这条与豁免口径一并应用。
 
+> **判据②补充裁定 · 负向格必须点名同容器正向对照，否则记 `缺口`（main 裁定，SP-F05，来源 `..\scripting-test-strategy-parity\README.md` §四.1）**
+>
+> 上一裁定「负向算 `已覆盖`」**加一条限定**，堵住"只钉诊断、从不验该形状在合法容器里能跑出值"这一让 issue 28/29/30 三条缺陷集体藏身的口径漏洞：
+> - 一个 `已覆盖` 的**负向**格（断"报 `BCxxxxx`"），其依据**必须**在同一格里点名一个**正向对照**的 `文件:行号`——即**同形状在一个合法容器里跑通并断到具体值**（对照容器＝脚本自身的合法面：提交类成员体、脚本所声明类型的方法体等；**普通编译对照不充分**，因为它从不触达脚本容器的绑定路径，见 `..\scripting-test-strategy-parity\README.md` §四.1）。
+> - **找不到正向对照的负向格 = `缺口`**（不是"已覆盖"）。这不推翻上一裁定：上一裁定说的是"钉诊断算钉行为"，本条说的是"钉了'被拒'这一半，还得钉'同形状该放行时确实放行且取值正确'那一半，否则你不知道这条禁令是不是过宽"。issue 28 的教训正是：BC36966 被钉成规范行为，但从未有格要求"该形状在成员体/普通类里合法"，于是过宽禁令被测试固化。
+> - **正向对照必须断具体值**（返回值/IL/`ToTestDisplayString`），不接受"跑通即过 / 无诊断即过"（`..\scripting-test-strategy-parity\README.md` §取证结论 4）。
+> - **例外（维持 `已覆盖`，无需正向对照）**：该形状在**任何**容器里都无合法正向形态的纯负向语法（如脚本特有禁令对某关键字的覆盖，正向对照不存在或不改变容器语义）——须在依据列写一句"无合法正向形态"的理由，无说明按 `缺口`。
+> - **落地口径**：本轮 B/E/F/H 收口的四条缺陷，其测试均已按此配同容器正/反对照（行 E 的 `ScriptBareObjectMemberTruthTableTests` 含成员体/普通类对照、行 F 的惰性格含"读了断到值"正对照）。SP-F03 的存量补测（~22–40 个仅有负向证据的历史格）按本裁定逐格挂正向对照或记 `缺口`。
+
+**对 U10 的影响（修订）**：负向格**不必**转 `缺口`——**前提**是它按本补充裁定挂到了同容器正向对照；未挂者转 `缺口`。
+
 #### 判据②补充裁定 · 错锚一律判 `缺口`（main 裁定）
 
 **问题**：部分格的依据指向**宿主 helper 的调用点实参**、而非脚本源码里该语法的实际出现。
@@ -275,7 +286,7 @@ End Class
 | F2 | 顶层语句的宿主方法体**不做流分析** | `Compilation\MethodCompiler.vb:625` 的 `' TODO: any flow analysis for initializers?`（第二轮已复核） | 实锤 |
 | F3 | 顶层 `Dim x = <expr>`（无 `As` 子句）作为**字段**绑定为 `Object`，**不做类型推断**；`Option Strict On` 下报 `BC30209` | 既有用例 `ScriptModeStatementConformanceTests.vb:606`（`TopLevelInferredField_IsObject_Conforms`，重载决议判别）与 `:623`（`TopLevelInferredFieldWithStrictOn_IsReported`） | 实锤 |
 | F4 | 脚本类非限定成员引用一律经 `TryBindInteractiveReceiver` 解析成 `BoundPreviousSubmissionReference`（同一次提交内也不例外） | `Binding\Binder_Expressions.vb:2570-2576` → `:2615-2634`；插桩实测见第二轮 README §二 C2 行 | 实锤 |
-| F5 | 脚本类的显式 `Me` / `MyBase` / `MyClass` 报 `BC36966`（`ERR_KeywordNotAllowedInScript`）；脚本里 `Namespace` 报 `BC36965` | `spec\spec-scripting-dialect.md` 的「Script-specific restrictions and diagnostics」表；报点 `Errors\Errors.vb` 的 `ERR_KeywordNotAllowedInScript` | 实锤 |
+| F5 | 脚本类的显式 `Me` / `MyBase` / `MyClass` 报 `BC36966`（`ERR_KeywordNotAllowedInScript`）——报点范围按 `issues\issue-script-class-explicit-me-in-member-bodies.md` 限于顶层脚本代码（成员体内另判），本行「报出诊断即覆盖」的判定不变；脚本里 `Namespace` 报 `BC36965` | `spec\spec-scripting-dialect.md` 的「Script-specific restrictions and diagnostics」表；报点 `Errors\Errors.vb` 的 `ERR_KeywordNotAllowedInScript` | 实锤 |
 | F6 | 顶层 `On Error` / `Resume` 报 `BC36956`（`ERR_ResumablesCannotContainOnError`）；顶层 `RaiseEvent` 报 unsupported-statement 诊断；顶层 `Yield` 报 `BC36966` | 判据 `Binding\Binder_Statements.vb:1190-1191`（`IsInAsyncContext` 分支）与既有用例 `ScriptModeStatementConformanceTests.vb:219` / `ScriptTests.vb:359` | 实锤（诊断存在）；**推测**（`On Error` 的判据就是 `:1190` 那一处，未逐条插桩确证） |
 | F7 | 测试宿主统一走 `CommandLineRunner` + 内存 `ConsoleIO`；`ScriptModeConformance.CreateRunner` 把 `BuildPaths.TempDir` 指向 `AppContext.BaseDirectory`（不建目录） | `Scripting\VisualBasicTest\ScriptModeConformanceTests.vb:178-187` | 实锤 |
 | F8 | `Scripting\VisualBasicTest` 是 MTP 项目，`dotnet test` 静默跑 0 个；须直接跑程序集 `-automated` | 第二轮 `test-plan.md` §4；本仓库记忆条目「VB scripting test runner」 | 实锤 |

@@ -342,6 +342,197 @@ Public Class ScriptModeDeclarationConformanceTests
             "Return Auto & ""|"" & AutoWithInit", "0|init")
     End Sub
 
+    ' ---- 声明 · Property · 顶层自动实现属性后的语句（auto-property-top-level-gate）----
+
+    ''' <summary>
+    ''' G1: the sibling cell of the one above, with the entry after the auto property starting with an identifier.
+    ''' That is the defect: the auto property closes its block only when the next entry arrives, and the parser used
+    ''' to judge the next entry as a declaration before that, answering BC30188 on it. The read-back value is the
+    ''' property's own initializer, so the cell also pins that the initialization assignment did happen, in order.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyThenIdentifierStatement_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "ReadOnly Property P As Integer = 5" & vbCrLf &
+            "System.Console.WriteLine(P)" & vbCrLf &
+            "Return P", 5)
+    End Sub
+
+    ''' <summary>
+    ''' G6: without <c>ReadOnly</c> the same shape was refused just the same, so it has to be let through the same
+    ''' way, and the property stays writeable at the top level.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelWritableAutoPropertyThenStatement_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Property P As Integer = 5" & vbCrLf &
+            "System.Console.WriteLine(P)" & vbCrLf &
+            "P = 6" & vbCrLf &
+            "Return P", 6)
+    End Sub
+
+    ''' <summary>
+    ''' G2: an auto property with no initializer at all - the trigger was never the <c>=</c>. The successor is the
+    ''' assignment of the baseline shape <c>x = P + 1</c>, and the written value is what the cell reads back.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyWithoutInitializerThenAssignment_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Dim written As Integer" & vbCrLf &
+            "ReadOnly Property Q As Integer" & vbCrLf &
+            "written = Q + 7" & vbCrLf &
+            "Return written & ""/"" & Q", "7/0")
+    End Sub
+
+    ''' <summary>
+    ''' G3: a statement between the property and a top level method that reads the property - the three entries are
+    ''' one member list in source order, and the method sees the initialized value.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyStatementAndMethod_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "ReadOnly Property P As Integer = 5" & vbCrLf &
+            "System.Console.WriteLine(P)" & vbCrLf &
+            "Function Describe() As String" & vbCrLf &
+            "    Return ""P="" & P" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Return Describe()", "P=5")
+    End Sub
+
+    ''' <summary>
+    ''' G4: two auto properties, each with a statement of its own right behind it (the baseline read each one as
+    ''' leaving its own window). The readings are the source-order lock: every statement sees exactly the values
+    ''' the initializers before it established, never a later one's.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertiesInterleavedWithStatements_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Property P As Integer = 5" & vbCrLf &
+            "P += 1" & vbCrLf &
+            "Dim first As Integer = P" & vbCrLf &
+            "Property Q As Integer = 7" & vbCrLf &
+            "Q = 8" & vbCrLf &
+            "Dim second As Integer = Q" & vbCrLf &
+            "Return first & ""/"" & second & ""/"" & (first + second)", "6/8/14")
+    End Sub
+
+    ''' <summary>
+    ''' The <c>P8</c> shape at the host layer: two auto properties with nothing between them, and only then the entry
+    ''' that reads them. The second property is pushed while the first is still undetermined, so the reading below is
+    ''' the sum of two initializers that both ran, in order, and of a statement the parser judged through two
+    ''' pending blocks at once.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelConsecutiveAutoPropertiesThenStatement_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "ReadOnly Property P As Integer = 5" & vbCrLf &
+            "ReadOnly Property Q As Integer = 7" & vbCrLf &
+            "Return P + Q", 12)
+    End Sub
+
+    ''' <summary>
+    ''' G7, first arm: <c>AddHandler</c> right behind an auto property is the second report point of the same
+    ''' window (BC30188 plus BC30205 in the baseline). The delivery is asserted, not the compile: the handler reads
+    ''' the property, so the value pinned below is both "the handler ran" and "the property was initialized".
+    ''' <para>
+    ''' The field is named <c>ticker</c> rather than after its type on purpose: VB is case-insensitive, so a top level
+    ''' <c>Dim emitter As New Emitter()</c> beside a top level <c>Class Emitter</c> is a redeclaration (BC30260) whose
+    ''' uses then read as ambiguous (BC31429) - a broken shape, not a reading of this gate (pitfall <c>P-007</c>).
+    ''' </para>
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyThenAddHandler_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Class Emitter" & vbCrLf &
+            "    Public Event Tick As System.EventHandler" & vbCrLf &
+            "    Public Sub Fire()" & vbCrLf &
+            "        RaiseEvent Tick(Me, System.EventArgs.Empty)" & vbCrLf &
+            "    End Sub" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Dim ticker As New Emitter()" & vbCrLf &
+            "Dim hits As Integer = 0" & vbCrLf &
+            "ReadOnly Property P As Integer = 5" & vbCrLf &
+            "AddHandler ticker.Tick, Sub(s As Object, e As System.EventArgs) hits = P + 1" & vbCrLf &
+            "ticker.Fire()" & vbCrLf &
+            "Return hits", 6)
+    End Sub
+
+    ''' <summary>
+    ''' G7, second arm: <c>RemoveHandler</c> right behind an auto property, the other literal of the dispatcher.
+    ''' The handler is registered before the property, so the reading separates the three outcomes: 0 means the
+    ''' removal took effect, 2 would mean it was parsed but never unhooked anything. The field is again named
+    ''' <c>ticker</c>, for the case-insensitivity reason recorded in the first arm.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyThenRemoveHandler_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Class Emitter" & vbCrLf &
+            "    Public Event Tick As System.EventHandler" & vbCrLf &
+            "    Public Sub Fire()" & vbCrLf &
+            "        RaiseEvent Tick(Me, System.EventArgs.Empty)" & vbCrLf &
+            "    End Sub" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Dim ticker As New Emitter()" & vbCrLf &
+            "Dim count As Integer = 0" & vbCrLf &
+            "Dim handler As System.EventHandler = Sub(s As Object, e As System.EventArgs) count += 1" & vbCrLf &
+            "AddHandler ticker.Tick, handler" & vbCrLf &
+            "ReadOnly Property P As Integer = 5" & vbCrLf &
+            "RemoveHandler ticker.Tick, handler" & vbCrLf &
+            "ticker.Fire()" & vbCrLf &
+            "ticker.Fire()" & vbCrLf &
+            "Return count & ""/"" & P", "0/5")
+    End Sub
+
+    ''' <summary>
+    ''' G5, host half: an <c>Await</c> in the initializer of a top level auto property, immediately followed by a
+    ''' statement. The baseline read BC30188 here and nothing else (<c>P11</c>), so what the cell has to pin is both
+    ''' halves: the awaited value is visible in order, and no diagnostic of the BC37341/BC36937 family appears once
+    ''' the parse error is gone - <c>AssertRuns</c> refuses the submission for any error diagnostic.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelAutoPropertyWithAwaitedInitializerThenStatement_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "ReadOnly Property P As Integer = Await Task.FromResult(5)" & vbCrLf &
+            "Dim z As Integer = 1" & vbCrLf &
+            "System.Console.WriteLine(P + z)" & vbCrLf &
+            "Return P + z", 6)
+    End Sub
+
+    ''' <summary>
+    ''' R1': the same shape inside a <c>Class</c> of the script is not top level script code, and has to stay
+    ''' refused. This is what tells the fixed criterion from a blanket <c>IsScript</c> switch.
+    ''' </summary>
+    <Fact>
+    Public Sub AutoPropertyInsideScriptClassThenStatement_IsStillReported()
+        ScriptModeConformance.AssertReports(
+            "Class C1" & vbCrLf &
+            "    ReadOnly Property P As Integer = 5" & vbCrLf &
+            "    System.Console.WriteLine(P)" & vbCrLf &
+            "End Class" & vbCrLf &
+            "Return 0", "BC30188")
+    End Sub
+
+    ''' <summary>
+    ''' R1' second container, at the host layer: a <c>Namespace</c> of a script keeps both readings it had - the
+    ''' dialect refuses namespaces in a script (BC36965) and the misplaced statement stays BC30188.
+    ''' </summary>
+    <Fact>
+    Public Sub AutoPropertyInsideScriptNamespaceThenStatement_IsStillReported()
+        ScriptModeConformance.AssertReports(
+            "Namespace Group" & vbCrLf &
+            "    ReadOnly Property P As Integer = 5" & vbCrLf &
+            "    System.Console.WriteLine(P)" & vbCrLf &
+            "End Namespace" & vbCrLf &
+            "Return 0", "BC36965")
+
+        ScriptModeConformance.AssertReports(
+            "Namespace Group" & vbCrLf &
+            "    ReadOnly Property P As Integer = 5" & vbCrLf &
+            "    System.Console.WriteLine(P)" & vbCrLf &
+            "End Namespace" & vbCrLf &
+            "Return 0", "BC30188")
+    End Sub
+
     ''' <summary>Hand written property with a backing field.</summary>
     <Fact>
     Public Sub TopLevelHandWrittenProperty_Conforms()

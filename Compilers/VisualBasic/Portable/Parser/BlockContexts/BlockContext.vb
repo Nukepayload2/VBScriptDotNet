@@ -184,6 +184,32 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
             End Get
         End Property
 
+        ''' <summary>
+        ''' Whether an executable statement of a script may be parsed while this context is the current one, i.e.
+        ''' whether the context is - or is standing in for - the top level of the script's compilation unit.
+        ''' <para>
+        ''' The parser asks this instead of comparing <see cref="BlockKind"/> with
+        ''' <see cref="SyntaxKind.CompilationUnit"/> at the statement arms. The reason is the auto implemented
+        ''' property: a <c>Property</c> statement without accessors can only be told apart from an expanded one once
+        ''' the entry behind it arrives, so <see cref="PropertyBlockContext"/> is pushed for it and closed lazily by
+        ''' that very entry. Judging the entry behind it against the literal block kind therefore treats it as a
+        ''' misplaced declaration - the parser answers before the deferred close gets its turn, and a top level
+        ''' statement of a script reports BC30188. The criterion lets that pending, still undetermined block
+        ''' forward the question to the context it was pushed onto rather than answer "declaration expected".
+        ''' </para>
+        ''' <para>
+        ''' The gate is deliberately narrow. It holds only for <see cref="SourceCodeKind.Script"/>, so an ordinary
+        ''' compilation keeps every diagnostic it had, and it is answered <c>False</c> by every context that is
+        ''' actually inside a member - a type, a namespace, a method, or a property whose accessors have already
+        ''' been seen - so a statement written in the body of one of those is still a misplaced declaration.
+        ''' </para>
+        ''' </summary>
+        Friend Overridable ReadOnly Property AcceptsScriptTopLevelStatement As Boolean
+            Get
+                Return Parser.IsScript AndAlso BlockKind = SyntaxKind.CompilationUnit
+            End Get
+        End Property
+
         Friend ReadOnly Property Level As Integer
             Get
                 Return _level

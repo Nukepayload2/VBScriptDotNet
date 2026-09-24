@@ -10,25 +10,24 @@ Imports Microsoft.CodeAnalysis.VisualBasic.Scripting
 Imports Xunit
 
 ''' <summary>
-''' What follows from "a top level <c>Dim</c> without an <c>As</c> clause is bound as <c>Object</c>"
-''' (design-detailed.md §U1; the behaviour itself is already pinned by
-''' <c>ScriptModeStatementConformanceTests.TopLevelInferredField_IsObject_Conforms</c> and
-''' <c>TopLevelInferredFieldWithStrictOn_IsReported</c>).
+''' Issue 32 (script-top-level-dim-type-inference): a top level <c>Dim</c> with no <c>As</c> clause now
+''' carries the same <c>Option Infer</c> static type an equivalent method-body local would, instead of
+''' <c>Object</c> (SourceMemberFieldSymbol.ComputeType / TryComputeScriptFieldType, gated to
+''' IsScriptClass). This file used to pin the opposite - "a top level Dim is Object" - as a registered
+''' divergence (design §U1); the author reclassified that as a defect to fix, so the two cells that
+''' asserted Object are now positive proofs that the field is inferred.
 ''' <para>
-''' The initial A1 report was "a top level LINQ Group By query throws <c>InvalidCastException</c>", i.e. a
-''' suspected compiler defect. It is not one: the query is legal, the top level field that holds it is not
-''' inferred, and the field being <c>Object</c> forces the follow up member access through the late binder, which
-''' is where the exception comes from (design-overview.md §3). The cases below pin both halves of that chain so
-''' the consequence stops being an accidental probe finding.
+''' The A1 report "a top level LINQ Group By query throws <c>InvalidCastException</c>" was the downstream
+''' cost of the old behaviour: the Object field forced the follow-up member access through the late binder.
+''' With the field inferred to the query's <c>IEnumerable</c> of the anonymous projection, that member call
+''' binds early and the shape evaluates - which is what the (formerly "negative") cell now asserts.
 ''' </para>
 ''' <para>
 ''' The discriminator for "was the field inferred?" is <b>overload resolution</b>, never <c>GetType()</c>:
-''' a late bound <c>Object.GetType()</c> answers with the runtime type, so an <c>Object</c> field and an inferred
-''' field reply identically and the probe has no discriminating power (design-detailed.md §1.2 item 4). The pair
-''' <c>Tell(o As Object)</c> / <c>Tell(items As IEnumerable)</c> answers differently for the two static types -
-''' the <c>IEnumerable</c> parameter is the more specific of two widening reference conversions, so it wins only
-''' when the argument really is a sequence. <c>SubLocalQuery_IsSequence</c> is the control that proves the pair
-''' is sensitive to inference at all; without it a blanket "object" answer would look like a pass.
+''' the pair <c>Tell(o As Object)</c> / <c>Tell(items As IEnumerable)</c> answers differently for the two
+''' static types - the <c>IEnumerable</c> parameter is the more specific of two widening reference
+''' conversions, so it wins only when the argument really is a sequence. <c>SubLocalQuery_IsSequence</c> is
+''' the control that keeps the pair sensitive to inference at all.
 ''' </para>
 ''' <para>
 ''' No file is written, no process is started, and there is no registry or network access. The one assembly
@@ -55,8 +54,7 @@ Public Class ScriptModeTopLevelInferenceTests
     ''' (length, count). Over <c>{"aa", "b", "ccc", "dd"}</c> the groups are 2:2, 1:1, 3:1 in first appearance
     ''' order. The same text is used by every cell, so the cells differ only in where the declaration lives and in
     ''' whether it carries an <c>As</c> clause. The projection is anonymous, so the element type has no name that
-    ''' an <c>As</c> clause could spell; the cell that needs a typed declaration names the untyped
-    ''' <c>IEnumerable</c> instead and reads the elements through it.
+    ''' an <c>As</c> clause could spell; the compiler infers the <c>IEnumerable</c> of the anonymous type instead.
     ''' </summary>
     Private Const GroupingQuery As String =
         "From w In words Group By k = w.Length Into g = Group Select k, c = g.Count()"
@@ -79,15 +77,16 @@ Public Class ScriptModeTopLevelInferenceTests
         "    Return ""sequence""" & vbCrLf &
         "End Function"
 
-    ' ---- (1) the top level field holds an Object ----
+    ' ---- (1) the top level field is INFERRED (this is what issue 32 changed) ----
 
     ''' <summary>
-    ''' Cell one of the pair: a top level <c>Dim q = &lt;query&gt;</c> with no <c>As</c> clause keeps the static
-    ''' type <c>Object</c>, and <c>Option Infer On</c> does not change that. The assertion is the overload
-    ''' resolution result, not the runtime type of the value.
+    ''' A top level <c>Dim q = &lt;query&gt;</c> with no <c>As</c> clause now infers the query's
+    ''' <c>IEnumerable</c> of the anonymous projection (like a local would), so the <c>Tell</c> overload pair
+    ''' resolves to the <c>IEnumerable</c> arm and answers "sequence". Before issue 32 this cell asserted
+    ''' "object" - the registered divergence that the author reclassified as a defect.
     ''' </summary>
     <Fact>
-    Public Sub TopLevelQueryField_IsObject()
+    Public Sub TopLevelQueryField_IsInferred_AsSequence()
         ScriptModeConformance.AssertRuns(
             "Option Infer On" & vbCrLf &
             "Dim answer As String = """"" & vbCrLf &
@@ -95,16 +94,15 @@ Public Class ScriptModeTopLevelInferenceTests
             Words & vbCrLf &
             "Dim q = " & GroupingQuery & vbCrLf &
             "answer = Tell(q)" & vbCrLf &
-            "Return answer", "object", WithLinqOptions)
+            "Return answer", "sequence", WithLinqOptions)
     End Sub
 
-    ' ---- (2) the same query infers and evaluates when it is not a top level field ----
+    ' ---- (2) the same query in a local, for the overload-pair control ----
 
     ''' <summary>
-    ''' Control for the overload pair: the very same query in a local of a top level <c>Sub</c> <b>is</b> inferred,
-    ''' and the pair answers "sequence" there. This is what makes the "object" reading above discriminating - if
-    ''' both cells returned "object" the pair would be insensitive to inference and the first cell would prove
-    ''' nothing (design-detailed.md §1.4).
+    ''' Control for the overload pair: the very same query in a local of a top level <c>Sub</c> is inferred, and
+    ''' the pair answers "sequence" there. This keeps the reading above discriminating (if the pair answered
+    ''' "object" for a known sequence, the inference cell would prove nothing).
     ''' </summary>
     <Fact>
     Public Sub SubLocalQuery_IsSequence()
@@ -122,9 +120,7 @@ Public Class ScriptModeTopLevelInferenceTests
     End Sub
 
     ''' <summary>
-    ''' Cell two of the pair: the same query in the same container runs and produces the right groups. The
-    ''' container of the declaration is the only difference to the first cell, so the failure reported for the top
-    ''' level shape is about where the declaration lives, not about the query being illegal.
+    ''' The same query in a local runs and produces the right groups.
     ''' </summary>
     <Fact>
     Public Sub SubLocalQuery_Evaluates()
@@ -141,13 +137,8 @@ Public Class ScriptModeTopLevelInferenceTests
     End Sub
 
     ''' <summary>
-    ''' The other escape hatch named by the design: the same query text in the same top level position, with the
-    ''' one difference that the declaration gets an <c>As</c> clause, so the field's static type is the sequence
-    ''' instead of <c>Object</c> and the member call after it binds early. That single clause is the whole
-    ''' difference to <see cref="TopLevelQueryField_IsObject"/> and to
-    ''' <see cref="TopLevelQueryField_LateBoundSelect_Fails"/>. The clause names the untyped <c>IEnumerable</c>, not
-    ''' the query's element type, which is exactly the type the compiler would otherwise have to infer - the
-    ''' anonymous projection has no name to write there.
+    ''' The escape hatch that predates the fix: the same query text with an explicit <c>As IEnumerable</c>
+    ''' evaluates too. Kept to show the <c>As</c>-clause path is unchanged by inference (issue 32 §四判据 3).
     ''' </summary>
     <Fact>
     Public Sub TopLevelQueryWithAsClause_Evaluates()
@@ -158,48 +149,21 @@ Public Class ScriptModeTopLevelInferenceTests
             ExpectedGroups, WithLinqOptions)
     End Sub
 
-    ' ---- the negative cell: what the Object field costs at run time ----
+    ' ---- (3) the shape that used to throw InvalidCastException now evaluates ----
 
     ''' <summary>
-    ''' Cell three of the pair, negative: following the <c>Object</c> typed field with a member call reports a
-    ''' failure rather than "no exception" - the front end is clean, so the exception is the late binder refusing
-    ''' to resolve the member on the runtime shape. Observed form: <c>InvalidCastException</c> whose message is
-    ''' "Overload resolution failed because no Public 'Select' can be called with these arguments: ...". Only the
-    ''' member name is asserted - it is the part that ties the failure to this cell, and it does not move with the
-    ''' resource culture the way the surrounding sentence does.
+    ''' The original issue-21 report: a top level <c>Dim q = &lt;query&gt;</c> followed by a member call. When the
+    ''' field was <c>Object</c> the <c>q.Select(...)</c> was late bound and threw
+    ''' <c>InvalidCastException</c> at run time. With the field inferred to the query type the call binds early and
+    ''' the submission produces the expected groups - a positive assertion of a concrete value (issue 32 §四判据 6).
     ''' </summary>
     <Fact>
-    Public Sub TopLevelQueryField_LateBoundSelect_Fails()
-        Dim failure = RunExpectingFailure(
+    Public Sub TopLevelQueryField_InferredSelect_Evaluates()
+        ScriptModeConformance.AssertRuns(
             Words & vbCrLf &
             "Dim q = " & GroupingQuery & vbCrLf &
-            "Return q.Select(Function(x) x.k & "":"" & x.c).Count()")
-
-        Assert.IsType(Of InvalidCastException)(failure)
-        Assert.Contains("Select", failure.Message)
+            "Return String.Join("","", q.Select(Function(x) x.k & "":"" & x.c))",
+            ExpectedGroups, WithLinqOptions)
     End Sub
-
-    ''' <summary>
-    ''' Runs a submission that is expected to pass the front end and fail while running, and hands the exception
-    ''' the host sees back to the cell. Compiling clean is asserted here because it is the whole point: the failure
-    ''' is not a rejected submission, and <c>CompilationErrorException</c> would be the wrong shape.
-    ''' </summary>
-    Private Shared Function RunExpectingFailure(source As String) As Exception
-        Dim script = VisualBasicScript.Create(source, WithLinqOptions)
-        Dim errors = script.Compile().Where(Function(d) d.Severity = DiagnosticSeverity.Error).ToArray()
-
-        Assert.True(errors.Length = 0,
-                    "the submission has to compile; it did not: " &
-                    String.Join(", ", errors.Select(Function(d) d.Id)) & vbCrLf & source)
-
-        Try
-            script.RunAsync().GetAwaiter().GetResult()
-        Catch ex As Exception
-            Return ex
-        End Try
-
-        Assert.True(False, "the submission was expected to fail at run time" & vbCrLf & source)
-        Return Nothing
-    End Function
 
 End Class

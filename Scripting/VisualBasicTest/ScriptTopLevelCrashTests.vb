@@ -393,9 +393,10 @@ Public Class ScriptTopLevelCrashTests
     End Function
 
     ''' <summary>
-    ''' An explicit 'MyBase' in a submission class is a diagnostic, not a terminated process: the error path builds the
-    ''' bound node from the base type, and a submission class has none (BC36966 is the diagnostic the ordinary
-    ''' 'MyBase' error paths of this compiler family already file).
+    ''' An explicit 'MyBase' in a submission class is a diagnostic, not a terminated process: the script-class ban on
+    ''' the explicit keywords (BC36966) rejects it at binding, and the fallback to <c>System.Object</c> that a submission
+    ''' class used to synthesize for its missing base type is gone. (scope wording synced to the C# parity revert:
+    ''' script-class-explicit-keyword-parity-revert / decisions.md D7)
     ''' </summary>
     <Fact>
     Public Sub TopLevelMyBase_IsReportedInsteadOfTerminatingTheProcess()

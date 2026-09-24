@@ -43,14 +43,11 @@ Imports Xunit
 ''' The cells whose C# baseline shape is file bound live in the files test-plan §2.1.1 names: #6 '#Load' return
 ''' semantics in ScriptTests.vb (family 13), #7 '#r' relative paths and extension priority and #8
 ''' MissingAssemblySymbol in InteractiveSessionReferencesTests.vb (families 35/36/59), #13 and #14 in
-''' ScriptOptionsTests.vb (families 64/65/67). One cell, #14 AllowUnsafe, is recorded as not applicable with the
-''' retrieval that establishes it (see that cell). The remaining reported item is a registered divergence rather
-''' than a missing case:
-''' <list type="bullet">
-''' <item><description>#14 WarningLevel is not plumbed into <c>VisualBasicCompilationOptions</c>: the cell is
-''' covered by an assertion on the compilation object, and the divergence itself is registered as
-''' <c>InternalDevDocs\issues\issue-warning-level-not-plumbed.md</c> (upstream inherited, VB side only).</description></item>
-''' </list>
+''' ScriptOptionsTests.vb (families 64/65/67). #14 WarningLevel is now C# parity - it is forwarded into the
+''' compilation via <c>VisualBasicCompilationOptions.WithWarningLevel</c> (see <c>WarningLevel_ReachesTheCompilationOption</c>;
+''' the former "not plumbed" divergence in <c>InternalDevDocs\issues\issue-warning-level-not-plumbed.md</c> is closed).
+''' The one cell left without a VB landing is #14 AllowUnsafe, recorded as not applicable with the retrieval that
+''' establishes it (see that cell).
 ''' </summary>
 Public Class ScriptModeApiSurfaceConformanceTests
 
@@ -87,14 +84,17 @@ Public Class ScriptModeApiSurfaceConformanceTests
     End Function
 
     ''' <summary>
-    ''' The negative companion of cell #1, and a registered divergence: the C# baseline redeclares the *same* member
-    ''' name in the second chain and expects the new declaration to hide the old one (ST:452, expecting 25). VB
-    ''' reports <c>BC30521</c> (overload resolution fails between <c>Submission#1.M</c> and <c>Submission#0.M</c>)
-    ''' for that shape, with and without an explicit <c>Shadows</c>. This case pins the VB outcome so the divergence
-    ''' cannot drift silently; the shape below is what cell #1 uses instead.
+    ''' U9 #1, the second half of the C# baseline (<c>TestBranchingSubscripts</c>, ST:452 redeclares the *same*
+    ''' member name and expects 25). This case used to pin the divergence - VB reported <c>BC30521</c> for a
+    ''' member redeclared by a later submission, with or without an explicit <c>Shadows</c> - and is reclaimed
+    ''' here once the decision layer ties such candidates by submission slot
+    ''' (<c>OverloadResolution.CombineCandidates</c>, "Position in interactive submission chain. The last
+    ''' definition wins."). Both halves are asserted: the submission is accepted with no diagnostic at all, and
+    ''' the call answers from the newest body. <see cref="ScriptSubmissionMemberRedeclarationTests"/> holds the
+    ''' rest of the shape (properties, longer chains, the <c>#Load</c> axis, and the counter-cells).
     ''' </summary>
     <Fact>
-    Public Async Function BranchingSubscripts_RedeclaringTheSameMember_ReportsBC30521() As Task
+    Public Async Function BranchingSubscripts_RedeclaringTheSameMember_TheLatestDefinitionWins() As Task
         Dim first = Await VisualBasicScript.RunAsync(
             "Function M(x As Integer) As Integer" & vbCrLf &
             "    Return x + x" & vbCrLf &
@@ -106,7 +106,8 @@ Public Class ScriptModeApiSurfaceConformanceTests
             "End Function" & vbCrLf &
             "? M(5)")
 
-        Assert.Contains("BC30521", redeclared.Compile().Select(Function(d) d.Id))
+        Assert.Empty(redeclared.Compile())
+        Assert.Equal(25, Await redeclared.EvaluateAsync())
     End Function
 
 #End Region

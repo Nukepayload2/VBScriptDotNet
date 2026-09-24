@@ -302,19 +302,19 @@ Public Class ScriptOptionsTests
     End Sub
 
     ''' <summary>
-    ''' U9 #14 cell two (C# <c>WarningLevel_Is_AppliedTo_CompilationOption</c>, K-SO:312): registered divergence.
-    ''' The compilation object is read, not the options object, and VB does not carry the option across:
-    ''' <c>VisualBasicScriptCompiler.vb:212-228</c> passes optimizationLevel and checkOverflow into
-    ''' <c>VisualBasicCompilationOptions</c> and has no warningLevel to pass, and the VB options type has no
-    ''' parameter for it at all, so the compilation keeps the base default 1 for every value. The last two assertions
-    ''' are the contrast that keeps this from being a tautology: two options of the same family *do* arrive.
+    ''' U9 #14 cell two (C# <c>WarningLevel_Is_AppliedTo_CompilationOption</c>, K-SO:312): now C# parity, no longer a
+    ''' registered divergence. <c>VisualBasicScriptCompiler.CreateSubmission</c> forwards <c>script.Options.WarningLevel</c>
+    ''' into the compilation via <c>VisualBasicCompilationOptions.WithWarningLevel</c>, so the compilation object - not
+    ''' just the options object - carries the value: 0 arrives as 0, 3 as 3, and the <c>ScriptOptions</c> default (4)
+    ''' as 4 rather than the base default 1 the type used to be pinned to. The last two assertions stay as the
+    ''' contrast that the same plumbing carries the neighbouring options family.
     ''' </summary>
     <Fact>
-    Public Sub WarningLevel_DoesNotReachTheCompilationOption()
+    Public Sub WarningLevel_ReachesTheCompilationOption()
         Assert.Equal(0, ScriptOptions.Default.WithWarningLevel(0).WarningLevel)
-        Assert.Equal(1, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default.WithWarningLevel(0)).GetCompilation().Options.WarningLevel)
-        Assert.Equal(1, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default.WithWarningLevel(3)).GetCompilation().Options.WarningLevel)
-        Assert.Equal(1, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default).GetCompilation().Options.WarningLevel)
+        Assert.Equal(0, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default.WithWarningLevel(0)).GetCompilation().Options.WarningLevel)
+        Assert.Equal(3, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default.WithWarningLevel(3)).GetCompilation().Options.WarningLevel)
+        Assert.Equal(4, VisualBasicScript.Create("? 1 + 1", ScriptOptions.Default).GetCompilation().Options.WarningLevel)
 
         Assert.Equal(
             OptimizationLevel.Release,

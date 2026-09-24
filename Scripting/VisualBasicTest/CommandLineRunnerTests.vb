@@ -14,6 +14,17 @@ Imports Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 Imports My.Resources
 Imports Xunit
 
+' CommandLineRunnerTests is the only type in this assembly that mutates the process-wide
+' CultureInfo.DefaultThreadCurrentUICulture (TestDisplayResultsWithCurrentUICulture1/2 do it from
+' inside the script under test). A localized-text assertion in a *parallel* collection can then read
+' that transient culture on a pooled script thread and fail intermittently. Running this type in a
+' non-parallelizable collection makes it execute in an exclusive phase, so nothing overlaps the
+' mutation window. See InternalDevDocs/HANDOFF.md §4.5.
+<CollectionDefinition("ProcessCultureExclusive", DisableParallelization:=True)>
+Public Class ProcessCultureExclusiveDefinition
+End Class
+
+<Collection("ProcessCultureExclusive")>
 Public Class CommandLineRunnerTests
 
     Private Shared ReadOnly s_interactiveCompilerVersion As String =
@@ -1823,6 +1834,49 @@ Print(""hello"".CharCount)")
         runner.RunInteractive()
 
         Assert.Contains("3", runner.Console.Out.ToString())
+    End Sub
+
+#End Region
+
+#Region "script parser options-ended gate - vbi ""--"" (test-plan OE-H1/OE-H2)"
+
+    ''' <summary>
+    ''' OE-H1: "@main.vbx" after the "--" separator is a script file, not a response file. Before the
+    ''' gate existed the argument reached the parse loop's response-file assertion (Debug builds) while
+    ''' "--" itself occupied the stdin ("-" as script file) source slot.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptionsEndedSeparatorDoesNotTreatAtNameAsResponseFile()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "@main.vbx"), "Print(""ended"")")
+
+            Dim runner = CreateRunner(args:={"--", "@main.vbx"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("""ended""", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' OE-H2: after "--" the script file is still the only source file and every later argument -
+    ''' including the "/alpha" and "@beta" shapes - is handed to the script as a script argument.
+    ''' </summary>
+    <Fact>
+    Public Sub TestOptionsEndedSeparatorKeepsSwitchesAsScriptArguments()
+        Dim directory = CreateIsolatedTempDirectory()
+        Try
+            File.WriteAllText(Path.Combine(directory, "main.vbx"), "Print(String.Join(""|"", Args))")
+
+            Dim runner = CreateRunner(args:={"--", "main.vbx", "/alpha", "@beta"}, workingDirectory:=directory)
+
+            Assert.Equal(0, runner.RunInteractive())
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("""/alpha|@beta""", runner.Console.Out.ToString())
+        Finally
+            System.IO.Directory.Delete(directory, recursive:=True)
+        End Try
     End Sub
 
 #End Region

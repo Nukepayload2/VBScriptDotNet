@@ -74,6 +74,13 @@ Return 1
             c.VerifyDiagnostics()
         End Sub
 
+        ''' <summary>
+        ''' The explicit <c>Me</c> is refused BC36966 throughout the script class - in the body of the instance member
+        ''' <c>Goo</c> and in the global statement <c>Me.Goo</c> alike, i.e. two per shape. This is the upstream
+        ''' expectation, restored by the C# scripting parity revert (decisions.md D7; tasks\script-class-explicit-keyword-parity-revert\):
+        ''' the new criterion is that any explicit <c>Me</c>/<c>MyClass</c>/<c>MyBase</c> in a script class reports
+        ''' BC36966, with the shared-context question answered first (BC30043/BC30369, covered by <c>ScriptSemanticsTests</c>).
+        ''' </summary>
         <Fact>
         Public Sub MeKeyword()
             Dim source = <text>
@@ -95,6 +102,13 @@ Me.Goo
                                 Diagnostic(ERRID.ERR_KeywordNotAllowedInScript, "Me").WithArguments("Me"))
         End Sub
 
+        ''' <summary>
+        ''' <c>MyClass</c> and <c>MyBase</c> are refused BC36966 throughout the script class - <c>MyClass.Bar</c> in the
+        ''' body of the instance member <c>Goo</c> and <c>MyBase.Goo</c> in the global statement alike, i.e. two per
+        ''' shape. Upstream expectation restored by the C# scripting parity revert (decisions.md D7;
+        ''' tasks\script-class-explicit-keyword-parity-revert\); the shared-context answer (BC30043) is covered by
+        ''' <c>ScriptSemanticsTests</c>.
+        ''' </summary>
         <Fact>
         Public Sub MyBaseAndMyClassKeyword()
             Dim source = <text>

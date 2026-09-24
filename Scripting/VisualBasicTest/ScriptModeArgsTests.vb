@@ -237,13 +237,12 @@ Public Class ScriptModeArgsTests
     ''' Discrimination: `ScriptArguments` is pinned exactly, and the source file is pinned as the token in that
     ''' slot. A vector that lost the source-file detection would put `/arg2` in a different collection or reject
     ''' it as a switch.
-    ''' Divergence pinned below (D5): VB's main switch loop has no `optionsEnded` gate
-    ''' (VisualBasicCommandLineParser.vb:198), while C#'s gates both its assert and its option classification on
-    ''' it (CSharpCommandLineParser.cs:169 and :174). An option shaped token that follows `--` *before* any
-    ''' source file is therefore still read as a switch by VB - WRN_BadSwitch, BC2007 - and never becomes a
-    ''' source file, where C# would take it as a source file. The second parse below pins that VB behavior, and
-    ''' the third parse is its control. A bare `@`-prefixed token in that position cannot be driven here at all:
-    ''' FlattenArgs passes it on and VB's loop asserts against it, where C#'s assert is guarded by `optionsEnded`.
+    ''' VB's main switch loop now carries the same `optionsEnded` gate C# has (issue 23, aligned to
+    ''' CSharpCommandLineParser.cs:169 and :174 via VisualBasicCommandLineParser.vb): an option-shaped token that
+    ''' follows `--` before any source file is taken as the source file rather than rejected as BC2007, exactly as
+    ''' C# does. The second parse below pins that aligned behavior; the first parse is its control. The full
+    ''' separator contract (bare `@` tokens, the exact "--" boundary, and vbc immunity) is locked by
+    ''' ScriptOptionsEndedTests.
     ''' </summary>
     <Fact>
     Public Sub DoubleDashInteractiveMode_SeparatesTheSourceFileFromTheScriptArguments()
@@ -253,20 +252,14 @@ Public Class ScriptModeArgsTests
         Assert.Contains(parsed.SourceFiles, Function(f) Path.GetFileName(f.Path) = "script.vbx")
         Assert.DoesNotContain(parsed.Errors, Function(d) d.Id = "BC2007")
 
-        ' The divergence (D5), pinned: an option shaped token directly after "--" is still classified as an
-        ' option by VB's loop, so the parser reports WRN_BadSwitch (BC2007) for it - C#'s classification is
-        ' gated on optionsEnded, so the same token becomes a source file there instead. The first parse above is
-        ' the control: the same token in the script-argument position is not an option and no BC2007 appears.
-        ' The token after it is a script argument in both languages - the shared flattener starts the argument
-        ' tail at the first token that follows the source-file position (CommandLineParser.cs, FlattenArgs'
-        ' "sourceFileSeen |= optionsEnded" branch).
-        ' The source file list of this parse is deliberately not pinned: the vector's single "--" token reaches
-        ' the VB loop as the standard input switch (VisualBasicCommandLineParser.vb, the script-only `Case "-"`
-        ' at :477), so this parse carries one "-" source file when the host's standard input is redirected and
-        ' the matching diagnostic (VBResources.ERR_StdInOptionProvidedButConsoleInputIsNotRedirected, BC37318)
-        ' when it is not.
+        ' After the optionsEnded gate landed (issue 23), VB classifies the same way C# does: an option-shaped
+        ' token that follows "--" before any source file is no longer read as a switch (no BC2007) - it becomes
+        ' the source file, and the token after it is a script argument. The first parse above is the control
+        ' (same token in the script-argument position: not an option, no BC2007). The exact separator contract is
+        ' locked in ScriptOptionsEndedTests (DashDash_NextSlashSwitchIsSourceFile and its siblings).
         Dim optionShapedSlot = ParseScriptArguments({"/i", "--", "/arg2", "script.vbx"}, BaseDirectory)
-        Assert.Contains(optionShapedSlot.Errors, Function(d) d.Id = "BC2007")
+        Assert.DoesNotContain(optionShapedSlot.Errors, Function(d) d.Id = "BC2007")
+        Assert.Contains(optionShapedSlot.SourceFiles, Function(f) Path.GetFileName(f.Path) = "arg2")
         Assert.Equal({"script.vbx"}, optionShapedSlot.ScriptArguments.ToArray())
 
         ' End to end the run cannot start: the source file does not exist, so the marker submission is never

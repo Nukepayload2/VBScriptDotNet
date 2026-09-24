@@ -27,7 +27,7 @@
 
 | C# 脸 | 顶层变量 | 锚点 | 证据等级 |
 |---|---|---|---|
-| 脚本面 `.csx` | 提交类的**字段** | `spec:310` 逐字「a field of the submission class, preserved across submissions」 | **实锤**（规范在册） |
+| 脚本面 `.csx` | 提交类的**字段** | `spec:319` 逐字「a field of the submission class, preserved across submissions」 | **实锤**（规范在册） |
 | 文件执行面（C# 9 顶层语句） | `Main` 体内的**局部变量** | `SimpleProgramBinder.cs:26-39` `BuildLocals` 收 `LocalSymbol`；`DeclarationTreeBuilder.cs:142` 的 `acceptSimpleProgram` | **实锤**（源码逐行） |
 | 交互面 `csi` | 提交类字段（与脚本面同形） | 同脚本面 | **实锤**（规范在册） |
 

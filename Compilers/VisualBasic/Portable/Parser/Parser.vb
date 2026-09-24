@@ -85,7 +85,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
         Private ReadOnly Property IsTopLevelScript As Boolean
             Get
                 ' True only for SourceCodeKind.Script at compilation-unit top level; excludes Regular and methods nested inside scripts.
-                Return IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit
+                ' Asked of the context rather than compared with BlockKind, because the block an auto implemented property is
+                ' standing in for has not been determined yet and defers to the context underneath it (see
+                ' BlockContext.AcceptsScriptTopLevelStatement).
+                Return Context.AcceptsScriptTopLevelStatement
             End Get
         End Property
 
@@ -809,7 +812,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                         Return statement
                     End If
 
-                    If Context.BlockKind = SyntaxKind.CompilationUnit Then
+                    ' Two different readings, both of which let the statement be parsed and leave the verdict to the
+                    ' context: the top level of an ordinary compilation, where the misplaced statement is reported as
+                    ' such (ERR_ExecutableAsDeclaration), and the top level of a script - including the block an auto
+                    ' implemented property is still standing in for, which is what IsTopLevelScript drills into.
+                    If Context.BlockKind = SyntaxKind.CompilationUnit OrElse IsTopLevelScript Then
                         Return ParseStatementInMethodBodyInternal()
                     End If
 
@@ -826,13 +833,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Return ParseOptionStatement(Nothing, Nothing)
 
                 Case SyntaxKind.AddHandlerKeyword
-                    If IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit Then
+                    ' The script guard also has to look through a pending auto implemented property: an AddHandler
+                    ' statement behind one is the next top level statement, not an accessor of that property.
+                    If IsTopLevelScript Then
                         Return ParseStatementInMethodBodyInternal()
                     End If
                     Return ParsePropertyOrEventAccessor(SyntaxKind.AddHandlerAccessorStatement, Nothing, Nothing)
 
                 Case SyntaxKind.RemoveHandlerKeyword
-                    If IsScript AndAlso Context.BlockKind = SyntaxKind.CompilationUnit Then
+                    If IsTopLevelScript Then
                         Return ParseStatementInMethodBodyInternal()
                     End If
                     Return ParsePropertyOrEventAccessor(SyntaxKind.RemoveHandlerAccessorStatement, Nothing, Nothing)

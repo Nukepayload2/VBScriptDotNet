@@ -226,7 +226,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                     sourceReferenceResolver:=SourceFileResolver.Default,
                     metadataReferenceResolver:=script.Options.MetadataResolver,
                     assemblyIdentityComparer:=DesktopAssemblyIdentityComparer.Default).
-                    WithIgnoreCorLibraryDuplicatedTypes(True),
+                    WithIgnoreCorLibraryDuplicatedTypes(True).
+                    WithWarningLevel(script.Options.WarningLevel),
                 previousSubmission,
                 script.ReturnType,
                 script.GlobalsType)

@@ -16,3 +16,4 @@ Overrides Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
 Overrides Microsoft.CodeAnalysis.VisualBasic.VisualBasicSyntaxRewriter.VisitShebangDirectiveTrivia(node As Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax) -> Microsoft.CodeAnalysis.SyntaxNode
 Shared Microsoft.CodeAnalysis.VisualBasic.SyntaxFactory.ShebangDirectiveTrivia() -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
 Shared Microsoft.CodeAnalysis.VisualBasic.SyntaxFactory.ShebangDirectiveTrivia(hashToken As Microsoft.CodeAnalysis.SyntaxToken, exclamationToken As Microsoft.CodeAnalysis.SyntaxToken) -> Microsoft.CodeAnalysis.VisualBasic.Syntax.ShebangDirectiveTriviaSyntax
+Microsoft.CodeAnalysis.VisualBasic.VisualBasicCompilationOptions.WithWarningLevel(warningLevel As Integer) -> Microsoft.CodeAnalysis.VisualBasic.VisualBasicCompilationOptions

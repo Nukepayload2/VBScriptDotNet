@@ -1,8 +1,37 @@
 # 脚本提交类的共享构造器（`.cctor`）不由提交构造或顶层语句触发
 
-* 状态：**Open**（未修复，理由见文末「为什么不修」）
+* 状态：**Open → 拆分裁定**（2026-09-22 按 `../decisions.md` **D7** 取证后拆成 A/B 两半：A 判**不修**（与 C# 同形的 CLR 语义），B 判**必修**（本 fork 自开的脚本层缺口，落点属 D7 例外 (c) 需人工）。详见下节「D7 裁定」。原「为什么不修」三条已被取证反驳，见该节末。）
 * 发现日期：2026-09-14
 * 发现场景：收尾 `issue-top-level-handles-clause-crash.md`（14）的边界时观察到「同一次提交里 `Shared Event` + 顶层 `Shared Sub … Handles` 编译通过但 handler 不投递」，随后由独立查证线（`tmp\vortex-logs\script-top-level-crashes-2\11-investigate-u10-shared-handles.md`）定判
+
+## D7 裁定（2026-09-22，只读取证批次；日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`）
+
+本 issue 把**两件事**写在了一条标题下，两半的裁定**相反**，必须拆开：
+
+### A · 共享字段初始化器惰性 → **判「不改」**（与 C# 同形的 CLR 语义）
+
+* 两侧 `.cctor` 的**合成门槛**一致：C# `SourceMemberContainerSymbol.cs:5714-5718`（`!hasStaticConstructor && hasNonConstantInitializer(StaticInitializers)`）↔ VB `SourceMemberContainerTypeSymbol.vb:2747-2752`。
+* 两侧 **beforefieldinit 口径**一致：C# `Emitter\Model\NamedTypeSymbolAdapter.cs:515-538`（隐式 `.cctor` ⇒ 置 beforefieldinit = true，即 C# 明确**不承诺**静态字段初始化器的执行时机）↔ VB `Emit\NamedTypeSymbolAdapter.vb:475-478`/`:496-499`。
+* 实测一致（发布版宿主，改动前面貌）：`Shared b As Integer = 42` ⇒ `?b` 得 `42`（`.cctor` 存在且首次访问触发）；`Shared a As Integer = F()`（`F` 体内打印）⇒ 脚本体执行期间**不打印**。
+* ⇒ **义务只剩文档与测试**：`spec` 写清「脚本里 `Shared` 初始化不保证在脚本体之前跑，首次触碰才跑」，并补**正向对照**（读了 ⇒ 断到值；不读 ⇒ 无副作用）。本 issue 现有的「真空控制」批评（`shared-init-runs.vbx` 自己读了那个字段）继续有效，那正是这条口径必须被钉住的原因。
+
+### B · `Shared Sub … Handles` 挂钩静默丢失 → **判「必修」**，落点属 D7 例外 (c) 上报人工
+
+* 机制已定位（**实锤，读码 + blame 归属**）：本 fork 在 `7edb77de9`（2026-09-15「fix crashes」）把 `Handles` 的合法容器扩到提交类（`SourceMemberMethodSymbol.vb:778-780`，逐字注释 *"A submission class is a class container and the hookup host … is an instance or shared constructor, which it has as well."*），共享挂钩宿主是**硬取** `ContainingType.SharedConstructors(0)`（`:795-797`）；但上游的 `AddWithEventsHookupConstructorsIfNeeded` 对提交类**整段跳过**——`SourceMemberContainerTypeSymbol.vb:2829-2832` 第一行逐字 `If TypeKind = TypeKind.Submission Then 'TODO: anything to do here?`（`git blame` 归 `e814cb1 "add base compiler"`）。⇒ **只有 shared `Handles`、没有 shared 字段初始化器时，提交类根本没有可注入挂钩的构造器**，挂钩静默消失。
+* 与 A 的关键区别：这不是 CLR 时机问题，而是**本 fork 开了口没接线**。VB 自己就要求「`Handles` 落在 `.cctor` 时必须按时执行」——`NamedTypeSymbolAdapter.vb:482-492` 正是为此**抑制** beforefieldinit；A 的惰性口径不构成 B 的免责理由。
+* **停手 ≠ 不修**：D7 三问在 B 上答 ②否 ③否（C# 无 `Handles`/`WithEvents`/共享事件挂钩概念 ⇒ 判不出挂钩该落 `.cctor` 还是脚本初始化器；两个以上等价形态 ⇒ 命中例外 (c)），故**落点选择交人工裁定**；但「静默丢弃用户写下的挂钩」在任何一侧语义里都不成立，**不依赖 C# 判据**即成立为缺陷。
+* **建议落点（供人工裁定，非自动裁定）**：把 `TypeKind.Submission` 纳入 `SourceMemberContainerTypeSymbol.vb:2829-2912` 的挂钩-构造器合成（有 shared 挂钩 ⇒ `EnsureCtor(isShared:=True)`，复用 `48d8edbff` 已修好的**无参**提交类 `.cctor` 路径），并确认 `NamedTypeSymbolAdapter.vb:482-492` 的抑制在提交类上生效。次选（把挂钩落进脚本初始化器 `Sub Main`/`<Initialize>`）风险更大：每次 `ContinueWith` 新建实例会**重复挂钩**，且把类型级语义改成实例级。
+* **取证未达的一面（须由实施者先量）**：`Shared Event` + `Shared Sub … Handles` 形状在本轮 4 条 REPL 探针里**未复现**（逐行提交把块切开、顶层 `Event` 形状报 BC30287/BC30188/BC30205）⇒「静默不投递」沿用本 issue 原有的 `.vbx` 实锤，而 `SharedConstructors(0)` 裸索引在没建成时究竟是**静默丢弃还是 ICE** 属**推测**，实施第一步就该用单测把它钉死。
+
+* **实施期真值更正（2026-09-23，main 派工的"真值先行"格实测）**：本半边的症状**不是**「exit 0、零诊断、handler 不投递」——那是 `Shared WithEvents` 形状（§触发面与症状）。真正由 `Shared Sub … Handles Me.Ev`（无共享字段初始化器）触发的是 **ICE**：`SharedConstructors` 计数为 0，`GetDiagnostics()` 与 `Emit()` 双双抛 `IndexOutOfRangeException`，栈顶逐字 `SourceMemberMethodSymbol.vb:797`（就是那句裸索引 `SharedConstructors(0)`）⇒ 比"静默丢弃"更严重，属「崩编译器」强形态。两个相邻形状同时量清：裸 `Handles Ev` 报 **BC30287**、`Handles Hook.Ev`（类型名容器）报 **BC30506** ⇒ 提交类里合法容器只有 `Me.` / `MyClass.`。
+* **修复已接线（同批）**：`SourceMemberContainerTypeSymbol.vb:2829-2904` 的提交类分支（原 `'TODO: anything to do here?`）改为收集 `IsShared` 且带 `Handles` 的处理器、只认关键字容器、**且事件也为 shared** 时才 `EnsureCtor(isShared:=True)`；`Class`/`Module` 分支一字未动。T2–T7、R1–R3 全部实锤（投递计数 1/2、链上 1、两次运行 1→2 不重复挂钩、与共享初始化器共存 1015、惰性仍为 True、`..cctor` 体内无 `Me`/`ldarg`）；仅 PE 里 `beforefieldinit` 标志的直读未做（该测试工程解析不到 `PEReader`，改走行为断言）。
+* **仍开放**：**来自早先提交的共享事件**走 `Handles` 仍 ICE（探针 `tmp\probe-sweep\probe-chain.txt`）⇒ 那是跨提交可见性与挂钩宿主的另一条线，另立登记，不由本条顺手修。
+
+### 对 issue 原有内容的三处更正
+
+1. **正文「触发面与症状」用的是 `Shared WithEvents` 形状**，其 hookup 宿主是属性 **setter**（`SourceMemberMethodSymbol.vb:792-793`）；而 B 说的是 `Shared Sub … Handles`（宿主 = 共享构造器）。两者机制不同，原正文与新增 B 半不能混读——判据第 51-53 行已把这一点写对，本节只是把两半的**裁定**分开。
+2. **「为什么不修」三条已被取证反驳**：①「不崩」不再成立为理由（D6：beta 期不得用兼容性/稳定性口径压缺陷）；②「改时机等于改语义需作者裁决」——**时机不用改**，B 只要求 `.cctor` **存在**，A 的惰性口径原样保留；③「机制未闭合」——B 半边已闭合（上面四处文件:行 + blame 归属），仍开放的只剩「普通类型方法调用触发 `.cctor`、提交类方法调用不触发」的 CLR 层原因（属 A 的解释线，不阻塞 B）。
+3. 附带订正：原 `SourceMemberContainerTypeSymbol.vb:2747-2752` 的注记说那次修复是「改注入**参数化**共享构造器」——`48d8edbff` 实际改成注入**无参** `.cctor`（逐字注释 *"A shared constructor cannot take the submission array parameter…"*），当时记录的「共享构造器带实例版形参」缺陷**已在当前树里修掉**。
 
 ## 触发面与症状
 

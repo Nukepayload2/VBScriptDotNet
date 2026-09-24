@@ -1,6 +1,6 @@
 # 字符串脚本工厂丢弃 `ScriptOptions.FileEncoding`：带路径 + 开调试信息的字符串脚本报 `BC37236`，C# 对偶正常发 PDB
 
-- **状态**：**Open**（**交用户裁决 / 停手上报**；不自行改产品源码、不自行改语义，不预填 commit）
+- **状态**：**Fixed**（已验证，commit 待作者提交后补）——**D7 方向已落地**：字符串工厂 `VisualBasicScript.vb:29` 改传 `options?.FileEncoding`，与流重载 `:39`、`Script.cs:117 ContinueWith(String)`、C# `CSharpScript.cs:37` 同形。`SourceText.cs:107` 的 `From(string, Encoding?=null)` 保证未设编码形状逐字等价旧行为（含产品路径 FileEncoding 恒 `Nothing`）⇒ 非脚本/无编码面零影响。主线复跑七门全绿（编译器面结构性无关）+ `Scripting\VisualBasicTest` 直跑 768/0；账本 `..\upstream-merge.md` §2.25(f)，计划 `..\tasks\string-script-factory-file-encoding\`。下方取证段为**登记时（修复前）**的原样记录，保留不改。
 - **发现日期**：2026-09-16
 - **发现场景**：`../tasks/script-mode-coverage-parity/` 的 U7（PDB / 调试信息与栈帧行号）补测。登记依据同任务 `README.md` **§八 义务 1** 末句（「实施期若发现别的真缺陷，同样按此登记」）。
 - **影响面**：`Microsoft.CodeAnalysis.VisualBasic.Scripting` 的**公共 API 面**——`VisualBasicScript.Create(Of T)(code As String, …)` / `Create(code As String, …)`，及其下游 `RunAsync(String, …)` / `EvaluateAsync(String, …)`。**本 fork 产品自身不可触达**（取证见「性质判定」第 2 条）；触达者是使用该公共 API 的**外部宿主**。

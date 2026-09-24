@@ -332,6 +332,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 referencesSupersedeLowerVersions:=other.ReferencesSupersedeLowerVersions,
                 publicSign:=other.PublicSign,
                 ignoreCorLibraryDuplicatedTypes:=other.IgnoreCorLibraryDuplicatedTypes)
+
+            ' The private constructor this routes through fixes WarningLevel at the base default of 1 (it is not a
+            ' parameter of the public constructors), so a copy would otherwise drop the level a With* caller had set.
+            ' Preserve it here so the With* methods stay composable, matching CSharpCompilationOptions.
+            Me.WarningLevel = other.WarningLevel
         End Sub
 
         Public Overrides ReadOnly Property Language As String
@@ -565,6 +570,23 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End If
 
             Return New VisualBasicCompilationOptions(Me) With {._rootNamespace = rootNamespace}
+        End Function
+
+        ''' <summary>
+        ''' Creates a new VisualBasicCompilationOptions instance with a different warning level specified.
+        ''' </summary>
+        ''' <param name="warningLevel">The warning level.</param>
+        ''' <returns>A new instance of VisualBasicCompilationOptions, if the warning level is different; otherwise current instance.</returns>
+        Public Function WithWarningLevel(warningLevel As Integer) As VisualBasicCompilationOptions
+            If warningLevel = Me.WarningLevel Then
+                Return Me
+            End If
+
+            ' The copy constructor routes back through the private constructor, which fixes WarningLevel at the
+            ' base default of 1, so the requested level has to be applied after the copy rather than carried by it.
+            Dim result = New VisualBasicCompilationOptions(Me)
+            result.WarningLevel = warningLevel
+            Return result
         End Function
 
         ''' <summary>

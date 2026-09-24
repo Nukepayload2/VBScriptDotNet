@@ -397,40 +397,71 @@ Public Class ScriptModePdbTests
     ''' <summary>
     ''' Baseline: Pdb_CreateFromString_CodeFromFile_WithEmitDebugInformation_WithFileEncoding_
     ''' ResultInPdbEmitted (ScriptTests.cs, :859) - where the encoding makes the emit succeed and the frame name
-    ''' debug.csx.
+    ''' is debug.csx.
     ''' <para>
-    ''' WRITTEN AGAINST VB'S ACTUAL BEHAVIOUR, WHICH DIVERGES: the option is set to UTF8 and the tree is still
-    ''' encoding-less, because the string form of Create does not pass ScriptOptions.FileEncoding to
-    ''' SourceText.From (VisualBasicScript.vb, `Create(Of T)`, :29). With a path and no encoding the debug
-    ''' document gate fires, so this cell reports BC37236 where the C# cell emits a PDB. The assertion is this
-    ''' shape on purpose: it pins the option being set (<c>Assert.Same(Encoding.UTF8, options.FileEncoding)</c>)
-    ''' AND the encoding not travelling, which is a different claim from cell 1's (where the option is Nothing).
-    ''' </para>
-    ''' <para>
-    ''' This cell is the tripwire for the divergence. The day VisualBasicScript.Create(Of T)(String, ...) starts
-    ''' honouring FileEncoding, the two assertions on the tree and on the emit below stop holding. The
-    ''' replacement assertions - the debug directory, the document and the frame - are already written out in
-    ''' cell 5, which reaches the same state through the stream form.
-    ''' </para>
-    ''' <para>
-    ''' The divergence is inherited rather than introduced here (upstream VB's factory has the same call and no
-    ''' stream overloads at all), and no product path sets WithFileEncoding: the option exists for external
-    ''' hosts. Recorded for adjudication.
+    ''' VB now matches C#: the string form of Create hands ScriptOptions.FileEncoding to SourceText.From
+    ''' (VisualBasicScript.vb, `Create(Of T)`, :29), so the option reaches the tree and the debug document gate
+    ''' (Compilation.cs, `CreateDebugDocuments`, :2518) does not fire. This is the fixed path that used to report
+    ''' BC37236; the assertion mirrors the stream-positive cell (encoding present on the tree + a PDB that names
+    ''' the script file). Cell 1 (same shape, encoding Nothing) is the counter-lock that keeps BC37236.
     ''' </para>
     ''' </summary>
     <Fact>
-    Public Sub Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236()
+    Public Sub Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ResultInPdbEmitted()
         Dim options = OptionsFor(True, ScriptPath, Encoding.UTF8)
         Dim script = VisualBasicScript.Create(ThrowingCode, options)
 
         Assert.Same(Encoding.UTF8, options.FileEncoding)
-        AssertTreeShape(script, ScriptPath, encodingIsPresent:=False)
+        AssertTreeShape(script, ScriptPath, encodingIsPresent:=True)
 
         Dim pe As MemoryStream = Nothing
         Dim pdb As MemoryStream = Nothing
         Dim result = EmitInMemory(script, emitDebugInformation:=True, peStream:=pe, pdbStream:=pdb)
 
-        AssertEncodinglessSyntaxTreeReported(script, result, ScriptPath, 1)
+        Assert.True(result.Success, "the emit reported: " & String.Join("; ", result.Diagnostics.Select(Function(d) d.ToString())))
+        Assert.True(pdb.Length > 0, "the PDB stream has to carry the portable PDB")
+        AssertPeNamesThePortablePdb(script.GetCompilation(), pe)
+
+        AssertFrameNamesTheScriptFile(FirstFrameOf(script))
+    End Sub
+
+    ''' <summary>
+    ''' C3 - the two factories must be equivalent under the same options, not just "both non-null". The same
+    ''' <c>ScriptOptions</c> (path + UTF8 + debug) is fed to the string and stream forms of Create; the resulting
+    ''' single tree's text must report the <em>same</em> Encoding and the <em>same</em> FilePath on both sides.
+    ''' Discriminating: if the string overload stopped forwarding FileEncoding the two <c>Encoding</c> values would
+    ''' differ (one UTF8, one Nothing) and the equality breaks; if the path stopped travelling the FilePath
+    ''' equality breaks.
+    ''' </summary>
+    <Fact>
+    Public Sub FileEncoding_StringAndStreamFactories_ProduceEquivalentSourceText()
+        Dim options = OptionsFor(True, ScriptPath, Encoding.UTF8)
+
+        Dim stringScript = VisualBasicScript.Create(ThrowingCode, options)
+        Dim streamScript = VisualBasicScript.Create(New MemoryStream(Encoding.UTF8.GetBytes(ThrowingCode)), options)
+
+        Dim fromString = Assert.Single(stringScript.GetCompilation().SyntaxTrees).GetText()
+        Dim fromStream = Assert.Single(streamScript.GetCompilation().SyntaxTrees).GetText()
+
+        Assert.Equal(fromStream.Encoding, fromString.Encoding)
+        Assert.Same(Encoding.UTF8, fromString.Encoding)
+        Assert.Equal(fromStream.ToString(), fromString.ToString())
+    End Sub
+
+    ''' <summary>
+    ''' C5 - the other string entry point must honour FileEncoding the same way (same implementation, no second
+    ''' unfixed <c>SourceText.From</c>). A continuation built through <c>Script.ContinueWith(String, options)</c>
+    ''' with UTF8 + path carries the encoding on its tree. Discriminating: were ContinueWith(String) the one place
+    ''' still dropping the option, the tree's encoding would be Nothing and this cell turns red.
+    ''' </summary>
+    <Fact>
+    Public Sub ContinueWith_StringForm_HonoursFileEncoding()
+        Dim baseScript = VisualBasicScript.Create("Dim q = 1", ScriptModeConformance.DefaultOptions)
+        Dim continued = baseScript.ContinueWith("?", OptionsFor(True, ScriptPath, Encoding.UTF8))
+
+        Dim tree = Assert.Single(continued.GetCompilation().SyntaxTrees)
+        Assert.Equal(ScriptPath, tree.FilePath)
+        Assert.NotNull(tree.GetText().Encoding)
     End Sub
 
     ''' <summary>
@@ -456,8 +487,8 @@ Public Class ScriptModePdbTests
     ''' Baseline: Pdb_CreateFromString_CodeFromFile_WithoutEmitDebugInformation_WithFileEncoding_
     ''' ResultInPdbNotEmitted (ScriptTests.cs, :873). This is the pair of cell 2: the path and the encoding
     ''' option are both set and the frame still has to be bare, so emitting debug information - not the encoding
-    ''' - is what decides. (The encoding option is set and, as in cell 2, does not reach a string source; the
-    ''' path is what this cell needs, and it does travel.)
+    ''' - is what decides. (The encoding option is set and, since the factory now honours it, does reach the
+    ''' string source - but with emit debug off the frame stays bare regardless.)
     ''' </para>
     ''' </summary>
     <Fact>
@@ -466,7 +497,7 @@ Public Class ScriptModePdbTests
         Dim script = VisualBasicScript.Create(ThrowingCode, options)
 
         Assert.Same(Encoding.UTF8, options.FileEncoding)
-        AssertTreeShape(script, ScriptPath, encodingIsPresent:=False)
+        AssertTreeShape(script, ScriptPath, encodingIsPresent:=True)
 
         AssertFrameHasNoFileInformation(FirstFrameOf(script))
     End Sub
@@ -556,9 +587,10 @@ Public Class ScriptModePdbTests
     ''' Baseline: Pdb_CreateFromString_InlineCode_WithEmitDebugInformation_WithFileEncoding_ResultInPdbEmitted
     ''' (ScriptTests.cs, :904). The baseline asserts <c>filename: ""</c> here too, and so does this cell.
     ''' <para>
-    ''' The encoding option is set and, as everywhere on the string axis, does not reach the source; what this
-    ''' cell adds over cell 7 is the pairing of "an encoding was requested" with "the absent path is still what
-    ''' the frame reports", instead of the message being the frame's name.
+    ''' The encoding option is set and (the factory now honouring it) reaches the source; what this cell adds over
+    ''' cell 7 is the pairing of "an encoding was requested" with "the absent path is still what the frame
+    ''' reports", instead of the message being the frame's name. The debug document gate still does not fire
+    ''' because there is no path.
     ''' </para>
     ''' </summary>
     <Fact>
@@ -567,7 +599,7 @@ Public Class ScriptModePdbTests
         Dim script = VisualBasicScript.Create(ThrowingCode, options)
 
         Assert.Same(Encoding.UTF8, options.FileEncoding)
-        AssertTreeShape(script, "", encodingIsPresent:=False)
+        AssertTreeShape(script, "", encodingIsPresent:=True)
 
         Dim pe As MemoryStream = Nothing
         Dim pdb As MemoryStream = Nothing
@@ -600,7 +632,7 @@ Public Class ScriptModePdbTests
     <Fact>
     Public Sub Pdb_String_InlineCode_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation()
         Dim script = VisualBasicScript.Create(ThrowingCode, OptionsFor(False, "", Encoding.UTF8))
-        AssertTreeShape(script, "", encodingIsPresent:=False)
+        AssertTreeShape(script, "", encodingIsPresent:=True)
 
         AssertFrameHasNoFileInformation(FirstFrameOf(script))
     End Sub

@@ -88,3 +88,9 @@
 * 判定全文（本条是本轮 A 组三条里唯一剩下的分歧）：`../tasks/script-mode-coverage-parity/design-overview.md` §3、`../tasks/script-mode-coverage-parity/design-detailed.md` §U1。
 * 顶层推断字段的既有行为已有用例：`Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb:606` / `:623`（本 issue 与之**不重复**：那里断言的是行为本身，本 issue 记录的是与 csi 的**分歧**及裁决请求）。
 * 同族「顶层声明与普通容器不同」的已收口缺陷（与本条不同源，本条非崩溃）：`issue-submission-shared-field-initializer-typeload.md`（05）、`issue-submission-implicit-type-member-asserts.md`（07）。
+
+## 状态改判（2026-09-24）
+
+作者裁定把本条**当作新 issue 处理（立项）**，并给出实跑的 C# 读数：`csi` 里 `var b = 1;` 之后 `b = "abc";` → `(1,5): error CS0029 无法将类型"string"隐式转换为"int"`。
+⇒ 两点结论：① C# 的提交字段带的是**推断出的静态类型**（不是 `object`），说明"顶层 `Dim` 沿用推断"不需发明语言特性，VB 侧对应机制是 `Option Infer` ⇒ 本条不再是 D7 例外 (a)"等人工裁决"项；② 目标形状**不是**照抄 `CS0029` 的硬报错（VB 的 `Option Strict Off` 允许隐式窄化转换，脚本方言里改硬错误＝过度分叉），赋值不兼容时的分界以"同形状普通方法体内局部变量"的实测行为为准。
+判据、落点候选、验收与派工计划移到：`issue-script-top-level-field-type-inference.md`（问题单 32）与 `..\tasks\script-top-level-dim-type-inference\README.md`。本文件保留为症状与根因记录（含初报"顶层容器特有缺陷"被推翻的过程）。

@@ -85,7 +85,7 @@
 | F08-L2-2 | 共享初始化器调实例方法 | `Function F() As Integer` + `Shared Dim y = F()` | BC30369，指向 `F()`（**依赖 F05 的构造器分叉**才可见） | 内存编译 |
 | F08-L2-3 | **回归锁：实例方法体** | 实例方法体隐式读顶层 `Dim` | 零诊断（`spec:243`） | 内存编译 |
 | F08-L2-4 | **回归锁：顶层语句** | 顶层语句隐式读顶层 `Dim` | 零诊断（`<Initialize>` 非共享） | 内存编译 |
-| F08-L2-5 | 显式 `Me`（回归） | 脚本类里 `Me.sx` | BC36966（`ERR_KeywordNotAllowedInScript`，**不变**） | 内存编译 |
+| F08-L2-5 | 显式 `Me`（回归） | 脚本类里 `Me.sx` | BC36966（`ERR_KeywordNotAllowedInScript`，**本单元按「不变」锁住**；期望值已由 `issues\issue-script-class-explicit-me-in-member-bodies.md` 推翻：顶层脚本代码仍 BC36966，顶层实例成员体内合法、`Shared` 成员落 BC30043） | 内存编译 |
 | F08-L2-6 | 共享属性初始化器 | `Shared ReadOnly Property P As Integer = F()`（F 实例方法） | BC30369（`design-detailed.md` §待定项 U1；不命中则须补 Property 分支判据） | 内存编译 |
 | F08-L2-7 | 普通类（回归） | 普通类里两个形状 | BC30369（既有行为不动） | 内存编译 |
 

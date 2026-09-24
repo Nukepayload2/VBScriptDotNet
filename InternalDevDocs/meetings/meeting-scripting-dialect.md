@@ -79,6 +79,10 @@ End Function
 
 我们倾向收窄——它把「实例成员」这个词还给顶层方法，也让方言差异面回到提案自称的「声明落点 + 入口点合成」两件结构性事实上。一条支撑事实：本 fork 的编译器测试树已裁剪（`Compilers\VisualBasic\` 下的 `*Test` 目录为空），树内没有任何断言该禁令的测试，收窄不会与既有断言冲突（反过来说也没有回归网兜底，需补新测试）。**无论取哪条，现在这版提案的措辞都不够**：读者读到「脚本类内显式使用 `Me`」不会想到它落在自己写的每个顶层函数体里。
 
+> **更正（2026-09-23，实测优先）**：上面选的「收窄」已**撤销**，采纳的是「写透 + 保持上游的禁令范围」。依据是 C# 脚本方言的**实际**策略：`Compilers\CSharp\Portable\Binder\Binder_Expressions.cs:55-73` 的 `HasThis` 逐字 `return !inTopLevelScriptMember || !isExplicit;` ⇒ 显式 `this` / `base` 在整个脚本类里被拒，**成员体也算**（作者另用 `Microsoft (R) Visual C# 交互窗口编译器 5.10.0-1.26380.3` 实跑 `void test() { this.ToString(); }` → `(1,15): error CS0027` 复核）。因此保留的两项改动只剩**判定次序**：先判共享上下文（⇒ 脚本类 `Shared` 成员里的显式关键字报 BC30043、隐式报 BC30369），后判脚本禁令——这也与 C# 一致（`:45-49` 的静态检查排在 `:55-73` 之前），登记为对上游 VB 的有意分叉，见 `..\upstream-merge.md` §2.25 与 `..\decisions.md` D7 第二个实例。代价（被局部遮蔽的顶层字段在成员体内没有限定逃生口）由作者明示接受。
+>
+> **本节那条支撑事实需要订正**：第 80 行说「树内没有任何断言该禁令的测试」不成立——上游继承下来的 `Compilers\VisualBasicEmitTest\CodeGen\CodeGenScriptTests.vb` 里 `MeKeyword` 与 `MyBaseAndMyClassKeyword` **每形两条 BC36966**，正是断言这条禁令的用例（fork 在 2026-09-22 那一轮把它们改成一条，回退后又恢复上游原期望）。判据与验收见 `..\tasks\script-class-explicit-keyword-parity-revert\`。
+
 ### 权衡二：`Imports` 跨提交累积是对规范作用域规则的显式偏离
 
 提案 §6 把「`Imports` 跨提交累积」如实定性为宿主侧机制，这点诚实。但它的语义后果是**规范级偏离**，提案没点出来：

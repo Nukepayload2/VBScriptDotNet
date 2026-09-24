@@ -2257,21 +2257,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Private Function CheckMeOrMyBaseOrMyClassInSharedOrDisallowedContext(implicitReference As Boolean, <Out()> ByRef errorId As ERRID) As Boolean
             errorId = Nothing
 
-            ' Any executable statement in a script class can access Me/MyClass/MyBase implicitly but not explicitly.
-            ' Shared members (and shared initializers) of a script class have no instance to offer, so an implicit
-            ' reference made from them is an ordinary bad instance member access.
             Dim containingType = Me.ContainingType
-            If containingType IsNot Nothing AndAlso containingType.IsScriptClass Then
-                If Not implicitReference Then
-                    errorId = ERRID.ERR_KeywordNotAllowedInScript
-                    Return False
-                End If
 
-                If Not IsMeOrMyBaseOrMyClassInSharedContext() Then
-                    Return True
-                End If
-            End If
-
+            ' The shared-context question is answered before the scripting one: a use of the keyword where there is no
+            ' instance gets the ordinary shared-context diagnostic, in a script class as well. This is the order the
+            ' C# scripting dialect uses, whose HasThis tests the containing member for static-ness before it consults
+            ' the script-class gate.
             If IsMeOrMyBaseOrMyClassInSharedContext() Then
                 errorId = If(implicitReference,
                              ERRID.ERR_BadInstanceMemberAccess,
@@ -2279,8 +2270,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                                 ERRID.ERR_UseOfKeywordFromModule1,
                                 ERRID.ERR_UseOfKeywordNotInInstanceMethod1))
                 Return False
+            End If
 
-            ElseIf IsInsideChainedConstructorCallArguments Then
+            ' An explicit 'Me', 'MyClass' or 'MyBase' is banned anywhere in a script class - the bodies of the members
+            ' the script class declares included. The C# scripting dialect rejects an explicit 'this' or 'base'
+            ' throughout a script class too (CS0027 / CS1512), so this scope is the parity shape, not a limitation.
+            If Not implicitReference AndAlso containingType IsNot Nothing AndAlso containingType.IsScriptClass Then
+                errorId = ERRID.ERR_KeywordNotAllowedInScript
+                Return False
+            End If
+
+            ' Any executable statement in a script class can access Me/MyClass/MyBase implicitly.
+            ' Shared members (and shared initializers) of a script class have no instance to offer, so an implicit
+            ' reference made from them is an ordinary bad instance member access.
+            If containingType IsNot Nothing AndAlso containingType.IsScriptClass Then
+                Return True
+            End If
+
+            If IsInsideChainedConstructorCallArguments Then
                 errorId = If(implicitReference, ERRID.ERR_InvalidImplicitMeReference, ERRID.ERR_InvalidMeReference)
                 Return False
             End If
@@ -2375,7 +2382,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Return New BoundMyBaseReference(node, If(Me.ContainingType?.BaseTypeNoUseSiteDiagnostics, ErrorTypeSymbol.UnknownResultType), hasErrors:=True)
             End If
 
-            Dim containingMethod = TryCast(ContainingMember, MethodSymbol)
             Return New BoundMyBaseReference(node, If(Me.ContainingType IsNot Nothing, Me.ContainingType.BaseTypeNoUseSiteDiagnostics, ErrorTypeSymbol.UnknownResultType))
         End Function
 

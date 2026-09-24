@@ -164,11 +164,13 @@ Public Class ScriptModeParserArmConformanceTests
 #Region "T054 MyClass expression"
 
     ''' <summary>
-    ''' <c>MyClass</c> is the other keyword the script dialect refuses outright: <c>Binder_Expressions.vb:2266</c>
-    ''' reports <c>ERR_KeywordNotAllowedInScript</c> (BC36966, <c>Errors.vb:1599</c>) for an explicit reference
-    ''' from a script class, because a script submission cannot refer to its own type by name. Both positions the
-    ''' parser arm at <c>Parser.vb:1158</c> feeds are asserted - the expression statement and the field
-    ''' initializer - so the cell does not rest on one of them.
+    ''' <c>MyClass</c> is one of the keywords the script dialect refuses throughout a script class:
+    ''' <c>Binder_Expressions.CheckMeOrMyBaseOrMyClassInSharedOrDisallowedContext</c> reports
+    ''' <c>ERR_KeywordNotAllowedInScript</c> (BC36966) for any explicit reference in the script class, the global
+    ''' statements and the initializer of a script variable included. Both positions the parser arm feeds are asserted
+    ''' here - the expression statement and the field initializer - so the cell does not rest on one of them. The
+    ''' member-body positions are pinned by the <c>ScriptModeStatementConformanceTests</c> cells of the same keyword
+    ''' family. (whole-script-class scope restored by script-class-explicit-keyword-parity-revert / decisions.md D7)
     ''' </summary>
     <Fact>
     Public Sub TopLevelMyClassExpression_IsReported()

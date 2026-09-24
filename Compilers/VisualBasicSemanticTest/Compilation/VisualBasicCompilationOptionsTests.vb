@@ -569,5 +569,28 @@ BC2042: The options /vbruntime* and /target:module cannot be combined.
             Assert.NotEqual(optionFalse, optionTrueClone)
         End Sub
 
+        <Fact>
+        Public Sub WithWarningLevel()
+            Dim options = New VisualBasicCompilationOptions(OutputKind.ConsoleApplication)
+
+            ' An ordinary compilation still defaults to the base level of 1 - the change is opt-in per call site.
+            Assert.Equal(1, options.WarningLevel)
+
+            Dim optionZero = options.WithWarningLevel(0)
+            Assert.Equal(0, optionZero.WarningLevel)
+            Assert.Equal(1, options.WarningLevel)
+
+            ' Identity short-circuit when the level is unchanged.
+            Assert.Same(options, options.WithWarningLevel(1))
+
+            Assert.False(optionZero.Equals(options))
+            Assert.True(optionZero.Equals(options.WithWarningLevel(0)))
+
+            ' The copy constructor and the other With* methods must carry the level, so With* stays composable
+            ' (this is what the scripting path relies on, and it matches CSharpCompilationOptions).
+            Assert.Equal(0, New VisualBasicCompilationOptions(optionZero).WarningLevel)
+            Assert.Equal(0, options.WithWarningLevel(0).WithRootNamespace("A.B").WarningLevel)
+        End Sub
+
     End Class
 End Namespace
