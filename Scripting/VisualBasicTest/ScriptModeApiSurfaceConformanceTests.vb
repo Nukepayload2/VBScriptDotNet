@@ -222,10 +222,11 @@ Public Class ScriptModeApiSurfaceConformanceTests
     ''' U9 #3 cell one (C# <c>ScriptVariables_Chain</c>, ST:383). The name/value/type triples of a five submission
     ''' chain, in submission order, including a shadowed name (two entries called <c>a</c>, the first the Char of
     ''' submission #0 and the third the Decimal of submission #2) and the globals object excluded from the
-    ''' collection. Every declaration is explicitly typed because a top level <c>Dim x = ...</c> does not infer its
-    ''' type (the D5 divergence of U1, covered by ScriptModeTopLevelInferenceTests.vb); pinning Object here would
-    ''' duplicate that subject. An implementation that filtered the shadowed entry, reordered by name, or read the
-    ''' types off the wrong submission would change one of the three sequences.
+    ''' collection. Every declaration is explicitly typed here on purpose: this cell pins name/value/type triples across
+    ''' a submission chain, so it wants declared types that hold regardless of what Option Infer would have produced
+    ''' (inference itself is pinned by ScriptModeTopLevelInferenceTests.vb after issue 32 reclassified the old
+    ''' "top level Dim x = ... stays Object" divergence as a defect). An implementation that filtered the shadowed
+    ''' entry, reordered by name, or read the types off the wrong submission would change one of the three sequences.
     ''' </summary>
     <Fact>
     Public Async Function ScriptVariablesChain_NameValueTypeTriples() As Task

@@ -116,6 +116,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         ' Binder.DecodeVarTypeOrInfer for a local.
         Private Function TryComputeScriptFieldType(diagBag As BindingDiagnosticBag) As TypeSymbol
             If _computingScriptFieldType Then
+                ' The initializer of this top-level `Dim` refers back to the field itself, directly
+                ' (`Dim a = a`) or through a cycle (`Dim a = b` / `Dim b = a`), so no type can be inferred.
+                ' C# reports CS7019 here and VB's local path reports BC30980 (Binder_Expressions), so report
+                ' the same existing error rather than silently degrading to Object. This is the only frame
+                ' whose diagnostics survive: the outer frames of the cycle find _lazyType already stored and
+                ' their bags are dropped. Passing Me.Name (not Me) keeps the message the same shape as the
+                ' local one, since a field symbol renders as its whole declaration in VB error text.
+                ' Returning Nothing is unchanged: the field still falls back to the ordinary Object path.
+                diagBag.Add(ERRID.ERR_CircularInference1, Me.Syntax.GetLocation(), Me.Name)
                 Return Nothing
             End If
 
@@ -202,7 +211,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                             ' arrays get the squiggles under the identifier name
                             binder.ReportDiagnostic(diagBag, modifiedIdentifier.Identifier, ERRID.ERR_ConstAsNonConstant)
                         Else
-                            ' other data types get the squiggles under the type part of the as clause 
+                            ' other data types get the squiggles under the type part of the as clause
                             binder.ReportDiagnostic(diagBag, declarator.AsClause.Type, ERRID.ERR_ConstAsNonConstant)
                         End If
                     ElseIf declarator.Initializer Is Nothing Then
