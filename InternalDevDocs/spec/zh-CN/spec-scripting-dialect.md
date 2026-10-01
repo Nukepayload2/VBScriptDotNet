@@ -195,7 +195,37 @@ Dim raiser As New Raiser
 AddHandler raiser.SomethingHappened, AddressOf OnSomething   ' an ordinary statement
 ```
 
-`WithEvents` 字段所执行的事件挂钩是一个独立的机制，按脚本类的种类分派，如[脚本类与提交类](#script-classes-and-submission-classes)一节所述。
+`WithEvents` 字段所执行的事件挂钩是一个独立的机制，按脚本类的种类分派，如[脚本类与提交类](#script-classes-and-submission-classes)一节所述。把一个共享方法绑定到提交的一个共享事件的 `Handles` 子句是第三种机制，其规定见[提交中的共享 `Handles`](#shared-handles-in-a-submission)一节。
+
+### 提交中的共享 `Handles` <a id="shared-handles-in-a-submission"></a>
+
+方法与事件都是 `Shared` 的 `Handles` 子句，挂在声明该方法的类的共享构造器里。提交类是类容器，所以该子句在其中合法；承载它的共享构造器，在该类已有共享初始化器时就是它本来就有的那个无参构造器，在它没有时则为这个子句单独合成。下面是这一形状欠脚本作者的时间契约。
+
+**契约。** 提交类在发射时不带 `beforefieldinit`。在该属性缺席所选中的精确语义下，运行时保证该类的共享构造器在被访问该类**任何**静态成员之前就已跑完，而"任何静态成员"包括对共享方法的调用，不只是对静态字段的读取（[ECMA-335][ecma-335]）。因此，一个只经由一次对自己共享方法的调用抵达 raise 的提交，在那次 raise 之前处理器就已就位：
+
+```vbnet
+Shared Event Started As System.EventHandler
+
+Shared Sub OnStarted(sender As Object, e As System.EventArgs) Handles MyClass.Started
+    Console.WriteLine("handled")
+End Sub
+
+Shared Sub Start()
+    RaiseEvent Started(Nothing, System.EventArgs.Empty)   ' the handler is already hooked up
+End Sub
+
+Start()
+```
+
+该属性被清除只有一个原因：该类型有一个隐式共享构造器，它做的事不止初始化字段。共享构造器只负责初始化字段的类型保留该属性，并在其某个静态字段首次被访问时初始化，这正是普通编译的常规行为，脚本并不改变它。
+
+**模块为什么不同。** 清除该属性的判据只有一条判据，对每个类和每个模块都适用，而两者的差别由它推出。在模块中，`Handles` 子句必须指定一个以单个标识符限定的 `WithEvents` 变量；其余一切容器都被拒绝，`Me`、`MyClass` 与 `MyBase` 也在内：
+
+> 'Handles' in modules must specify a 'WithEvents' variable qualified with a single identifier.
+
+`WithEvents` 容器由为该变量合成的 setter 挂钩，而不是由共享构造器挂钩，因此模块永远不可能成为该注册的宿主，也就永远不落在抑制范围内。**决策**：抑制范围不扩大到覆盖 `WithEvents` 容器。扩大它会改变每一个带字段初始化器的模块的初始化时机，那是全语言范围的行为，而没有任何脚本需求要求它。因此，一个有隐式共享构造器的模块必然是惰性的；这是判据形状的后果，而不是一条关于模块的单独规则。
+
+**什么不构成保证。** 观察到处理器运行过，并不能确定构造器是什么时候运行的，因为运行时被允许把共享构造器跑得比语言要求的任何时点更早。只检查"看到了投递"的一格，在两种属性之下都成立。时机由两项观察共同支撑：发射出的类型不携带该属性；以及一个只经由一次共享方法调用抵达 raise 的方法体，仍先看到该构造器。
 
 ### 跨提交的 `Imports` <a id="imports-across-submissions"></a>
 
@@ -390,6 +420,7 @@ Visual Basic 与 C# 在三个彼此独立的地方对同样的问题给出不同
 - **声明模型与会话测试。** 一次提交中声明的顶层 `Dim` 在下一次提交中可读。一次提交中声明的顶层 `Function`、`Class`、`Module` 与 `Delegate`，每一个都可在其后某次提交中使用：该类型的实例用对象初始化器构造，取该函数的地址，调用该模块的成员。在一次提交中写下的导入在下一份中生效，并且不取代通过宿主选项提供的导入。
 - **入口点与结果测试。** 带类型脚本忽略末尾表达式，带类型脚本的裸 `Return` 给出默认值；显式的顶层 `Return` 值是结果，并优先于末尾表达式；顶层可执行语句按源码顺序运行。在文件执行中，末尾表达式与 `?` 语句都不设置退出码，显式的 `Return` 设置退出码，裸 `Return` 给出零。
 - **Async 与事件测试。** 脚本文件中的顶层 `Await`、裸 `Await` 语句，以及其值作为结果的 `Await` 都能编译并运行。带 lambda 的顶层 `AddHandler`、其事件处理程序声明在先前某次提交中的顶层 `AddHandler`，以及顶层 `RemoveHandler` 都能编译并生效。
+- **时机测试。** 共享构造器承载共享 `Handles` 子句的提交类，发射时不带 `beforefieldinit`；而共享构造器只初始化字段的提交类，发射时带该位；两者一并断言，因此一旦抑制范围被扩大到第二种形状，也会从那一侧被抓住。带共享字段初始化器的普通 `Class` 与带公共字段初始化器的普通 `Module` 保留该属性，而任一种的显式 `Sub New` 都抑制它。一个只经由一次共享方法调用抵达 raise 的提交体，把提交类的共享构造器与投递一起记录在 raise 之前；同一份删去 `Handles` 子句的脚本，则把构造器记录在 raise 之后且没有投递；跨提交时，若 raise 由另一个类型的共享方法发起，后一次提交的共享构造器已在其方法体第一句之前跑完。同一个事件两次 raise 投递两次而共享构造器只运行一次；同一个事件的两个处理器声明在两次不同的提交中，各投递恰好一次。
 - **限制测试。** 在脚本模式下，`Namespace` 声明报告 BC36965，而显式的 `Me`、`MyBase` 或 `MyClass` 在脚本类内一路报告 BC36966：在顶层代码中，包括写在其中的 lambda 与顶层字段或属性初始化器，也同样在顶层实例 `Function` 或 `Property` 的成员体内。本方言在允许一侧所要求的覆盖，是去掉限定符的同一位置——从顶层实例成员体内不加限定地引用一个顶层字段或方法，它编译通过并读到值——以及同一个显式关键字写在 `Shared` 成员里，在那里改报共享上下文的 BC30043。顶层 `GoTo` 与其标签编译无误。顶层 `On Error Resume Next` 与顶层 `RaiseEvent` 报告各自的不支持语句诊断。共享字段或属性初始化器中的 `Await` 报告 BC37341；在脚本类中声明的实例构造函数报告 BC37342，而共享构造函数以及脚本类所嵌套类的构造函数不受影响；其 `WithEvents` 变量从早先某次提交或从宿主对象到达提交类的 `Handles` 子句报告 BC37343，而针对同一次提交中声明的变量的子句得以绑定并运行。
 - **语句形式测试。** 不是顶层代码末条语句的裸表达式报告 BC31003，同一位置上的成员访问报告 BC30545；在文件执行中两种形式都被接受并被忽略。嵌套 `Sub` 内部的裸表达式仍然报告它的普通诊断，`Object` 接收者上末尾的晚绑定成员访问不被打印。
 - **会话隔离测试。** 失败的提交不改变会话的状态。
@@ -409,6 +440,7 @@ Visual Basic 与 C# 在三个彼此独立的地方对同样的问题给出不同
 - [Statements](https://github.com/dotnet/vblang/blob/main/spec/statements.md) —— 局部声明与 `Return` 语句规则
 - [Type Members](https://github.com/dotnet/vblang/blob/main/spec/type-members.md) —— `Dim` 作为变量成员的修饰符、`WithEvents`、扩展方法
 - [Types](https://github.com/dotnet/vblang/blob/main/spec/types.md) —— 标准模块：隐式 `Shared` 成员，永不可实例化
+- [ECMA-335](https://www.ecma-international.org/publications-and-standards/standards/ecma-335/) —— 类型初始化与类型定义的 `beforefieldinit` 标志
 - [Script<T>](https://github.com/dotnet/roslyn/blob/main/src/Scripting/Core/Script.cs) —— 共享的脚本 API
 
 [ldm-2020-01-22]: https://github.com/dotnet/csharplang/blob/main/meetings/2020/LDM-2020-01-22.md
@@ -418,3 +450,4 @@ Visual Basic 与 C# 在三个彼此独立的地方对同样的问题给出不同
 [vblang-statements]: https://github.com/dotnet/vblang/blob/main/spec/statements.md
 [vblang-type-members]: https://github.com/dotnet/vblang/blob/main/spec/type-members.md
 [vblang-types]: https://github.com/dotnet/vblang/blob/main/spec/types.md
+[ecma-335]: https://www.ecma-international.org/publications-and-standards/standards/ecma-335/

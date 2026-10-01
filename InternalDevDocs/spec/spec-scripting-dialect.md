@@ -195,7 +195,37 @@ Dim raiser As New Raiser
 AddHandler raiser.SomethingHappened, AddressOf OnSomething   ' an ordinary statement
 ```
 
-The event hookup performed by a `WithEvents` field is a separate mechanism and is dispatched by the kind of the script class, as described under [Script classes and submission classes](#script-classes-and-submission-classes).
+The event hookup performed by a `WithEvents` field is a separate mechanism and is dispatched by the kind of the script class, as described under [Script classes and submission classes](#script-classes-and-submission-classes). A `Handles` clause that binds a shared method to a shared event of a submission is a third mechanism again, and is specified under [Shared `Handles` in a submission](#shared-handles-in-a-submission).
+
+### Shared `Handles` in a submission
+
+A `Handles` clause whose method and whose event are both `Shared` is hooked up in the shared constructor of the class that declares the method. A submission class is a class container, so the clause is legal in it; the shared constructor that hosts it is the parameterless one the class already has when it has shared initializers, and is synthesized for the clause alone when it has none. What follows is the timing contract that this shape owes the author of a script.
+
+**The contract.** The submission class is emitted without `beforefieldinit`. Under the precise semantics that the absence of that attribute selects, the runtime guarantees that the shared constructor of the class has run to completion before *any* static member of the class is accessed, and "any static member" includes a call of a shared method, not only a read of a static field ([ECMA-335][ecma-335]). A submission whose body reaches a raise through nothing but one call of a shared method of its own therefore has the handler in place before that raise:
+
+```vbnet
+Shared Event Started As System.EventHandler
+
+Shared Sub OnStarted(sender As Object, e As System.EventArgs) Handles MyClass.Started
+    Console.WriteLine("handled")
+End Sub
+
+Shared Sub Start()
+    RaiseEvent Started(Nothing, System.EventArgs.Empty)   ' the handler is already hooked up
+End Sub
+
+Start()
+```
+
+The attribute is cleared for one reason only: the type has an implicit shared constructor that does something other than initialize fields. A type whose shared constructor only initializes fields keeps the attribute and is initialized when one of its static fields is first accessed, which is the ordinary behavior of ordinary compilation and is not changed for scripts.
+
+**Why a module is different.** The criterion that clears the attribute is one criterion, applied to every class and every module, and the difference between the two follows from it. In a module a `Handles` clause must name a `WithEvents` variable qualified with a single identifier; every other container is rejected, `Me`, `MyClass` and `MyBase` included:
+
+> 'Handles' in modules must specify a 'WithEvents' variable qualified with a single identifier.
+
+A `WithEvents` container is hooked up by the setter synthesized for the variable and not by a shared constructor, so a module can never be the host of the registration and never falls under the suppression. **Decision**: the suppression is not widened to cover a `WithEvents` container. Widening it would change the initialization timing of every module that has a field initializer, which is a language-wide behavior that no scripting requirement asks for. A module that has an implicit shared constructor is therefore necessarily lazy, and that is a consequence of the shape of the criterion rather than a separate rule about modules.
+
+**What is not the guarantee.** Observing that a handler ran does not establish when the constructor ran, because the runtime is permitted to run a shared constructor earlier than any point the language requires. A case that only checks that a delivery was seen holds under both attributes. The timing rests on two observations together: that the emitted type does not carry the attribute, and that a body which reaches the raise through nothing but a call of a shared method still sees the constructor first.
 
 ### `Imports` across submissions
 
@@ -390,6 +420,7 @@ The dialect is exercised by in-memory compilation and execution tests that have 
 - **Declaration-model and session tests.** A top-level `Dim` declared in one submission is readable in the next. A top-level `Function`, `Class`, `Module`, and `Delegate` declared in one submission are each usable in a later submission: an instance of the type is constructed with an object initializer, the address of the function is taken, and a member of the module is called. An import written in one submission is in effect in the next and does not replace imports supplied through the host's options.
 - **Entry-point and result tests.** A typed script ignores a trailing expression, and a typed script's bare `Return` yields the default value; an explicit top-level `Return` value is the result and takes precedence over a trailing expression; top-level executable statements run in source order. In file execution, a trailing expression and a `?` statement do not set the exit code, an explicit `Return` does, and a bare `Return` yields zero.
 - **Async and event tests.** A top-level `Await` in a script file, a bare `Await` statement, and an `Await` whose value is the result all compile and run. A top-level `AddHandler` with a lambda, a top-level `AddHandler` whose handler was declared in a previous submission, and a top-level `RemoveHandler` compile and take effect.
+- **Timing tests.** A submission class whose shared constructor hosts a shared `Handles` clause is emitted without `beforefieldinit`, and a submission class whose shared constructor only initializes fields is emitted with it; the two are asserted together, so a suppression that is ever widened to the second shape is caught from that side too. An ordinary `Class` with a shared field initializer and an ordinary `Module` with a public field initializer keep the attribute, and an explicit `Sub New` of either kind suppresses it. A submission body that reaches a raise through nothing but one call of a shared method records the shared constructor of the submission class before the raise and the delivery together, while the same script without the `Handles` clause records the constructor after the raise and no delivery; across submissions, with the raise performed by a shared method of another type, the shared constructor of the later submission has run before the first statement of its body. Two raises of one event deliver twice with the shared constructor running once, and two handlers of one event declared in two different submissions each deliver exactly once.
 - **Restriction tests.** In script mode, a `Namespace` declaration reports BC36965, and an explicit `Me`, `MyBase`, or `MyClass` reports BC36966 throughout the script class: in top-level code, including in a lambda and in a top-level field or property initializer written there, and equally in the body of a top-level instance `Function` or `Property`. The coverage this dialect requires on the permitted side is the same position with the qualifier removed — an unqualified reference to a top-level field or method from a top-level instance member body, which compiles and reads the value — and the same explicit keyword in a `Shared` member, where the shared-context BC30043 is reported instead. A top-level `GoTo` and its label compile without errors. A top-level `On Error Resume Next` and a top-level `RaiseEvent` report their unsupported-statement diagnostics. An `Await` in a shared field or property initializer reports BC37341; an instance constructor declared in a script class reports BC37342, while a shared constructor and a constructor of a class nested in the script class are unaffected; a `Handles` clause whose `WithEvents` variable reaches the submission class from an earlier submission or from the host object reports BC37343, while a clause over a variable declared in the same submission binds and runs.
 - **Statement-form tests.** A bare expression that is not the final statement of the top-level code reports BC31003, and a member access in the same position reports BC30545; in file execution both forms are accepted and ignored. A bare expression inside a nested `Sub` still reports its ordinary diagnostic, and a trailing late-bound member access on an `Object` receiver is not printed.
 - **Session-isolation tests.** A failed submission does not change the state of the session.
@@ -409,6 +440,7 @@ The dialect is exercised by in-memory compilation and execution tests that have 
 - [Statements](https://github.com/dotnet/vblang/blob/main/spec/statements.md) — local declarations and the `Return` statement rule
 - [Type Members](https://github.com/dotnet/vblang/blob/main/spec/type-members.md) — `Dim` as a variable member modifier, `WithEvents`, extension methods
 - [Types](https://github.com/dotnet/vblang/blob/main/spec/types.md) — standard modules: implicitly `Shared` members, never instantiable
+- [ECMA-335](https://www.ecma-international.org/publications-and-standards/standards/ecma-335/) — type initialization and the `beforefieldinit` flag of a type definition
 - [Script<T>](https://github.com/dotnet/roslyn/blob/main/src/Scripting/Core/Script.cs) — the shared scripting API
 
 [ldm-2020-01-22]: https://github.com/dotnet/csharplang/blob/main/meetings/2020/LDM-2020-01-22.md
@@ -418,3 +450,4 @@ The dialect is exercised by in-memory compilation and execution tests that have 
 [vblang-statements]: https://github.com/dotnet/vblang/blob/main/spec/statements.md
 [vblang-type-members]: https://github.com/dotnet/vblang/blob/main/spec/type-members.md
 [vblang-types]: https://github.com/dotnet/vblang/blob/main/spec/types.md
+[ecma-335]: https://www.ecma-international.org/publications-and-standards/standards/ecma-335/
