@@ -117,14 +117,15 @@ A `#Load` inside a conditional region excluded by a false `#If` is not recognize
 A host that expands `#Load` performs the following walk. The result is the list of trees that the submission is built from.
 
 1. Parse the script text as the **main tree**, using the script's parse options and its file path.
-2. Seed the **active expansion set** with the normalized path of the main file, compared case-insensitively, when the main file has a path. A file that loads the main file is therefore a cycle.
+2. Seed the **expanded set** with the normalized path of the main file, compared case-insensitively, when the main file has a path. The main file therefore counts as already expanded, so a directive that loads it is skipped like any other repeat.
 3. For each load directive in the main tree's leading trivia, in source order:
    1. an empty operand is skipped;
    2. resolve the operand against the file path of the tree that wrote the directive;
-   3. if the resolution produces no path, or the path is already in the active expansion set, stop the walk and report BC2001 anchored at the directive's string literal token;
-   4. otherwise read the file and parse it as a **new tree**, with the same parse options and with the resolved path as its file path;
-   5. expand that tree recursively, depth first;
-   6. remove the path from the active expansion set and append the tree to the list.
+   3. if the resolution produces no path, stop the walk and report BC2001 anchored at the directive's string literal token;
+   4. otherwise, if the path is already in the expanded set, skip the directive silently, producing no diagnostic;
+   5. otherwise add the path to the expanded set, read the file and parse it as a **new tree**, with the same parse options and with the resolved path as its file path;
+   6. expand that tree recursively, depth first;
+   7. append the tree to the list.
 4. Append the main tree last.
 
 The walk is depth first and a file is appended after its own loaded files, so a file's top-level statements run before the statements of the file that loads it, and the main file runs last. The first failure in this order stops the walk; the trees resolved before it are discarded along with the failure, because the expansion produces either a complete tree list or one diagnostic.
@@ -137,9 +138,15 @@ The walk is depth first and a file is appended after its own loaded files, so a 
 
 **Decision**: an expansion failure is reported at the directive, not at a location inside the missing file. The only location the author wrote is the directive, and the directive is what must change.
 
-**Case and identity.** Directive keywords are matched case-insensitively, and path identity on the active expansion set is compared case-insensitively.
+**Case and identity.** Directive keywords are matched case-insensitively, and path identity on the expanded set is compared case-insensitively.
 
-**Cycle detection covers the active expansion set only.** A path is removed from the set when its subtree has been fully expanded, so a file that is reachable by two different branches of the same walk is loaded twice. This diverges from the C# implementation, which de-duplicates by resolved path; see [Divergences from the C# implementation](#divergences-from-the-c-implementation).
+**A file is expanded at most once per compilation.** A path enters the expanded set when it is expanded and is never removed. A directive naming a path already in the set is therefore skipped, silently, and the walk continues. This is a single rule that covers both shapes that a per-branch notion of "currently expanding" cannot: a file reachable through two different branches is expanded once, and a chain that loops back to a file it has already passed — including back to the main file — is also expanded once, because that file is in the set too. Neither produces a diagnostic.
+
+**Decision**: a repeat is not reported. Reporting it would turn a shared helper included by two files into a hard error at a condition no single file shows the author, and it would make a cycle an error whose message would have to name a cause the author can already see by reading the chain.
+
+**Decision**: the main file's path is seeded into the set before the walk. Without it, a chain that loops back to its own head would expand the head a second time, and which trees a script produces would depend on which file in the chain the user happened to start from.
+
+**Decision**: identity is the **resolved** path, not the operand text. `#Load "./lib.vbx"`, `#Load "sub\..\lib.vbx"` and `#Load "LIB.VBX"` all name the same file, because resolution normalizes the path before the set is consulted; the comparison is then case-insensitive, since normalization preserves case.
 
 ### The multi-tree submission
 
@@ -217,11 +224,11 @@ A submission is compiled to an in-memory assembly, loaded dynamically, and execu
 | BC36967 | `ERR_LoadDirectiveOnlyAllowedInScripts` | `#Load` in ordinary compilation. Message: "#Load is only allowed in scripts" |
 | BC37002 | `ERR_PPLoadFollowsToken` | `#Load` after the first token of a compilation unit. Message: "Cannot use #Load after first token in file" |
 | BC30217 | `ERR_ExpectedStringLiteral` | The directive has no string literal operand. Message: "String constant expected." |
-| BC2001 | `ERR_FileNotFound` | The host cannot expand an active directive: the operand resolves to no file, or the resolved path is already being expanded. Message: "file '{0}' could not be found" |
+| BC2001 | `ERR_FileNotFound` | The host cannot expand a directive: the operand resolves to no file. Message: "file '{0}' could not be found" |
 
 The first three are compiler diagnostics. BC2001 is produced by the host during expansion, not by the compiler; it is anchored at the directive's string literal token. The expansion failure is raised as a `CompilationErrorException` carrying that single diagnostic.
 
-BC2001 is the diagnostic of both a missing file and a cyclic load. The message says "file not found" even when the file exists and the real cause is a cycle; the divergence is recorded under [Divergences from the C# implementation](#divergences-from-the-c-implementation).
+BC2001 therefore covers **only** a missing file. It is no longer the diagnostic of a cyclic load: a chain that loops back is a repeat, and a repeat is skipped silently, so a cycle produces no diagnostic at all and BC2001's message cannot name a cause that did not occur.
 
 ### Alignment with the C# implementation
 
@@ -238,8 +245,8 @@ The C# counterpart of this directive is the C# scripting `#load` directive. The 
 | Reference manager reuse | `#load` counts as a directive that may affect the reference set, so a tree containing one prevents reuse of the reference manager | only `#R` counts; a `#Load` directive alone does not invalidate |
 | Empty operand | `#load ""` reports CS1504 | no-op, no diagnostic |
 | Missing file | CS1504, anchored at the file token | BC2001, anchored at the file token |
-| Cyclic load | silently terminates: a path already loaded is not loaded again | BC2001, anchored at the directive that closes the cycle |
-| Same file reachable twice | loaded once, by resolved path | loaded once per branch of the walk |
+| Cyclic load | silently terminates: a path already loaded is not loaded again | the same: a path already expanded is skipped |
+| Same file reachable twice | loaded once, by resolved path | loaded once, by resolved path |
 | Read failure | converted to a diagnostic (CS2015) | not converted; the resolver's exception propagates |
 | Source resolver absent | CS8099 | null-reference failure |
 | Tree order | loaded trees precede, the referrer is appended last | the same |
@@ -247,7 +254,9 @@ The C# counterpart of this directive is the C# scripting `#load` directive. The 
 | Directive keyword case | case-insensitive | case-insensitive |
 | Active/inactive flag | directive trivia carries one | no such flag; a disabled region produces no directive node |
 
-The rows for reference-manager reuse, the empty operand, the read failure, the absent resolver, the cyclic load, and the diamond are the semantic divergences. The row for the empty operand in particular must not be read as an alignment: the sibling `#R` directive's empty operand is discarded in both languages, but `#Load`'s empty operand is discarded only in Visual Basic.
+The rows for reference-manager reuse, the empty operand, the read failure, and the absent resolver are the semantic divergences. The row for the empty operand in particular must not be read as an alignment: the sibling `#R` directive's empty operand is discarded in both languages, but `#Load`'s empty operand is discarded only in Visual Basic.
+
+The cyclic-load and same-file-reachable-twice rows are alignments. They were recorded here as divergences when this dialect tracked only the expansion stack; the two implementations now agree on both, with one difference of degree described under [Divergences from the C# implementation](#divergences-from-the-c-implementation).
 
 ## Soundness
 [soundness]: #soundness
@@ -295,7 +304,7 @@ None.
 
 The directive is a compiler-recognized syntax node and a host-defined operation, and the two halves are not interchangeable. The compiler guarantees the node, the mode gate, the position gate, the operand's syntax, and the tree API that exposes the directive; it guarantees nothing about what the operand means or whether a file is loaded. A compilation constructed from a tree that contains a `#Load` therefore contains no trace of the loaded file and reports no diagnostic about its absence. This is a contract, not a gap: the tree set of a submission is an input, and the host that builds the submission is the party that decides it.
 
-The consequence for tooling is that a consumer which constructs a compilation directly must perform the same walk — resolve each operand against the referring tree, detect cycles, order the trees depth first — to obtain the semantics a script runner would produce. Reading the directive from the tree tells a tool what the author asked for; it does not tell the tool what was loaded.
+The consequence for tooling is that a consumer which constructs a compilation directly must perform the same walk — resolve each operand against the referring tree, skip repeats, order the trees depth first — to obtain the semantics a script runner would produce. Reading the directive from the tree tells a tool what the author asked for; it does not tell the tool what was loaded.
 
 ### The failure channel
 
@@ -309,22 +318,24 @@ The residual difference from C# is structural: because the failure occurs before
 
 ### Divergences from the C# implementation
 
-Six divergences are stated here rather than left to be discovered, because each of them is a place where a reader who knows C# would predict the wrong behavior.
+Four divergences are stated here rather than left to be discovered, because each of them is a place where a reader who knows C# would predict the wrong behavior.
 
 - **The reference manager is not invalidated by `#Load`.** C# treats `#load` as a directive that may affect the reference set, because a loaded file can carry a `#r`; Visual Basic's invalidation predicate asks only whether a tree has a `#R`. The difference is observable only as a reuse decision inside the compiler, and it does not change the reference set of a compilation: a loaded tree that carries a `#R` still contributes that reference and still sets the flag.
 - **An empty operand is silent.** C# reports CS1504 for `#load ""`; this dialect skips it.
 - **A read failure is not converted to a diagnostic.** C# wraps the failure while reading a resolved file into a diagnostic (CS2015) anchored at the directive; this dialect does not guard the read, so an exception raised by the resolver propagates out of the expansion and out of the script compilation step, which converts only `CompilationErrorException`.
 - **An absent source resolver fails with an exception.** C# reports CS8099 when the compilation has no source reference resolver and the script contains a `#load`; this dialect does not guard the resolver, so the same input fails with a null-reference exception.
-- **A cyclic load is diagnosed.** C# de-duplicates by resolved path, so a cycle terminates silently; this dialect detects a cycle on the active expansion set and reports BC2001 at the directive that closes the cycle.
-- **A diamond is not de-duplicated.** C# loads a file that is reachable twice once, by resolved path; this dialect loads it once per branch of the walk, so its top-level statements execute twice and its declarations become two parts of one script class.
+
+De-duplication is **not** a divergence: both implementations expand a given file at most once per compilation and neither reports a repeat. The two differ in degree rather than in outcome. C# seeds its de-duplication set only with the files it loads, so a chain that loops back to the **entry** file escapes the check — that file is expanded a second time, which for a file declaring a top-level name is a duplicate-definition error, and for a file without one is a second execution. This dialect seeds the entry file too, so the same chain expands each file once whatever file it is entered from. The two therefore agree on the two shapes that do not loop back to the entry file, and this dialect is the stricter of the two on the shape that does.
 
 ### Path identity is case-insensitive
 
-The active expansion set compares paths case-insensitively. A load chain that alternates the case of a file name is therefore detected as a cycle, and two spellings that differ only in case are the same file for cycle detection. The rule matches the case-insensitivity of the language's identifiers and of the directive keyword.
+The expanded set compares paths case-insensitively. A load chain that alternates the case of a file name therefore names the same file each time, and two spellings that differ only in case are one file. The rule matches the case-insensitivity of the language's identifiers and of the directive keyword, and it is required rather than merely conventional: path normalization folds `.`, `..`, redundant separators and trailing dots and spaces, but preserves case, so case-insensitive comparison is the only thing that makes two spellings of one file agree.
 
-### Diagnostic text for a cyclic load
+### A cyclic load is not an error
 
-BC2001's message says the file could not be found, and a cyclic load reports the same message even though the file is present. The message is accurate for the missing-file case, which is the common one; for a cycle it names the file whose load closed the cycle. An author who sees the message on a file that exists should read the diagnostic's location — the directive that closes the cycle — rather than the file name in the message.
+A chain that loops back does not produce a diagnostic. The file the chain returns to has already been expanded, so the directive naming it is skipped exactly as a second `#Load` of a shared library is skipped — the same rule, stated once in [The host expansion contract](#the-host-expansion-contract) rather than as a special case. A file that loads itself is the smallest instance of the same shape and is likewise silent.
+
+This is stated explicitly because the absence of a diagnostic is the kind of contract that a later reader is tempted to "fix": an author who has seen the cycle rule reject a load with a file-not-found message for a file that plainly exists will find that message gone, and may take its absence for a regression. The old message was also wrong — it named a file that was present, for a cause the chain itself already shows — so the behavior changed toward correctness, not away from it. An author who wants to know that a chain loops can see it by reading the chain; a tool that wants to know can compare the set of loaded paths against the set of paths named by directives.
 
 ## Testing
 [testing]: #testing
@@ -334,7 +345,8 @@ The feature is exercised by in-process tests that have no side effects: they do 
 - **End-to-end script tests.** A `.vbx` file whose first line is a load directive calls a function declared in the loaded file and exits with code zero. An interactive session that loads a file can call the loaded file's function in a later submission and prints its value, and a load directive on the first line of a loaded file is accepted.
 - **Nested-expansion and result tests.** A loaded file that itself loads a third file compiles, and a function declared in the deepest file is callable from the file that loads the middle file. A loaded file whose only statement is `Return 17` makes the submission result `17`.
 - **Span and location tests.** A diagnostic in the main file after a load directive reports the main file's real line rather than a shifted line. A diagnostic inside a loaded file reports the loaded file's real path and line.
-- **Failure tests.** A load directive naming a file that does not exist raises a `CompilationErrorException` whose single diagnostic is anchored at the load directive's line in the referring file. A load cycle is reported at the load directive that closes the cycle, in the file that wrote it.
+- **Failure tests.** A load directive naming a file that does not exist raises a `CompilationErrorException` whose single diagnostic is anchored at the load directive's line in the referring file.
+- **De-duplication tests.** A library reached through two branches is expanded once, and its top-level declaration does not collide with itself. A load cycle and a self-load each compile without a diagnostic, with every file in the chain expanded exactly once. Two spellings of one file that differ only in case are expanded once. The result is the same whether the chain is entered from its head or from a member of it. These assert an exact tree count and a side-effect counter, not merely the absence of an error.
 - **Reference and import tests.** A loaded file resolves types from the submission's references without a directive of its own. An `Imports` clause written in a loaded file is replayed into the next submission of the session, and a malformed accumulated clause is reported by the submission gate rather than raised as an exception.
 - **Directive-coexistence tests.** A shebang, a reference directive, and a load directive in one leading trivia all parse, each is discoverable through its directive API, and the loaded code runs.
 - **Position-gate tests.** A load directive after the first token reports BC37002, and a load directive in the first line reports no position diagnostic.

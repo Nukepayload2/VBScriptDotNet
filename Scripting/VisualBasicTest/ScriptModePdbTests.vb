@@ -690,11 +690,14 @@ Public Class ScriptModePdbTests
     ''' the same tree.
     ''' <para>
     ''' The loaded tree is a syntax tree of its own with its own FilePath
-    ''' (Scripting\VisualBasic\VisualBasicScriptCompiler.vb, `CollectLoadTrees` at :73; the loaded tree is parsed
-    ''' at :99 with <c>resolvedPath</c>), and loaded trees are added before the main file so their top level code
-    ''' runs first (`CreateSubmission`, :187-199). Both facts are observable in the frame: the throw sits on line
+    ''' (Scripting\VisualBasic\VisualBasicScriptCompiler.vb, `CollectLoadTrees` at :88; the loaded tree is parsed
+    ''' at :122 with <c>resolvedPath</c>), and loaded trees are added before the main file so their top level code
+    ''' runs first (`CreateSubmission`, :213-230). Both facts are observable in the frame: the throw sits on line
     ''' 2 of the loaded file, so the frame has to name that file and that line. Under the old inlining this frame
     ''' named main.vbx with a shifted line - which is what this cell is built to catch.
+    ''' <para>
+    ''' (Line anchors refreshed 2026-09-30: the once-semantics rewrite of `CollectLoadTrees` moved the function
+    ''' to :88, the parse to :122, and the tree assembly to :213-230. The facts asserted here are unchanged.)
     ''' </para>
     ''' <para>
     ''' Why it can fail: the loaded file's name, its line number and the document table are three separate

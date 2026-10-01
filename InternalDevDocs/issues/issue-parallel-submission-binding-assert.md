@@ -1,7 +1,7 @@
 # issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言（`ScriptTopLevelDefiniteAssignmentTests` 一格，25–50% 复现）
 
 - **登记日期**：2026-09-24（main）
-- **状态**：**Open**（症状、复现配方、非归因项均已实锤；根因未查）
+- **状态**：**Open**（症状与复现频次已实锤；根因未查）。**计划已建**：`..\tasks\parallel-submission-binding-assert\{README,test-plan}.md`（待开工；第一片是**复现＋定性**，不是修——定不出产品并发 vs 夹具共享就不许动测试）
 - **性质**：**合法输入触发编译器内部断言**（Debug 构建下 `Debug.Assert` ⇒ `InvalidOperationException`）——按 `decisions.md` D7 的"合法输入崩编译器即必修"这条，属必修面，不因"只在测试并行下出现"而降级
 - **前置**：由 `HANDOFF.md` §5 行 K（原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"
 

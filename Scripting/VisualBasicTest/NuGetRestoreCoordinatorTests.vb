@@ -295,6 +295,62 @@ Public Class NuGetRestoreCoordinatorTests
     End Sub
 
     <Fact>
+    Public Sub DiamondLoadScansSharedNuGetLibraryExactlyOnce()
+        ' Once semantics (2026-09-28): main #loads a and b, BOTH #load the same shared library, and that
+        ' library carries NuGet directives. The pre-scan must expand the library ONCE, so its
+        ' classification diagnostic is reported once -- not once per branch.
+        '
+        ' Why the discriminator is a diagnostic COUNT and not RestoreCalls: ScanSubmission dedups restore
+        ' REQUESTS (DeduplicateRequests, by id+version), so a library scanned twice would still fire a
+        ' single restore and RestoreCalls cannot see the double scan. Diagnostics are not deduped, so they
+        ' are the only surface that can. The restore path for loaded files stays covered by
+        ' LoadNestedNuGetDirectiveTriggersRestore / DeepNestedLoadNuGetDirectiveTriggersRestore.
+        '
+        ' The unversioned "nuget:" directive is what makes it observable at all: it classifies as a
+        ' blocking VBI1001 instead of becoming a request, and VBI1001 is not deduplicated.
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession())
+        Dim options = OptionsWithMemorySource({
+            New KeyValuePair(Of String, String)("/mem/a.vbx", "#load " & Quote & "/mem/shared.vbx" & Quote),
+            New KeyValuePair(Of String, String)("/mem/b.vbx", "#load " & Quote & "/mem/shared.vbx" & Quote),
+            New KeyValuePair(Of String, String)("/mem/shared.vbx", "#R " & Quote & "nuget:Contoso.X" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/a.vbx" & Quote & vbCrLf &
+                   "#load " & Quote & "/mem/b.vbx" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        ' Exactly one diagnostic: the one directive in shared.vbx, scanned once.
+        Assert.Equal(1, diagnostics.Length)
+        Assert.Equal("VBI1001", diagnostics(0).Id)
+        Assert.Equal("/mem/shared.vbx", diagnostics(0).Location.GetLineSpan().Path)
+        Assert.Equal(0, diagnostics(0).Location.GetLineSpan().StartLinePosition.Line)
+    End Sub
+
+    <Fact>
+    Public Sub MainFileSelfLoadScansMainNuGetDirectiveExactlyOnce()
+        ' Once semantics (2026-09-28) plus the main-path seeding: when the submission is a file script and
+        ' the submitted text #loads the main file itself, that file is already in the expanded set, so the
+        ' pre-scan does not expand it a second time. The main tree is still scanned once in its own right,
+        ' so the submitted text's directive yields exactly ONE diagnostic -- not two (one from the main
+        ' tree, one from the re-expanded copy of the same file, whose body carries a directive too).
+        '
+        ' This is the test that pins the main-path seeding on the pre-scan side: drop
+        ' NuGetRestoreCoordinator's expandedFiles.Add(normalizedMainPath) and the count becomes 2.
+        Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession())
+        Dim options = OptionsWithMemorySource({
+            New KeyValuePair(Of String, String)("/mem/main.vbx", "#R " & Quote & "nuget:Contoso.X" & Quote)})
+
+        Dim code = "#load " & Quote & "/mem/main.vbx" & Quote & vbCrLf &
+                   "#R " & Quote & "nuget:Contoso.X" & Quote
+        Dim diagnostics = coordinator.PrepareCompilationAsync(SourceText.From(code), "/mem/main.vbx", options, CancellationToken.None).GetAwaiter().GetResult()
+
+        ' The submitted main tree is scanned once; the self-#load of the same file is skipped.
+        Assert.Equal(1, diagnostics.Length)
+        Assert.Equal("VBI1001", diagnostics(0).Id)
+        Assert.Equal("/mem/main.vbx", diagnostics(0).Location.GetLineSpan().Path)
+        Assert.Equal(1, diagnostics(0).Location.GetLineSpan().StartLinePosition.Line)
+    End Sub
+
+    <Fact>
     Public Sub MainNuGetDirectiveWithoutLoadStillRestoredWithOptions()
         ' Regression: a nuget #R directly in the submitted text (no #load anywhere) keeps working when the
         ' options-carrying seam shape is used.
@@ -339,8 +395,11 @@ Public Class NuGetRestoreCoordinatorTests
 
     <Fact>
     Public Sub SelfLoadCycleTerminatesWithoutRestore()
-        ' A loaded file that #loads itself must stop expanding (the compiler later reports the cyclic load);
-        ' the pre-scan must not hang and must not fire a restore.
+        ' A loaded file that #loads itself must stop expanding; the pre-scan must not hang and must not
+        ' fire a restore. Rewritten comment 2026-09-28: under once semantics a self-load is a repeat --
+        ' "already expanded, skip" -- so the walk terminates silently and NO diagnostic is produced, by
+        ' the pre-scan or later by the compiler. This test previously said the compiler would report the
+        ' cyclic load; that ancestor-stack guard was removed, it did not get re-coded. Assertions unchanged.
         Dim runner As New FakeRestoreRunner()
         Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
         Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/b.vbx", "#load " & Quote & "/mem/b.vbx" & Quote)})
@@ -354,8 +413,12 @@ Public Class NuGetRestoreCoordinatorTests
 
     <Fact>
     Public Sub MainFileSelfLoadCycleTerminatesWithoutRestore()
-        ' When the submission is a file script (filePath set), the main path is seeded into the active-load
-        ' set so a #load of the main file itself is a cycle and stops expanding.
+        ' When the submission is a file script (filePath set), the main path is seeded into the
+        ' already-expanded set, so a #load of the main file itself is a repeat and is skipped.
+        ' Rewritten comment 2026-09-28: that set used to be the ancestor stack and a main-file #load was
+        ' a "cycle"; the ancestor stack is gone and seeding the main path is now what makes the result
+        ' independent of which file the script is entered from (C# does not seed it, so it is not).
+        ' Assertions unchanged.
         Dim runner As New FakeRestoreRunner()
         Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
         Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/main.vbx", "? 1")})

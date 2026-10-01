@@ -5,6 +5,15 @@
 * [x] Implementation: Complete（随 2.0 beta 落地，`spec\README.md:36`；从文本内联改为编译器 trivia + 多树提交的修复记录在 `issues\issue-vbx-load-span-shift.md`；NuGet 预扫描复用同点已登账 `upstream-merge.md` 2.16；测试面在各节内联注明）
 * [ ] Specification: [Not Started](pr/1)
 
+> **⚠ 本提案的机制描述已被 `decisions.md` D9 取代（2026-09-28）——按历史记录读，不可据此改码。**
+>
+> 本文记录的是 **2.0 beta 落地当时**的实现事实，其中至少三处**不再是当前行为**：
+> 「环检测只覆盖当前递归栈（`activeLoads`）」「菱形加载不去重」「缺失文件与环共用 `ERR_FileNotFound`（BC2001）」。
+>
+> **当前契约＝once 语义**：一次编译内同一文件只展开一次，静默跳过、零诊断；**成环不是错误，是「已见过 ⇒ 跳过」**，与菱形共用同一条规则。旧祖先栈机制（`activeLoads`）连同它对 `BC2001` 的复用**已整体删除**，`BC2001` 自此只剩「真的解析不到」一种用途。
+>
+> 判据见 `decisions.md` **D9**（含 C# 侧"从不预置入口文件、故行为随入口而变"的实测依据）；行为缺陷与修复记录见 `issues\issue-load-directive-cycle-reports-file-not-found.md`；当前行为契约见 `spec\spec-scripting-dialect.md` 的 `#Load` 一节。**不要**据本文的旧描述把 once 语义改回「栈内判环 + 菱形重复」。
+
 ## Summary
 [summary]: #summary
 

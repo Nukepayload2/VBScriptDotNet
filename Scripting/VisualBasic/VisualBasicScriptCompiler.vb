@@ -66,15 +66,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         ''' <summary>
         ''' Shared <c>#Load</c> expansion (also used by the NuGet host pre-scan so its walk of loaded trees
         ''' cannot drift from the compiler's): depth-first so nested <c>#Load</c> trees precede their referrer,
-        ''' matching execution order. On the first unresolvable or cyclic <c>#Load</c> the walk stops and
-        ''' returns that directive's file-not-found diagnostic; the caller decides how to surface it (the
-        ''' compiler throws it as a <see cref="CompilationErrorException"/>; a pre-scan just stops expanding).
+        ''' matching execution order.
+        ''' <para>
+        ''' Expansion is <b>once per compilation</b>. <paramref name="expandedFiles"/> holds every file
+        ''' already spliced into this walk (keyed by resolved path, case-insensitive), and a <c>#Load</c>
+        ''' naming a file already in it is skipped silently, with no diagnostic. That single rule covers the
+        ''' two shapes that used to go wrong: the same file reached through two different <c>#Load</c>
+        ''' branches, and a cycle -- a cycle is not an error here, it is "already seen, skip". C#'s
+        ''' <c>#load</c> skips repeats the same way ("we've seen this file before, so don't attempt to load it
+        ''' again" -- <c>SyntaxAndDeclarationManager.AppendAllSyntaxTrees</c>), except that C# never seeds the
+        ''' entry file's own path, so a chain that loops back to the entry file escapes its check and
+        ''' re-expands it, making the result depend on which file the script is entered from. Callers must
+        ''' therefore seed the main path; that is what removes the entry-point dependence here.
+        ''' </para>
+        ''' <para>
+        ''' On the first genuinely unresolvable <c>#Load</c> the walk stops and returns that directive's
+        ''' file-not-found diagnostic; the caller decides how to surface it (the compiler throws it as a
+        ''' <see cref="CompilationErrorException"/>; a pre-scan just stops expanding).
+        ''' </para>
         ''' </summary>
         Friend Shared Function CollectLoadTrees(
             tree As SyntaxTree,
             parseOptions As ParseOptions,
             options As ScriptOptions,
-            activeLoads As HashSet(Of String),
+            expandedFiles As HashSet(Of String),
             loadedTrees As List(Of SyntaxTree)) As Diagnostic
 
             Dim root = TryCast(tree.GetRoot(), CompilationUnitSyntax)
@@ -91,19 +106,26 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
 
                 Dim baseFilePath = If(String.IsNullOrEmpty(tree.FilePath), Nothing, tree.FilePath)
                 Dim resolvedPath = resolver.ResolveReference(path, baseFilePath)
-                If resolvedPath Is Nothing OrElse Not activeLoads.Add(resolvedPath) Then
+                If resolvedPath Is Nothing Then
                     Return Diagnostic.Create(MessageProvider.Instance, MessageProvider.Instance.ERR_FileNotFound, path).WithLocation(directive.File.GetLocation())
+                End If
+
+                ' Once per compilation: a file already expanded in this walk is skipped silently, with no
+                ' diagnostic. This is the whole of #Load's repeat handling -- it covers both the diamond
+                ' (two branches #Load one shared library) and the cycle (a chain that loops back has, by
+                ' definition, already seen the file), so a cycle is a skip here, not an error.
+                If Not expandedFiles.Add(resolvedPath) Then
+                    Continue For
                 End If
 
                 Dim loadedText = resolver.ReadText(resolvedPath)
                 Dim loadedTree = SyntaxFactory.ParseSyntaxTree(loadedText, parseOptions, resolvedPath)
 
                 ' Depth-first so that nested #Load trees precede their referrer, matching execution order.
-                Dim childDiagnostic = CollectLoadTrees(loadedTree, parseOptions, options, activeLoads, loadedTrees)
+                Dim childDiagnostic = CollectLoadTrees(loadedTree, parseOptions, options, expandedFiles, loadedTrees)
                 If childDiagnostic IsNot Nothing Then
                     Return childDiagnostic
                 End If
-                activeLoads.Remove(resolvedPath)
                 loadedTrees.Add(loadedTree)
             Next
 
@@ -183,16 +205,25 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Dim tree = SyntaxFactory.ParseSyntaxTree(script.SourceText, parseOptions, script.Options.FilePath)
 
             ' Each #Load file is parsed as its own tree so spans are preserved. Loaded trees come first
-            ' so their top-level code executes before the main file, matching the original text-inline behavior.
+            ' so a loaded file's top-level code executes before the main file's -- that ordering is the
+            ' point of the depth-first walk, so "loaded content runs first" holds. It is deliberately NOT
+            ' an attempt to reproduce the old text-inline behavior, which inlined a repeated file twice
+            ' and was the reason issue 34 was ruled a defect: under once semantics each file appears in
+            ' exactly one position.
             Dim trees = New List(Of SyntaxTree)()
-            Dim activeLoads = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            ' Once-per-compilation set of #Load targets already expanded into this submission. Seeded with
+            ' the main file's own normalized path so a #Load chain that loops back to the entry file is
+            ' skipped like any other repeat -- without this the result would depend on which file the
+            ' script is entered from. Created per submission, never static: two unrelated scripts that each
+            ' #Load the same file both load it.
+            Dim expandedFiles = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
             If Not String.IsNullOrEmpty(tree.FilePath) Then
                 Dim normalizedMainPath = script.Options.SourceResolver.NormalizePath(tree.FilePath, Nothing)
                 If normalizedMainPath IsNot Nothing Then
-                    activeLoads.Add(normalizedMainPath)
+                    expandedFiles.Add(normalizedMainPath)
                 End If
             End If
-            Dim loadDiagnostic = CollectLoadTrees(tree, parseOptions, script.Options, activeLoads, trees)
+            Dim loadDiagnostic = CollectLoadTrees(tree, parseOptions, script.Options, expandedFiles, trees)
             If loadDiagnostic IsNot Nothing Then
                 ThrowLoadDirectiveError(loadDiagnostic)
             End If

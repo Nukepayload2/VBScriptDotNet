@@ -76,5 +76,5 @@ End If
 2. **删除** issue-16 的 ad-hoc `CheckBranchOutOfTopLevelFinally` 及辅助 `ContainsFinallyBlock`：BC30101 现由通用路**单源**（保留 ad-hoc 会双报，实测 3 finally 格 1→2）。`CheckAwaitInTryHandler`（BC36943）保留——实测通用路不双报 await。
 3. 新增 `ScriptTopLevelDefiniteAssignmentTests.vb` 7 格（含块内局部正反对照）。
 - 验证（✔）：Semantic 5883→**5886/5782/104**、**七门全绿**（Emit 4382/4279 含 issue-16 finally/`InvalidProgramException` 用例 ⇒ BC30101 单源仍抑制坏 IL）、**L2 769/0**（脚本符合性套件无新增红）。建议补档 2：重建 `vbi` 跑一条顶层块内未赋局部，看新增 BC42104、运行期 NRE 形状不变。
-- 账本：`upstream-merge.md` **§2.25(i)**；`tasks\script-toplevel-flow-analysis\`；`HANDOFF.md` §4.14/§5 行 I；队列 #7。
+- 账本：`upstream-merge.md` **§2.25(i)**；`tasks\script-toplevel-flow-analysis\`；`HANDOFF.md` §4.14；队列 #7。
 - 注：曾试"逐语句 `ControlFlowPass.Analyze` + 只放宽 filter"路线，实测 **Actual:[] 死路**（`ControlFlowPass.Analyze` 单独不产定义赋值警告，需完整 `Analyzer`+`DiagnosticsPass`），故走展开式。

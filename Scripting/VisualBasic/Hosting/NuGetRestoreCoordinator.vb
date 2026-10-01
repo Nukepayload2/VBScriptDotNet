@@ -212,18 +212,22 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Return New ScanResult(diagnostics.ToImmutableArray(), DeduplicateRequests(validRequests))
             End If
 
-            Dim activeLoads As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            ' Once-per-compilation set of #Load targets already expanded, mirroring the compiler's own set
+            ' so the pre-scan walks a repeated file exactly once and cannot drift from the compiler. Seeded
+            ' with the main file's path for the same reason the compiler seeds it: a #Load that loops back
+            ' to the entry file is a repeat, not a second copy of the entry file.
+            Dim expandedFiles As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
             If Not String.IsNullOrEmpty(tree.FilePath) Then
                 Dim normalizedMainPath = resolver.NormalizePath(tree.FilePath, Nothing)
                 If normalizedMainPath IsNot Nothing Then
-                    activeLoads.Add(normalizedMainPath)
+                    expandedFiles.Add(normalizedMainPath)
                 End If
             End If
 
             Dim loadedTrees As New List(Of SyntaxTree)()
-            ' Expansion failures (missing / cyclic #Load) are left for the compiler to report at compile
+            ' Expansion failures (missing #Load) are left for the compiler to report at compile
             ' time; the pre-scan just stops expanding and scans what it already resolved.
-            VisualBasicScriptCompiler.CollectLoadTrees(tree, parseOptions, options, activeLoads, loadedTrees)
+            VisualBasicScriptCompiler.CollectLoadTrees(tree, parseOptions, options, expandedFiles, loadedTrees)
 
             ScanTreeForNuGetDirectives(tree, diagnostics, validRequests, cancellationToken)
             For Each loadedTree In loadedTrees
