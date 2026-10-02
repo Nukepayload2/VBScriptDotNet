@@ -1,8 +1,8 @@
 # issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言（**两个受害者**：`ScriptTopLevelDefiniteAssignmentTests` 一格 25–50%，`SubmissionSharedHandlesHookupTests` 在全量 Emit 门 ≈17%）
 
 - **登记日期**：2026-09-24（main）；**2026-09-28 追加第二个受害者**（由 issue 36 的收口诊断顺带发现，见 §一之二）
-- **状态**：**Open**（症状与复现频次已实锤，**两个受害者各有一条最小配方**；根因未查）。**计划已建**：`..\tasks\parallel-submission-binding-assert\{README,test-plan}.md`（待开工；第一片是**复现＋定性**，不是修——定不出产品并发 vs 夹具共享就不许动测试）。**下一片的起点已由 §一之二改写**：宿主级双线程复现那条路已被实测走不通，须先**二分邻居用例**
-- **性质**：**合法输入触发编译器内部断言**（Debug 构建下 `Debug.Assert` ⇒ `InvalidOperationException`）——按 `decisions.md` D7 的"合法输入崩编译器即必修"这条，属必修面，不因"只在测试并行下出现"而降级
+- **状态**：**🔒 RESERVE（2026-10-02 作者裁决：暂不交付）**。根因**已定位并由主线读码核实**（`ReferenceManager.vb` 缓存的「查／建／发布」三步不原子）；候选修复 **R2 已写完、其目标形状上验证有效**，但**已从工作树撤回**（备份 `tmp\backup\r2\ReferenceManager.vb.{orig,R,R2}`）。**配套的 6 条回归用例已禁用**（三个测试文件保留但 `[Fact]` 全部注释掉，文件头有 RESERVE 横幅）。**RESERVE 的理由**（见 §三之二）：**C# 侧是同一个缺陷**、逐行同构 ⇒ 单独修 VB ＝ 对上游形成分叉，而 D5 要求给出技术性理由；目前只有"本 fork 只发布 VB 脚本"这个**产品范围**理由。且 R2 在普通编译上另有回归（Symbol 门 28 条）。**解除 RESERVE 的三条路径见 §三之二末。**
+- **性质**：**合法输入触发编译器内部断言**（Debug 构建下 `Debug.Assert` ⇒ `InvalidOperationException`）——按 `decisions.md` D7 的"合法输入崩编译器即必修"这条，属必修面，不因"只在测试并行下出现"而降级。**注**：RESERVE 是**交付节奏**决定，**不改变"这是必修缺陷"的定性**——本条不得因为 RESERVE 就从待办里划掉。
 - **前置**：由 `HANDOFF.md` §5 行 K（原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"
 
 ## 一、复现配方（已运行，频次实测）
@@ -77,13 +77,76 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 - **不是 issue 33 引入的**：issue 33 的 9 行不在场时同样出现该红（RD-F02 在其"改前基线"跑里测到 1 次红；且 `pairNew` 与 `pairOld` 的差别只是邻居是谁）。
 - **不是 issue 32 的推断改动引入的**（◇ 弱证据）：失败格的形状是 `Dim s As String`（**带显式 `As`**），按 `SourceMemberFieldSymbol.vb:135` 的 `AsClause IsNot Nothing → Return Nothing` 根本不进推断路径；这只排除"推断该字段"这条通路，没排除"推断路径新增的额外绑定"对共享状态的影响。
 - **落点在已提交代码**：`Binder_Initializers.vb` 与 `ScriptTopLevelDefiniteAssignmentTests.vb` 自 `2173a56`（2026-09-24 21:49）起已在 HEAD，本条与"未提交工作树"无关——它现在是一条**独立缺陷**，不是本批 diff 的收尾项。
-- **未查的部分**：为什么"有邻居并发"才触发。可疑方向（**都只是方向，未取读数**）：跨线程共享的符号/编译状态、`TopLevelCodeBinder`/提交链上的懒计算缓存非线程安全、或 `Debug.Assert` 依赖的 `AsSemantic`/错误类型在某条并发路径上尚未就位。
+
+### 三之二、根因已定位（2026-09-28，读码确认 ＋ 决定性实验）
+
+**共享可变状态＝进程级、按 `AssemblyMetadata` 缓存的 `PEAssemblySymbol` 图。** 测试侧两个引用对象是**进程级 static**，每个提交编译都拿到同一份元数据。
+
+**缺陷点＝"查缓存 / 建符号 / 发布缓存"三步不原子**（`Compilers\VisualBasic\Portable\Symbols\ReferenceManager.vb`，主线**亲自逐行读过**）：
+
+| 步骤 | 位置 | 是否持锁 |
+|---|---|---|
+| 查缓存、取已有 `PEAssemblySymbol` | `:871-879`，注释逐字「accessing cached symbols requires a lock」 | ✅ `SyncLock SymbolCacheAndReferenceManagerStateGuard`，`:879` 放锁 |
+| `If AssemblySymbol Is Nothing` 就**新建** | `:373-375` | ❌ **在两个锁区间之外** |
+| 重新入锁并**发布**进缓存 | `:423-432`（`UpdateSymbolCacheNoLock`） | ✅ |
+
+⇒ 两个编译各自"读到缓存空"、**各建一个 `PEAssemblySymbol`**、各发布 ⇒ 进程里同一份元数据存在两个符号对象。
+
+**为什么恰好炸在这句断言**（读码确认）：快路径 `ConversionEasyOut`（`Binder_Conversions.vb:516`）只按 `SpecialType` 查表就判成 `Identity`，随后 `:442` 的符号级 `IsSameTypeIgnoringAll`（`InstanceTypeSymbol.vb:135`）否掉——**炸的条件是"两个不同符号对象、`SpecialType` 都是 `System_String`"**。
+
+**决定性实验**：把符号复用整个关掉（⇒ 必然各建一个）⇒ 24 格从 4/8 偶发变成 **8/8 必现、每次固定 4 条**。⇒ 一旦两个符号共存，失败就**变必现**；并发只是制造共存的机会。
+
+**触发面不是"哪条用例"，是"并发的编译工作量"**（实测，各 8 次）：6 条 `SubmissionSharedInitializerTests` 逐条当邻居 = 4/4/4/4/5/3 红；**完全无关的既有类** `SubmissionEventMemberTests` 3/8、`SubmissionTopLevelLabelTests` 6/8 红；而"一条 hooks 受害者 ＋ 一条 initializer"＝ **0/8 红**（缩到最小反而绿）。⇒ **没有必需的邻居用例**，所以 §四"串行集合隔离"那条路**不适用**。
+
+**"什么时候炸"也澄清了（2026-10-02，DupTrace 机制级证据）**：
+
+- **独立提交之间永不相遇**——一堆并发跑独立提交的格子**没有鉴别力**（实测 ORIGINAL 全绿）。**重复符号本身不炸，炸的是"两个符号在同一个编译里相遇"。**
+- 相遇的形状＝**两段提交链**（`previous:=`）：后一段**通过前一段的编译**解析 `Handles Me.Ev`（连带 `System.EventHandler`），**却用自己的 body**——正是 `SharedHookupAcrossSubmissions_*` 的形状。ORIGINAL 上该格 **4/4 红**，16 个线程**全部**抛 `InvalidOperationException`。
+- 插桩实测 ORIGINAL 上每波 16 个线程对**同一个** `AssemblyMetadata` 各自 CREATE ＋ PUBLISH 一个符号，**16/16 命中**，而测试仍绿。⇒ 与 §三之二那条决定性实验（关掉复用 ⇒ 4/8 偶发变 8/8 **必现**）互为印证。
+- **守门格的两条前提缺一不可**：**自建缓存必空的 `AssemblyMetadata`**（否则窗口早被前面的编译关上）＋ **专用 `Thread` 由闸门齐放**（`Task.Run` 版在 ORIGINAL 上实测 **0/6 全绿**）。
+
+**同源、尚未修的两条确定性红**（用"全新 `MetadataReference` ＋ 16 线程"撞到，**确定复现**）：① `WeakList.cs:157/27` 的 `Add` 断言（`WeakList` 被并发改写，且其**枚举器走完一轮会改写列表**）；② `TypeSymbolExtensions.vb:999` `CheckTypeArguments` 抛 `ArgumentException`（经 `SynthesizedInteractiveInitializerMethod.vb:171`）。二者与本条同根——**同进程多编译共用同一份元数据**——**不得只修本条断言而把这两条留着**；已分别立册为 issue 37／38，且**二者在候选 R2 下是否仍红尚未测**，见 `..\..\tmp\vortex-logs\parallel-submission-binding-assert\`。
+
+**修复途中踩到的两条真教训（2026-10-02）**：
+
+**① 候选 R 制造了新红。** R（只把「查/建/发布」并入同一次 `SyncLock`、把发布搬进创建点）虽在原配方上有效且 DupTrace 证明它**确实消灭了重复符号**，却**自己引入了缺陷**——它让**初始化留在锁外**而发布进了锁内，锁内因此出现"**已发布但尚未 `SetReferences`**"的 `PEAssemblySymbol`，别的编译进得来就捡到它，`ReuseAssemblySymbols`（`CommonReferenceManager.Binding.cs:820`）读其 bound references 时炸（`NonMissingModuleSymbol.vb:136`）。⇒ **"R 下换了一种红"是 R 自己引入的**，**不要**归到 `WeakList`／issue 37 上。
+
+**⚠ 承重的是"临界区的跨度"，不是"发布排在初始化之后"**：变异 **M-B**（发布前移到创建点、**但初始化与发布仍在同一把锁内**）守门格 **0/4 全绿**，与最终方案 R2 等价。⇒ **真正必需的是「从重读缓存到发布的整段都在同一次持锁内」**；R2 仍把发布留在 `UpdateSymbolCacheNoLock` 只是**可读性／最小惊讶**的取舍。**收窄锁区间（M-C＝整份 R）才变红。**
+
+**② 候选 R2 仍有 Symbol 门回归，⚠ 本条尚未收口**（主线 2026-10-02 亲跑七门）：Symbol 门 3407 格里 **28 条失败**（连跑四次 26/28/30/28），三簇：
+- **7 条** `Debug.Assert allAssemblyData(i).IsLinked = bindingResult(i).AssemblySymbol.IsLinked`（`ReferenceManager.vb:429`）——R2 **采纳**缓存符号时**未校验 `IsLinked` 兼容性**；原代码只在**新建**分支进那一行，故不会踩。
+- **6 条** `Assert.NotSame() Failure: Values are the same instance`（`NoPia.LocalTypeSubstitution*`）——测试**要求不同实例**，修复让跨编译共享 ⇒ **共享范围过宽**。
+- **7 条** `UsedAssembliesTests` 引用类型／顺序不符 ＋ 5 条 `AggregateException` ＋ 3 条零散。
+
+⇒ **L2 777/0 未变**，故障在编译器符号层。**教训**：四条配方全绿 ＋ 变异可证**只覆盖了脚本／提交形状，没覆盖普通编译的符号身份语义**。**这也是为什么 issue 35 §六 那条「任何后续改动都必须带'普通类/模块属性位不变'的对照格」不能只对照属性位**——**符号身份/实例同一性**同样要被对照。
+
+**③ C# 侧是同一个缺陷，不是"类似缺陷"（2026-10-02 逐行核对，未修改任何代码）**
+
+C# 与 VB 的 `ReferenceManager` 是**两份独立文件、同一套逻辑**：
+
+| 步骤 | C# `Compilers\CSharp\Portable\Symbols\ReferenceManager.cs` | VB `Compilers\VisualBasic\Portable\Symbols\ReferenceManager.vb` |
+|---|---|---|
+| 查缓存（持锁） | `:1017 lock` → `:1019 foreach` | `:871 SyncLock` → `:873 For Each` |
+| **建符号（已放锁）** | `:428-430`（在 `:311` 锁区间**外**） | `:373-375`（在 `:265` 锁区间外） |
+| `SetupReferencesForSourceAssembly` | `:464` | 对应处 |
+| `InitializeNewSymbols` | `:481` | `:469` |
+| **再入锁 + 发布** | `:486 lock` → `:497 UpdateSymbolCacheNoLock` | `:462` → `:474` |
+
+连注释都是同一句「accessing cached symbols requires a lock」，连方法名都叫 `UpdateSymbolCacheNoLock`。⇒ **C# 侧不是"处理了这个问题"，它就是同一个缺陷。**
+
+**行为实验在本 fork 内无法对称进行（结构性事实）**：`Compilers\CSharp\Portable\Scripting\` **不存在**（本 fork 裁掉了 C# 脚本层，也没有 csi）⇒ **C# 侧没有与本条那条失败测试同构的宿主路径**可走。用编译器 API 单独跑的 C# 探针（`tmp\cs-side-probe\`）0 复现，但**其 VB 阳性对照未能命中目标签名**（harness 自身有 `typeArguments` 缺陷）⇒ **该 0 作废，不得引用为"C# 无此缺陷"的证据**。
+
+**处置建议（待作者裁决）：reserve。** 单独修 VB 侧＝对上游 C# 形成分叉，而 `decisions.md` D5 要求「**为什么 VB 必须分叉**」——目前能给的唯一理由是「本 fork 只发布 VB 脚本、C# 侧是死代码」，那是**产品范围**理由、不是**技术**理由。**故本条暂不交付**，连同 R2 的 Symbol 门回归一并保留在工作树待议。
+
+**怎么了结（若要推进）**：① 恢复上游一致性——**两侧一起改**（C# 侧同样把整段并入一次持锁），再回归两个语言的普通编译对照；或 ② 取得技术性理由（例如证明 C# 侧该路径在本 fork 内不可达且未来也不会用于产品）并写进 D5；或 ③ 放弃本条、按"上游共享缺陷"登记后交由 `dotnet/roslyn` 上游处理，**fork 不单边修**。
+
+**未闭合**：第二条产生第二个 `PEAssemblySymbol` 的路径**尚未找到**。候选修法 R（在 `ReferenceManager.vb` 把建+发布并入同一把锁）已验证：原 24 格 4/8→**0/12**、变异（发布挪出锁）→**12/12**、Semantic 门组合 5/8→**0/8**；**但在扩大的 27 格配方上 10/10 红（签名换成 `WeakList`）** ⇒ **不完整，未交付**（两个文件已字节还原并复测基线 5/8 红）。**给主线留一个门还是红的改动不叫修复。**
 
 ## 四、处置要求（本仓对偶发红的既有口径）
 
 1. **不许拿"重跑就好"当结论**；要给的结论只有两种：与相关改动无关（附证据），或由某处引入（附归因链）。
-2. 最小化：把并发触发缩到**两个类的最小组合**并固定复现（`ScriptTopLevelDefiniteAssignmentTests` ＋ 单一邻居），再缩到单条源串＋一次并发编译的宿主级复现（`Script.Create`/`ContinueWithAsync` 双线程）。
-3. 取证顺序：读 `Binder_Conversions.vb:442` 所在分支的前置条件（`argument.Type` 与 `targetType` 各自从哪来），再判断是"断言前提在并发下不成立"（产品并发缺陷）还是"测试夹具跨用例共享了状态"（装置缺陷）——两者落点完全不同，不许跳过这一步改测试。
+2. 最小化：~~把并发触发缩到**两个类的最小组合**并固定复现（`ScriptTopLevelDefiniteAssignmentTests` ＋ 单一邻居），再缩到单条源串＋一次并发编译的宿主级复现~~ —— **2026-09-28 更新：前一半做到了（`SubmissionSharedHandlesHookupTests` ＋ `SubmissionSharedInitializerTests` ＝ 24 格 / 50% 红），后一半「缩到单条源串 ＋ 宿主级双线程」已被实测否掉**（独立 exe、16 线程 × 300 轮 × 4 组，**0 命中**；且单独测过"共享引用 vs 每次新建 `MetadataReference`"这个变量，两者都不复现）。⇒ 最小化的判别量**不是单条源串，是"并发的编译工作量"**；宿主级复现这条路**放弃**，改走"定位共享状态 → 消除它"。
+3. 取证顺序：~~读 `Binder_Conversions.vb:442` 所在分支的前置条件……~~ —— **2026-09-28 已完成**，结论＝**产品并发缺陷**，见 §三之二。修法落在 `ReferenceManager.vb` 的缓存发布原子性上，**不是** `Binder_Conversions.vb:442`；那句断言**本身不许删改或降级**——它是发现问题的东西。
 4. 若最终判装置缺陷：按 §4.5 的先例用**串行集合**隔离（`CollectionDefinition(..., DisableParallelization:=True)`），并给出"为什么不可能再重叠"的构造性论证，而不是靠连跑碰运气。
 
 ## 五、影响面

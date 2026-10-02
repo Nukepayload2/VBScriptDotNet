@@ -81,9 +81,68 @@ hooked.Fire()
 
 共享 `WithEvents` 形状的 hookup 宿主是**属性 setter**（`Symbols\Source\SourceMemberMethodSymbol.vb:792-793` 的 `handlesKind = HandledEventKind.WithEvents → hookupMethod = witheventsPropertyInCurrentClass.SetMethod`），不是共享构造器 ⇒ 该抑制不生效 ⇒ 提交类照打 `BeforeFieldInit`（`m7` 反射实测吻合）。即：VB 只对「`Handles` 接共享构造器」这一种形状放弃 `beforefieldinit`，共享 `WithEvents` 形状本来就不在其列。
 
-## 未闭合（**推测**）
+## 未闭合 → **原问题的前提被推翻，改为一条规则**（2026-09-28，由 issue 36 的 T1/T2 受控实验回答）
 
-**为什么普通类型的方法调用会触发其 `.cctor`、而提交类的方法调用不会**——两侧都实测 `BeforeFieldInit` + 有 `.cctor`，行为却不同。查证线在「不新建编译工程」的约束下没有 IL/CLR 层的反汇编证据，故只到候选层。下一步可复核的做法：对普通 `m8-static-call.exe` 与提交程序集分别 dump 入口 / `<Factory>` / 共享方法的 IL 与 TypeDef 标志位对比。
+**原表述**：*「为什么普通类型的方法调用会触发其 `.cctor`、而提交类的方法调用不会」——两侧都实测 `BeforeFieldInit` ＋ 有 `.cctor`，行为却不同。*
+
+**这条表述把差异归到「容器种类」上，而实测把它归到「标志位」上**：
+
+| 读数 | 内容 | 级别 |
+|---|---|---|
+| issue 36 T2-2 | 提交类带 `beforefieldinit`（＝`0x00100101`），提交体**唯一**的静态接触是一次共享方法调用 `Fire()` ⇒ **`RESULT=[|FIRE]`，`.cctor` 全程没跑** | ✔ 跑出来的 |
+| issue 36 T1 对照② | **普通 `Class Q`（只有 `Shared z`）＝ `attrs=0x00100001`，带 `beforefieldinit`**；普通 `Module`（只有 `Public z`）＝ `0x00100101`，带 | ✔ 跑出来的 |
+| issue 36 T2-1 vs T2-5 | **同一份脚本、同样的静态方法调用，唯一变量是那个子句**：带 `Shared Sub H … Handles Me.Ev`（位被清）⇒ `CCTOR\|FIREH\|AFTER`，**`.cctor` 跑在方法调用之前**；只删掉那两行（位写回）⇒ `\|FIRECCTOR\|AFTER`，**跑在之后** | ✔ 跑出来的 |
+| ECMA-335 **Part I, section 8.9.5**（逐字，主线 2026-10-02 联网核实） | ① "If marked BeforeFieldInit then the type's initializer method is executed **at, or sometime before, first access to any static field** defined for that type"；② "If not marked BeforeFieldInit then that type's initializer method is executed at: first access to any static or instance field of that type, or **first invocation of any static, instance or virtual method of that type**" | ✔ 公开规范原文 |
+
+**⇒ 成立的解释**：两种容器的规则是**同一条**。「调用共享方法不算触碰共享成员」不是 VB 对脚本类的特殊规定，而是 **`beforefieldinit` 这条标志本身的含义**——按 ECMA-335 Part I §8.9.5 第 3 条，它承诺的触发点是**静态字段**；只有**没有**该位时（第 4 条）方法调用才成为触发点。所以：
+
+1. 提交类**不该**因一次共享方法调用而触发 `.cctor`，这是**规范内**行为，不是缺陷；
+2. **原表述里「普通类型的方法调用会触发」那一半需要复核**——既然普通 `Class` 同样带该位，它也**不受**方法调用约束。早先观察到的"触发了"极可能是该条 **"at, or sometime before"** 允许的**提前**初始化：规范明确允许运行时在该位类型的静态字段首次访问**之前或恰当时**初始化它，所以"提前"与"必须"是两件事——**这正是原表述把一次观察当成规则的地方**。
+3. 反向也已被受控实验证明：位被清掉时（第 4 条的精确语义）同一个脚本的 `.cctor` 就**提前**到方法调用之前 ⇒ **决定时机的不是容器种类，是那个位**。
+
+**一次自我更正（值得记住）**：本节初稿把这条规则引作「ECMA-335 **II.10.5.3.1**」——那是**凭记忆写的节号，复核后确认有误**。正确出处是 **Part I, section 8.9.5**。项目规矩：**记忆与转述只是召回线索，复核后才可升级为当前证据**；本仓文档里的规范引用尤其不能凭印象写节号（同 §4.16 那次"C# 不给 CS7019 发布诊断号"是同一类错误，只是方向相反）。
+
+**行为不变**：A 半边维持「判不改」——共享字段初始化器在脚本里惰性，与 C# 脚本同形的 CLR 语义，**不要**为它发明新时机。
+
+**行 M 的两格已补测（2026-10-02，主线亲跑，探针 `tmp\probes-bfi-ordinary\`，用 vbc 发射**普通**程序集，脱离脚本面）**：
+
+**读数一 · 标志位与提交类完全对称**（`System.Reflection` 读 `TypeAttributes`）：
+
+| 类型 | `BeforeFieldInit` | 有 `.cctor` |
+|---|---|---|
+| `Boxed`（类，只有共享字段初始化器） | **True** | 是 |
+| `Held`（模块，只有字段初始化器） | **True** | 是 |
+| `ExplicitCctor`（显式 `Shared Sub New`） | False | 是 |
+| `Precise`（显式 `Sub New`） | False | 是 |
+
+⇒ **普通类与提交类在标志位上没有任何差别**（提交类同形状＝`0x00100101`，`beforefieldinit=True`）。**"普通类更早初始化"不是发射侧的区别。**
+
+**读数二 · `.cctor` 原文**（`MethodBody.GetILAsByteArray()` 经 `System.Reflection.Emit.OpCodes` 正确解码，`call` 目标与 `stsfld` 字段名均已解析）：
+
+```
+Boxed : ldstr "BOXED-cctor"; call Init; stsfld z; ret
+Held  : ldstr "HELD-cctor";  call Init; stsfld y; ret
+Precise: nop; ldc.i4.s 13; stsfld v; ldstr "PRECISE-cctor"; call Log; nop; ret
+```
+
+⇒ `Boxed`/`Held` 的共享构造器**除了跑字段初始化器之外什么都不做**；`Precise` 的是显式共享构造器的函数体。
+
+**读数三 · 行为（提交体只调共享方法、不碰任何静态字段）**：
+
+```
+V1（只调 Peek）  RESULT=[BOXED-cctor;HELD-cctor;EXPLICIT-cctor;PRECISE-cctor;]  VALUES=7,5,3,17
+V2（读字段）     RESULT=[BOXED-cctor;HELD-cctor;EXPLICIT-cctor;PRECISE-cctor;]  VALUES=42,9,11,13
+```
+
+⇒ **普通 `Boxed`／`Held` 的 `.cctor` 在"只调静态方法"时**就跑了**。而提交类同形状（行 N T2-2）是 `RESULT=[|FIRE]`、**没跑**。
+
+**⇒ 这就把原问题彻底关掉了**：
+
+1. **两侧都合规，不是规则差异。** 按 §8.9.5 第 3 条，`beforefieldinit` 只设**下界**——"at, or **sometime before**"，首次访问静态字段**时或之前**；"之前"是**明确允许**的。提交类**没有**在方法调用时初始化，是取了下界；普通类**在**方法调用时就初始化，是取了一个同样被允许的更早的点。**规范对两者都没有要求。**
+2. **原表述把一次观察当成了规则**：「普通类型的方法调用会触发 `.cctor`、提交类不会」——真实情况是**同一个允许区间里的两个不同落点**，随加载／JIT 顺序而定。提交类那次"没跑"**不是**语言保证，**不可依赖**。
+3. **唯一可依赖的保证是精确语义**：没有 `beforefieldinit` 时（§8.9.5 第 4 条）方法调用**才是**触发点。这正是 issue 36 为共享 `Handles` 挂钩所确立的形状——那条契约是**可依赖**的，而本条 A 半边（只有字段初始化器）**刻意保持惰性**、不提供这种保证。
+
+**A 半边维持「判不改」**：共享字段初始化器在脚本里惰性，与 C# 脚本同形的 CLR 语义。**但规范措辞须与上面第 2 点一致**：不得承诺"调用共享方法不会触发初始化"——那是实现选择，不是契约。
 
 ## 预期行为
 

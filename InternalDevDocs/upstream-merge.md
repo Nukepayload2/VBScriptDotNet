@@ -478,6 +478,41 @@
 - **鉴别力经变异法证**（各自命中的正是目标用例，非"随便哪条红了"）：删 NuGet 侧主路径预置 → `MainFileSelfLoadScansMainNuGetDirectiveExactlyOnce` 红；还原祖先栈 → `DiamondLoadScansSharedNuGetLibraryExactlyOnce` 红；集合改 `Shared` → `TestLoadDedupIsPerCompilationNotPerProcess` 等 14 格红；比较器改 `Ordinal` → `TestFileLoadedTwiceRunsItsCodeOnce` 红（报 `BC30260`＋`BC31429`，正是 issue 34 原症状）。
 - 3-way 注意：`VisualBasicScriptCompiler.vb` 是**上游同名文件**（`{{Roslyn}}\src\Scripting\VisualBasic\VisualBasicScriptCompiler.vb`），与上游的 `AppendAllSyntaxTrees` 是同一机制的两侧。合并时**只评审 `#Load` 展开这一个函数**：若上游调整了去重表、入口文件预置或静默跳过的判据，须保住三条——(1) 重复**静默**跳过、不报诊断；(2) 入口文件路径**在展开前预置**（否则结果随入口而变）；(3) 深度优先、加载树先于引用者。`NuGetRestoreCoordinator.vb` 上游树内零命中，属 fork 自有，**无 3-way 面**，登记仅为免得将来误判漏登记。
 
+**（k）`Compilers\VisualBasic\Portable\Symbols\ReferenceManager.vb`（**上游同名文件**；新增在册）—— 把「查缓存 / 建符号 / 发布缓存」并成一次持锁的原子步（issue 35、37、38 同族）**
+
+> **状态：⚠ 未提交，且不可交付 —— 主线全量回归查出 Symbol 门 28 条失败（详见下）。** 候选 R2 在树上，插桩已删净、BOM 已补、`git diff` 首行无噪声（主线 2026-10-02 实测）。接手第一件事见 `HANDOFF.md` §5.3。
+>
+> **⚠ 处置建议＝reserve（待作者裁决，2026-10-02）**：**C# 侧是同一个缺陷**，不是类似缺陷——`Compilers\CSharp\Portable\Symbols\ReferenceManager.cs` 与 VB 那份**逐行同构**（查缓存 `:1017` 持锁 → 建符号 `:428-430` **在 `:311` 锁区间外** → `InitializeNewSymbols :481` → 再入锁 `:486` 发布 `:497`），连注释与方法名都相同。⇒ **单独修 VB ＝ 对上游 C# 形成分叉**，而 `decisions.md` D5 要求「**为什么 VB 必须分叉**」；目前唯一能给的理由是「本 fork 只发布 VB 脚本、C# 侧是死代码」，那是**产品范围**理由而非技术理由。
+> **行为实验在本 fork 内无法对称做**（结构性事实）：`Compilers\CSharp\Portable\Scripting\` **不存在**（裁掉了 C# 脚本层、无 csi）⇒ C# 侧没有与 VB 那条失败测试同构的宿主路径。`tmp\cs-side-probe\` 用编译器 API 单独跑的 C# 探针 0 复现，但**其 VB 阳性对照未能命中目标签名**（harness 自身有 `typeArguments` 缺陷）⇒ **该 0 作废，不得引用为"C# 无此缺陷"的证据**。
+> **三条了结路径**：① **两侧一起改**（保持与上游一致）＋ 回归两个语言的普通编译对照；② 取得技术性理由并写进 D5；③ **放弃本条、按"上游共享缺陷"登记后交 `dotnet/roslyn`**，fork 不单边修。
+> **🚫 阻塞项（主线 2026-10-02 亲跑七门；Symbol 门 3407 格里 28 条失败，连跑四次分别 26/28/30/28）**：
+> - **7 条 `Debug.Assert allAssemblyData(i).IsLinked = bindingResult(i).AssemblySymbol.IsLinked` 炸在 `:429`**。原因：R2 会**采纳**缓存里已有的符号（`bindingResult(i).AssemblySymbol = cached`），而那个符号可能是**为另一个 `AssemblyData` 建的**、其 `IsLinked` 与当前条目不同 ⇒ 断言失配。**原代码不会踩**：它只在**新建**分支进这一行，`IsLinked` 必然与 `allAssemblyData(i)` 一致。⇒ **采纳已有符号时必须校验／筛选 `IsLinked` 兼容性**（或只在兼容时采纳）。
+> - **6 条 `Assert.NotSame() Failure: Values are the same instance`**（`NoPia.LocalTypeSubstitution1`、`Retargeting.NoPia.LocalTypeSubstitution1_2` 等）——这些测试**要求不同实例**（NoPia 局部类型替换按编译各造一份），而本修复让跨编译共享符号 ⇒ **共享范围可能过宽**。
+> - **7 条 `UsedAssembliesTests` 引用类型／顺序不符**（期望 `VisualBasicCompilationReference`、实得 `MetadataImageReference`）——同属"该共享的没共享、不该共享的共享了"这一类后果。
+> - 另 5 条 `AggregateException` ＋ 3 条零散，签名待归类。
+> ⇒ **L2（脚本层）777/0 未变**，故障集中在编译器符号层。**四条配方全绿 ＋ 变异可证只覆盖了脚本／提交形状，没有覆盖普通编译的符号身份语义 —— 这正是缺口所在。** 修法必须带"普通编译对照"重新回归 **Symbol 门**。
+>
+> **已撤回的候选 R**（留档）：只把「查缓存 / 建 / 发布」并入同一次 `SyncLock`，把发布从 `UpdateSymbolCacheNoLock` 搬进创建点。**原配方上有效**（4/8 → 0/12；变异「发布挪出锁」→ 12/12），**DupTrace 机制级证据**：同一 PE 产生多个符号 `dup-fresh` **16 组**、`dup-chain` **8 组**；带 R 的 `dup-Rchain` **0 组**。**但 R 引入了一条新缺陷**：它把**初始化留在锁外**，而发布进了锁内 ⇒ 锁内出现"**已发布但尚未 `SetReferences`**"的 `PEAssemblySymbol`，另一个编译进得来就捡到它，`ReuseAssemblySymbols`（`Compilers\Core\Portable\ReferenceManager\CommonReferenceManager.Binding.cs:820`）读它的 bound references 时炸（`NonMissingModuleSymbol.vb:136` 的 `_moduleReferences IsNot Nothing` 断言），并且 `Compilation.ValidateScriptCompilationParameters`（`Compilation.cs:274`）抛。⇒ 「R 下换了一种红」**不是同族缺陷，是 R 自己引入的**。
+>
+> **⚠ 承重的是什么（变异 M-B 定性，2026-10-02，推翻了"次序"那条红线）**：**M-B＝把发布前移到创建点、但初始化与发布仍在同一把锁内 ⇒ 守门格 0/4 全绿**，与 R2 等价。⇒ **承重的是「从重读缓存到发布的整段都在同一次持锁内」，不是「发布排在初始化之后」这个次序**。R2 之所以仍把发布留在 `UpdateSymbolCacheNoLock`，是**可读性／最小惊讶／与原次序一致**的取舍，**不是**正确性所需。收窄锁区间（M-C＝整份 R）才变红。**这一条已写进本条与 issue 35，别再把因果归到 `WeakList`／issue 37 上。**
+>
+> **当前候选 R2**：把**一整段**放进同一次 `SyncLock`（`VisualBasic\...\ReferenceManager.vb:403-501`）——`IsBound` 提前判定（`:405`）→ 重读缓存／采纳／新建（`:418`）→ corLibrary ＋ `SetCorLibrary` → `SetupReferencesForSourceAssembly` → `InitializeNewSymbols`（`:469`）→ **`UpdateSymbolCacheNoLock`（`:474`，发布仍是最后一步、仍在初始化之后）** → `InitializeNoLock`（`:476`）。`UpdateSymbolCacheNoLock`（`:573`）恢复原样（文件类符号仍在那里发布）。读数：该守门格 **6/6 全绿**，插桩 `96 CREATE / 96 PUBLISH`、**同一 PE 多个符号 = 0**（`dup-R2chain.log`）⇒ 既保住「R 消灭重复符号」，又消掉 R 引入的新红。
+>
+> **`IsBound` 提前判定不是弱化而是加强**：`_isBound` 只在 `InitializeNoLock` 里翻转，而那也在这把锁内（`:476`）。
+>
+> **根因（主线亲自读码核实，非转述）**：`AddAvailableSymbols` 持 `SymbolCacheAndReferenceManagerStateGuard` 读缓存后**放锁**，发布要到 `UpdateSymbolCacheNoLock` 才**重新**取锁 ⇒ 「读到空 / 建符号 / 发布」**三步不原子**。已排除：锁是 `static` **进程级**（`CommonReferenceManager.State.cs:34`）；所有 `CachedSymbols` 访问点都在锁内（Core 的 `Binding.cs:583` / `Resolution.cs:331` 只**传递**列表；C# 侧 `ReferenceManager.cs:1014-1017` 持锁枚举、`:634` 的 `Add` 在 `UpdateSymbolCacheNoLock` 内）；**第二个** `WeakList`（`Compilation._retargetingAssemblySymbols`，`Compilation_MetadataCache.cs:33`）虽同样「枚举收尾改写自身」，但它是**实例级**字段、唯一枚举点 `VisualBasic\...\ReferenceManager.vb:999` **在锁内** ⇒ **进程级共享的 `WeakList` 只有 `AssemblyMetadata.CachedSymbols` 一个**。
+
+- 净分歧（**R 已撤回，修复未落地**；以下是 R 的形状，供下一版参照）：`CreateAndSetSourceAssemblyFullBind` 里「创建 `AssemblySymbol`」那个 `For` 循环**整体移入 `SyncLock SymbolCacheAndReferenceManagerStateGuard`**；循环内新建前**重读缓存**，新建后**在同一把锁内发布**（需两个新辅助方法：`AssemblyDataForFile` 上的 `TryGetCachedAssemblySymbol()` 读取 ＋ `PublishCachedAssemblySymbol()` 发布）；`UpdateSymbolCacheNoLock` **不再**发布 `AssemblyDataForFile` 条目，只保留 `AssemblyDataForCompilation` 的 `CacheRetargetingAssemblySymbolNoLock`。**注意**：R 有一处行为变化——`fileData` 用**空条件传播**，元数据条目若不是 `AssemblyDataForFile` 就**跳过发布**，而原码是 `DirectCast(assemblies(i), AssemblyDataForFile)` 会**抛** `InvalidCastException`；下一版须复核这条放宽是想要的。
+- **为什么要（机制，主线读码核实）**：`AddAvailableSymbols` 持锁读缓存后**放锁**，而发布要到 `UpdateSymbolCacheNoLock` 才**重新**取锁 ⇒ 「读到空 / 建符号 / 发布」三步**不原子**。同进程两个编译共用同一份元数据（两个提交、提交与其 previous、或并行测试共用的进程级引用对象）会**各建一个 `PEAssemblySymbol`**。后果是同一类型有两个符号：按 `SpecialType` 相等（`Conversions` 的快路径 `ConversionEasyOut` 只查表就判 Identity），但按 `IsSameTypeIgnoringAll` 不等 ⇒ `Binder_Conversions.vb:442` 的断言炸。**与 C# 的关系**：C# 侧 `Compilers\CSharp\Portable\Symbols\ReferenceManager.cs` 是同一形状、同一非原子性（`:1014-1017` 持锁枚举、`:634` 的 `Add` 在 `UpdateSymbolCacheNoLock` 内）⇒ **本条不是分叉，是把两边共有的缺陷在 VB 侧修掉**；上游若日后修 C# 侧，本条应与之合并、勿并存。
+- **行为保持性（须在合并时复核）**：单线程下重读必然返回 `Nothing`（没人抢先发布）⇒ 创建的符号集合与改动前**逐字相同**。
+- **性能注记（非阻断）**：R 把**符号创建整段放进进程级 `static` 锁**内，绑定 N 个引用的编译要做 N 次元数据读取且全程持全局锁 ⇒ 并行编译被串行化。正确性换来的代价；上游若日后有更细的方案（双重检查 ＋ 丢弃胜出的新建符号）可换。
+- 3-way 注意：本条只评审 `CreateAndSetSourceAssemblyFullBind` 的**创建/发布原子性**与 `AssemblyDataForFile` 的新辅助方法。上游若重构 `ReferenceManager`（换成 `ConcurrentDictionary`、或把 `CachedSymbols` 换成线程安全容器），**本条与 issue 37 可能一并失效**——`WeakList` 自身不线程安全（`Compilers\Core\Portable\InternalUtilities\WeakList.cs:206-217` 枚举**结束时会改写列表**），而 `SymbolCacheAndReferenceManagerStateGuard` 是**进程级 `static`**（`CommonReferenceManager.State.cs:34`）⇒ 若上游去掉这把锁，本条的保护**同时消失**。合并时三处须一起看：本条目 ＋ issue 37 ＋ 上游的容器改动。
+- **配套测试**（均**fork 新增、上游树内零命中 ⇒ 无 3-way 面**）。**守门形状是本条最来之不易的判据，务必先读**：
+  - **独立提交之间永不相遇**，所以"一堆并发跑独立提交"那种格**没有鉴别力**（实测 ORIGINAL 全绿）。**重复符号本身不炸，炸的是"两个符号在同一个编译里相遇"。**
+  - 真正复现的形状＝**两段提交链**（`previous:=`）：后一段**通过前一段的编译**去解析 `Handles Me.Ev`（连带 `System.EventHandler`），**却用自己的 body**——正是 `SubmissionSharedHandlesHookupTests` 的 `SharedHookupAcrossSubmissions_*` 形状。再加上**自建缓存必空的 `AssemblyMetadata`**（`CopyWithoutSharingCachedSymbols()` ＋ `GetReference`，测试可直接调，`InternalsVisibleTo` 含 Emit.UnitTests）＋**专用 `Thread` 由闸门齐放**（`Task.Run` 版在 ORIGINAL 上实测 **0/6 全绿**、无鉴别力）。⇒ **ORIGINAL 4/4 红**，16 个线程全部 `System.InvalidOperationException: argument.Type.IsSameTypeIgnoringAll(targetType)`。
+  - 三格分工：① `ConcurrentSubmissionsOverFreshMetadataReferenceTests.vb`＝**确定性守门格**（上面那个形状，前置断言缓存为空）；② `ConcurrentSubmissionLoadOverSharedReferencesTests.vb`＝**压力格**（60 波 × 16 线程用进程级引用，≈960 次编译，**明显拉长 Emit 门，保留与否由收口时定**）；③ `ConcurrentSubmissionsOverOneMetadataReferenceTests.vb`＝**普通编译对照** 4 格，用 `Assert.Equal` **整表比对**诊断集合（不是 `Assert.Empty`），含一格期望列表**非空**以自证该比对**看得见**诊断。
+- **机制级证据（`tmp\probe\dup-*.log`，保留，比"测试变绿"强）**：同一 PE 产生多个不同符号的组数——无修复 `dup-fresh` **16**、`dup-chain` **8**；带 R 的 `dup-Rchain` **0**；带 R2 的 `dup-R2chain` **0**。三份里 `CREATE 出但从未 PUBLISH` 均为 0。
+
 ## 二·补、已知欠账：尚未登记的修改面（2026-09-11 清点）
 
 > **先读口径与限制**：本节的判定方法是「**文件面筛 + diff 复核**」，**未**逐个读 diff 判定每个改动点是否恰好落在既有 §2.x 条目的语义面内。因此「未登记」是**文件面级**结论，完整度标 `Suspect`——**补登记时必须逐 diff 复核心态，不得直接采信本表**。
