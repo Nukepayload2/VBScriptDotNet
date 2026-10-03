@@ -1,19 +1,9 @@
 ' ===========================================================================================
-' RESERVED / 已保留未启用（2026-10-02）—— 不要把它们改回 [Fact]
-'
-' 这些用例是为 issue 35 的候选修复 R2 写的。**该修复已 RESERVE（暂不交付）**，原因：
-'   1) C# 侧是**同一个缺陷**（Compilers\CSharp\Portable\Symbols\ReferenceManager.cs 与 VB 那份
-'      逐行同构：查缓存持锁 -> 建符号在锁外 -> 再入锁发布）。单独修 VB ＝ 对上游形成分叉，
-'      而 decisions.md D5 要求给出「为什么 VB 必须分叉」；目前只有"本 fork 只发布 VB 脚本"
-'      这个**产品范围**理由，不是技术理由。
-'   2) R2 本身在普通编译上引入了回归（Symbol 门 28 条失败：采纳缓存符号未校验 IsLinked 兼容，
-'      且跨编译共享范围过宽——NoPia / UsedAssembliesTests 要求不同实例）。
-'
-' 保留本文件是为了不丢掉**复现配方**（"两段提交链 + 全新 MetadataReference + 闸门齐放的专用线程"
-' 这个形状本身很难重新想到）。解除 RESERVE 时：把 [Fact] 恢复、删掉本横幅，并按 issue 35
-' §三之二 的三条了结路径之一重新决策。
-' 依据：InternalDevDocs\issues\issue-parallel-submission-binding-assert.md §三之二、
-'        InternalDevDocs\upstream-merge.md §2.25(k)
+' RESERVED — 本文件的用例未启用。
+' 理由与解除条件见 issues\issue-parallel-submission-binding-assert.md §三之二、
+' upstream-merge.md §2.25(k)、HANDOFF.md §5.3（issue 35 的修复已 RESERVE）。
+' 保留本文件是为留下复现配方：两段提交链 + 全新 MetadataReference + 闸门齐放的专用线程。
+' 解除时：恢复 [Fact]、删除本横幅，并按 issue 35 §三之二 的三条路径重新决策。
 ' ===========================================================================================
 ' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.

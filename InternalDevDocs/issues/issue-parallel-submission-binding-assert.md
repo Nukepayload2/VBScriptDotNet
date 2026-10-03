@@ -1,7 +1,7 @@
 # issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言（**两个受害者**：`ScriptTopLevelDefiniteAssignmentTests` 一格 25–50%，`SubmissionSharedHandlesHookupTests` 在全量 Emit 门 ≈17%）
 
 - **登记日期**：2026-09-24（main）；**2026-09-28 追加第二个受害者**（由 issue 36 的收口诊断顺带发现，见 §一之二）
-- **状态**：**🔒 RESERVE（2026-10-02 作者裁决：暂不交付）**。根因**已定位并由主线读码核实**（`ReferenceManager.vb` 缓存的「查／建／发布」三步不原子）；候选修复 **R2 已写完、其目标形状上验证有效**，但**已从工作树撤回**（备份 `tmp\backup\r2\ReferenceManager.vb.{orig,R,R2}`）。**配套的 6 条回归用例已禁用**（三个测试文件保留但 `[Fact]` 全部注释掉，文件头有 RESERVE 横幅）。**RESERVE 的理由**（见 §三之二）：**C# 侧是同一个缺陷**、逐行同构 ⇒ 单独修 VB ＝ 对上游形成分叉，而 D5 要求给出技术性理由；目前只有"本 fork 只发布 VB 脚本"这个**产品范围**理由。且 R2 在普通编译上另有回归（Symbol 门 28 条）。**解除 RESERVE 的三条路径见 §三之二末。**
+- **状态**：**🔒 RESERVE（2026-10-02 作者裁决：暂不交付）**。根因**已定位并经读码核实**（`ReferenceManager.vb` 缓存的「查／建／发布」三步不原子）；候选修复 **R2 已写完、其目标形状上验证有效**，但**已从工作树撤回**（备份 `tmp\backup\r2\ReferenceManager.vb.{orig,R,R2}`）。**配套的 6 条回归用例已禁用**（三个测试文件保留但 `[Fact]` 全部注释掉，文件头有 RESERVE 横幅）。**RESERVE 的理由**（见 §三之二）：**C# 侧是同一个缺陷**、逐行同构 ⇒ 单独修 VB ＝ 对上游形成分叉，而 D5 要求给出技术性理由；目前只有"本 fork 只发布 VB 脚本"这个**产品范围**理由。且 R2 在普通编译上另有回归（Symbol 门 28 条）。**解除 RESERVE 的三条路径见 §三之二末。**
 - **性质**：**合法输入触发编译器内部断言**（Debug 构建下 `Debug.Assert` ⇒ `InvalidOperationException`）——按 `decisions.md` D7 的"合法输入崩编译器即必修"这条，属必修面，不因"只在测试并行下出现"而降级。**注**：RESERVE 是**交付节奏**决定，**不改变"这是必修缺陷"的定性**——本条不得因为 RESERVE 就从待办里划掉。
 - **前置**：由 `HANDOFF.md` §5 行 K（原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"
 
@@ -82,7 +82,7 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 
 **共享可变状态＝进程级、按 `AssemblyMetadata` 缓存的 `PEAssemblySymbol` 图。** 测试侧两个引用对象是**进程级 static**，每个提交编译都拿到同一份元数据。
 
-**缺陷点＝"查缓存 / 建符号 / 发布缓存"三步不原子**（`Compilers\VisualBasic\Portable\Symbols\ReferenceManager.vb`，主线**亲自逐行读过**）：
+**缺陷点＝"查缓存 / 建符号 / 发布缓存"三步不原子**（`Compilers\VisualBasic\Portable\Symbols\ReferenceManager.vb`，逐行读码确认）：
 
 | 步骤 | 位置 | 是否持锁 |
 |---|---|---|
@@ -107,13 +107,13 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 
 **同源、尚未修的两条确定性红**（用"全新 `MetadataReference` ＋ 16 线程"撞到，**确定复现**）：① `WeakList.cs:157/27` 的 `Add` 断言（`WeakList` 被并发改写，且其**枚举器走完一轮会改写列表**）；② `TypeSymbolExtensions.vb:999` `CheckTypeArguments` 抛 `ArgumentException`（经 `SynthesizedInteractiveInitializerMethod.vb:171`）。二者与本条同根——**同进程多编译共用同一份元数据**——**不得只修本条断言而把这两条留着**；已分别立册为 issue 37／38，且**二者在候选 R2 下是否仍红尚未测**，见 `..\..\tmp\vortex-logs\parallel-submission-binding-assert\`。
 
-**修复途中踩到的两条真教训（2026-10-02）**：
+**修复途中的三条结论（2026-10-02）**：
 
 **① 候选 R 制造了新红。** R（只把「查/建/发布」并入同一次 `SyncLock`、把发布搬进创建点）虽在原配方上有效且 DupTrace 证明它**确实消灭了重复符号**，却**自己引入了缺陷**——它让**初始化留在锁外**而发布进了锁内，锁内因此出现"**已发布但尚未 `SetReferences`**"的 `PEAssemblySymbol`，别的编译进得来就捡到它，`ReuseAssemblySymbols`（`CommonReferenceManager.Binding.cs:820`）读其 bound references 时炸（`NonMissingModuleSymbol.vb:136`）。⇒ **"R 下换了一种红"是 R 自己引入的**，**不要**归到 `WeakList`／issue 37 上。
 
 **⚠ 承重的是"临界区的跨度"，不是"发布排在初始化之后"**：变异 **M-B**（发布前移到创建点、**但初始化与发布仍在同一把锁内**）守门格 **0/4 全绿**，与最终方案 R2 等价。⇒ **真正必需的是「从重读缓存到发布的整段都在同一次持锁内」**；R2 仍把发布留在 `UpdateSymbolCacheNoLock` 只是**可读性／最小惊讶**的取舍。**收窄锁区间（M-C＝整份 R）才变红。**
 
-**② 候选 R2 仍有 Symbol 门回归，⚠ 本条尚未收口**（主线 2026-10-02 亲跑七门）：Symbol 门 3407 格里 **28 条失败**（连跑四次 26/28/30/28），三簇：
+**② 候选 R2 仍有 Symbol 门回归，⚠ 本条尚未收口**（七门实测 2026-10-02）：Symbol 门 3407 格里 **28 条失败**（连跑四次 26/28/30/28），三簇：
 - **7 条** `Debug.Assert allAssemblyData(i).IsLinked = bindingResult(i).AssemblySymbol.IsLinked`（`ReferenceManager.vb:429`）——R2 **采纳**缓存符号时**未校验 `IsLinked` 兼容性**；原代码只在**新建**分支进那一行，故不会踩。
 - **6 条** `Assert.NotSame() Failure: Values are the same instance`（`NoPia.LocalTypeSubstitution*`）——测试**要求不同实例**，修复让跨编译共享 ⇒ **共享范围过宽**。
 - **7 条** `UsedAssembliesTests` 引用类型／顺序不符 ＋ 5 条 `AggregateException` ＋ 3 条零散。
@@ -140,7 +140,7 @@ C# 与 VB 的 `ReferenceManager` 是**两份独立文件、同一套逻辑**：
 
 **怎么了结（若要推进）**：① 恢复上游一致性——**两侧一起改**（C# 侧同样把整段并入一次持锁），再回归两个语言的普通编译对照；或 ② 取得技术性理由（例如证明 C# 侧该路径在本 fork 内不可达且未来也不会用于产品）并写进 D5；或 ③ 放弃本条、按"上游共享缺陷"登记后交由 `dotnet/roslyn` 上游处理，**fork 不单边修**。
 
-**未闭合**：第二条产生第二个 `PEAssemblySymbol` 的路径**尚未找到**。候选修法 R（在 `ReferenceManager.vb` 把建+发布并入同一把锁）已验证：原 24 格 4/8→**0/12**、变异（发布挪出锁）→**12/12**、Semantic 门组合 5/8→**0/8**；**但在扩大的 27 格配方上 10/10 红（签名换成 `WeakList`）** ⇒ **不完整，未交付**（两个文件已字节还原并复测基线 5/8 红）。**给主线留一个门还是红的改动不叫修复。**
+**未闭合**：**已无"第二条创建路径"这一项**——插桩对 `CachedSymbols` 的每一次写入计数后确认：无修复时同一 PE 产生多个符号（`dup-fresh` 16 组／`dup-chain` 8 组），带修复为 **0 组**，且无"建了未发布"的孤儿。候选修法 R 因自身引入的缺陷已撤回、R2 因普通编译回归已撤回（详见 §三之二 ①②），最终 **RESERVE**。仍未闭合的是 **issue 37**（`WeakList` 并发改写，R2 下未复现，归因已动摇）与 **issue 38**（`CheckTypeArguments`，需 `Net461` 自建 CoreLib 才能坐实），两者**都不属本条**，见各自 issue。
 
 ## 四、处置要求（本仓对偶发红的既有口径）
 

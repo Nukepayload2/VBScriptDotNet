@@ -296,7 +296,7 @@ Public Class NuGetRestoreCoordinatorTests
 
     <Fact>
     Public Sub DiamondLoadScansSharedNuGetLibraryExactlyOnce()
-        ' Once semantics (2026-09-28): main #loads a and b, BOTH #load the same shared library, and that
+        ' Once semantics: main #loads a and b, BOTH #load the same shared library, and that
         ' library carries NuGet directives. The pre-scan must expand the library ONCE, so its
         ' classification diagnostic is reported once -- not once per branch.
         '
@@ -327,7 +327,7 @@ Public Class NuGetRestoreCoordinatorTests
 
     <Fact>
     Public Sub MainFileSelfLoadScansMainNuGetDirectiveExactlyOnce()
-        ' Once semantics (2026-09-28) plus the main-path seeding: when the submission is a file script and
+        ' Once semantics plus the main-path seeding: when the submission is a file script and
         ' the submitted text #loads the main file itself, that file is already in the expanded set, so the
         ' pre-scan does not expand it a second time. The main tree is still scanned once in its own right,
         ' so the submitted text's directive yields exactly ONE diagnostic -- not two (one from the main
@@ -396,10 +396,9 @@ Public Class NuGetRestoreCoordinatorTests
     <Fact>
     Public Sub SelfLoadCycleTerminatesWithoutRestore()
         ' A loaded file that #loads itself must stop expanding; the pre-scan must not hang and must not
-        ' fire a restore. Rewritten comment 2026-09-28: under once semantics a self-load is a repeat --
-        ' "already expanded, skip" -- so the walk terminates silently and NO diagnostic is produced, by
-        ' the pre-scan or later by the compiler. This test previously said the compiler would report the
-        ' cyclic load; that ancestor-stack guard was removed, it did not get re-coded. Assertions unchanged.
+        ' fire a restore. Under once semantics a self-load is a repeat -- "already expanded, skip" -- so
+        ' the walk terminates silently and NO diagnostic is produced, by the pre-scan or later by the
+        ' compiler. Assertions unchanged.
         Dim runner As New FakeRestoreRunner()
         Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)
         Dim options = OptionsWithMemorySource({New KeyValuePair(Of String, String)("/mem/b.vbx", "#load " & Quote & "/mem/b.vbx" & Quote)})
@@ -415,9 +414,8 @@ Public Class NuGetRestoreCoordinatorTests
     Public Sub MainFileSelfLoadCycleTerminatesWithoutRestore()
         ' When the submission is a file script (filePath set), the main path is seeded into the
         ' already-expanded set, so a #load of the main file itself is a repeat and is skipped.
-        ' Rewritten comment 2026-09-28: that set used to be the ancestor stack and a main-file #load was
-        ' a "cycle"; the ancestor stack is gone and seeding the main path is now what makes the result
-        ' independent of which file the script is entered from (C# does not seed it, so it is not).
+        ' Seeding the main path is what makes the result independent of which file the script is
+        ' entered from (C# does not seed it, so it is not).
         ' Assertions unchanged.
         Dim runner As New FakeRestoreRunner()
         Dim coordinator As New NuGetRestoreCoordinator(New NuGetPackageSession(), runner:=runner)

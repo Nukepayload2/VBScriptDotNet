@@ -696,8 +696,8 @@ Public Class ScriptModePdbTests
     ''' 2 of the loaded file, so the frame has to name that file and that line. Under the old inlining this frame
     ''' named main.vbx with a shifted line - which is what this cell is built to catch.
     ''' <para>
-    ''' (Line anchors refreshed 2026-09-30: the once-semantics rewrite of `CollectLoadTrees` moved the function
-    ''' to :88, the parse to :122, and the tree assembly to :213-230. The facts asserted here are unchanged.)
+    ''' (The line anchors above track the current working tree; `CollectLoadTrees` and the tree assembly
+    ''' moved when #Load gained once semantics.)
     ''' </para>
     ''' <para>
     ''' Why it can fail: the loaded file's name, its line number and the document table are three separate

@@ -30,7 +30,7 @@
 
 ## 未闭合（**待查**，2026-10-02 更新后优先级下降）
 
-- **哪一处 `WeakList` 的访问没有持 `SymbolCacheAndReferenceManagerStateGuard`**——主线已排除"忘了加锁"（锁是 `static` 进程级，所有访问点都在锁内；第二个 `WeakList` 是实例级且枚举点在锁内）⇒ 进程级共享的 `WeakList` **只有 `AssemblyMetadata.CachedSymbols` 一个**。
+- **哪一处 `WeakList` 的访问没有持 `SymbolCacheAndReferenceManagerStateGuard`**——已排除"忘了加锁"（锁是 `static` 进程级，所有访问点都在锁内；第二个 `WeakList` 是实例级且枚举点在锁内）⇒ 进程级共享的 `WeakList` **只有 `AssemblyMetadata.CachedSymbols` 一个**。
 - **2026-10-02 的新证据（重要）**：本条在**中间候选 R** 之下复现过，但 **R 已被证明自己引入了缺陷**（它让初始化留在锁外而发布进了锁内，锁内出现"已发布但尚未 `SetReferences`"的符号，`ReuseAssemblySymbols` 读其 bound references 时炸）⇒ **R 下观察到的这条红很可能是 R 的副产品，不是独立缺陷**。
 - **最终修复 R2 下未复现**：四条配方共 **26 次运行，失败签名全为 `none`**。⚠ **这既不能证明"已修"，也不能证明"仍坏"**——R2 修的不是 `WeakList` 的线程安全性，而是"发布点与创建点不原子"。
 - **怎么坐实／了结**：① 在 R2 下把"60 波 × 16 线程"压力格跑**更多轮**（当前轮数可能不够）；或 ② 给 `WeakList` 加内部锁做 A/B——若加锁后症状消失，则本条成立；若不消失，本条应**降级为非缺陷**并删除。
@@ -39,7 +39,7 @@
 
 - 在**调用方**补锁（改动面小、可向 C# 解释）——但要先知道**到底有没有漏锁的调用方**。
 - 给容器本身加同步（改动面大、且是**上游同名文件** `Compilers\Core\Portable\InternalUtilities\WeakList.cs`，合并冲突面需登记账本）。
-- ⚠ 若上条 ② 证明本条**不成立**，则**不要**做以上任何一项。**本轮明确不动它。**
+- ⚠ 若上条 ② 证明本条**不成立**，则**不要**做以上任何一项。**该批次明确不动它。**
 
 ## 复现配方
 

@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -676,15 +676,15 @@ Return Count").
     End Function
 
     ''' <summary>
-    ''' Once semantics, re-decided 2026-09-28. A #Load chain that loops back is NOT an error: the file has
+    ''' Once semantics. A #Load chain that loops back is NOT an error: the file has
     ''' already been expanded in this compilation, so it is skipped silently. main.vbx #Load "mid.vbx" and
     ''' mid.vbx #Load "main.vbx" therefore expands each file exactly once and compiles clean.
     ''' <para>
-    ''' This test was originally <c>TestLoadDirectiveCycleReportsAtLoadLine</c> and asserted the opposite
+    ''' This test supersedes <c>TestLoadDirectiveCycleReportsAtLoadLine</c>, which asserted the opposite
     ''' shape -- one BC2001 ERR_FileNotFound at mid.vbx's #Load line. That assertion encoded the misleading
     ''' diagnostic of issue 34-B ("file not found" for a file that demonstrably exists and that the layer
-    ''' above had just opened). The cycle guard is now gone by design rather than re-coded, so the test is
-    ''' rewritten to the new conclusion rather than deleted (decisions.md D7, test recycling).
+    ''' above had just opened). The cycle guard is gone by design rather than re-coded, so this test asserts
+    ''' the new conclusion instead of being deleted (decisions.md D7, test recycling).
     ''' </para>
     ''' <para>
     ''' The observable is NOT "it did not throw": the tree count pins "each file expanded exactly once"
@@ -828,7 +828,7 @@ Return Count").
     ''' and this test goes red with 3 trees instead of 2.
     ''' </para>
     ''' <para>
-    ''' Scope note (2026-09-28): path SPELLING splits across two tests. The CASE dimension is pinned right
+    ''' Scope note: path SPELLING splits across two tests. The CASE dimension is pinned right
     ''' here, because the shared in-memory resolver returns the spelled text verbatim. The "."/".." dimension
     ''' cannot be expressed through that resolver (Path.Combine does not fold "..", so the spelling would
     ''' report BC2001 instead of dedup) and is pinned separately by
@@ -933,10 +933,9 @@ Return Count").
     End Function
 
     ''' <summary>
-    ''' Path-SPELLING dimension of #Load de-duplication, added 2026-09-28 to close the coverage gap named in
-    ''' pitfalls P-020: the shared in-memory resolver cannot resolve ".\lib.vbx" or "sub\..\lib.vbx" at
-    ''' all, so before this test no unit test could even express the shape "the same file, spelled
-    ''' differently, reached twice".
+    ''' Path-SPELLING dimension of #Load de-duplication. The shared in-memory resolver cannot resolve
+    ''' ".\lib.vbx" or "sub\..\lib.vbx" at all, so without a folding resolver no unit test could express
+    ''' the shape "the same file, spelled differently, reached twice".
     ''' <para>
     ''' One library reached through four spellings in one main script -- plain, ".\", "./", and a "sub\.."
     ''' round trip -- must still be expanded ONCE. Two observables, both non-trivial:

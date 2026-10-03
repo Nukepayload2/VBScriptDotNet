@@ -92,5 +92,5 @@ System.Console.Write(Sink.Count())
 
 另有一条**语言规则**而非时序：`Shared WithEvents x As T = Await ...` 被 **BC37341** 硬拒（"'Await' cannot be used in a shared field or property initializer because it runs in the shared constructor, which is synchronous."）。拒它的是共享初始化器的同步性规定，不是初始化时机，**不得**记成 T4 的时序结论。
 
-⇒ 边界声明：关于"`.cctor` 承载共享挂钩"的时机结论（T1 / T2 / T3，以及本轮补的五条回归钉）**只覆盖同步的提交形状**。上面四种形状**未测**；**不得**由"T4 通过"推出"异步没有结构性问题"。要动它们须另立测量。
+⇒ 边界声明：关于"`.cctor` 承载共享挂钩"的时机结论（T1 / T2 / T3，以及已补的五条回归钉）**只覆盖同步的提交形状**。上面四种形状**未测**；**不得**由"T4 通过"推出"异步没有结构性问题"。要动它们须另立测量。
 

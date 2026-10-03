@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -204,18 +204,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Dim parseOptions = If(script.Options.ParseOptions, s_defaultOptions)
             Dim tree = SyntaxFactory.ParseSyntaxTree(script.SourceText, parseOptions, script.Options.FilePath)
 
-            ' Each #Load file is parsed as its own tree so spans are preserved. Loaded trees come first
-            ' so a loaded file's top-level code executes before the main file's -- that ordering is the
-            ' point of the depth-first walk, so "loaded content runs first" holds. It is deliberately NOT
-            ' an attempt to reproduce the old text-inline behavior, which inlined a repeated file twice
-            ' and was the reason issue 34 was ruled a defect: under once semantics each file appears in
-            ' exactly one position.
+            ' Each #Load file is its own tree so spans stay attached to the real file. Loaded trees come
+            ' first, so a loaded file's top-level code runs before the main file's; that ordering is what
+            ' the depth-first walk buys. Under once semantics each file appears in exactly one position --
+            ' the contract is spec-load-directive.md; do not restore per-branch expansion, which inlined a
+            ' repeated file twice.
             Dim trees = New List(Of SyntaxTree)()
-            ' Once-per-compilation set of #Load targets already expanded into this submission. Seeded with
-            ' the main file's own normalized path so a #Load chain that loops back to the entry file is
-            ' skipped like any other repeat -- without this the result would depend on which file the
-            ' script is entered from. Created per submission, never static: two unrelated scripts that each
-            ' #Load the same file both load it.
+            ' #Load targets already expanded into THIS submission. Seeded with the main file's normalized
+            ' path so a chain looping back to the entry file is skipped like any other repeat -- without it
+            ' the result would depend on which file the script is entered from. Per submission, never
+            ' static: two unrelated scripts that each #Load the same file must both load it.
             Dim expandedFiles = New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
             If Not String.IsNullOrEmpty(tree.FilePath) Then
                 Dim normalizedMainPath = script.Options.SourceResolver.NormalizePath(tree.FilePath, Nothing)
