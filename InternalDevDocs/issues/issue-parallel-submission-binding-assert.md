@@ -1,8 +1,8 @@
 # issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言（**两个受害者**：`ScriptTopLevelDefiniteAssignmentTests` 一格 25–50%，`SubmissionSharedHandlesHookupTests` 在全量 Emit 门 ≈17%）
 
 - **登记日期**：2026-09-24（main）；**2026-09-28 追加第二个受害者**（由 issue 36 的收口诊断顺带发现，见 §一之二）
-- **状态**：**🔒 RESERVE（2026-10-02 作者裁决：暂不交付）**。根因**已定位并经读码核实**（`ReferenceManager.vb` 缓存的「查／建／发布」三步不原子）；候选修复 **R2 已写完、其目标形状上验证有效**，但**已从工作树撤回**（备份 `tmp\backup\r2\ReferenceManager.vb.{orig,R,R2}`）。**配套的 6 条回归用例已禁用**（三个测试文件保留但 `[Fact]` 全部注释掉，文件头有 RESERVE 横幅）。**RESERVE 的理由**（见 §三之二）：**C# 侧是同一个缺陷**、逐行同构 ⇒ 单独修 VB ＝ 对上游形成分叉，而 D5 要求给出技术性理由；目前只有"本 fork 只发布 VB 脚本"这个**产品范围**理由。且 R2 在普通编译上另有回归（Symbol 门 28 条）。**解除 RESERVE 的三条路径见 §三之二末。**
-- **性质**：**合法输入触发编译器内部断言**（Debug 构建下 `Debug.Assert` ⇒ `InvalidOperationException`）——按 `decisions.md` D7 的"合法输入崩编译器即必修"这条，属必修面，不因"只在测试并行下出现"而降级。**注**：RESERVE 是**交付节奏**决定，**不改变"这是必修缺陷"的定性**——本条不得因为 RESERVE 就从待办里划掉。
+- **状态**：**🔒 RESERVE → 2026-10-02 作者裁决：定性改判为「测试装置问题」，不修产品码**。见 §三之二 ④：本条**只在测试自己注入并发时才可复现**，而正常用法没有并发（脚本宿主内无任何并发原语）。**处置＝删掉那三个注入并发的测试文件（已完成），产品码不动**——行 N 的 `SubmissionSharedHandlesHookupTests` 保留，它**零线程原语、顺序执行**。根因本身（`ReferenceManager.vb` 缓存「查／建／发布」三步不原子）**依然成立且已被读码核实**，候选修复 R2 也确实有效（重复符号 16/8 组 → 0 组）；但**它不是本仓库产品路径上的缺陷**，不为不可达的场景改产品码。
+- **性质（已随裁决改判）**：原判"合法输入触发编译器内部断言 ⇒ 属必修面"**过重**——该断言只在**并发**下触发，而**产品路径不并发**。故本条**不是产品必修缺陷，是测试装置问题**：可复现它的测试自己造了一个产品从不产生的并发条件。⚠ 根因层面的非原子性**仍客观存在**，若将来产品引入并发（多线程宿主／后台分析），它会重新变成真缺陷。
 - **前置**：由 `HANDOFF.md` §5 行 K（原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"
 
 ## 一、复现配方（已运行，频次实测）
@@ -120,7 +120,40 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 
 ⇒ **L2 777/0 未变**，故障在编译器符号层。**教训**：四条配方全绿 ＋ 变异可证**只覆盖了脚本／提交形状，没覆盖普通编译的符号身份语义**。**这也是为什么 issue 35 §六 那条「任何后续改动都必须带'普通类/模块属性位不变'的对照格」不能只对照属性位**——**符号身份/实例同一性**同样要被对照。
 
-**③ C# 侧是同一个缺陷，不是"类似缺陷"（2026-10-02 逐行核对，未修改任何代码）**
+**③ 本条能打死整个测试门，不只是让一格红（2026-10-02 实测，严重度上调）**
+
+在一次收口实验里临时启用了 `ConcurrentSubmissionsOverFreshMetadataReferenceTests`（issue 35 的守门格），跑全量 Emit 门时：`Binder.CreateConversionAndReportDiagnostic` 的 `Debug.Fail` 变成**未捕获异常**打死 **test host 进程**，`dotnet test` 报「**活动的测试运行已中止**」，并给出**残缺计数**——同一次现象在不同运行里分别报出 **262** 与 **2361**（远小于真实的 4388），**看起来像丢了上千个用例**，实则是运行在中途崩掉。
+
+⇒ 三点后果：① **本条不是"偶发红一格"，而是能中止整个门运行**；② 门基线数字会被这种中止污染，报数前**必须先看有没有"中止"**；③ 若某天有人重新启用那 6 条 RESERVE 用例（见 `HANDOFF.md` §5.3），**第一个撞上的是这个中止，不是 28 条红**。
+
+**④ 真实使用能不能碰到？（2026-10-02 评估，读码 ＋ 既有复现读数）**
+
+**用户路径：基本碰不到。** 三条依据：
+
+1. **脚本宿主没有任何并发原语**——`Scripting\Core\Hosting\CommandLine\CommandLineRunner.cs` 零命中；`Scripting\Core\Script.cs` 只有 `Interlocked.CompareExchange` 做**惰性一次性初始化**（`_lazyCompilation`／`_lazyExecutor`），**不是并行编译**。⇒ 单个 `vbi` 会话内提交严格顺序，不存在"两个编译同时绑同一份元数据"。
+2. **最强反面证据**：用**真实链形状**（`CreateScriptCompilation`、共享 Net461 引用、event 与 sem 两种形状）8 线程 × 40 轮 ⇒ **0 命中**；改用"每次编译新建引用"同样 **0 命中**。
+3. **能复现的最强配方依赖测试专用 API**：`ConcurrentSubmissionsOverFreshMetadataReferenceTests` 调 `AssemblyMetadata.CopyWithoutSharingCachedSymbols()`，其**唯一作用**就是强行造出"符号缓存为空的首个写入者"条件。**任何生产宿主都不会调它**——宿主共享同一份 `MetadataReference`，缓存是热的。
+
+**但有两类进程确实会碰到：**
+
+- **测试进程 —— 每天都在发生**：`SubmissionSharedHandlesHookupTests` 走 `CreateSubmission`、用**进程级共享引用**、**没有**那个测试专用 API，在整门并行下 ≈17% 红，并能**中止整个门运行**（见 ④）。这是本条目前唯一确定会发生的现实代价。
+- **工具进程 —— 未查实（未知项）**：外部 IDE／语言服务（`vb-ls` 之类用本仓 `Microsoft.CodeAnalysis.VisualBasic.dll`）在一个进程里并发编译并共享 `MetadataReference` 时是否命中，**本轮未查**。本仓 `Compilers\Core\MSBuildTask\Vbc.cs` 走**命令行拼装**（`commandLine.AppendWhenTrue("/novbruntimeref", …)`）、**不构造 `MetadataReference`**；`/m` 并行构建时跨项目是否共享同一 `AssemblyMetadata` 实例，取决于 `vbc` 命令行引用解析侧的缓存，**未追**。
+
+⇒ **优先级含义**：若确认无任何用户路径命中，本条性质更接近「**测试装置缺陷**」而非「产品并发缺陷」，RESERVE 的代价就只剩"门不稳定"。
+
+**✅ 该判断已闭合（2026-10-02 作者裁决）**：既然产品路径不并发，**正确处置是让测试也不并发**，而不是为了一个不可达的场景去改产品码。已**删除**三个注入并发的测试文件：
+
+| 已删除 | 作用 |
+|---|---|
+| `ConcurrentSubmissionsOverFreshMetadataReferenceTests.vb` | 本条的确定性复现格（16 闸门线程 ＋ `CopyWithoutSharingCachedSymbols()` 冷缓存）——**它测的就是产品从不产生的条件** |
+| `ConcurrentSubmissionLoadOverSharedReferencesTests.vb` | 压力格（60 波 × 16 线程）——同理 |
+| `ConcurrentSubmissionsOverOneMetadataReferenceTests.vb` | 上述复现格的普通编译对照，随之无意义 |
+
+备份在 `tmp\backup\r2\*.deleted`。**行 N 的 `SubmissionSharedHandlesHookupTests` 保留**——它**零线程原语**、顺序执行，测的是真实形状。删除后 Emit 门基线仍为 **4388**（那几格本就禁用、未计入）。
+
+⚠ **留一句给将来**：根因层面的非原子性**依然客观存在**（读码核实）。今天不修，是因为**产品不并发**；若将来产品引入并发（多线程宿主、IDE 后台分析与前台构建并行），它会**重新变成真缺陷**，届时的正确修法是把「查／建／发布」并入同一次持锁（C# 侧同形，参见 ⑤）。
+
+**⑤ C# 侧是同一个缺陷，不是"类似缺陷"（2026-10-02 逐行核对，未修改任何代码）**
 
 C# 与 VB 的 `ReferenceManager` 是**两份独立文件、同一套逻辑**：
 
