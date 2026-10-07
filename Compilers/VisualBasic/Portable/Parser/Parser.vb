@@ -827,6 +827,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     End If
 
                 Case SyntaxKind.EndKeyword
+                    ' At the top level of a script a bare End is the stop-or-end statement rather than a group end.
+                    ' Going through the group end route would ask what keyword follows, find a statement terminator,
+                    ' and attach ERR_UnrecognizedEnd to a statement it had already parsed as a stop-or-end statement.
+                    ' The method body route asks the same question through ParseEndStatement, which sends a real
+                    ' group end (End If, End Sub, ...) on to ParseGroupEndStatement and their diagnostics.
+                    If IsTopLevelScript Then
+                        Return ParseStatementInMethodBodyInternal()
+                    End If
                     Return ParseGroupEndStatement()
 
                 Case SyntaxKind.OptionKeyword

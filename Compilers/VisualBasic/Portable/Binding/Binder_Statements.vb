@@ -5432,7 +5432,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         End Function
 
         Private Function BindEndStatement(endStatementSyntax As StopOrEndStatementSyntax, diagnostics As BindingDiagnosticBag) As BoundStatement
-            If Not Compilation.Options.OutputKind.IsApplication() Then
+            ' A submission is compiled as a library for the host to load, but it is the entry point of its own
+            ' process, so End is as much an application statement there as it is in an ordinary executable.
+            If Not (Compilation.IsSubmission OrElse Compilation.Options.OutputKind.IsApplication()) Then
                 ReportDiagnostic(diagnostics, endStatementSyntax, ERRID.ERR_EndDisallowedInDllProjects)
             End If
 

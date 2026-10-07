@@ -385,25 +385,33 @@ Public Class ScriptModeStatementConformanceTests
 #Region "End / Stop and the release emission path"
 
     ''' <summary>
-    ''' End cannot be produced by a script at all, so the cell never reaches a running artifact: the top level
-    ''' statement is BC30678 (<c>ERR_UnrecognizedEnd</c>), the same statement inside a method is BC30615
-    ''' (<c>ERR_EndDisallowedInDllProjects</c>).
+    ''' End is legal in a script, at the top level and inside a method body: it compiles and emits. Running it,
+    ''' however, would end this test process (End lowers to Microsoft.VisualBasic.CompilerServices.ProjectData.EndApp()),
+    ''' so the observable half of these cells is the artifact, exactly as for the Stop cell below. The process level
+    ''' half - exit code 0, the output before the End flushed, nothing after it - is what the release probe host
+    ''' measures.
     ''' </summary>
     <Fact>
-    Public Sub TopLevelEndStatement_IsReported()
-        ScriptModeConformance.AssertReports(
+    Public Sub TopLevelEndStatement_EmitsWithoutRunning()
+        ScriptModeConformance.AssertEmits(
             "System.Console.WriteLine(""BEFORE-END"")" & vbCrLf &
-            "End", "BC30678")
+            "End")
     End Sub
 
+    ''' <summary>
+    ''' The same statement inside a top level Sub. Before the fix this shape was BC30615
+    ''' (ERR_EndDisallowedInDllProjects), because a submission is compiled with a library output kind, even though it
+    ''' is the entry point of its own process; the binder now accepts End in a submission as it does in an
+    ''' application.
+    ''' </summary>
     <Fact>
-    Public Sub EndInsideMethod_IsReported()
-        ScriptModeConformance.AssertReports(
+    Public Sub EndInsideMethod_EmitsWithoutRunning()
+        ScriptModeConformance.AssertEmits(
             "Sub Finish()" & vbCrLf &
             "    System.Console.WriteLine(""BEFORE-END"")" & vbCrLf &
             "    End" & vbCrLf &
             "End Sub" & vbCrLf &
-            "Finish()", "BC30615")
+            "Finish()")
     End Sub
 
     ''' <summary>

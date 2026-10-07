@@ -2,6 +2,7 @@
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
+Imports Microsoft.CodeAnalysis.Test.Utilities
 Imports Roslyn.Test.Utilities
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests
@@ -217,6 +218,36 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests
 }]]>)
 
         End Sub
+
+        ''' <summary>
+        ''' The emission cell of script-mode-end-statement (test-plan.md ES-A11), and the only stage one cell that
+        ''' proves the lowering happened: the zero diagnostic cells cannot see it, because LocalRewriter.VisitEndStatement
+        ''' keeps a BoundEndStatement silently when the well known member does not resolve. The submission is compiled
+        ''' with the submission friendly verification of Emit\SubmissionSharedHandlesHookupTests.vb:139; the script
+        ''' class of a submission is named "Script", which that file also relies on.
+        ''' <para>
+        ''' The cell emits without running: End lowers to ProjectData.EndApp(), so executing the artifact would end
+        ''' the test process (test-plan.md §〇 D-1).
+        ''' </para>
+        ''' </summary>
+        <Fact>
+        Public Sub EndStatement_SubmissionWithEnd_EmitsTheEndAppCall()
+            Dim compilation = CreateSubmission(
+                "Sub Finish()" & vbCrLf &
+                "    System.Console.WriteLine(""A11"")" & vbCrLf &
+                "    End" & vbCrLf &
+                "End Sub" & vbCrLf &
+                "Finish()", options:=TestOptions.DebugDll)
+
+            compilation.VerifyDiagnostics()
+
+            Dim il = CompileAndVerify(compilation, verify:=Verification.FailsPEVerify).VisualizeIL("Script.Finish")
+
+            Assert.Contains("""Sub Microsoft.VisualBasic.CompilerServices.ProjectData.EndApp()""", il)
+            Assert.Equal(1, il.Split(ControlChars.Lf).Count(
+                Function(line) line.Contains("call") AndAlso line.Contains("ProjectData.EndApp()")))
+        End Sub
+
     End Class
 
 End Namespace
