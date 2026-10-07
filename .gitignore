@@ -1,4 +1,4 @@
-﻿################################################################################
+################################################################################
 # 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
 ################################################################################
 
@@ -12,3 +12,4 @@ launchSettings.json
 /Installer/VBInteractive.WindowsDesktop.Installer/Package.StoreAssociation.xml
 /Installer/VBInteractive.WindowsDesktop.Installer/VBInteractive.WindowsDesktop.Installer.assets.cache
 TestResults
+/artifacts

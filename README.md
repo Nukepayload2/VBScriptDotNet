@@ -77,7 +77,7 @@ PrintFibonacci(count)
 ```
 
 ### Attribute comments
-Specify project properties with special comments at the top of your `vbx` script files.
+When the entry app is `vbichooser`, specify project properties with special comments at the top of your `vbx` script files.
 #### Syntax
 ```vbnet
 ' Attribute <property-name> = <value-constant-expression>
@@ -92,12 +92,17 @@ You can choose the .NET Framework script runner with the following comment:
 
 Example: [Excel With Net Framework](Samples/ExcelWithNetFramework.vbx)
 
-## Installation
+## Installation (Windows Store)
 <a href="ms-windows-store://pdp/?ProductId=9N210C9TDZ95&mode=mini">
    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Download VB Interactive" />
 </a>
 
-The Microsoft Store build is version 1.2. The current development version in this repository is 2.0.0-Beta.
+The Microsoft Store build is version 1.2. The current development version in this repository is 2.0.0-RC.
+
+## Installation (NuGet)
+```
+dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli
+```
 
 ## How to run
 

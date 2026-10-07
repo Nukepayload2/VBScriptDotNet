@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <VbiToolAppProject>$(MSBuildThisFileDirectory)..\vbi\vbi.vbproj</VbiToolAppProject>
+    <VbiToolPublishDir>$(MSBuildProjectDirectory)\obj\$(Configuration)\vbi-publish\</VbiToolPublishDir>
+    <VbiToolFolder>tools/net10.0/$(VbiToolRid)/</VbiToolFolder>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PackageType>DotnetToolRidPackage</PackageType>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetVbiToolRidFiles</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 触发 vbi 指定 TFM 的 Publish；PublishDir 用绝对路径指到本工程的 obj（对齐
+         Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj:35-46 的同一手法）。 -->
+    <ProjectReference Include="$(VbiToolAppProject)"
+                      PrivateAssets="All" ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=$(VbiToolTargetFramework)">
+      <Targets>Publish</Targets>
+      <AdditionalProperties>TargetFramework=$(VbiToolTargetFramework);PublishDir=$(VbiToolPublishDir)</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="_GetVbiToolRidFiles" DependsOnTargets="Build">
+    <ItemGroup>
+      <!-- 排除 apphost：工具载荷不带它（Windows 上是 vbi.exe，其他平台上是无扩展名的 vbi）。 -->
+      <_VbiToolPayload Include="$(VbiToolPublishDir)**\*"
+                       Exclude="$(VbiToolPublishDir)vbi.exe;$(VbiToolPublishDir)vbi" />
+      <TfmSpecificPackageFile Include="@(_VbiToolPayload)">
+        <PackagePath>$(VbiToolFolder)%(_VbiToolPayload.RecursiveDir)%(_VbiToolPayload.FileName)%(_VbiToolPayload.Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(MSBuildProjectDirectory)\DotnetToolSettings.xml">
+        <PackagePath>$(VbiToolFolder)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -25,25 +25,23 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
   <!-- .NET tool packaging: only net10.0 is shipped as the cross-platform dotnet tool.
-       The outer cross-targeting build (TargetFramework is empty) must also see PackAsTool=true so the
-       DotnetTool PackageType is emitted and TFM-specific tool content is gathered (PackTool.targets import
-       is conditioned on PackAsTool=='true' in Microsoft.NET.Sdk.CrossTargeting.targets:18).
-       PackAsTool itself only accepts platform-neutral TFMs (NETSDK1146 rejects net10.0-windows/UseWindowsForms),
-       so the tool package keeps one TFM root and carries two RID folders:
-         tools/net10.0/any/  <- this net10.0 build, no Windows Desktop dependency (written by PackTool)
-         tools/net10.0/win/  <- the net10.0-windows build (Windows Forms error dialog + DPI setup),
-                                published explicitly by VbiToolPack.targets.
-       RID folders are resolved through the RID graph, so win covers win-x64/win-x86/win-arm64 and any is the
-       fallback everywhere else. Both folders carry architecture-neutral managed IL only (no apphost): the
-       .NET CLI generates the native vbi.exe launcher per installing machine, which is what lets one win
-       folder serve every Windows architecture. -->
+       This project produces the meta (pointer) package only. The .NET CLI picks a RID package at install time
+       and downloads just that one:
+         Nukepayload2.Compilers.VBScriptDotNet.Cli       <- meta, tools/any/any/DotnetToolSettings.xml only
+         Nukepayload2.Compilers.VBScriptDotNet.Cli.any   <- tools/net10.0/any/ (net10.0)
+         Nukepayload2.Compilers.VBScriptDotNet.Cli.win   <- tools/net10.0/win/ (net10.0-windows)
+  -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == ''">
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>vbi</ToolCommandName>
     <PackageId>Nukepayload2.Compilers.VBScriptDotNet.Cli</PackageId>
-    <VersionPrefix>2.0.0</VersionPrefix>
-    <VersionSuffix>RC2</VersionSuffix>
+    <ToolPackageRuntimeIdentifiers>any;win</ToolPackageRuntimeIdentifiers>
+    <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
   </PropertyGroup>
+  <!-- Tool package version (shared with the two RID packages: the CLI looks up <PackageId>.<rid> at exactly
+       the meta package's version). Only imported for the tool TFM so the other TFMs keep the repo version. -->
+  <Import Project="..\vbi.toolpack\VbiToolPack.props"
+          Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == ''" />
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
   </ItemGroup>
@@ -67,6 +65,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  <!-- Builds the win RID tool folder (net10.0-windows) into the single tool package. -->
-  <Import Project="$(MSBuildThisFileDirectory)VbiToolPack.targets" />
+  <!-- One `dotnet pack` produces all three packages: after the meta package is written, pack the two RID
+       package projects (they publish this project's net10.0 / net10.0-windows payloads into their own
+       tools/net10.0/<rid>/). Runs only in the outer cross-targeting build. -->
+  <Target Name="_PackVbiToolRidPackages" AfterTargets="Pack" Condition="'$(TargetFramework)' == ''">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\vbi.toolpack\any\Nukepayload2.Compilers.VBScriptDotNet.Cli.any.vbproj;$(MSBuildThisFileDirectory)..\vbi.toolpack\win\Nukepayload2.Compilers.VBScriptDotNet.Cli.win.vbproj"
+             Targets="Restore;Pack"
+             BuildInParallel="true"
+             Properties="Configuration=$(Configuration)" />
+  </Target>
 </Project>

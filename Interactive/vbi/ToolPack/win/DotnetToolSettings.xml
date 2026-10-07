@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Tool settings file for the win RID folder of the vbi dotnet tool package.
-     The payload is architecture-neutral managed IL (publish with UseAppHost=false), so this folder uses the
-     dotnet runner and the .NET CLI generates the native launcher for the installing machine. -->
-<DotNetCliTool Version="2">
-  <Commands>
-    <Command Name="vbi" EntryPoint="vbi.dll" Runner="dotnet" />
-  </Commands>
-</DotNetCliTool>
