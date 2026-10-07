@@ -677,7 +677,7 @@ s_logoAndHelpPrompt + "
         ' culture-invariant token "Roslyn" that appears in every translation.
         Dim lines = output.ToString().Split({Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
         Assert.Equal(2, lines.Length)
-        Assert.Contains("2.0.0-Beta", lines(0))
+        Assert.Contains("2.0.0-RC2", lines(0))
         Assert.Contains("Roslyn", lines(1))
     End Sub
 

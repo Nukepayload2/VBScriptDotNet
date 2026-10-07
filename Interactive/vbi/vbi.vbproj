@@ -27,13 +27,22 @@
   <!-- .NET tool packaging: only net10.0 is shipped as the cross-platform dotnet tool.
        The outer cross-targeting build (TargetFramework is empty) must also see PackAsTool=true so the
        DotnetTool PackageType is emitted and TFM-specific tool content is gathered (PackTool.targets import
-       is conditioned on PackAsTool=='true' in Microsoft.NET.Sdk.CrossTargeting.targets:18). -->
+       is conditioned on PackAsTool=='true' in Microsoft.NET.Sdk.CrossTargeting.targets:18).
+       PackAsTool itself only accepts platform-neutral TFMs (NETSDK1146 rejects net10.0-windows/UseWindowsForms),
+       so the tool package keeps one TFM root and carries two RID folders:
+         tools/net10.0/any/  <- this net10.0 build, no Windows Desktop dependency (written by PackTool)
+         tools/net10.0/win/  <- the net10.0-windows build (Windows Forms error dialog + DPI setup),
+                                published explicitly by VbiToolPack.targets.
+       RID folders are resolved through the RID graph, so win covers win-x64/win-x86/win-arm64 and any is the
+       fallback everywhere else. Both folders carry architecture-neutral managed IL only (no apphost): the
+       .NET CLI generates the native vbi.exe launcher per installing machine, which is what lets one win
+       folder serve every Windows architecture. -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == ''">
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>vbi</ToolCommandName>
     <PackageId>Nukepayload2.Compilers.VBScriptDotNet.Cli</PackageId>
     <VersionPrefix>2.0.0</VersionPrefix>
-    <VersionSuffix>Beta</VersionSuffix>
+    <VersionSuffix>RC2</VersionSuffix>
   </PropertyGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\..\Scripting\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj" />
@@ -58,4 +67,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <!-- Builds the win RID tool folder (net10.0-windows) into the single tool package. -->
+  <Import Project="$(MSBuildThisFileDirectory)VbiToolPack.targets" />
 </Project>
