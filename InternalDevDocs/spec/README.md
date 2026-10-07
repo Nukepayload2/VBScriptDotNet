@@ -35,7 +35,7 @@
 - **`#R` 引用指令**（脚本源码层唯一的程序集引用机制，已实现）：见 `spec-reference-directive.md`。
 - 已移植 C# interactive 的 **`#Load`** 指令（编译器指令 trivia + 宿主多树展开契约、加载树先于主树、`Return` 为整个提交的退出码、失败通道与 C# 对照，已实现）：见 `spec-load-directive.md`。
 - **理论上和 C# REPL 不应该有功能差距**。
-- 代码内产品版本号已落 `2.0.0-Beta`（2026-08-23 用户裁决：Scripting 库版本 `Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj:8-9` 由 `1.2.0/beta` 改为 `2.0.0/Beta`，`vbi --version` 显示 `2.0.0-Beta`）。
+- 代码内产品版本号已落 `2.0.0-Beta`（用户裁决：Scripting 库版本 `Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj:8-9` 由 `1.2.0/beta` 改为 `2.0.0/Beta`，`vbi --version` 显示 `2.0.0-Beta`）。
 
 ## 架构链（稳定结构事实）
 
@@ -213,7 +213,7 @@ spec 中**不得出现**以下任何内容：
 
 1. **结构**：XLIFF 1.2（`urn:oasis:names:tc:xliff:document:1.2`），`<file datatype="xml" source-language="en" target-language="<lang>" original="../VBScriptingResources.resx">`，`<trans-unit>` = `<source>` + `<target state="translated">` + `<note />`。
 2. **source 逐字节等于 resx**（XliffTasks 不变式）：resx 是唯一真值；改 resx 必须同步全部 13 个 xlf 的 source。
-3. **中性资源必须干净英文产品内容**：帮助/描述一律英文、正式、产品相关（2026-08-29 用户裁决）；禁止混入中文行、旧分支 URL、保留/未实现功能的宣传等与当前产品无关的内容。
+3. **中性资源必须干净英文产品内容**：帮助/描述一律英文、正式、产品相关（用户裁决）；禁止混入中文行、旧分支 URL、保留/未实现功能的宣传等与当前产品无关的内容。
 4. **target 行对行翻译**：开关名与占位符原样，仅译描述；`state="translated"`；开关帮助不额外加行。
 5. **维护流**：resx 改动 → XliffTasks（`UpdateXlfOnBuild`）同步 source → 各语言 target 补译/复核；不手工向 xlf 塞内容。
 

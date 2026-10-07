@@ -19,7 +19,7 @@ Imports Xunit
 ' inside the script under test). A localized-text assertion in a *parallel* collection can then read
 ' that transient culture on a pooled script thread and fail intermittently. Running this type in a
 ' non-parallelizable collection makes it execute in an exclusive phase, so nothing overlaps the
-' mutation window. See InternalDevDocs/HANDOFF.md §4.5.
+' mutation window.
 <CollectionDefinition("ProcessCultureExclusive", DisableParallelization:=True)>
 Public Class ProcessCultureExclusiveDefinition
 End Class

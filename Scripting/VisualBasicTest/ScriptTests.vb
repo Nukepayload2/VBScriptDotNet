@@ -680,11 +680,10 @@ Return Count").
     ''' already been expanded in this compilation, so it is skipped silently. main.vbx #Load "mid.vbx" and
     ''' mid.vbx #Load "main.vbx" therefore expands each file exactly once and compiles clean.
     ''' <para>
-    ''' This test supersedes <c>TestLoadDirectiveCycleReportsAtLoadLine</c>, which asserted the opposite
-    ''' shape -- one BC2001 ERR_FileNotFound at mid.vbx's #Load line. That assertion encoded the misleading
-    ''' diagnostic of issue 34-B ("file not found" for a file that demonstrably exists and that the layer
-    ''' above had just opened). The cycle guard is gone by design rather than re-coded, so this test asserts
-    ''' the new conclusion instead of being deleted (decisions.md D7, test recycling).
+    ''' The cycle guard is gone by design rather than re-coded: the old shape -- one BC2001
+    ''' ERR_FileNotFound at mid.vbx's #Load line -- encoded the misleading diagnostic of issue 34-B
+    ''' ("file not found" for a file that demonstrably exists and that the layer above had just
+    ''' opened). This test pins the conclusion that replaced it (decisions.md D7, test recycling).
     ''' </para>
     ''' <para>
     ''' The observable is NOT "it did not throw": the tree count pins "each file expanded exactly once"

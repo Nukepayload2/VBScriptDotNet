@@ -41,7 +41,7 @@ EXITCODE=3
 
 触发面比本文初版登记的 `Try`/`Catch`/`Finally` 宽：**`BC36943` 这条判据本身就同时点名 `SyncLock`**（`Errors.vb:1572` 的 `ERR_BadAwaitInTryHandler`，消息逐字为「不能在『Catch』语句、『Finally』语句或『SyncLock』语句中使用『Await』」；既有用例覆盖 `SyncLock` 头表达式 `Compilers\VisualBasicSemanticTest\Semantics\AsyncAwait.vb:4003-4007` 与块体 `:4017-4022`），而**脚本顶层这条判据同样不生效**。子形状划分：一 = `Catch`、二 = `Finally`（见上节），**三 = `SyncLock`**。
 
-### 探针（**已运行**，2026-09-13 本机复测）
+### 探针（**已运行**，本机复测）
 
 ```vbx
 Imports System.Threading.Tasks

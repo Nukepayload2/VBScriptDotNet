@@ -70,9 +70,9 @@ Console.WriteLine("INSTANCE-OK " & y)
 - `decisions.md` **D5**（C# 已证实例 1：提交构造器应拆成两个符号）
 - 复现探针已跑并清除（`tmp\extprobe\` 恢复为空）
 
-## 更正（2026-09-12，两处）
+## 更正（两处）
 
-1. **「崩溃是 `Shared` 特有」这一结论只在「顶层」这一行成立，不是这个程序形状的全貌。** 实测（2026-09-12，另一轮探针）：**嵌套类型**（普通类，非脚本类）里字段/属性的初始化器含 `Await` **同样崩**（`EXITCODE=35`、同一 `EmitExpression.vb:209` 抛点），且**与 `Shared` 无关**——实例字段、实例属性、共享字段三种形状全部复现。那条路的根因**不是**本 issue 的「绑定期放行」，而是「诊断 BC36937 报了但不阻止发射」，已登记为 **issue 09**（`issue-initializer-diagnostic-does-not-gate-emit.md`）。本 issue 的「对照」节仍有效（同一份源码在顶层实例/共享两侧的对照），但**不能**推广成「只有 `Shared` 会崩」。
+1. **「崩溃是 `Shared` 特有」这一结论只在「顶层」这一行成立，不是这个程序形状的全貌。** 实测（另一批探针）：**嵌套类型**（普通类，非脚本类）里字段/属性的初始化器含 `Await` **同样崩**（`EXITCODE=35`、同一 `EmitExpression.vb:209` 抛点），且**与 `Shared` 无关**——实例字段、实例属性、共享字段三种形状全部复现。那条路的根因**不是**本 issue 的「绑定期放行」，而是「诊断 BC36937 报了但不阻止发射」，已登记为 **issue 09**（`issue-initializer-diagnostic-does-not-gate-emit.md`）。本 issue 的「对照」节仍有效（同一份源码在顶层实例/共享两侧的对照），但**不能**推广成「只有 `Shared` 会崩」。
 2. **「共享不能 `Await`」的机制描述补一条**：本 issue 只说「`Await` 未被 async 重写消化」，未说明为什么。实际第一道门是 `Lowering\AsyncRewriter\AsyncRewriter.vb:364-368`（`If Not method.IsAsync Then Return AsyncMethodKind.None`）——`.cctor` 的 `IsAsync` 恒 False（`Symbols\SynthesizedSymbols\SynthesizedMethodBase.vb:195-200`），`LocalRewriter` 又刻意原样保留 `AwaitOperator`（`Lowering\LocalRewriter\LocalRewriter.vb:799-830`）。语言规则 BC36950（`SourceMethodSymbol.vb:523-525`）只挡**用户手写**的 `Async Shared Sub New`，**不**是本崩溃的原因 ⇒ 「共享不能 `await`」是**实现缺口**，不是 CLR / 语言规则；完整调查见 `tmp\meetings\script-extension-methods\investigation-shared-initializer-async.md`，候选重排见 `proposals\proposal-submission-shared-members.md`。
 
 3. **「修复方向」节的两条候选已被重排替代（本 issue 的目标不再是「只能报错」）。** 现记为：**主候选 丙**——把共享字段/属性的初始化器**改道并入已有的异步 `<Initialize>`**，此时本场景的 `Await` **合法**（不再需要任何新诊断），且该路线**同时消掉 issue 05**；**甲**（拆出无参共享构造器符号）与 **乙**（移植 CS8100 到绑定期）**只在 丙 被否时才需要**。⇒ 当 丙 被否时，本节原第 1 条（绑定期加诊断）= 乙 仍是唯一能把「崩」变成「报错」的修法；当 丙 被采纳时，本节原第 1、2 条均**不再适用**。**但无论 丙 是否采纳，都修不了面孔 ②**（嵌套类型那条，属 **issue 09** 的「诊断不 gate 发射」，与本 issue 的「绑定期放行」是两个根）。

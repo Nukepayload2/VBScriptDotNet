@@ -8,7 +8,7 @@
 - **交付物**：概要设计（`design-overview.md`）、详细设计（`design-detailed.md`，改动蓝图 A–I + 自动裁决规则 + pass 条件）、测试计划（`test-plan.md`，L1–L4 分层 + 门控 V-G2 分离）、本 README（Vortex 代办拆分表 + accepted 门 + 归属与调度）。
 - **调度方式**：Vortex 涡流（实施者 agent 产出 → 验证者 agent 核对 → 打回修复 → 通过关闭），main 只调度，串行交替、不可催促。流水账：`<项目根>/tmp/vortex-logs/`。
 
-> **续跑收口注记（2026-09-07）**：Vortex 表全 done 后，V-G2 门控在此前从未真跑；续跑补做运行时资产握手、V-G2 真实 restore 验收与本收口（过程审计与逐轮结果见 `tmp/vortex-logs/vbi-nuget-runtime-handshake/`）。相关改动已落工作树（历史 done 判定不变）。V-G2 执行结果与已知限制见下方「门控集成验收」节执行记录。
+> **续跑收口注记**：Vortex 表全 done 后，V-G2 门控从未真跑；补做运行时资产握手、V-G2 真实 restore 验收与本收口（过程审计见 `tmp/vortex-logs/vbi-nuget-runtime-handshake/`）。相关改动已落工作树（done 判定不变）。V-G2 执行结果与已知限制见下方「门控集成验收」节执行记录。
 
 ## 范围与非范围
 

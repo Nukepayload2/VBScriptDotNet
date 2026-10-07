@@ -53,10 +53,10 @@ System.Console.Write(Sink.Count())
 
 ## 5. 硬约束
 
-- **不许改 `NamedTypeSymbolAdapter.vb:475-499` 这段判据本身**，除非第二步的结论要求并且由主线立项。它对所有类和模块生效。
-- 任何后续改动都必须带**普通编译对照**：同形状的普通 `Class`（带/不带显式 `Sub New`、带 `Handles`）与 `Module`（只有字段初始化器）发射出来的属性位**逐位不变**。这条是"不影响普通 VB"的硬规矩（`HANDOFF.md` §2 第 2 条）。
+- **不许改 `NamedTypeSymbolAdapter.vb:475-499` 这段判据本身**，除非第二步的结论要求并且另行立项。它对所有类和模块生效。
+- 任何后续改动都必须带**普通编译对照**：同形状的普通 `Class`（带/不带显式 `Sub New`、带 `Handles`）与 `Module`（只有字段初始化器）发射出来的属性位**逐位不变**。这条是"不影响普通 VB"的硬规矩（`..\..\decisions.md` **D10**）。
 - 不许把现有的 `SubmissionSharedHandlesHookupTests` 格子改弱或删掉。
-- 禁止任何 git 写操作（`git add`/`commit`/`stash`/`checkout`/`restore`）。全量回归（七个门、整套脚本测试）由主线跑，子任务只跑定向过滤。
+- 禁止任何 git 写操作（`git add`/`commit`/`stash`/`checkout`/`restore`）。全量回归（七个门、整套脚本测试）不归子任务跑，子任务只跑定向过滤。
 
 ## 6. 回报要写什么
 

@@ -2,11 +2,11 @@
 
 判据与范围见 `README.md`。**子 agent 禁读 `..\..\issues\`**。每格标档位与三态。
 
-## 〇、基线事实（既有实锤 + 本轮取证）
+## 〇、基线事实（既有实锤 + 取证）
 
 | 形状 | 现状 | 证据 |
 |---|---|---|
-| 顶层 `Shared Event` + `Shared Sub … Handles`（无共享字段初始化器），随后 raise | exit `0`、**stdout 为空**、零诊断（挂钩丢失） | `tmp\probes\u6bc\handles-shared.vbx`（issue 记录为实锤；本轮 4 条 REPL 探针因逐行提交切开块而**未复现**，勿改用 REPL 试） |
+| 顶层 `Shared Event` + `Shared Sub … Handles`（无共享字段初始化器），随后 raise | exit `0`、**stdout 为空**、零诊断（挂钩丢失） | `tmp\probes\u6bc\handles-shared.vbx`（issue 记录为实锤；4 条 REPL 探针因逐行提交切开块而**未复现**，勿改用 REPL 试） |
 | 同上，但在 raise 前读一次那个共享字段 | 侧写与 `H` 一起出现（`.cctor` 被触发、挂钩投递） | `tmp\probes\u10\v1-touch-field-first.vbx`、`v2-probe-touched.vbx` |
 | 同上，`RuntimeHelpers.RunClassConstructor(t.TypeHandle)` 强制初始化 | 立刻投递 | `tmp\probes\u10\w4-touch-self-type-via-reflection.vbx` ⇒ 挂钩体本身无恙 |
 | `Shared b As Integer = 42` ⇒ `?b` | ✅ `42`（`.cctor` 存在且首次访问触发） | 取证 `tmp\probe-sweep\p9b-shared-field.txt` |

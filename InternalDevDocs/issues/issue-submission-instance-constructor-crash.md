@@ -62,7 +62,7 @@ End Sub
 
 ## 修复后的新增行为变化
 
-**新增诊断 `BC37342`**（此前零诊断、直接崩）：
+**新增诊断 `BC37342`**（原先零诊断、直接崩）：
 
 ```
 error BC37342: An instance constructor cannot be declared in a script class because

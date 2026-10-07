@@ -1,13 +1,13 @@
 # 跨提交同名重声明报 `BC30521`「重载决策失败」：容器把两个提交的同名成员当重载集，`Shadows` 无效
 
-- **状态**：**In Progress**（2026-09-22 按 `../decisions.md` **D7** 完成取证并**自动裁决为「可移植、改」**，不再"交用户裁决"：目标形状＝跨提交同名 `Function`/`Property` 重声明**合法、最新定义者独占、零诊断**。取证日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`；裁定与两处更正见下节「D7 裁定」；实施另行立项 `tasks\submission-member-redeclaration-tiebreak\`，本文件不改产品码）
+- **状态**：**Fixed**（已验证，commit 待作者提交后补；账本 `..\upstream-merge.md` §2.25(c)，队列 #8）（2026-09-22 按 `../decisions.md` **D7** 完成取证并**自动裁决为「可移植、改」**，不再"交用户裁决"：目标形状＝跨提交同名 `Function`/`Property` 重声明**合法、最新定义者独占、零诊断**。取证日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`；裁定与两处更正见下节「D7 裁定」；实施另行立项 `tasks\submission-member-redeclaration-tiebreak\`，本文件不改产品码）
 - **发现日期**：2026-09-16
 - **发现场景**：`../tasks/script-mode-coverage-parity/` 的 U9（脚本 API 面剩余缺口）。触发点是该单元的**格 1**：
   C# 基线 `TestBranchingSubscripts`（`{{Roslyn}}\src\Scripting\CSharpTest\ScriptTests.cs:452`）在两个分支链里
   **重声明同名成员并期望新声明遮蔽旧声明、算出 25**；VB 侧同形状报 `BC30521`。登记依据同任务 `README.md`
   **§八 义务 1**（实施期新发现的缺陷同样按此登记）与 `design-detailed.md` §U9 的 **pass 条件 5**
   （「若某格暴露产品缺陷 ⇒ **停手**，按 §U1 的流程单独收口（建 issue → 判定 → 修复 + 用例），**不混在补测单元里改产品码**」）——
-  U9 首轮**未停手**（把它当「已登记差异」钉住了），本 issue 即补做停手收口，**本轮不改产品码**。
+  U9 首轮**未停手**（把它当「已登记差异」钉住了），本 issue 即补做停手收口，**不改产品码**。
 - **影响面**：**脚本容器**（提交链）的成员绑定 —— `Script.ContinueWith` / `ScriptState.ContinueWithAsync` /
   `vbi` 的 REPL 每一个提交。**普通 VB 编译不受影响**（同一形状给 `BC40003` 警告、正常编译执行，读数见下表 `A6`/`A7`）。
 - **严重度**：中。不崩、不静默产出错误值——它**报诊断**（属作者判定原则的两条合法出口之一），真正的缺陷是
@@ -19,7 +19,7 @@
 
 ## 触发面
 
-**自己的实测读数**（本轮复跑；探针 `tmp\u9-fix\probe\Issue26.cs`，读数 `tmp\u9-fix\i26.txt`——均在
+**自己的实测读数**（复跑；探针 `tmp\u9-fix\probe\Issue26.cs`，读数 `tmp\u9-fix\i26.txt`——均在
 `<项目根>` 的 `tmp\` 下，该目录已 git-ignored，不入库）。下表标签（`A1`/`A2`/`A3`/`A6`/`A7`/`D4`/`D4b`/`D3s`）
 **逐字取自探针输出**，与 `i26.txt` 同行标签一一对应：
 
@@ -121,7 +121,7 @@
 不是「凡与 C# 不同就记为差异了事」。本 issue 把它**从「差异」升级为「登记在册的缺陷」**，理由见上。
 **钉住的那条用例保留**（它是修复的报警线：修复后行为一变，该用例即红）。
 
-## D7 裁定（2026-09-22 只读取证批次；日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`）
+## D7 裁定（只读取证批次；日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`）
 
 **先说结论**：判**「可移植、改」**，按 D7 自动裁，不再交人工。目标形状＝**跨提交同名 `Method`/`Property` 重声明合法、最新定义者独占、零诊断**。
 
@@ -134,9 +134,9 @@
 
 ### 对本文件既有内容的四处更正
 
-1. **缺陷面按符号 kind 收窄**：`D4`/`D4b` 与本轮探针都表明 **`Dim`（field）跨提交重声明本已正常**（最新者胜、零诊断、甚至可跨类型改型：`Dim y As Integer = 7` ⇒ `Dim y As String = "hello"` ⇒ `?y` 得 `hello`）。真凶只有 **`Method` + `Property`**。⇒ 本 issue 标题下的「容器把两个提交的同名成员当重载集」须读成「把同名 **可重载** 成员当重载集」。
+1. **缺陷面按符号 kind 收窄**：`D4`/`D4b` 与探针都表明 **`Dim`（field）跨提交重声明本已正常**（最新者胜、零诊断、甚至可跨类型改型：`Dim y As Integer = 7` ⇒ `Dim y As String = "hello"` ⇒ `?y` 得 `hello`）。真凶只有 **`Method` + `Property`**。⇒ 本 issue 标题下的「容器把两个提交的同名成员当重载集」须读成「把同名 **可重载** 成员当重载集」。
 2. **对等目标不是「降级成 `BC40003`」**：`BC40003 = WRN_MustOverloadBase4`（`Errors\Errors.vb:1825`，报点 `OverrideHidingHelper.vb:441`）是**继承**遮蔽警告，而提交类无基类型 ⇒ 提交链上两侧都**不可能**报它。"与 C# 对等"＝**无诊断**。「严重度被容器升级」作为**事实**仍然成立（普通编译只是警告），但它不是验收值。
-3. **方向 A 的落点表述被更正**：原文写「让 `LookupInSubmissions` 停止向上回溯」——**不采纳**。C# 是「**照旧合并候选** ＋ **决策层择一**」，若在查找层截断会砍掉真实的跨提交重载（异签名两形各自命中，本轮实测 `100`/`200`）。⇒ 采纳落点＝`OverloadResolution.vb` `CombineCandidates`（`:4419-4436` 之后，与 C# 同一 tie-break 链位置）新增「两候选分属不同 submission ⇒ slot 大者胜」。
+3. **方向 A 的落点**：**不采纳**「让 `LookupInSubmissions` 停止向上回溯」。C# 是「**照旧合并候选** ＋ **决策层择一**」，若在查找层截断会砍掉真实的跨提交重载（异签名两形各自命中，实测 `100`/`200`）。⇒ 采纳落点＝`OverloadResolution.vb` `CombineCandidates`（`:4419-4436` 之后，与 C# 同一 tie-break 链位置）新增「两候选分属不同 submission ⇒ slot 大者胜」。
 4. **方向 B 作废**：不新增诊断码。理由＝C# 侧无对应分叉需求，且「合法形状应能写」已被决策层择一解决；按 D6，beta 期也不得用「保留重载语义」作挡箭牌。
 
 `Shadows` 修饰符：**保持不参与、也不报错**（A2 的现状不变）。给它加「必须写/写了才生效」的要求属无 C# 依据的 VB 侧自造语义；若日后要让 `Shadows` 在提交链参与，那是 VB 专有设计，须另走 `proposals\`，不属 D7 自动裁范围。
@@ -181,7 +181,7 @@
 
 | 断言 | 三态 | 依据 |
 |---|---|---|
-| `BC30521` 是脚本容器引入、非 VB 语言规则 | **实锤** | `A6`（普通编译 `BC40003` + `M(5)=25`）与 `A1`（脚本容器 `BC30521`）是**同一遮蔽关系**的两种结果，均本轮实跑 |
+| `BC30521` 是脚本容器引入、非 VB 语言规则 | **实锤** | `A6`（普通编译 `BC40003` + `M(5)=25`）与 `A1`（脚本容器 `BC30521`）是**同一遮蔽关系**的两种结果，均实跑 |
 | 根因是 `LookupInSubmissions` 沿 `PreviousSubmission` 逐提交 `MergeOverloadedOrPrioritized` | **实锤（读码）** | `Binder_Lookup.vb:858`（声明行）/`:583-584`（分派）/`:889-890`、`:911-912`（`always overload` 注释与合并调用）/`:916`（回溯） |
 | `Shadows` 在该路径上不被咨询 | **实锤** | `A2` 与 `A1` 逐字同结果；读码：回溯循环内无任何 `Shadows`/`Overloads` 读取 |
 | 字段路径不受影响（遮蔽生效） | **实锤** | `D4`/`D4b` 零诊断；读码 `:893`/`:899` 的 `IsOverloadable` 退出 |

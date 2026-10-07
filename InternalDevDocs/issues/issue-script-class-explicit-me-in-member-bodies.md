@@ -1,10 +1,10 @@
 # [BUG→撤销] 脚本类的实例成员体内显式 `Me` / `MyClass` / `MyBase` 被拒：BC36966 的判据是容纳类型，不是「是否顶层代码」
 
-> **⚠ 撤销改判（作者裁定，2026-09-23）：本条不判为缺陷，修复须回退。** 取证 C# 的实际策略（`decisions.md` **D7 冲突裁定**第二个实例）：`Compilers\CSharp\Portable\Binder\Binder_Expressions.cs:55-73` 的 `HasThis` 逐字 `return !inTopLevelScriptMember || !isExplicit;` ⇒ **C# 在脚本类内任何位置都拒绝显式 `this` / `base`，成员体也算**（CS0027 / CS1512；作者另用 `Microsoft (R) Visual C# 交互窗口编译器 5.10.0-1.26380.3` 实跑 `void test() { this.ToString(); }` → `(1,15): error CS0027` 复核。本仓 `SemanticErrorTests.cs:1365` 的 `this.goo(); // 5` 只作旁证——同段 `:1381` 的 `// OK` 在注释块内，未逐行核对前不作锚点），也就是说**本条原判据（按容纳类型划界）就是 C# 同形**。作者据此裁定**「照 C# 回退」**，并明示接受被放弃的收益（成员体内无法限定访问被局部遮蔽的顶层字段，只能改局部名）。
+> **⚠ 撤销改判（作者裁定）：本条不判为缺陷，修复须回退。** 取证 C# 的实际策略（`decisions.md` **D7 冲突裁定**第二个实例）：`Compilers\CSharp\Portable\Binder\Binder_Expressions.cs:55-73` 的 `HasThis` 逐字 `return !inTopLevelScriptMember || !isExplicit;` ⇒ **C# 在脚本类内任何位置都拒绝显式 `this` / `base`，成员体也算**（CS0027 / CS1512；作者另用 `Microsoft (R) Visual C# 交互窗口编译器 5.10.0-1.26380.3` 实跑 `void test() { this.ToString(); }` → `(1,15): error CS0027` 复核。本仓 `SemanticErrorTests.cs:1365` 的 `this.goo(); // 5` 只作旁证——同段 `:1381` 的 `// OK` 在注释块内，未逐行核对前不作锚点），也就是说**本条原判据（按容纳类型划界）就是 C# 同形**。作者据此裁定**「照 C# 回退」**，并明示接受被放弃的收益（成员体内无法限定访问被局部遮蔽的顶层字段，只能改局部名）。
 > **回退是「部分回退」**：只回退"实例成员体放行显式关键字"这一条（`tasks\script-class-explicit-keyword-parity-revert\`，判据 K1–K12）。**保留**不回退的两项——① `Shared` 成员里的显式引用落普通共享诊断 BC30043（隐式落 BC30369），因为 C# 的静态检查（`:45-49` ⇒ CS0026/CS1511）**排在脚本门之前**，这条次序本身就是 C# 同形；② `MyBase` → `System.Object` 兜底仍按 2026-09-22 的第一次改判删除。
 > 已落地的 F01/F02/F03（档 1 全绿、未提交）因此**不是要提交的功能**，而是本回退的输入；本文件其余内容按登记时原判读保留作证据，`spec\spec-scripting-dialect.md:234`/`:246-274`/`:299`/`:310`/`:312`/`:334`/`:339`/`:385` 与 `zh-CN` 已按新裁定改写。
 
-**状态**：**Not A Bug（撤销改判，2026-09-23；原判「过宽属缺陷」被 C# 实测推翻）**——实施线转为 `tasks\script-class-explicit-keyword-parity-revert\`（部分回退），前任务 `tasks\script-class-explicit-me-scope\` 的 F01/F02/F03 已档 1 通过但**不再作为功能提交**
+**状态**：**Not A Bug（撤销改判；原判「过宽属缺陷」被 C# 实测推翻）**——实施线转为 `tasks\script-class-explicit-keyword-parity-revert\`（部分回退），前任务 `tasks\script-class-explicit-me-scope\` 的 F01/F02/F03 已档 1 通过但**不再作为功能提交**
 **证据等级**：**已运行**（Release 发布版宿主 `2.0.0-Beta+c15a959`，本机实测；另有普通类同形状对照 4 路（C / M / G1 / K），均**已运行**）。16 个探针的源码与逐条输出固化在 `tmp\spec-check-me\run-results-2026-09-22.txt`
 **严重度**：中（不崩、有诊断，但诊断文案指向错误位置，且剥夺了 VB 里绕过局部遮蔽的**唯一**写法）
 **影响面**：任何脚本编译（`.vbx` 文件执行、vbi REPL 提交）里**顶层 `Sub` / `Function` / `Property` 的成员体**，以及其中书写的 lambda；`vbc` 不产生脚本类编译，不受影响
@@ -99,7 +99,7 @@ If IsMeOrMyBaseOrMyClassInSharedContext() Then
 
 ## 被本 issue 推翻的既有决策
 
-> **⚠ 方向反转注记（2026-09-23）**：本 issue 已撤销改判（见顶部横幅），因此**下表第 2–7 行的原口径重新生效**——它们当初被「作废」的理由（判据过宽是缺陷）不再成立。两处例外需要单独读：① 第 1 行（`spec`）现按「禁令覆盖整个脚本类 + 共享判定先判」的 C# 同形措辞改写，不再声称是「与 C# 的分叉」，唯一保留的对上游分叉＝**判定次序**，登记在 `..\upstream-merge.md` §2.25；② 第 8 行的支撑事实已由会议记录就地订正（树内确有上游断言该禁令的用例）。下方「修复方向（候选，未拍板）」与「修复后会新增的行为变化」**同样只作历史证据**，其"修复后"列已被回退抵消（实测红名单见 `tmp\vortex-logs\script-class-explicit-keyword-parity-revert\01-main-rv-f01.md`）。
+> **适用性**：本 issue 判 **Not A Bug**，被推翻的是原判据「判据过宽属缺陷」——该前提既已不成立，**下表第 2–7 行的原口径即恢复生效**。下表第三列记的是**当时**的作废关系，属历史记录，**不代表现行状态**；判断某一行的口径今天是否有效，以本段为准。两处例外需要单独读：① 第 1 行（`spec`）现按「禁令覆盖整个脚本类 + 共享判定先判」的 C# 同形措辞改写，不再声称是「与 C# 的分叉」，唯一保留的对上游分叉＝**判定次序**，登记在 `..\upstream-merge.md` §2.25；② 第 8 行的支撑事实以会议记录为准（树内确有上游断言该禁令的用例）。下方「修复方向（候选，未拍板）」与「修复后会新增的行为变化」**只作历史证据**，其实测红名单见 `tmp\vortex-logs\script-class-explicit-keyword-parity-revert\01-main-rv-f01.md`。
 
 | 锚点 | 原文口径 | 与本判据的关系 |
 |---|---|---|

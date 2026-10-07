@@ -67,5 +67,5 @@
   `dotnet test Compilers\VisualBasicSemanticTest\Microsoft.CodeAnalysis.VisualBasic.Semantic.UnitTests.vbproj --filter "FullyQualifiedName~ScriptTopLevelDefiniteAssignmentTests"`
   邻居类组合用 `--filter "FullyQualifiedName~A|FullyQualifiedName~B"` 这种或写法。
 - 要拿到失败详情必须加：`--logger "console;verbosity=detailed"`，否则只有一行 `[FAIL]` 看不到异常内容。
-- 长输出先重定向到文件再读尾巴；全量七个门和整套脚本测试由主线跑，子任务不跑。
+- 长输出先重定向到文件再读尾巴；全量七个门和整套脚本测试不归子任务跑。
 - 一次只让一个任务碰编译产物（并行构建会锁 dll）。

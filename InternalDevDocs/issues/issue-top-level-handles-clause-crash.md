@@ -55,7 +55,7 @@ hooked.Fire()
 - **变量在本提交里声明**（本节形状）⇒ 子句受支持，hookup 由该变量的**合成 setter** 承担；
 - **变量来自上一提交或宿主对象**（`Handles hooked.E` 而 `hooked` 声明在别处）⇒ 提交类只是**可见**它、并未声明它，判据不满足 ⇒ 报 **`BC37343`**（`Errors.vb:1818` 的 `ERR_WithEventsVariableNotInContainingType`，判据落在 `SourceMemberMethodSymbol.vb:707-711` 的 `TryCast(Me.ContainingType, SourceNamedTypeSymbol)` 失败分支）。
 
-实测：跨提交形状报 `BC37343`、位置锚在 `Handles` 的**容器标识符**上、不再抛 `InvalidCastException`（测试 `Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb:844` / `:867` / `:888`）。**这是该形状的行为变化**：此前它直接终止编译器进程。
+实测：跨提交形状报 `BC37343`、位置锚在 `Handles` 的**容器标识符**上、不再抛 `InvalidCastException`（测试 `Scripting\VisualBasicTest\ScriptTopLevelCrashTests.vb:844` / `:867` / `:888`）。**这是该形状的行为变化**：原先它直接终止编译器进程。
 
 ## 相关
 

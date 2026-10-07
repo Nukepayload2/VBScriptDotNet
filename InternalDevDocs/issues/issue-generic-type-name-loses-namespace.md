@@ -37,7 +37,7 @@ FormatMethodSignature(GetType(StackFixture(Of Integer)).GetMethods()…) → Sta
 
 ## 性质：上游共享代码的缺陷，**不是本 fork 引入**
 
-- **文件级实锤**：本轮实跑 `diff`，本仓 `Scripting\Core\Hosting\ObjectFormatter\CommonTypeNameFormatter.cs` 与 `{{Roslyn}}\src\Scripting\Core\Hosting\ObjectFormatter\CommonTypeNameFormatter.cs` 的**唯一差异是 using 行**（本仓多一行 `using Microsoft.CodeAnalysis.Collections;`，`PooledObjects` 的 using 位置不同）；`:232` / `:241` / `:251-258` / `:272-276` 这段逻辑两边逐字相同。
+- **文件级实锤**：实跑 `diff`，本仓 `Scripting\Core\Hosting\ObjectFormatter\CommonTypeNameFormatter.cs` 与 `{{Roslyn}}\src\Scripting\Core\Hosting\ObjectFormatter\CommonTypeNameFormatter.cs` 的**唯一差异是 using 行**（本仓多一行 `using Microsoft.CodeAnalysis.Collections;`，`PooledObjects` 的 using 位置不同）；`:232` / `:241` / `:251-258` / `:272-276` 这段逻辑两边逐字相同。
 - **旁证（同目录其余文件）**：该目录另有三处非常量级差异，但都只是 C# 语法现代化写法（`indices[^1]` ↔ `indices[indices.Length - 1]`、集合表达式 `[obj]` ↔ `new object[] { obj }`），与本缺陷无关；**本缺陷所在的 `CommonTypeNameFormatter.cs` 是纯 using 差异**。
 - **归属** ⇒ 修复应落在上游 `dotnet/roslyn`（`src/Scripting/Core/Hosting/ObjectFormatter/CommonTypeNameFormatter.cs`）。
 - **本 fork 不修的理由**：修它只会在 `Scripting\Core\Hosting\ObjectFormatter\` 这个「与上游逐字同步」的目录里**徒增合并冲突面**，而不改变任何本 fork 独有的行为；本仓对该目录的既定做法是「与上游保持一致，缺陷按上游 issue 跟踪」。

@@ -61,7 +61,7 @@
 
 - 七门 Failed 全 0；总数只允许按本任务新增格子数增加（`Semantic` 门基线以 main 跑前 `git diff HEAD --numstat` 实测为准，不抄文档数字）。
 - `Scripting\VisualBasicTest` 直跑 `-automated`（不能用 `dotnet test`），读最后一行 JSON 的 `"TestsFailed":0`。
-- 已知偶发：L2 `ScriptModeArgsTests` 的文化泄漏类红（HANDOFF §4.5，已用串行集合消解）——若再红，验证者必须给"与本次改动无关的证据"或"由本次改动引入"二者之一的判定，**"复跑即绿"不是结论**。
+- 已知偶发：L2 `ScriptModeArgsTests` 的文化泄漏类红（`..\..\..\tmp\HANDOFF.md` §4.5，本机文档；已用串行集合消解）——若再红，验证者必须给"与本次改动无关的证据"或"由本次改动引入"二者之一的判定，**"复跑即绿"不是结论**。
 
 ## 七、验证者档位声明要求
 

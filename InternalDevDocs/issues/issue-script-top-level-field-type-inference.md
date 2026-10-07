@@ -1,7 +1,7 @@
 # issue 32：脚本顶层 `Dim` 要做类型推断（原问题单 21 的落地版）
 
-- **登记日期**：2026-09-24（main）
-- **状态**：**Fixed**（已验证，commit 待作者提交后补）——F01 真值（§八）、F02 落点（§九）→ **甲方案已落地**：`SourceMemberFieldSymbol.vb` 的 `ComputeType`+`TryComputeScriptFieldType`，全程 `IsScriptClass` 门控（普通类字段逐字不变、`Option Infer Off`/显式 `As`/`= Nothing` 保持现状）。F03＝新增 `ScriptTopLevelDimInferenceTests` 7 格（正格断具体静态类型 + 反例锁 + Q1 `BC30512`/`BC30209` 判据）。F04 回归（主线亲跑）＝七门全绿（Semantic 5862→**5869/5765/104**）、`Scripting\VisualBasicTest` 直跑 **768/0**、档 2 跨提交 `Dim x = 1`→`x.Length` 转编译期 `BC30456`（推断类型跨提交保持）。F05 记账＝`upstream-merge.md` §2.25(g)、`spec`（中英）补"顶层 `Dim` 类型推断"一节、回收 `ScriptModeTopLevelInferenceTests`/`ScriptModeStatementConformanceTests` 里钉"顶层 Dim = Object"的旧桩与问题单 21 的 `InvalidCastException` 形状为正确静态类型正格。
+- **登记日期**：2026-09-24
+- **状态**：**Fixed**（已验证，commit 待作者提交后补）——F01 真值（§八）、F02 落点（§九）→ **甲方案已落地**：`SourceMemberFieldSymbol.vb` 的 `ComputeType`+`TryComputeScriptFieldType`，全程 `IsScriptClass` 门控（普通类字段逐字不变、`Option Infer Off`/显式 `As`/`= Nothing` 保持现状）。F03＝新增 `ScriptTopLevelDimInferenceTests` 7 格（正格断具体静态类型 + 反例锁 + Q1 `BC30512`/`BC30209` 判据）。F04 回归＝七门全绿（Semantic 5862→**5869/5765/104**）、`Scripting\VisualBasicTest` 直跑 **768/0**、档 2 跨提交 `Dim x = 1`→`x.Length` 转编译期 `BC30456`（推断类型跨提交保持）。F05 记账＝`upstream-merge.md` §2.25(g)、`spec`（中英）补"顶层 `Dim` 类型推断"一节、回收 `ScriptModeTopLevelInferenceTests`/`ScriptModeStatementConformanceTests` 里钉"顶层 Dim = Object"的旧桩与问题单 21 的 `InvalidCastException` 形状为正确静态类型正格。
 - **来历**：`issue-top-level-field-no-inference.md`（问题单 21）原本按 `decisions.md` D7 的例外 (a) 挂着——"VB 语言层没有字段类型推断，这属要不要造新能力，得作者定"。**作者 裁定：立项，按新 issue 处理** ⇒ 例外 (a) 在这条上不再挡路，剩下的是设计取证与实施。本条把该问题从"挂起"转成"有判据、有验收的工作项"，并收录作者新给的 C# 读数。
 
 ## 一、原始症状（问题单 21，已实测，档 2）
@@ -11,7 +11,7 @@
 
 根因位置（读码）：`Compilers\VisualBasic\Portable\Symbols\Source\SourceMemberFieldSymbol.vb:186-205`——类型缺失时的兜底直接给 `Object`，且这段**对容器类型不敏感**（不区分"脚本顶层字段"与"`Class` 里的字段"）。
 
-## 二、作者提供的 C# 读数（2026-09-24，档 2：在 `csi` 里跑的）
+## 二、作者提供的 C# 读数（档 2：在 `csi` 里跑的）
 
 ```
 > var b = 1;
@@ -25,12 +25,12 @@
 2. 下一条提交里 `b = "abc"` 是**编译错误**（`CS0029`），不是"重新推断成 string"，也不是运行时才炸；
 3. 也就是说 C# 的提交字段带的是**推断出来的静态类型**（跨提交时字段类型不塌成 `object`）。这正是 VB 该对齐的形状。
 
-⇒ **顺带推翻了我先前记在 D7 里的一句**："C# 有、VB 没有 ⇒ 属新语言特性"。这里 C# 做的只是"把已有的 `var` 推断结果用在提升后的字段上"，VB 侧对应的现成机制就是 `Option Infer`（已作用于局部变量）。所以本条**不需要发明新语言特性**，需要的是"让顶层 `Dim` 的字段沿用 `Option Infer` 的结果" ⇒ 按 D7 属可移植，例外 (a) 不再适用。
+⇒ **D7 里"C# 有、VB 没有 ⇒ 属新语言特性"那句已被推翻**。这里 C# 做的只是"把已有的 `var` 推断结果用在提升后的字段上"，VB 侧对应的现成机制就是 `Option Infer`（已作用于局部变量）。所以本条**不需要发明新语言特性**，需要的是"让顶层 `Dim` 的字段沿用 `Option Infer` 的结果" ⇒ 按 D7 属可移植，例外 (a) 不再适用。
 
 ## 三、必须先回答的两个设计问题（不得跳过直接改代码）
 
 ### Q1：赋值不兼容时报不报错？——**不许照抄 CS0029 的"必报错"**
-VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默认）允许 `Integer ← String` 的**隐式窄化转换**，编译期通过、运行时才失败。所以"推断出 Integer 后 `b = "abc"`"在 VB 里跟**同形状的局部变量**行为一致才是对的，硬报 `CS0029` 式错误等于在脚本方言里偷偷改掉 `Option Strict Off` 的全局语义 ⇒ 属过度分叉（HANDOFF §2 第 3 条）。
+VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默认）允许 `Integer ← String` 的**隐式窄化转换**，编译期通过、运行时才失败。所以"推断出 Integer 后 `b = "abc"`"在 VB 里跟**同形状的局部变量**行为一致才是对的，硬报 `CS0029` 式错误等于在脚本方言里偷偷改掉 `Option Strict Off` 的全局语义 ⇒ 属过度分叉（`..\decisions.md` **D7**）。
 ⇒ **真值先行的第一条**：在**当前码**上实测普通 VB 方法体内的
  `Dim b = 1` + `b = "abc"`，在 `Option Strict Off` 与 `Option Strict On` 下各自的诊断（编译错？哪个码？还是通过并运行期抛？），取到读数后把它作为"顶层 `Dim` 应该对齐的目标"。**这一步没做之前，本条的任何实现都算抢跑。**（档 3 推测：Off 下编译通过并带窄化转换、On 下报 `BC30512` 一类，但**未实测，不得当结论引用**。）
 
@@ -53,7 +53,7 @@ VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默�
 ## 五、范围
 
 - **范围内**：顶层 `Dim`（无 `As`）的类型推断 + 跨提交一致性 + Q1 真值 + §四 全部格子。
-- **非范围**：不给普通类字段加类型推断（VB 语法要求字段必须写类型，本条不扩语言）；不动 `Option Infer` 的默认值与开关语义；不改 `#Load` 顺序那条线（仍是未登记缺陷，见 HANDOFF §4.6）；不实现 `Const` 推断。
+- **非范围**：不给普通类字段加类型推断（VB 语法要求字段必须写类型，本条不扩语言）；不动 `Option Infer` 的默认值与开关语义；不改 `#Load` 顺序那条线（仍是未登记缺陷，见 `..\..\tmp\HANDOFF.md` §4.6）；不实现 `Const` 推断。
 
 ## 六、验证与派工
 
@@ -64,7 +64,7 @@ VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默�
 5. F05＝记账：问题单 21 状态改成"已由 32 承接"；`upstream-merge.md` 登记（`SourceMemberFieldSymbol.vb` 是上游同名文件）；`spec` 脚本方言文档补"顶层 `Dim` 的类型推断"一节（中英两份）；`decisions.md` D7 例外 (a) 处加一句本条已被作者改判为立项。
 6. commit 号一律不预填（作者裁定：main 与子 agent 都不提交、不 `git add`）。
 
-## 七、F01 已经取到的一部分真值（2026-09-24，来自仓内既有绿色用例，档 1）
+## 七、F01 已经取到的一部分真值（来自仓内既有绿色用例，档 1）
 
 `Compilers\VisualBasicSemanticTest\Semantics\VariableTypeInference.vb:405-444`（`TestOptionInferWithOptionStrict`）已经钉住普通方法体里 `Dim u = 1` 的三档行为：
 
@@ -78,7 +78,7 @@ VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默�
 
 **F01 还缺的两组读数**（下一步要跑）：③ 当前码下顶层 `Dim x = 1` 的真实静态类型与"在 `#1` 里读它"的类型；④ 赋值不兼容（`b = "abc"`）在推断已生效的前提下，普通方法体 + `Option Strict Off/On` 各自的诊断（这决定问题单 §三-Q1 的目标行为，也是唯一能定"要不要报错"的证据）。
 
-## 八、F01 剩余读数已取（2026-09-24，档 2：本会话主线用工作树重建的 Debug `vbi` 实跑）
+## 八、F01 剩余读数已取（档 2：用工作树重建的 Debug `vbi` 实跑）
 
 探针与逐字读数存 `tmp\f01-star\`（`mb-off.vbx` / `mb-on.vbx` / `tl-late.vbx`）。
 
@@ -98,7 +98,7 @@ VB 与 C# 在这里有一处**语言级差异**：`Option Strict Off`（VB 默�
 ### 结论：F01 已满足进入 F02 的门槛
 Q1 目标（对齐 VB 局部语义、非 CS0029）与根因位置（`SourceMemberFieldSymbol.vb:186-205` 对容器不敏感的 `Object` 兜底）均已取证。F02 实施时：让**脚本类**顶层无 `As` 的 `Dim` 字段沿用 `Option Infer` 的结果（甲方案：在 `IsScriptClass` 门内用声明处初始化表达式类型），并保持 `Option Infer Off` / 显式 `As` / 普通类字段三格原样；F03 用例须按本表逐格断具体静态类型（Strict Off 运行期窄化、Strict On `BC30512`、`x.Length` 从晚期绑定转 `BC30456`）。
 
-## 九、F02 落点取证（2026-09-24，读码档 3；实施前的机制对齐，未改产品码）
+## 九、F02 落点取证（读码档 3；实施前的机制对齐，未改产品码）
 
 对照 C# 现行实现（同一 fork 树内）钉出甲方案的**最小忠实形状**：
 

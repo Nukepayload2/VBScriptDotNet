@@ -16,7 +16,7 @@
 | `<Extension> Function Twice(...)`（无 `Shared`） | ❌ 见下「实际」 |
 | 嵌套 `Class` 内的 `<Extension>` | ✅ 正确报 BC36551（`ERR_ExtensionMethodNotInModule`） |
 
-三条均为**已运行**实证（2026-09-10，Debug 版 `vbi.exe` 直跑 `.vbx`）。
+三条均为**已运行**实证（Debug 版 `vbi.exe` 直跑 `.vbx`）。
 
 ## 复现步骤
 

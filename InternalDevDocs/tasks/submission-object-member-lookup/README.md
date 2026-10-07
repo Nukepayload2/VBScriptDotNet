@@ -1,15 +1,15 @@
 # 任务：提交类成员体内取 `Object` 继承成员（与 C# 脚本模式对等）（submission-object-member-lookup）——任务计划
 
-> **✅ 已收口（2026-09-24，主线亲跑 S-F02a）**：真值表已交付＝新增 `Compilers\VisualBasicSemanticTest\Semantics\ScriptBareObjectMemberTruthTableTests.vb` 9 格（仅测试、产品码零改，Semantic 5870→5879/5775 七门全绿）。V-A 读数与 V-B 判定（**不收严 `:59`**）见 `..\..\issues\issue-submission-member-inherited-object-lookup.md` 末节「收口」与 `HANDOFF.md` §4.13；issue 29 转 Not A Bug。下方 S-F02a/S-F02b 原文为计划史，S-F02b（谈回退）作废。
+> **✅ 已收口（S-F02a）**：真值表已交付＝新增 `Compilers\VisualBasicSemanticTest\Semantics\ScriptBareObjectMemberTruthTableTests.vb` 9 格（仅测试、产品码零改，Semantic 5870→5879/5775 七门全绿）。V-A 读数与 V-B 判定（**不收严 `:59`**）见 `..\..\issues\issue-submission-member-inherited-object-lookup.md` 末节「收口」与 `..\..\..\tmp\HANDOFF.md` §4.13（本机文档）；issue 29 转 Not A Bug。下方 S-F02a/S-F02b 原文为计划史，S-F02b（谈回退）作废。
 >
-> **状态：取证已交付、前提被实测推翻 ⇒ 实施拆两步**（S-F01 + S-F01b 已交付；main 的 `R1`–`R6` 探针见 `tmp\vortex-logs\submission-object-member-lookup\03-main-audit-s-f01b-and-R-probes.md`）。流水账在 `tmp\vortex-logs\submission-object-member-lookup\`。缺陷登记：`..\..\issues\issue-submission-member-inherited-object-lookup.md`（issue 29，已带「第二次更正」条目）。**子 agent 禁读 `issues\`**——症状、对照与判据已在此复述。
+> **状态：取证已交付、前提被实测推翻 ⇒ 实施拆两步**（S-F01 + S-F01b 已交付；`R1`–`R6` 探针见 `tmp\vortex-logs\submission-object-member-lookup\03-main-audit-s-f01b-and-R-probes.md`）。流水账在 `tmp\vortex-logs\submission-object-member-lookup\`。缺陷登记：`..\..\issues\issue-submission-member-inherited-object-lookup.md`（issue 29，已带「更正」条目）。**子 agent 禁读 `issues\`**——症状、对照与判据已在此复述。
 >
-> **⚠ 第三次更正（��main 实测）**：本任务原前提「**提交类成员体内**以 `Me`/`MyClass` 取 `Object` 继承成员报 BC30456」在产品两条路径**都不复现**——F03 重建后的发布版宿主下 `R1`–`R6` 全部**零诊断**并打印 `Submission#0`（`R5` 逐字照抄 L2 换形状格的源串）。BC30456 唯一证据是 F01 的 **L1 内存编译临时用例**（其消息里的类型名是 `'Script'` 而非 `Submission#0` ⇒ 可能是另一种产法/选项组合）。⇒ **本任务不得在真值表之前改任何产品码**，先做 S-F02a。
+> **⚠ 更正（实测）**：本任务原前提「**提交类成员体内**以 `Me`/`MyClass` 取 `Object` 继承成员报 BC30456」在产品两条路径**都不复现**——F03 重建后的发布版宿主下 `R1`–`R6` 全部**零诊断**并打印 `Submission#0`（`R5` 逐字照抄 L2 换形状格的源串）。BC30456 唯一证据是 F01 的 **L1 内存编译临时用例**（其消息里的类型名是 `'Script'` 而非 `Submission#0` ⇒ 可能是另一种产法/选项组合）。⇒ **本任务不得在真值表之前改任何产品码**，先做 S-F02a。
 >
 > **⚠ 第四个新事实（S-F01b U1，main 逐字复核）**：C# 是**双层机制**——① 显式 `this`/`base` 在 C# 脚本类里被**关键字门**一律拒（`Binder\Binder_Expressions.cs:55-73` 逐字 `return !inTopLevelScriptMember || !isExplicit;`，成员体也算；`BindBase` `:2636-2639` CS1512、显式 `this.X` CS0027）；② 裸 `ToString()` 只在**提交类**报 CS0103（`Binder_Lookup.cs:399-401` 不查基链），**非提交 Script 类解析成功**——扩展走查在声明基为 null 时补回 `Object`（`TypeSymbolExtensions.cs:226-232`+`:269-288`）。⇒ 原第 ② 件事（把 `ImplicitNamedTypeSymbol.vb:59` 的判据从 `TypeKind.Submission` 收严到 `IsScriptClass`）**不等于与 C# 同形**：VB 没有那层走查兜底，收严会**比 C# 更严**（U3 同一警告）⇒ **暂缓，等真值表**。另外只回退 `MyBase` 兜底会落到**完全无诊断**（U2）⇒ 回退与诊断方案必须同批设计。
 
 - **一句话（改判）**：本任务**不再**"让成员体内取到 `Object` 继承成员"。补取证显示 C# **刻意**不让脚本类继承 `ToString` / `GetHashCode`（`Compilers\CSharp\Portable\Symbols\Source\ImplicitNamedTypeSymbol.cs:52-57` 注释点名；`Compilers\CSharp\Test\Symbol\Symbols\ImplicitClassTests.cs:63` 连**非提交**脚本类也断言 `BaseType()` 为 `null`、`:76` 断言裸 `ToString` 解析不到符号）⇒ 取不到是预期行为。任务变成两件事：**①回退**本 fork 刚落的 `MyBase`→`System.Object` 兜底及其测试与规范措辞；**②收严**VB 的「脚本类无基类型」判据——`Compilers\VisualBasic\Portable\Symbols\Source\ImplicitNamedTypeSymbol.vb:51-60` 现在按 `TypeKind.Submission` 判，C# 按 `IsScriptClass` 判 ⇒ VB 的**非提交脚本类多继承了 `Object` 成员**，这一侧才是真缺陷。
-- **作者裁定（��两次）**：先是「我的预期是修成和 C# 脚本模式对等的行为」；C# 实测与之相反后裁定「遇到冲突？那按 C# script 实际策略来定。比如，`MyBase` 取到 `Nothing` 成为了预期行为」。⇒ 本任务的判据是 **C# 的实际策略**，不是"能用就行"（`decisions.md` D7 的冲突裁定条）。
+- **作者裁定**：先是「我的预期是修成和 C# 脚本模式对等的行为」；C# 实测与之相反后裁定「遇到冲突？那按 C# script 实际策略来定。比如，`MyBase` 取到 `Nothing` 成为了预期行为」。⇒ 本任务的判据是 **C# 的实际策略**，不是"能用就行"（`decisions.md` D7 的冲突裁定条）。
 - **前置事实**：任务 `script-class-explicit-me-scope` 的 F01 已解除成员体内的显式关键字禁令（该部分**保留**，与 C# 的差异面另计），并按当时裁定在 `MyBase` 的**绑定路径**上补了 `Object` 兜底 + 三处测试（`ScriptSemanticsTests.vb` 的 `ExplicitMyBaseInTopLevelFunctionBody_BindsToSystemObject`、`ExplicitMyBaseInScriptFunctionBody_RunsAndPrintsTheScriptClassName`、`TopLevelMyBaseInInstanceMethod_BindsToSystemObject`）——**本任务把这三处连实现带断言回退**（回退方案与诊断真值由 S-F02a 的表决定，见上）。`Me.ToString()` / `MyClass.ToString()` 的现状**不再是"BC30456"**——产品两条路径实测零诊断（`R1`–`R6`），只有 L1 内存编译报 BC30456 且未定位成因 ⇒ 属待实测项。
 
 ## 一、症状与已知对照（不重做，可复核）
@@ -59,9 +59,9 @@
 该禁令写于没有消费点清点时，且方向也判反了：真正要动的**不是**给提交类换成 `Object` 基，而是把 `Nothing` 的**适用范围**从 `TypeKind.Submission` 扩到 `IsScriptClass`。禁令作废，代之以 §三 第 4、5 条的锁（发射面不动、普通类不外溢）。
 
 ## 六、串行与并发约束
-与 `script-class-explicit-me-scope`（F02 验证中、F03 待跑）和 `auto-property-top-level-gate`（AG-F01 取证中）**不得并发构建/跑测试**（同批 dll 会 BC2012）。本任务只读取证先行；实现者等前两者的构建面腾空再派。风险与停止上报：若清点显示"提交类无基类型"被 ≥3 处实质依赖，或修复必须动 `Conversions`/`Emit` 层 ⇒ 停手交 main 复核，不硬改。
+与 `script-class-explicit-me-scope`（F02 验证中、F03 待跑）和 `auto-property-top-level-gate`（AG-F01 取证中）**不得并发构建/跑测试**（同批 dll 会 BC2012）。本任务只读取证先行；实现者等前两者的构建面腾空再派。风险与停止上报：若清点显示"提交类无基类型"被 ≥3 处实质依赖，或修复必须动 `Conversions`/`Emit` 层 ⇒ 停手交复核，不硬改。
 
-## 五、范围重开（��回退已落地之后）
+## 五、范围重开（回退已落地之后）
 
 前置变化：`script-class-explicit-keyword-parity-revert` 已把显式 `Me`/`MyClass`/`MyBase` 恢复成"整个脚本类禁用/按 C# 同形"，`MyBase`→`Object` 兜底已删 ⇒ 本任务原 S-F02「让 `Me`/`MyClass` 接收者解析到 `Object` 继承成员」**不再可达**（显式形状先被 BC36966 拒），本任务的 F01/F02 目标随之作废。
 

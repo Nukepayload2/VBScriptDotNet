@@ -151,7 +151,7 @@ TryParsePackageReference(reference, out name, out version):
 
 **裁决规则**：
 - 当宿主需要新的 session 状态（如 net48 native 标记）→ 加会话字段，**不做 Z**：不往共享 resolver/runner 塞状态。
-- 当 `Scripting\VisualBasic` 需调 vbi 专有类型（如编译模式判定）→ 不做（本会话与编译模式无关，U6-A）。
+- 当 `Scripting\VisualBasic` 需调 vbi 专有类型（如编译模式判定）→ 不做（与编译模式无关，U6-A）。
 - **host 能力（TFM/net48）必须可注入**：§D net48 分支与 §E key 的宿主镜像需在 net10 单测可达。会话/协调器 ctor 收 `hostCapability`（枚举或 TFM 字符串，默认 = 运行时自检），测试注入 net48 → 单测直接覆盖 §D net48 诊断行与 net48 key 分支，无需真实 net48 宿主进程。**不做 Z**：不靠读当前进程 TFM 隐式判定而不可注入。
 
 **pass 条件**：`CreateCurrentPlatformResolver`/`GetMetadataReferenceResolver`/`GetScriptOptions` 加了默认 null 的可选参后，现有调用方零改动且行为不变；编译路径工厂不注入；具体子类 `Friend`、只读会话、`Empty` 未命中；装配在 `VisualBasicScript.RunInteractiveAsync` 完成且默认（无 nuget）路径不 new 额外会话进程；`hostCapability` 可注入（ctor 参或 `Friend` 可写字段）且有 net48 注入用例覆盖 §D/§E net48 分支。
@@ -323,7 +323,7 @@ restore exit-0 后读 `<key>\obj\project.assets.json`：`targets` 下按「TFM �
 
 > **实现注记（F-A 装配，2026-09-07）**：loader 共享落地为 `CommandLineRunner` ctor 可选参 `InteractiveAssemblyLoader assemblyLoader = null`（默认 null → 维持 `CreateInitialScript` 自建 loader 的现状），三次 `CreateInitialScript`（文件脚本 / REPL 初提交 / REPL 首提交）经 `assemblyLoaderOpt:` 用该实例 → 跨提交同一 loader；`VisualBasicScript.RunInteractiveAsync` 建一个共享 loader 同时传 runner 与 coordinator（`loader:=`）。宿主 push 在协调器 `PushSessionAssetsToLoader`（restore 成功、运行前）一次性完成：native 根 `AddNativeProbeRoot` + 覆盖表 `RegisterRuntimePathOverride` + runtime(lib) 闭包 `RegisterRuntimeClosure`（见 §G1 注记）。
 
-> **实现注记（R-2 收口，2026-09-08）**：loader 的 NuGet 会话状态改为**替换制**而非单调累积——`InteractiveAssemblyLoader` 新增 internal `ResetSessionState()`（清 native 根集 + 清 runtime-path override 表；**托管依赖注册保留不清**，前序提交已加载程序集仍需解析），基类 `AssemblyLoaderImpl` 加 internal virtual `ResetNativeProbeRoots()`（Desktop no-op、`CoreAssemblyLoaderImpl` 置空共享根集）。`PushSessionAssetsToLoader` 每次成功 restore 推送前先 `ResetSessionState()` 再推本次会话根集/覆盖表，故升降级同 native 包 / ref-lib 拆分变体后，旧根/旧 override 不再残留；空根/空覆盖 = 现状零行为。共享层改动登记 `upstream-merge.md` 2.17。单测：`NuGetRuntimeHandshakeTests.LoaderResetClearsNativeRootsAndOverridesButKeepsDependencyRegistrations`（loader seam）+ `...CoordinatorReplacesLoaderOverridesAcrossVersionUpgrade`（coordinator 替换制）。
+> **实现注记（R-2 收口）**：loader 的 NuGet 会话状态改为**替换制**而非单调累积——`InteractiveAssemblyLoader` 新增 internal `ResetSessionState()`（清 native 根集 + 清 runtime-path override 表；**托管依赖注册保留不清**，前序提交已加载程序集仍需解析），基类 `AssemblyLoaderImpl` 加 internal virtual `ResetNativeProbeRoots()`（Desktop no-op、`CoreAssemblyLoaderImpl` 置空共享根集）。`PushSessionAssetsToLoader` 每次成功 restore 推送前先 `ResetSessionState()` 再推本次会话根集/覆盖表，故升降级同 native 包 / ref-lib 拆分变体后，旧根/旧 override 不再残留；空根/空覆盖 = 现状零行为。共享层改动登记 `upstream-merge.md` 2.17。单测：`NuGetRuntimeHandshakeTests.LoaderResetClearsNativeRootsAndOverridesButKeepsDependencyRegistrations`（loader seam）+ `...CoordinatorReplacesLoaderOverridesAcrossVersionUpgrade`（coordinator 替换制）。
 
 **pass 条件**：空 native 根集下 loader 行为与现状一致（现有 Scripting 测试全绿）；`AddNativeProbeRoot`/`ResetSessionState` 为 internal 且不触 `PublicAPI.*.txt`；跨平台候选名探测表有单测（纯函数，输入根目录集 + name → 候选路径，不实际加载）；net48 能力诊断在 §D 测试覆盖。
 

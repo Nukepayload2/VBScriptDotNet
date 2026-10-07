@@ -1,6 +1,6 @@
 # VB 脚本侧 `ScriptOptions.WarningLevel` 不落地：属性生效、编译对象恒为 1
 
-- **状态**：**Open**（**上游继承的 VB 侧缺口**；低优先级，**本轮不修**，不预填 commit）
+- **状态**：**Fixed**（已验证，commit 待作者提交后补）——**采方向 A 补齐转发、对齐 C#**。落点经复核：`Compilers\VisualBasic\Portable\VisualBasicCompilationOptions.vb:580` 新增公共 `WithWarningLevel(warningLevel As Integer)`（私有构造器 `:266` 仍硬编码 `warningLevel:=1`），`Scripting\VisualBasic\VisualBasicScriptCompiler.vb:259` 已转发 `WithWarningLevel(script.Options.WarningLevel)`。⇒ **本条不是"上游不修"的缺口**（对照问题单 25 那类）；下面 B2/B3/B5/B6 的**实锤读数是修复前的基线**，保留作对照。
 - **发现日期**：2026-09-16
 - **发现场景**：`../tasks/script-mode-coverage-parity/` 的 U9（脚本 API 面剩余缺口）第 **14** 项
   （`AllowUnsafe` / `CheckOverflow` / `WarningLevel` 落到编译选项）。C# 基线
@@ -11,7 +11,7 @@
   （`Scripting\Core\ScriptOptions.cs`），C# 脚本路径**落地**、VB 脚本路径**不落地** ⇒ 同一个 API 在两条语言路径上
   行为不同。
 - **本 fork 的变更面**：`Scripting\` 与 `Scripting\VisualBasic\` 是**上游目录**（**不是**本 fork 新增）。
-  判据（**本轮自己复跑**，基线 commit 见 `../upstream-merge.md` §一，上游树路径为 `src\Scripting\…`）：
+  判据（**自己复跑**，基线 commit 见 `../upstream-merge.md` §一，上游树路径为 `src\Scripting\…`）：
 
   | 判据 | 读数 |
   |---|---|
@@ -27,11 +27,11 @@
   **修与不修的成本差别在公共 API**（见方向 A 的①）；「不修」的理由只落在「上游 VB 亦不落地、
   本 fork 未计划实现该能力」，**不是**「改了会增加冲突」。
 - **严重度**：低。不崩、不产错值；错误表现是「设了 `WarningLevel` 但警告等级没变」（默认等级 1 下的警告集合本就不大），
-  且**产品自身不调用**该 API。⇒ 归**上游继承的缺口**，本轮登记不修。
+  且**产品自身不调用**该 API。⇒ 归**上游继承的缺口**，登记不修。
 
 ## 触发面
 
-**自己的实测读数**（本轮复跑；探针 `tmp\u9-fix\probe\Issue27.cs`，读数 `tmp\u9-fix\i27.txt`——均在
+**自己的实测读数**（复跑；探针 `tmp\u9-fix\probe\Issue27.cs`，读数 `tmp\u9-fix\i27.txt`——均在
 `<项目根>` 的 `tmp\` 下，已 git-ignored）：
 
 | # | 读数 | 值 | 三态 |
@@ -86,7 +86,7 @@
 3. **产品不可触达（实锤）**：本仓产品源码里零调用点（上节检索）⇒ 修复的**风险面**是「已发布的公共 API 行为变化」，
    不是「产品行为变化」。
 
-## 候选方向（**不自行选，本轮不修**）
+## 候选方向（**不自行选，不修**）
 
 - **方向 A（补齐转发，按 D5 对齐 C#）**：在 `VisualBasicScriptCompiler.vb:223-224` 之后加
   `warningLevel:=script.Options.WarningLevel`。**一行改动**，但**要先确认**：① `VisualBasicCompilationOptions`
@@ -104,13 +104,13 @@
   （`#25` 是共享文件 `CommonTypeNameFormatter.cs`；本 issue 是 `Scripting\VisualBasic\VisualBasicScriptCompiler.vb`
   ——上游同名文件，判据见「本 fork 的变更面」的 `cat-file -e` 表）。⇒ 方向 C 的理由应落在「这是上游 VB 的既有缺口、
   本 fork 未计划实现该能力」，**不是**「改了会增加冲突」（按方向 A 改它**同样**增加冲突面）。
-  **这是本 issue 的默认倾向**（见「状态」的「低优先级，本轮不修」），但**交用户裁决**。
+  **这是本 issue 的默认倾向**（见「状态」的「低优先级，不修」），但**交用户裁决**。
 
 ## 三态标注
 
 | 断言 | 三态 | 依据 |
 |---|---|---|
-| `WarningLevel` 属性生效、编译对象不采纳 | **实锤** | `B1`–`B6` 六条读数本轮自跑 |
+| `WarningLevel` 属性生效、编译对象不采纳 | **实锤** | `B1`–`B6` 六条读数自跑 |
 | 根因是 VB 脚本编译路径缺转发 + VB 选项类型无该形参 | **实锤（读码）** | `VisualBasicScriptCompiler.vb:208`（调用起）/`:223`/`:224`；`VisualBasicCompilationOptions.vb:266`（硬编码 1）；`B9`/`B10`（类型面无此形参） |
 | C# 侧落地 | **实锤** | `{{Roslyn}}\src\Scripting\CSharp\CSharpScriptCompiler.cs:65` |
 | 上游 VB 也不落地 ⇒ 上游继承，非 fork 引入 | **实锤** | `{{Roslyn}}\src\Scripting\VisualBasic\VisualBasicScriptCompiler.vb` 的 `grep -c warningLevel` = 0 |
@@ -125,7 +125,7 @@
 - 同类先例（上游来源、本 fork 不修）：`#25`（`issue-generic-type-name-loses-namespace.md`）。
 - 决策与义务：`../decisions.md` **D4**、**D5**；`../tasks/script-mode-coverage-parity/README.md` **§八 义务 1**、**义务 4**。
 
-## 后续（本轮不修）
+## 后续（不修）
 
 - 本 issue 只登记与取证：**未改任何产品源码**，不预填修复 commit。
 - 若用户选方向 A：按 `../tasks/script-mode-coverage-parity/README.md` **§八 义务 4** 登记变更面，同步

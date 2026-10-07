@@ -21,12 +21,12 @@ C# 脚本测试有 **303 个用例**（265 `[Fact]`/`[Theory]` + 38 `[Conditiona
 - `Static`（局部静态变量，VB 独有关键字）在整个 `Scripting\VisualBasicTest\` 里**零命中**；
 - `Err` 对象、`Resume` 语句（独立形态）、`On Error GoTo 0` / `On Error GoTo -1`、`CallByName`、`LBound`/`UBound`、`IIf`/`Choose`/`Switch`、`Like`：**零命中**。
 
-> **本节初稿的事实错误（已修，保留记录）**：初稿把 `Erase`、`AddressOf` 方法组、`Declare … Alias/Auto` 也列进「零命中」，**这三项是错的**——独立复核（**实锤**）：
+> **`Erase`、`AddressOf` 方法组、`Declare … Alias/Auto` 不属「零命中」**——独立复核（**实锤**）：
 > - `Erase`：`ScriptModeStatementConformanceTests.vb:327` 的 `TopLevelReDimAndErase_Conform` 在**脚本顶层**执行 `Erase fixedArr` / `Erase dynamicArr`（`:336,337`）并断言结果。
 > - `AddressOf`：`ScriptTests.vb:338` 的 `TestTopLevelRemoveHandler` 在**脚本顶层**用 `AddHandler Changed, AddressOf Handler`（`:340,341`）。
 > - `Declare … Alias/Auto`：`ScriptModeSubmissionConformanceTests.vb:426` 的 `TopLevelDeclareForms_Conform` 覆盖 `Alias`/`Auto`/`Ansi`/`Unicode`（`:428-431`）。
 >
-> **该错误是本轮最有价值的教训**：初稿的零命中主张用了**单次联合 Grep**（模式见 §5 自检表），而该 Grep 的**模式串里没有 `Erase`/`AddressOf`/`Declare`**——检索方式与被主张的对象不匹配，就把「我没检」写成了「它没有」。**此后所有零命中主张，检索模式必须覆盖被主张的每一个词项。**
+> **由此得出一条纪律**：零命中主张若用**单次联合 Grep**（模式见 §5 自检表），而该 Grep 的**模式串没有覆盖被主张的每个词项**（如缺 `Erase`/`AddressOf`/`Declare`），检索方式与被主张的对象不匹配，就会把「我没检」写成「它没有」。**所有零命中主张，检索模式必须覆盖被主张的每一个词项。**
 
 这一网缺口的形状是**枚举不完整**：没有一张「VB 语法有哪些」的清单拿来做底，就永远不知道还差哪些格。
 
@@ -48,12 +48,12 @@ C# 脚本测试有 **303 个用例**（265 `[Fact]`/`[Theory]` + 38 `[Conditiona
 | `SyntaxKind` 枚举（`Syntax\SyntaxKind.vb`）**直接**当行 | 是**语法节点**的分类，不是**语法构造**的分类：一个构造拆成多个 kind（`WhileBlock` 拆 `WhileStatement` + `WhileBlock` + `EndWhileStatement`），也有 kind 不对应用户写法（`BadStatement`）。拿它**直接**当清单会得到「清单比语言大」的失真结果 |
 | `Parser\ParseStatement.vb` / `ParseExpression.vb` 的**分派 arm** | **不反对，反而采纳**：这两个文件（实测 1914 / 1910 行）以 `SyntaxKind` 关键字为 arm 做 `Select Case` 分派，是「实现实际支持什么」的**机械可枚举**集合，每个 arm 天然对应一个构造。**用作判据①的第二源与 U11 的全量差集反查**（见 `README.md` §四） |
 | `KeywordTable`（`Scanner\KeywordTable.vb`） | 只有关键字，没有**组合**：`For Each` / `Option Strict` / `On Error GoTo 0` / `Handles` 子句都是多关键字组合，单关键字表接不住 |
-| `vblang\spec\statements.md` **标题树** | **选它（但只作三源之一）**：标题即语法构造，粒度正好（`### ReDim Statement`、`### Erase Statement`），且它是**规范**——「VB 有哪些语句」的定义性来源，不是实现细节。**局限（本轮踩出）**：它是 `{{VbLang}}` 镜像，**不含 fork 新增语法**；且标题并非都是构造（`#### Mutable structures in async and iterator methods` 是语义说明） |
-| 第二轮 U7 的五维表 | 是上一轮的**产物**不是来源；用它当底等于把上一轮的枚举不完整当成新的底 |
+| `vblang\spec\statements.md` **标题树** | **选它（但只作三源之一）**：标题即语法构造，粒度正好（`### ReDim Statement`、`### Erase Statement`），且它是**规范**——「VB 有哪些语句」的定义性来源，不是实现细节。**局限（踩坑所得）**：它是 `{{VbLang}}` 镜像，**不含 fork 新增语法**；且标题并非都是构造（`#### Mutable structures in async and iterator methods` 是语义说明） |
+| 第二轮 U7 的五维表 | 是早前一轮的**产物**不是来源；用它当底等于把那轮的枚举不完整当成新的底 |
 
 **代价**：spec 标题树的粒度是「构造」，不是「构造 × 容器」。同一个 `### On Error Statement` 小节在脚本顶层与嵌套容器里行为不同，ledger 因此给每行两栏（顶层 / 嵌套）。这个两栏设计是**对的**——第二轮的核心教训就是判别力全部来自这两栏的差。
 
-## 3. A1 的假阳性与它背后的真问题（**本轮已推翻自己的初步结论**）
+## 3. A1 的假阳性与它背后的真问题（**初步结论已被推翻**）
 
 ### 3.1 初步结论（**已被推翻，保留作为记录**）
 
@@ -81,7 +81,7 @@ C# 脚本测试有 **303 个用例**（265 `[Fact]`/`[Theory]` + 38 `[Conditiona
 
 第 1 步是**既有已测行为**（共享源码事实 **F3**，`test-plan.md` §C.3 的种子行亦收录）。第 3 步是**晚期绑定失败的普通 VB 语义**。
 
-**「编译器从未崩」的证据等级（初稿未标注，按复核意见补）**：
+**「编译器从未崩」的证据等级**：
 
 | 侧 | 等级 | 依据 |
 |---|---|---|
@@ -131,26 +131,26 @@ C# 脚本测试有 **303 个用例**（265 `[Fact]`/`[Theory]` + 38 `[Conditiona
 | 「`CancellationToken` 只出现在 NuGet 协调器形参与 `ScriptTaskExtensions` 帮助方法签名，**没有**脚本运行时的取消语义测试」 | **实锤** | 独立 Grep 的全部命中已逐行读（`NuGetRestoreCoordinatorTests.vb` / `NuGetRuntimeHandshakeTests.vb` / `NoNuGetZeroRegressionTests.vb` 的形参与 `Implements` 签名，`Helpers\ScriptTaskExtensions.vb:5-21` 的帮助方法签名）；无一处断言「取消后声明保留」 |
 | 「C# 侧共 303 个用例（265 + 38）」 | **实锤** | `design-detailed.md` §B.0 的逐文件计数表；族内方法数之和 = 303，与逐文件计数差 0 |
 | 「VB 侧 Scripting 测试共约 437 个方法 / 脚本模式相关 367 个」 | **推测** | 基于 `<Fact>` 属性总数 451 减去 Helpers 与夹具成员；**Helpers 目录内逐文件属性数未逐一核对**。该数**不作验收判据**（见 §2 剪枝），故不升级为实锤 |
-| 「spec 标题树实测 43 / 40 / 82 / 18 个小节」 | **实锤** | 本轮自跑 `grep -c '^## ' '^### ' '^#### '` 五文件循环，读数见 `README.md` §四 |
+| 「spec 标题树实测 43 / 40 / 82 / 18 个小节」 | **实锤** | 自跑 `grep -c '^## ' '^### ' '^#### '` 五文件循环，读数见 `README.md` §四 |
 | ~~「A1 是脚本顶层特有」~~ | **已推翻** | 被 `r5/pin.py` 的 `module-shared-sub-main` 推翻：普通模式不开推断时**抛同一条异常**。保留此条以记录判定纪律——三轮探针的「对照失败」两度被误读为缺陷成立 |
 | 「A1 的真变量是 `Option Infer`」 | **实锤** | `r5/decisive.py`：普通模式**开推断** exit 0（`G=2:2,1:1,3:1`），脚本顶层开推断仍以**晚期绑定**消息失败 ⇒ 分歧只在「顶层是否推断」 |
 | 「脚本顶层 `Dim x = <expr>` 不推断」 | **实锤** | `r5/field_infer.py` 的 `script-top-infer-linq`：**编译器自己**报 `BC36593`，把 `values` 描述为 `Object`。这是编译器对自身绑定结果的陈述，强于任何反射判别 |
 | 「A3 的探针不具鉴别力」 | **实锤** | `r5/field_infer.py` 的 `script-top-field` 得 `F=Int32`，但晚期绑定调 `Object.GetType()` 返回的是**运行时类型**，不能区分 `Object` 与 `Int32`。既有用例 `ScriptModeStatementConformanceTests.vb:606` 用**重载决议**判别得 `Object`，与此一致 |
-| 「A 组三条**都**不是编译器缺陷」 | **实锤（三条各自）** | A1：见上三行；A2：**实锤（机制）+ 推测（该形状）**——`r5/decisive.py` 的 `script-top-object-receiver-array`（`Dim o = arr` 后 `o.Length` exit 0）证明晚期绑定本身可用，失败只发生在对匿名类型形状的晚期调用；**该结论由排除法得出，未对 A2 形状本身做「加 `As` 后是否正常」的直接对照**，故「该形状」一档标推测。A3：见上一行。**限定**：仅对本轮实测的三个形状成立，不推广 |
+| 「A 组三条**都**不是编译器缺陷」 | **实锤（三条各自）** | A1：见上三行；A2：**实锤（机制）+ 推测（该形状）**——`r5/decisive.py` 的 `script-top-object-receiver-array`（`Dim o = arr` 后 `o.Length` exit 0）证明晚期绑定本身可用，失败只发生在对匿名类型形状的晚期调用；**该结论由排除法得出，未对 A2 形状本身做「加 `As` 后是否正常」的直接对照**，故「该形状」一档标推测。A3：见上一行。**限定**：仅对实测的三个形状成立，不推广 |
 | 「网一缺口的形状是轴级的，不是点级的」 | **推测** | 基于矩阵中五条轴（宿主对象 / 声明保全 / 调试信息 / 对象格式化 / 命令行参数）**每条都是整条零命中**（**实锤**）推断「轴级」这一概括；若实施期发现某条轴其实有零散覆盖，该概括降级 |
 | 「两张网都不以用例数为判据」 | 不适用 | 这是**设计决定**，不是事实主张；它的依据是 §2 表格与 §5 第 1 条剪枝 |
-| 「判定原则的**全部**判别力来自两栏的差」（`README.md` 与本节各一处） | **推测 → 降级为「主要来源」** | 两栏之差的确是判别力的主要来源（第二轮的 C2/C3/C4 判定均由此得出，见 `tasks\script-top-level-crashes-2\README.md` §二），但**未穷举**其它判别手段（普通模式对照、诊断 ID 比对、`Option` 设定对照等本轮都用过）⇒ 不成立为「全部」 |
+| 「判定原则的**全部**判别力来自两栏的差」（`README.md` 与本节各一处） | **推测 → 降级为「主要来源」** | 两栏之差的确是判别力的主要来源（第二轮的 C2/C3/C4 判定均由此得出，见 `tasks\script-top-level-crashes-2\README.md` §二），但**未穷举**其它判别手段（普通模式对照、诊断 ID 比对、`Option` 设定对照等都用过）⇒ 不成立为「全部」 |
 | 「U3–U11 默认不改产品源码」（`design-detailed.md` §4 共同纪律） | 不适用（**纪律声明**，非事实） | 与本节已有的先例同口径；实施期若用例暴露缺陷，按 §4 走独立收口，纪律本身不变 |
 | 「ledger 中无 `缺口` 行 / 每个 `不适用` 带检索证据」 | 不适用（**目标**，非事实） | 已被 §四 的三项合取判据取代，此为目标表述 |
 | 「用例**一律**用内存 API」（`test-plan.md` §2） | **待定** | 是**纪律**；既有四个文件已有落盘 helper（`test-plan.md` §2.1.1 已列），纪律只约束**新增**用例，收口时以「新增用例零落盘」为实际判据 |
 | 「负向格与预期报错的正向格必须**成对**」（`test-plan.md` §3） | 不适用（**纪律**） | 同上 |
-| 「ledger 行集**只取**与容器无关或受容器影响的」（初稿 §C.0） | **已推翻** | 该「只取」会缩小分母、使判据③失效；已改为**全量出行**，逐行标 `不适用（与容器无关）` 并给理由（`README.md` §四） |
-| 「`Erase` / `AddressOf` / `Declare … Alias/Auto` 零命中」 | **已推翻（假主张）** | §1 的关键词清单初稿含此三项，**全错**：`Erase` 见 `ScriptModeStatementConformanceTests.vb:327,336,337`、`AddressOf` 见 `ScriptTests.vb:338,340,341`、`Declare … Alias/Auto` 见 `ScriptModeSubmissionConformanceTests.vb:426,428-431`（**实锤**，逐条打开读过）。根因：初稿的联合 Grep **模式串未含这三个词项**，把「未检」写成「没有」 |
+| 「ledger 行集**只取**与容器无关或受容器影响的」（§C.0 口径） | **已推翻** | 该「只取」会缩小分母、使判据③失效；现行口径＝**全量出行**，逐行标 `不适用（与容器无关）` 并给理由（`README.md` §四） |
+| 「`Erase` / `AddressOf` / `Declare … Alias/Auto` 零命中」 | **已推翻（假主张）** | §1 的关键词清单含此三项，**全错**：`Erase` 见 `ScriptModeStatementConformanceTests.vb:327,336,337`、`AddressOf` 见 `ScriptTests.vb:338,340,341`、`Declare … Alias/Auto` 见 `ScriptModeSubmissionConformanceTests.vb:426,428-431`（**实锤**，逐条打开读过）。根因：初稿的联合 Grep **模式串未含这三个词项**，把「未检」写成「没有」 |
 | 「PDB 面是把回归锁到调试信息层的**唯一**手段」 | **推测 → 降级为「一种手段」** | 见 `design-detailed.md` §U7；未穷举其它手段，**不成立为「唯一」** |
 | 「`GetImportScopes` 是**唯一**直接观测导入作用域结构的 API」 | **推测 → 降级为「一个直接观测点」** | 见 `design-detailed.md` §U9；未穷举 |
-| F4「脚本类非限定成员引用**一律**经 `TryBindInteractiveReceiver`」 | **实锤（带限定）** | 第二轮 `tasks\script-top-level-crashes-2\design-overview.md` 的自检表已列同条并标注「**限定**：只对走了 `TryBindInteractiveReceiver` 的路径成立」。本轮沿用该限定，**不得**省去 |
+| F4「脚本类非限定成员引用**一律**经 `TryBindInteractiveReceiver`」 | **实锤（带限定）** | 第二轮 `tasks\script-top-level-crashes-2\design-overview.md` 的自检表已列同条并标注「**限定**：只对走了 `TryBindInteractiveReceiver` 的路径成立」。沿用该限定，**不得**省去 |
 | F8「`dotnet test` 对 MTP 项目**静默跑 0 个**」 | **实锤** | 第二轮 `test-plan.md` §4 与本仓库既有记忆条目均记此现象；收口时以「核 `TestCasesToRun > 0`」为实际判据，不依赖该主张本身 |
-| 「普通上下文**一律** `vbc.exe`…脚本上下文**一律** `vbi.exe`」 | **已推翻（本轮踩坑）** | `vbc.exe` 的 `vbc.rsp` 用 `/sdkpath:` 指向桌面框架目录，与 net10 runtime 冲突（`BC30652`）⇒ 普通模式对照**改用 `vbi <file>.vb /out:` 编译模式**。见 `README.md` §七 探针纪律 |
+| 「普通上下文**一律** `vbc.exe`…脚本上下文**一律** `vbi.exe`」 | **已推翻（踩坑）** | `vbc.exe` 的 `vbc.rsp` 用 `/sdkpath:` 指向桌面框架目录，与 net10 runtime 冲突（`BC30652`）⇒ 普通模式对照**改用 `vbi <file>.vb /out:` 编译模式**。见 `README.md` §七 探针纪律 |
 | 「ledger 中**无** `缺口` 状态行；**每个** `不适用` 带检索证据」 | 不适用（**目标**而非事实） | 是结束条件的表述；其可判定性由三项合取判据（`README.md` §四）保证 |
 | §B.1 矩阵中 **27 处** `缺`/`完全缺`/`部分缺` | **待定** | 计数属实（复核者实锤），但**逐条零命中证据未挂**——U2/U10 建表与补测时须逐条给检索命令；举不出证据的降级为 `推测` |
 | §C.3 种子行 **23 处** `缺口` | **部分已推翻** | 复核者逐行核对后指出**至少 5 处误标**（`Erase`、`AddressOf`、`Declare`、`Partial`、`Structure`/`Enum`）与**5 处两栏对调**（`Option Strict On/Off`、`Option Compare Text`、`Partial`、`Structure`）。见 `test-plan.md` §C.3 的修订说明 |

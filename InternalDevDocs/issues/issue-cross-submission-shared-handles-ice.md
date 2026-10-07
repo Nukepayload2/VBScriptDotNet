@@ -1,6 +1,6 @@
 # issue 31：跨提交的共享 `Handles`——事件在前一次提交、处理器在后一次提交时仍然 ICE
 
-- **登记日期**：2026-09-24（main）
+- **登记日期**：2026-09-24
 - **状态**：**Fixed**（已验证，commit 待作者提交后补；采"令其可用"而非报错——落点见 §八，取代 §七的"停在设计裁定前"）
 - **性质**：**合法输入崩编译器**（强形态，作者判定原则第一条）⇒ 不受"是否 C# 对等"影响，本身即必修。C# 侧无对偶概念（无 `Handles` / `WithEvents`），故本条**不是** D7 自动裁的产物，判据由 VB 自身契约给出。
 - **前置**：issue 18-B（`Shared` 提交类 `Handles` 无 `.cctor` 可注入）**只修了"事件与处理器同属一次提交"这一格**（`tasks\submission-shared-handles-hookup\`，账本 `..\upstream-merge.md` §2.25(d)）。本条是它**刻意留在范围外**的另一格，当时以探针发现、未展开。
@@ -42,7 +42,7 @@ ImmutableArray`1.get_Item(Int32 index)
 ## 二、根因（档 3 读码 + 上述实测，两半都有据）
 
 1. `BindSingleHandlesClause` 对「处理器 `Shared` ∧ 事件 `Shared`」这一形状**无条件**取 `ContainingType.SharedConstructors(0)`（`:797` 的裸索引，无 `If length > 0` 前置），因此**任何**走到该支的形状都必须有一个共享构造器可注入。
-2. 提交类的 `.cctor` 只在两处会被造出来：`AddDefaultConstructorIfNeeded`（有共享初始化器时）与本轮 §2.25(d) 的 `AddWithEventsHookupConstructorsIfNeeded` 提交类分支。后者的判据是**在 `members.Members`（＝本提交自己的成员字典）里 `TryGetValue(eventName)` 找得到该事件**，找不到就 `Continue For`（见 `SourceMemberContainerTypeSymbol.vb:2880-2900` 区）。
+2. 提交类的 `.cctor` 只在两处会被造出来：`AddDefaultConstructorIfNeeded`（有共享初始化器时）与 §2.25(d) 的 `AddWithEventsHookupConstructorsIfNeeded` 提交类分支。后者的判据是**在 `members.Members`（＝本提交自己的成员字典）里 `TryGetValue(eventName)` 找得到该事件**，找不到就 `Continue For`（见 `SourceMemberContainerTypeSymbol.vb:2880-2900` 区）。
 3. 而跨提交的事件**不在**本提交的成员字典里——它沿 `Binder.LookupInSubmissions`（`Binder_Lookup.vb:858`）从 `PreviousSubmission` 查到，于是：绑定层认定"这是一个合法的共享 `Handles`，去 `SharedConstructors(0)` 挂"，收集层认定"这里没有我的事，不建 `.cctor`"。**两层的判据不同集** ⇒ 空数组裸索引。
 
 ⇒ 病灶是**两半判据不一致**，不是 `:797` 少一个 `If`。只在 `:797` 加防御性判断会把"合法脚本静默丢失事件挂钩"换掉 ICE——按 D5/D7 的分叉纪律，那种"消症状"的修法要登记为不可接受。
@@ -62,7 +62,7 @@ ImmutableArray`1.get_Item(Int32 index)
 
 ## 四、验证义务（开工时按此顺序）
 
-1. 真值先行：先把上面四格在**当前码**上跑一遍（前 3 格现状预期是 ICE 或既有诊断，第 4 格预期不变），读数写进流水账，再改码——同 issue 18-B 的口径（登记时的症状被实测推翻过一次，本轮不许再犯）。
+1. 真值先行：先把上面四格在**当前码**上跑一遍（前 3 格现状预期是 ICE 或既有诊断，第 4 格预期不变），读数写进流水账，再改码——同 issue 18-B 的口径（登记时的症状被实测推翻过一次，不许再犯）。
 2. 红灯可复现：新增的"跨提交共享 `Handles` 取到值 + 恰好一次"用例必须在未修时**失败**（ICE 也算失败），修后转绿。
 3. 回归：定向（`SubmissionSharedHandlesHookupTests`、`ScriptSemanticsTests`、`ScriptMode*`）由实施者跑；七门全量与 L2 由 main 跑，实施者**不得**跑全量（token 纪律）。
 4. 账本：收口后在 `..\upstream-merge.md` §2.25(d) 追加"跨提交那一格也已收"，并补本条的 issue→task 指针；**commit 号一律不预填**（作者 裁定：main 不创建提交）。
@@ -70,7 +70,7 @@ ImmutableArray`1.get_Item(Int32 index)
 ## 五、范围切分
 
 - 范围内：上述判据冻结 + 择一修法 + 四格反例 + 正例。
-- 非范围：issue 18-A（`.cctor` 何时被 CLR 触发的原因）、`WithEvents` 在提交类里的实例级挂钩（`meeting-with-events-in-submissions.md`）、实例级 `Handles`（本轮已可用）。
+- 非范围：issue 18-A（`.cctor` 何时被 CLR 触发的原因）、`WithEvents` 在提交类里的实例级挂钩（`meeting-with-events-in-submissions.md`）、实例级 `Handles`（已可用）。
 
 ## 六、必须一并判的第三条路（与 issue 19 的关系）
 
@@ -84,15 +84,15 @@ ImmutableArray`1.get_Item(Int32 index)
 
 ⇒ **真值先行的第一步之后，先做丙/甲的取舍判定并写进本文件**，不得直接跳到实施。判据来源按 D7：C# 无 `Handles` 对偶，故取本仓既有裁定（issue 19 / R5）＋"对称性"这条自证理由。
 
-## 七、本会话取证与取舍分析（main；未改产品码，停在设计裁定前）〔已被 §八 取代：设计裁定已做、产品码已改并验证；本节保留为分析史〕
+## 七、取证与取舍分析〔已被 §八 取代〕
 
-1. **vbi REPL 探针不能造跨提交**：`printf 'Shared Event E()\nShared Sub H() Handles Me.E\n…' | vbi`（无参、管道 stdin）把各行的提交**并成同一次提交**跑，命中的是 §2.25(d) 已修的"同提交"路径（exit 0、无 ICE）。⇒ 真值先行必须用**链式提交的单元测试**（`CreateSubmission(#1, previous:=#0)` 那种，见 `Compilers\VisualBasicEmitTest\Emit\SubmissionSharedHandlesHookupTests.vb` 的 `CreateScriptCompilation`/`CreateSubmission` 手法），把 issue §三 的四格反例 + 正例在**当前码**上跑出来再谈改。本会话**尚未**把这四格做成实跑读数 ⇒ §四.1 的"真值先行"未完成。
+1. **vbi REPL 探针不能造跨提交**：`printf 'Shared Event E()\nShared Sub H() Handles Me.E\n…' | vbi`（无参、管道 stdin）把各行的提交**并成同一次提交**跑，命中的是 §2.25(d) 已修的"同提交"路径（exit 0、无 ICE）。⇒ 真值先行必须用**链式提交的单元测试**（`CreateSubmission(#1, previous:=#0)` 那种，见 `Compilers\VisualBasicEmitTest\Emit\SubmissionSharedHandlesHookupTests.vb` 的 `CreateScriptCompilation`/`CreateSubmission` 手法），把 issue §三 的四格反例 + 正例在**当前码**上跑出来再谈改。**尚未**把这四格做成实跑读数 ⇒ §四.1 的"真值先行"未完成。
 2. **代码级病灶定位（档 3 读码）**：收集层 `AddWithEventsHookupConstructorsIfNeeded` 的提交分支在事件名不在**本提交** `members.Members` 时 `Continue For`（`SourceMemberContainerTypeSymbol.vb:2891-2893`），故不建 `.cctor`；绑定层 `BindSingleHandlesClause`（`SourceMemberMethodSymbol.vb:797`）在**沿链**查到事件后**无条件** `SharedConstructors(0)` ⇒ 两阶段成员集不同 ⇒ 空数组越界。
 3. **三条路的代价（须在写码前冻结其一）**：
-   - **甲**：收集层查不到本提交事件时**沿提交链**找 `Shared Event`。真能用，但**依赖"符号收集期就能解析出前一次提交的类/成员"——此可用性本会话未证实**（收集早于绑定，链可能尚未接好）。这正是 §四.1/§六 警告的"未取真值别硬改符号层"。
+   - **甲**：收集层查不到本提交事件时**沿提交链**找 `Shared Event`。真能用，但**依赖"符号收集期就能解析出前一次提交的类/成员"——此可用性未证实**（收集早于绑定，链可能尚未接好）。这正是 §四.1/§六 警告的"未取真值别硬改符号层"。
    - **乙**：把建 `.cctor` 的触发放宽为"本提交有 `Shared` 且带关键字容器（非 `MyBase`）的 `Handles` 方法"，**不查事件是否存在**。保证有 host，但会给"事件名写错/不存在"的提交也造**空 `.cctor`**——须实测那种形状仍由绑定层报既有诊断（BC30456/BC31407 一类）且**永不成功发射**，否则等于用空构造器换掉诊断（D5/D7 不接受"消症状"）。
    - **丙**：跨提交 `Handles Me.<共享事件>` 一律走**诊断**（复用/新增码），只留"同提交"合法——与 issue 19 对**实例**跨提交的裁定同形、改动最小；代价是把共享也降为"只能报错"。
-4. **对称性分析（本会话能答的部分）**：共享 `Handles` 的挂钩只需一个**可合成的 `.cctor`** + 一个**能沿链查到的共享事件**，**不需要** issue 19 实例 `WithEvents` 依赖的"基类可覆盖属性 + 虚派发"机器（提交类无基类型）⇒ 原则上甲是"真能修"、与实例那条不同，不构成"共享能修实例不能"的无解不对称。唯一未决＝甲所需的"收集期沿链解析事件"能否做到。
+4. **对称性分析（此处能答的部分）**：共享 `Handles` 的挂钩只需一个**可合成的 `.cctor`** + 一个**能沿链查到的共享事件**，**不需要** issue 19 实例 `WithEvents` 依赖的"基类可覆盖属性 + 虚派发"机器（提交类无基类型）⇒ 原则上甲是"真能修"、与实例那条不同，不构成"共享能修实例不能"的无解不对称。唯一未决＝甲所需的"收集期沿链解析事件"能否做到。
 5. **推荐下一步（给作者/下一会话）**：先做**一次最小真值实验**——一个链式提交单测，验证收集期能否看见前一次提交的 `Shared Event`（能⇒甲；不能⇒在乙[须先证诊断不丢]与丙之间按"与 issue 19 对称"取丙）。**本条仍 Open、未开工**：甲-vs-丙 是有真实取舍、且 C# 无对偶可自动裁的设计选择，按 `decisions.md` D7「(a)/(b) 才上报、设计取向需裁定」的口径，这一步宜由作者定方向后再实施，不宜由工具静默选一条改符号/诊断语义。
 
 ## 八、收口：设计裁定与实测（档 1 已运行；✔＝亲验）
@@ -101,7 +101,7 @@ ImmutableArray`1.get_Item(Int32 index)
 
 1. **裁定：采"令其可用"（甲的结果），但落点选在"不需要收集期沿链解析"的那一半。** 关键读码（✔）：绑定层 `SourceMemberMethodSymbol.BindSingleHandlesClause` 在 `eventSymbol Is Nothing` 时**先** `Return Nothing`（`SourceMemberMethodSymbol.vb` 里早于 `SharedConstructors(0)` 那行），只有**沿链查到共享事件**后才会走到 `ContainingType.SharedConstructors(0)` 的裸索引。⇒ 触发 ICE 的**唯一**条件是"绑定层沿链找到了共享事件"，此时它必然需要一个 host。收集层不需要复制绑定层的链解析，只要**不再要求事件落在本提交成员字典**、对"提交类里有 `Shared` 且带关键字容器（非 `MyBase`）的 `Handles` 方法"这一形状**幂等地 `EnsureCtor(isShared:=True)`** 即可让两半重新同集。
 
-2. **产品码改动（✔）**：`SourceMemberContainerTypeSymbol.AddWithEventsHookupConstructorsIfNeeded` 的 `TypeKind.Submission` 分支，事件名在本提交成员里查不到时，原为 `Continue For`（不建 host）；改为先 `EnsureCtor(members, isShared:=True, ...)` 再 `Continue For`。事件根本不存在时绑定层仍早退报诊断（BC30183/BC31407 一类），我们多造的 `.cctor` 因无人挂入而是惰性的——不吞诊断、不静默丢钩。`Class`/`Module` 分支一字未动（非脚本面免疫，HANDOFF §2②）。
+2. **产品码改动（✔）**：`SourceMemberContainerTypeSymbol.AddWithEventsHookupConstructorsIfNeeded` 的 `TypeKind.Submission` 分支，事件名在本提交成员里查不到时，原为 `Continue For`（不建 host）；改为先 `EnsureCtor(members, isShared:=True, ...)` 再 `Continue For`。事件根本不存在时绑定层仍早退报诊断（BC30183/BC31407 一类），我们多造的 `.cctor` 因无人挂入而是惰性的——不吞诊断、不静默丢钩。`Class`/`Module` 分支一字未动（非脚本面免疫，`..\decisions.md` **D10**）。
 
 3. **四格反例 + 正例（档 1 实跑，✔）**——见 `Compilers\VisualBasicEmitTest\Emit\SubmissionSharedHandlesHookupTests.vb` 新区块"cross-submission shared Handles (issue 31)"：
    - `CrossSubmissionSharedHandles_SynthesizesHostAndWiresUp`：`#0` 声明 `Shared Event Ev`，`#1`（`previous:=#0`）声明 `Shared Sub H ... Handles Me.Ev` → `#1` **零诊断**、`ScriptClass.SharedConstructors.Length = 1`、挂钩 `MethodKind.SharedConstructor`（修前该格抛 `IndexOutOfRangeException`）。

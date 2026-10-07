@@ -1,13 +1,13 @@
 # 任务：脚本顶层 `Dim` 推断撞循环时报诊断而非静默退 `Object`（script-top-level-recursive-dim-inference）——任务计划
 
-> **状态：已收口（F01–F05 全做完；产品码净增删 9/0，新增 28 格；main 亲跑七门全绿 Semantic 5914/5810/104、L2 769/0、档 2 宿主四格对账）。待作者提交 ⇒ commit 号不预填。** 缺陷登记：`..\..\issues\issue-script-top-level-recursive-dim-inference-silent.md`（issue 33，**人的登记，非 agent 输入**）。流水账：`tmp\vortex-logs\script-top-level-recursive-dim-inference\`（`01-investigator-rd-f01` / `03-implementer-rd-f02` / `05-implementer-rd-f03` / `06-main-f04-f05`）。上游账本：`..\..\upstream-merge.md` §2.25(g)（**同文件改写而非新增**）。队列台账：`..\csharp-script-parity-sweep\README.md` **#11**。
+> **状态：已收口（F01–F05 全做完；产品码净增删 9/0，新增 28 格；七门全绿 Semantic 5914/5810/104、L2 769/0、档 2 宿主四格对账）。待作者提交 ⇒ commit 号不预填。** 缺陷登记：`..\..\issues\issue-script-top-level-recursive-dim-inference-silent.md`（issue 33，**人的登记，非 agent 输入**）。流水账：`tmp\vortex-logs\script-top-level-recursive-dim-inference\`（`01-investigator-rd-f01` / `03-implementer-rd-f02` / `05-implementer-rd-f03` / `06-main-f04-f05`）。上游账本：`..\..\upstream-merge.md` §2.25(g)（**同文件改写而非新增**）。队列台账：`..\csharp-script-parity-sweep\README.md` **#11**。
 >
 > **子 agent 禁读 `InternalDevDocs\issues\`、禁改 `InternalDevDocs\tasks\`**：本文件已把症状、两侧读数与判据复述齐全；要改计划报 main，由 main 落笔。
 
 - **一句话**：脚本顶层无 `As` 的 `Dim`，其初始化器**直接或间接引用自身**时，本 fork **静默退成 `Object`、编译期零诊断**（运行期读到 `Nothing`），而 C# 同形状**报错**。要补的是"报不报"，不是改推断本身。
 - **来历**：issue 32（顶层 `Dim` 沿用 `Option Infer`）落地后剩下的缺口。**不是 32 的回归**——改前顶层 `Dim` 恒 `Object`，同形状同样零诊断。
 
-## 一、两侧实测读数（已运行，main 亲跑；这就是判据的全部事实基础）
+## 一、两侧实测读数（已运行；这就是判据的全部事实基础）
 
 同一棵树成文件（`.vbx` / `.csx`）才是本形状；逐条 REPL 提交各自成树，永远形不成循环。
 
@@ -35,7 +35,7 @@
 - **明示接受的代价**：互指形状的文案偏松（`a` 的初始化器里并不含 `a`）。记在本文件与 issue 33，不静默。
 - **D7 三问**：①VB 有现成表达（BC30980）②判据在本仓树内（`ErrorCode.cs:1165` + `SourceMemberFieldSymbol.cs`）且两侧均已实跑 ③不落在 VB 专有概念（循环推断与 `Handles`/`Module` 无关）⇒ 可移植，自动裁。
 
-## 三、可行性（RD-F01 已证，2026-09-24；main 已独立复核锚点）
+## 三、可行性（RD-F01 已证，2026-09-24；锚点已独立复核）
 
 甲的成立前提＝"字段类型计算期报出的诊断能到达用户、位置正确"。F01 四问答案（档位逐条标）：
 

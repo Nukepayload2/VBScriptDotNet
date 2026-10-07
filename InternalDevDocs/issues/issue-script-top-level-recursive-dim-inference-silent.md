@@ -1,7 +1,7 @@
 # issue 33：脚本顶层 `Dim` 的类型推断撞循环时静默退 `Object`，而 C# 侧实跑是报错（CS7019）
 
-- **登记日期**：2026-09-24（main）
-- **状态**：**Fixed**（已验证，commit 待作者提交后补）——落点甲落地：`SourceMemberFieldSymbol.vb` 的守卫支先报 `BC30980` 再退 `Object`（净增 9 行）。计划 `..\tasks\script-top-level-recursive-dim-inference\`、流水账 `..\..\tmp\vortex-logs\script-top-level-recursive-dim-inference\`、账本 `..\upstream-merge.md` §2.25(g)（同文件改写而非新增）、规格中英两份已补（`spec\spec-scripting-dialect.md` 顶层 `Dim` 一节）。**档位**：七门（Semantic 5914/5810/104/失败 0）、L2 直跑 769/0、档 2 宿主四格对账＝**主线亲跑**；子 agent 的自 dump 读数凡主线未复跑的一律标 ◇（见 §七 与 `05-implementer-rd-f03.md`）。
+- **登记日期**：2026-09-24
+- **状态**：**Fixed**（已验证，commit 待作者提交后补）——落点甲落地：`SourceMemberFieldSymbol.vb` 的守卫支先报 `BC30980` 再退 `Object`（净增 9 行）。计划 `..\tasks\script-top-level-recursive-dim-inference\`、流水账 `..\..\tmp\vortex-logs\script-top-level-recursive-dim-inference\`、账本 `..\upstream-merge.md` §2.25(g)（同文件改写而非新增）、规格中英两份已补（`spec\spec-scripting-dialect.md` 顶层 `Dim` 一节）。**档位**：七门（Semantic 5914/5810/104/失败 0）、L2 直跑 769/0、档 2 宿主四格对账＝**亲跑**；子 agent 的自 dump 读数凡未复跑的一律标 ◇（见 §七 与 `05-implementer-rd-f03.md`）。
 - **性质**：**诊断缺失**——一种输入形态被静默降级，不崩、不误诊。按 D7 属"C# 更硬"的一侧。
 - **与 issue 32 的关系**：**不是 32 引入的回归**。改前顶层 `Dim` 恒 `Object`，循环形状同样零诊断；32 让非循环形状对齐之后，这个缺口才显形为"该报而未报"。
 
@@ -67,9 +67,9 @@ var b = a;
 
 ## 五、这是"今天静默、修复后会报错"的形状
 
-按本清单顶部约定登记在此：落地后新增的是一条**编译期错误**，此前能编译并运行（读到一个 `Nothing`）的脚本形状会开始被拒。须补的回归用例见 §六末与 §七。
+按本清单顶部约定登记在此：落地后新增的是一条**编译期错误**，原先能编译并运行（读到一个 `Nothing`）的脚本形状会开始被拒。须补的回归用例见 §六末与 §七。
 
-## 六、落点（main 已按 D7「(c) 的处置」自动裁＝甲；留痕）
+## 六、落点（按 D7「(c) 的处置」自动裁＝甲；留痕）
 
 - **选：甲** —— 守卫命中即报既有码 `ERR_CircularInference1`＝**BC30980**，文案 `Type of '{0}' cannot be inferred from an expression containing '{0}'.`（唯一活报点 `Binder_Expressions.vb:3154`，服务于局部推断）。零新码、不动 `VBResources.resx`。
 - **否：乙**（新增码或改写文案以覆盖互指）—— 占新 BC3xxxx 需走提案，改文案则动上游同名文件 `VBResources.resx`（按 `upstream-merge.md` 口径要记账并增加合并冲突面）；而 C# 侧对"直接／间接"两种循环**同样只用一个 CS7019** ⇒ 要对齐的是"报不报"的语义强度，不是措辞精度。
@@ -85,13 +85,13 @@ D7 三问核对：①VB 有现成表达（BC30980）②判据在本仓树内（`
 2. 反例锁同步补齐：普通方法体 `BC32000` 一格、`Option Explicit` 两档同判一格、非循环前向引用仍 `Int32`/`0` 一格（防"修循环"顺手把前向引用也变严）。
 3. `spec\spec-scripting-dialect.md` 的顶层 `Dim` 推断一节要写清循环形状的归属，中英两份同步（先改英文正本再回灌译文，不得反向）。
 
-## 八、收口实测（2026-09-24）
+## 八、收口实测
 
 - **实现**：`SourceMemberFieldSymbol.vb:118-129`，守卫支加一行 `diagBag.Add(ERRID.ERR_CircularInference1, Me.Syntax.GetLocation(), Me.Name)` 后再 `Return Nothing`；产品净增删 **9 / 0**（`git diff HEAD --numstat` 亲读）。
 - **§七.1 的普查结论**：命中 **0 处**既有钉桩把"顶层自指／互指 ⇒ 零诊断"当期望值（RD-F03 复核前由 RD-F01 普查 187 文件 / 6 条检索式得出）⇒ **无回收义务**。不许动的近邻钉已列在任务计划 §三.4。
-- **七门（main 亲跑）**：全部门 失败 0；Semantic **5914 / 5810 / 104 / 0**（本条新增 28 格＝`ScriptTopLevelRecursiveDimInferenceTests`），余六门数字与基线一字未变；基线抬升由 main 在 `scripts\verify-vb-compiler-tests.ps1` 落笔，抬前的实测与预测逐字相符。
-- **L2（main 亲跑，直跑 `-automated`）**：**769/0**（总数未变＝本条未在 L2 面新增格）。
-- **档 2 宿主（main 亲跑，重建 Debug `vbi`）**：`p1-cycle.vbx(2) : error BC30980: 无法从包含“a”的表达式中推断“a”的类型。`——一条、波浪线落在标识符（`col=5`、`spanLen=1`）、名字**裸渲染**（不是 `Private a As Object`）⇒ §六 约束② 在产品路径上也成立；`p6-self` 同形；哨兵 `p5-fwd` 仍 `type=Int32 val=0`、`p3-infer-check` 仍 `BC30456` ⇒ 没有改严。`exit` 由 0 转 1。
-- **明示接受的代价（不变）**：互指形状的文案说"包含 `a` 的表达式"，而 `a` 的初始化器里其实只有 `b`；C# 的措辞明写"直接或间接"。本轮不动 resx（§六 否乙的理由仍成立）。
-- **两条继承未复验（◇）**：① "改前 `count=0`"那半边——RD-F03 因不许临时换产品码而没能复跑，本条"改前"依据是 RD-F01 的 `q1d`/`q1e`（main 亲验两文件均 0 字节）＋ RD-F02 的自 dump；② RD-F02 独立探针的**原始条数**带夹具产物（`BC50001` 隐藏未用 `Imports`、`BC42367`），单测夹具不产生 ⇒ 不得照抄进断言（RD-F03 已按自己夹具里的读数重新定桩）。
+- **七门（亲跑）**：全部门 失败 0；Semantic **5914 / 5810 / 104 / 0**（本条新增 28 格＝`ScriptTopLevelRecursiveDimInferenceTests`），余六门数字与基线一字未变；基线抬升在 `scripts\verify-vb-compiler-tests.ps1` 落笔，抬前的实测与预测逐字相符。
+- **L2（亲跑，直跑 `-automated`）**：**769/0**（总数未变＝本条未在 L2 面新增格）。
+- **档 2 宿主（亲跑，重建 Debug `vbi`）**：`p1-cycle.vbx(2) : error BC30980: 无法从包含“a”的表达式中推断“a”的类型。`——一条、波浪线落在标识符（`col=5`、`spanLen=1`）、名字**裸渲染**（不是 `Private a As Object`）⇒ §六 约束② 在产品路径上也成立；`p6-self` 同形；哨兵 `p5-fwd` 仍 `type=Int32 val=0`、`p3-infer-check` 仍 `BC30456` ⇒ 没有改严。`exit` 由 0 转 1。
+- **明示接受的代价（不变）**：互指形状的文案说"包含 `a` 的表达式"，而 `a` 的初始化器里其实只有 `b`；C# 的措辞明写"直接或间接"。不动 resx（§六 否乙的理由仍成立）。
+- **两条继承未复验（◇）**：① "改前 `count=0`"那半边——RD-F03 因不许临时换产品码而没能复跑，本条"改前"依据是 RD-F01 的 `q1d`/`q1e`（亲验两文件均 0 字节）＋ RD-F02 的自 dump；② RD-F02 独立探针的**原始条数**带夹具产物（`BC50001` 隐藏未用 `Imports`、`BC42367`），单测夹具不产生 ⇒ 不得照抄进断言（RD-F03 已按自己夹具里的读数重新定桩）。
 - **顺带消掉的一处旧瑕**：`TryComputeScriptFieldType(diagBag)` 的 `diagBag` 形参原先全程未用（死参数），本条之后成为报点通道。

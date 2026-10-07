@@ -29,7 +29,7 @@
 
 ## 根因（源码核实）
 
-四条锚点逐条复核（证据等级：**已检查**，2026-09-09 逐条 Read 本工作树）：
+四条锚点逐条复核（证据等级：**已检查**，逐条 Read 本工作树）：
 
 1. **坏子句解析成 `Nothing`**：`Compilers\VisualBasic\Portable\GlobalImport.vb:68-70` 的 `Parse(String, ByRef diagnostics)` 实现是 `Return Parse({importedNames}, diagnostics)(0)`（`:69`）。重载解析命中 `:103-108` 的 `Parse(IEnumerable(Of String), ByRef)`（非抛重载）。坏子句在 `Compilers\VisualBasic\Portable\OptionsValidator.vb:55-57` 被过滤——只有无语法错误的子句才进 `parsedImportList`（`:48` 构造 `GlobalImport`、`:53` 加诊断）——因此返回序列为空。VB 对非数组集合的整数索引绑定到 `ElementAtOrDefault`（`Compilers\VisualBasic\Portable\Binding\Binder_Invocation.vb:536` 注释 + `Compilers\VisualBasic\Portable\StringConstants.vb:24` `ElementAtMethod = "ElementAtOrDefault"`），空序列取默认值 → **返回 `Nothing`，不抛**。
 2. **`Nothing` 被塞进 `GlobalImports`**：`Compilers\VisualBasic\Portable\CommandLine\VisualBasicCommandLineParser.vb:1865-1874` `ParseGlobalImports`——`:1870` 拿到 `Nothing`，`:1871` `errors.AddRange(importDiagnostics)`（诊断确实进了 `Arguments.Errors`），`:1872` 无条件 `globalImports.Add(import)`。该 list 直接进 `VisualBasicCompilationOptions(globalImports:=globalImports, ...)`（`:1506`）。

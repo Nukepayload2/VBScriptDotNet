@@ -9,7 +9,7 @@
 
 ## 二、为什么不直接照抄 C#
 
-C# 的 `var b = 1; b = "abc";` 是编译错误（`CS0029`）。VB 在 `Option Strict Off`（默认）下允许 `Integer ← String` 的隐式窄化转换：普通方法体里的同形状**能编译通过、运行时才失败**。若在脚本方言里改成"必报错"，就等于让同一个源文件在脚本里和普通代码里遵守两套赋值规则——那属于「与非脚本 VB 过度分叉」（`decisions.md` D7 分叉纪律、`HANDOFF.md` §2 第 3 条），必须避免。
+C# 的 `var b = 1; b = "abc";` 是编译错误（`CS0029`）。VB 在 `Option Strict Off`（默认）下允许 `Integer ← String` 的隐式窄化转换：普通方法体里的同形状**能编译通过、运行时才失败**。若在脚本方言里改成"必报错"，就等于让同一个源文件在脚本里和普通代码里遵守两套赋值规则——那属于「与非脚本 VB 过度分叉」（`..\..\decisions.md` **D7** 分叉纪律），必须避免。
 ⇒ 所以本任务的判据是**"向 VB 自己的局部变量看齐"**，C# 只作为"字段可以带推断类型、不必退化成 `object`"的方向性证据。
 
 ## 三、片段
@@ -20,7 +20,7 @@ C# 的 `var b = 1; b = "abc";` 是编译错误（`CS0029`）。VB 在 `Option St
 | F02 实现 | 让顶层 `Dim` 的字段类型取声明处初始化表达式的推断类型。落点候选见问题单 §三-Q2（甲＝`SourceMemberFieldSymbol.vb:186-205` 加脚本类分支；乙＝收集期带类型；丙＝新建 binder 通道，预期先否掉）。**必须带脚本门控条件**（`IsScriptClass`），并写"非脚本面逐字不变"的论证 | 改动只影响脚本类；`Option Infer Off`、显式 `As`、普通类字段三格诊断与产物不变 |
 | F03 单元测试 | 正向格：推断出的静态类型（断具体类型/具体值，不是"编译通过"）、跨提交使用不退化、原先抛 `InvalidCastException` 的 LINQ 形状（问题单 21 的原探针）改为断静态类型与结果；反例格：`Option Infer Off` 仍 `Object`、`Option Strict` 两档下赋值不兼容的行为与 F01 的 ①② 逐字一致、普通类字段不变 | 正格断具体值；反例格锁诊断 ID + 位置 |
 | F04 回归 | 七门 + L2（**由 main 跑**，子任务不跑全量）+ 重建发布版 `vbi` 跑交互式跨提交形状 | 全绿；基线数字变了就同步 `scripts\verify-vb-compiler-tests.ps1` |
-| F05 记账 | `upstream-merge.md` 登记（`SourceMemberFieldSymbol.vb` 是上游同名文件，须写清开关条件与 3-way 注意点）；`spec\spec-scripting-dialect.md` 与 `zh-CN` 补"顶层 `Dim` 的类型推断"一节（含"跟局部变量同规则、不跟 C# 的硬报错走"这句理由）；问题单 32 与 21 状态翻转 | 中英两份同步；状态由 main 亲手改；commit 号不预填 |
+| F05 记账 | `upstream-merge.md` 登记（`SourceMemberFieldSymbol.vb` 是上游同名文件，须写清开关条件与 3-way 注意点）；`spec\spec-scripting-dialect.md` 与 `zh-CN` 补"顶层 `Dim` 的类型推断"一节（含"跟局部变量同规则、不跟 C# 的硬报错走"这句理由）；问题单 32 与 21 状态翻转 | 中英两份同步；状态同步翻转；commit 号不预填 |
 
 ## 四、非范围
 

@@ -51,7 +51,7 @@
 
 **D5 依据**：`../decisions.md` 的 **D5** 节（基础功能的落地细节以 C# / csi 实现为设计蓝本）——「C# 脚本的 `var` 字段推断」正落在 D5 的适用面内；其**边界**段的其它理由（实现可行性、与 D5 的同形性、机制收益与代价、规范的可表达性）仍须逐条论证。
 
-## 裁决（无人值守轮次，2026-09-16）
+## 裁决
 
 **裁决：维持现状；A / B 均不在本任务实施，转登记为待提案项。**
 
@@ -85,11 +85,11 @@
 
 ## 相关
 
-* 判定全文（本条是本轮 A 组三条里唯一剩下的分歧）：`../tasks/script-mode-coverage-parity/design-overview.md` §3、`../tasks/script-mode-coverage-parity/design-detailed.md` §U1。
+* 判定全文（本条是 A 组三条里唯一剩下的分歧）：`../tasks/script-mode-coverage-parity/design-overview.md` §3、`../tasks/script-mode-coverage-parity/design-detailed.md` §U1。
 * 顶层推断字段的既有行为已有用例：`Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb:606` / `:623`（本 issue 与之**不重复**：那里断言的是行为本身，本 issue 记录的是与 csi 的**分歧**及裁决请求）。
 * 同族「顶层声明与普通容器不同」的已收口缺陷（与本条不同源，本条非崩溃）：`issue-submission-shared-field-initializer-typeload.md`（05）、`issue-submission-implicit-type-member-asserts.md`（07）。
 
-## 状态改判（2026-09-24）
+## 状态改判
 
 作者裁定把本条**当作新 issue 处理（立项）**，并给出实跑的 C# 读数：`csi` 里 `var b = 1;` 之后 `b = "abc";` → `(1,5): error CS0029 无法将类型"string"隐式转换为"int"`。
 ⇒ 两点结论：① C# 的提交字段带的是**推断出的静态类型**（不是 `object`），说明"顶层 `Dim` 沿用推断"不需发明语言特性，VB 侧对应机制是 `Option Infer` ⇒ 本条不再是 D7 例外 (a)"等人工裁决"项；② 目标形状**不是**照抄 `CS0029` 的硬报错（VB 的 `Option Strict Off` 允许隐式窄化转换，脚本方言里改硬错误＝过度分叉），赋值不兼容时的分界以"同形状普通方法体内局部变量"的实测行为为准。

@@ -1,7 +1,7 @@
 # issue 34：`#Load` 的"已加载/循环加载"保护把**存在的文件**报成 `BC2001` 找不到文件
 
-- **登记日期**：2026-09-24（main）
-- **状态**：**Open**（已重排优先级，见 §五～§七）；**计划已建**：`..\tasks\load-directive-dedup\{README,test-plan}.md`（待开工，F01 未派）
+- **登记日期**：2026-09-24
+- **状态**：**Fixed**（已验证，commit 待作者提交后补；走 **once 语义**，A／B 两半一并解决，账本 `..\upstream-merge.md` §2.25(j)，队列 #12，规范 `..\spec\spec-load-directive.md` 中英两份，`..\..\decisions.md` **D9**）；**计划已建**：`..\tasks\load-directive-dedup\{README,test-plan}.md`（待开工，F01 未派）
 - **性质**：**诊断错位**（消息指向不存在的原因）＋ **未规定的方言行为**（`#Load` 成环/重加载时到底该不该执行，spec 没有任何条款）
 - **不是**：崩溃、非法输入被拒 —— 文件确实存在且同一轮里刚被成功打开过
 
@@ -54,7 +54,7 @@ CYC-a
 
 ## 四、既有规格覆盖情况
 
-`spec\spec-scripting-dialect.md` 与 `zh-CN` 里 `#Load` 只有一条错误码条目（`BC36967 ERR_LoadDirectiveOnlyAllowedInScripts`，普通编译不许用），另有加载位置规则的对照（VB `BC37002` ↔ C# `CS8098`「第一个令牌之后不得用 `#Load`」——**这一条两侧同形，本轮实测已确认**）。**"成环/重加载"没有任何条款** ⇒ 本条同时是规格缺口。
+`spec\spec-scripting-dialect.md` 与 `zh-CN` 里 `#Load` 只有一条错误码条目（`BC36967 ERR_LoadDirectiveOnlyAllowedInScripts`，普通编译不许用），另有加载位置规则的对照（VB `BC37002` ↔ C# `CS8098`「第一个令牌之后不得用 `#Load`」——**这一条两侧同形，实测已确认**）。**"成环/重加载"没有任何条款** ⇒ 本条同时是规格缺口。
 
 ## 五、读码与既有测试之后的改判（实锤）
 

@@ -10,8 +10,8 @@
 > 5. **有意分叉（策略层，三条）**：① 本 fork **没有** C# 脚本测试工程（`class CSharpTestBase` 全树 0 定义、`Scripting\` 下无 C# 资产、`CSharpScript.cs` 在树外）⇒ C# 侧永远是**档 3 只读 oracle**，报数必须带档位，"跑一遍 C# 对照"不可执行；② `Scripting\VisualBasicTest`（L4 宿主面）在 C# 侧无对应物 ⇒ 是 VB 净增，C# 义务只到编译器层为止；③ 两侧 `[Theory]`/`<Theory>` 计数都是 **0**，`ScriptTestFixtures.cs` 是**宿主类型 fixture**（B/C/B2/I + 自引用 `HostRef`，10 个消费点、2 个文件）而非表驱动 ⇒ 不把"表驱动化"当对齐动作，也不引入。
 > 6. **前提修正**：任务提示原把 `ScriptTestFixtures` 当"表驱动装置候选"，读码证伪。VB 侧对偶：L2/L3 `Compilers\Test\Utilities\VisualBasic\BasicTestBase.vb:437-452` 的 `CreateSubmission` 形参齐备（101 处 / 8 文件在用），但 `hostObjectType` **调用 0 次**、树内无 fixture 类型族；另有 4 份私有 `CreateSubmissionCompilation` 复制。⇒ SP-F02 的装置项是"补 fixture 类型族 + host 翻转 pair"，不是"造表驱动"。
 
-## 三·补、post-fix 复核（2026-09-24，main 逐格打开源码核；判据②口径）
-上表 §取证结论 3 的"22 格 / ≈40 外推"与 §取证结论 6 的"host 调用 0 次"是**修复前**（HEAD 早期）的读数，队列本轮逐条修复后已大面积过期。本轮抽样**逐格打开**（非粗 grep）核 `Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb` 的脚本特有负向格与其同容器正向对照：
+## 三·补、post-fix 复核（2026-09-24，逐格打开源码核；判据②口径）
+上表 §取证结论 3 的"22 格 / ≈40 外推"与 §取证结论 6 的"host 调用 0 次"是**修复前**（HEAD 早期）的读数，队列逐条修复后已大面积过期。抽样**逐格打开**（非粗 grep）核 `Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb` 的脚本特有负向格与其同容器正向对照：
 
 | 负向格（脚本特有拒绝） | 同容器正向对照（跑通并断具体值） | 三态 |
 |---|---|---|
@@ -21,7 +21,7 @@
 | `TopLevelAwaitInFinally_IsReported` BC36943 | 紧邻 `Await`-in-`Try` 正格（:55-60，断 `5`）| 亲验 ✔ |
 | `TopLevelGoToIntoLoop_IsReported` BC30757 | 相邻 `GoTo` 合法跳转正格（:183，断 `"6/using/2"`）| 亲验 ✔ |
 
-⇒ **该 L2 符合性套件的负向格本就按判据①配了同容器正向对照**（作者/历轮实施者已守此纪律），非"只钉诊断"。叠加：host-object 覆盖由队列 #22（构造/嵌套泛型 host）补上，`hostObjectType`"0 次"读数过期；本轮 B/E/F/H 每条修复自带正/反对照。**结论**：SP-F03 的"22–40 格待补"premise 在当前树**大面积不成立**，不宜作为固定工作量再追。**残余 J**＝(a) SP-F05 已把"负向须挂同容器正向对照"成文（本文件 §判据 1 + `..\script-mode-coverage-parity\README.md` SP-F05 裁定）⇒ 后续新格按此自审即可；(b) SP-F02「fixture 类型族 + host 翻转 pair」是**装置 ergonomics**（让"某容器漏测"一眼可见），非缺陷、可择期做，**不阻塞队列清零**。若将来某次新增违反判据①，再按 ledger 检索法逐格补，无需现在跑全量 372 格普查。
+⇒ **该 L2 符合性套件的负向格本就按判据①配了同容器正向对照**（作者/历轮实施者已守此纪律），非"只钉诊断"。叠加：host-object 覆盖由队列 #22（构造/嵌套泛型 host）补上，`hostObjectType`"0 次"读数过期；B/E/F/H 每条修复自带正/反对照。**结论**：SP-F03 的"22–40 格待补"premise 在当前树**大面积不成立**，不宜作为固定工作量再追。**残余 J**＝(a) SP-F05 已把"负向须挂同容器正向对照"成文（本文件 §判据 1 + `..\script-mode-coverage-parity\README.md` SP-F05 裁定）⇒ 后续新格按此自审即可；(b) SP-F02「fixture 类型族 + host 翻转 pair」是**装置 ergonomics**（让"某容器漏测"一眼可见），非缺陷、可择期做，**不阻塞队列清零**。若将来某次新增违反判据①，再按 ledger 检索法逐格补，无需现在跑全量 372 格普查。
 
 ## 四、判据
 1. 每个"脚本容器内被拒绝"的规范格，测试里必须同时存在：负向格（钉诊断 ID + 位置）+ 正向对照格（同形状在合法容器里跑通并**取具体值**）。**正向对照必须写在脚本自身的合法容器里**（提交类成员体、脚本所声明类型的方法体等）——**普通编译（`SourceCodeKind.Regular`）的对照不充分**：issue 29 那条当时的唯一"跑通"格正是普通编译对照，它证明形状合法却从未触达脚本容器的绑定路径。

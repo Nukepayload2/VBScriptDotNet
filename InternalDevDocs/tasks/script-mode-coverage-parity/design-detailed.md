@@ -100,7 +100,7 @@
 
 **为什么是高价值**：本 fork **有意**尊重元数据引用别名（原版上游 VB 忽略别名），`Scripting` 的别名语义依赖这一行为——这是 fork 的**自有偏差**，却无任何 VB 测试锚定（**实锤**：以 `host` / `implicit` 两个纯模式检索 `Scripting\VisualBasicTest\**.vb`，命中全部是 `Microsoft.CodeAnalysis.Scripting.Hosting` 命名空间导入与英文散文（"the host"、"host RID"）、以及 VB 语言的「implicit Me / implicit local」措辞，**无一处是引用别名**）。
 
-**期望值来源（U4 已不需要「先读生产侧」——规范已存在）**：本项**有规范性来源**，计划初稿未发现，现补：
+**期望值来源（规范已存在）**：本项**有规范性来源**：
 
 | 来源 | 内容 |
 |---|---|
@@ -163,7 +163,7 @@
 
 对标 `DebuggerDisplay_*`（`OF` 下实测 3 个命名族）+ `DebuggerProxy_*`（实测 29 个命名族）= **32 个命名族**，另加 `Array_Recursive` / `LargeGraph` / `LongMembers` 等未命名代理用例；再加 `StackTrace_*`（7 格）+ `FormatConstructorSignature` + tuple 格式化。
 
-> **格数口径**：32 是**命名族的实测数**（复核者实锤），不是 36；「约 36」是初稿的估算值，已作废。U8 开工时以 `grep -oE "public void [A-Za-z0-9_]+" ObjectFormatterTests.cs` 重数并写进用例文件头。
+> **格数口径**：32 是**命名族的实测数**（复核者实锤），不是 36。U8 开工时以 `grep -oE "public void [A-Za-z0-9_]+" ObjectFormatterTests.cs` 重数并写进用例文件头。
 
 **这是投入产出比最高的一块（推测）**：夹具**已经**移植完整（`Helpers\ObjectFormatterFixtures.vb` 含 `RecursiveProxy` / `ComplexProxy` / `RecursiveRootHidden` / 30+ 个 `<DebuggerDisplay>` 形状），测试却**一个都没写**（**实锤**）。写测试的成本显著低于造夹具。
 
@@ -174,14 +174,14 @@
 | # | 项 | 判据 |
 |---|---|---|
 | 1 | 夹具↔测试对账表 | 用例文件头写一张**夹具名 → C# 测试方法**的对照表；`ObjectFormatterFixtures.vb` 的每个夹具都在表里（**或**明确标注「VB 侧独有 / C# 侧无对应」并给理由） |
-| 2 | 命名族格数 | U8 开工时重数 `grep -oE "public void [A-Za-z0-9_]+" CSharpTest/ObjectFormatterTests.cs`，把实测数写进文件头（初稿的「约 36」作废，实测命名族 32） |
+| 2 | 命名族格数 | U8 开工时重数 `grep -oE "public void [A-Za-z0-9_]+" CSharpTest/ObjectFormatterTests.cs`，把实测数写进文件头（实测命名族 32） |
 | 3 | `StackTrace_*` | 7 格各 1 条，断言 `FormatException` 的栈帧签名（泛型方法/泛型类型/泛型类型内泛型方法/`dynamic`/`ref`/`out`/泛型 `ByRef`） |
 | 4 | 逐字断言 | 格式化输出**逐字**断言，不用 `Contains` |
 | 5 | 不硬凑 | 无 C# 对应的夹具，写「VB 侧独有」并给理由，**不**造期望值 |
 
 ### U9 · 脚本 API 面剩余缺口
 
-**每条给出格数上界**（初稿的「矩阵」「族」「集合枚举」等开放术语无法验收，已改为有限格清单）。格数来源 = C# 侧对应族的实测方法数。
+**每条给出格数上界**（开放术语无法验收，故用有限格清单）。格数来源 = C# 侧对应族的实测方法数。
 
 | # | 项 | 格数 | C# 对标 | 判据 |
 |---|---|---|---|---|
@@ -222,7 +222,7 @@
 
 **pass 条件**：ledger 中**已无 `缺口` 行**（全部已补），且每行 `新补` 都对应一个**实际测试方法**（`文件:行号`，指向 `<Fact>`/`<Theory>` 方法声明行），不允许「标了 `新补` 但没写用例」。
 
-**与 U11 的时序**（初稿措辞自反，已修）：U10 结束时 ledger 处于「`缺口` = 0、`新补` = N」的**中间态**；U11 复核通过后，把这 N 行由 `新补` 改写为 `已覆盖`（并填入 `文件:行号`），**关闭时 ledger 只剩 `已覆盖` 与 `不适用` 两值**。U10 的 pass 条件只看「`缺口` 为 0 + 每个 `新补` 有真实方法」，**不要求**此时已无 `新补`。
+**与 U11 的时序**：U10 结束时 ledger 处于「`缺口` = 0、`新补` = N」的**中间态**；U11 复核通过后，把这 N 行由 `新补` 改写为 `已覆盖`（并填入 `文件:行号`），**关闭时 ledger 只剩 `已覆盖` 与 `不适用` 两值**。U10 的 pass 条件只看「`缺口` 为 0 + 每个 `新补` 有真实方法」，**不要求**此时已无 `新补`。
 
 ---
 
@@ -234,7 +234,7 @@
 2. 每行 `不适用` 都有**检索命令 + 命中情况**。
 3. 每行 `已覆盖` / `新补` 都有 `文件:行号`，且该行号**指向 `<Fact>`/`<Theory>` 标注的方法声明行**（逐条核，**全量**，不是抽样）。
 4. `新补` 已全部改为 `已覆盖`（关闭时 ledger 只剩 `已覆盖` 与 `不适用` 两值）。
-5. **行集完备（判据①，全量差集）**：以 `Parser\ParseStatement.vb` / `ParseExpression.vb` 的 `SyntaxKind` 分派 arm 作**全量**反查，**差集必须为空**——差集非空 ⇒ 新增 ledger 行（**不是抽样 20 行**；初稿的抽样版本不足以支撑「完整覆盖」）。
+5. **行集完备（判据①，全量差集）**：以 `Parser\ParseStatement.vb` / `ParseExpression.vb` 的 `SyntaxKind` 分派 arm 作**全量**反查，**差集必须为空**——差集非空 ⇒ 新增 ledger 行（**不是抽样 20 行**；抽样版本不足以支撑「完整覆盖」）。
 6. **分母固定（判据③）**：ledger 头部报出**总行数与来源分解**（spec / parser arm / fork 指令各多少行）；U11 复核时与 U2 建表时的分母比对，只增不减。
 7. **独立复核**：由验证者 agent 复核；其检索方式须与实施者**不同**（实施者按 spec 小节建表 ⇒ 验证者按 parser arm 反查）。
 
@@ -309,7 +309,7 @@
 | 11 | `StaticDelegate0/1/2` | 顶层 `static` 成员取方法组；泛型类/泛型方法的 `static` 委托（`ST:469,478,486`） | `ScriptModeSubmissionConformanceTests.vb:164`；`ScriptTopLevelCrashTests.vb:553` | 部分缺（泛型 `Shared` 成员取方法组） | 适用（`static` → `Shared`） | 中 |
 | 12 | `ReturnIntAsObject` `ReturnAwait` `ReturnInNestedScope*` `ReturnIntWithTrailingDoubleExpression` `ReturnGenericAsInterface` `ReturnNullable`（8 个） | 有类型脚本的返回值与尾表达式取值次序；嵌套块内 `return`；泛型/可空/接口协变（`ST:494,510,518,531,555,579,603,623`） | `ScriptTests.vb:158,167,177,210,216`；`CLR:436,449,461` | 部分缺（嵌套块内 `Return`、泛型/可空返回类型） | 适用 | 中（U9） |
 | 13 | `ReturnInLoadedFile*` `MultipleLoadedFiles*` `LoadedFileWithGoto` `VoidReturn` `LoadedFileWithVoidReturn`（8 个） | `#load` 的返回语义：载入文件的 `return` 是否截断外层尾表达式、多 `#load`、`goto` 跨文件（`ST:643,661,684,707,742,777,808,826`） | `ScriptTests.vb:224,590,605,681` | 部分缺（多文件组合、优先关系、跨文件 `goto`） | 适用（`.vbx` 特有面） | **高**（U9） |
-| 14 | `Pdb_*`（12 个） | 字符串创建 / 流创建 × 代码来自文件 / 内联代码，编码开关折在第一组内 ⇒ 4 + 2 + 4 + 2 = 12，无编码 `ERR_EncodinglessSyntaxTree` 格是「字符串 × 来自文件」组的第一个成员；真栈帧 `GetFileName/Line/Column`（`ST:842–937`） | `ScriptModePdbTests.vb:385`（`Pdb_String_CodeFromFile_WithDebugInformation_WithoutEncoding_ReportsBC37236`）、`:422`（`Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236`）、`:448`（`Pdb_String_CodeFromFile_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation`）、`:464`（`Pdb_String_CodeFromFile_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation`）、`:497`（`Pdb_Stream_CodeFromFile_WithDebugInformation_FrameNamesTheScriptFile`）、`:519`（`Pdb_Stream_CodeFromFile_WithoutDebugInformation_FrameHasNoFileInformation`）、`:540`（`Pdb_String_InlineCode_WithDebugInformation_WithoutEncoding_FrameNamesTheEmptyPath`）、`:565`（`Pdb_String_InlineCode_WithDebugInformation_WithEncoding_FrameNamesTheEmptyPath`）、`:588`（`Pdb_String_InlineCode_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation`）、`:601`（`Pdb_String_InlineCode_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation`）、`:618`（`Pdb_Stream_InlineCode_WithDebugInformation_FrameNamesTheEmptyPath`）、`:639`（`Pdb_Stream_InlineCode_WithoutDebugInformation_FrameHasNoFileInformation`）—— 12 个 `<Fact>` 方法声明行即上列 12 个行号，与 C# 的 12 个 `Pdb_*` 方法**同序一一对应**（文件头 `:5-27` 逐字列出两边清单并声明该对应）；同文件另两格不属本族：`:684`（`Pdb_LoadedFileKeepsItsOwnFileAndLineInTheFrame`）是 `#Load` 格（cell 13，C# 无对应），`:277`（`Pdb_PortablePdb_DebugDirectoryMatchesThePdb`）归族 3 | —（**订正**：本列原记 `**完全缺**`、原「VB 侧对应覆盖」列只指 `ScriptOptionsTests.vb:153` 的选项属性测试——两条在 U7 完成后即为文档滞后，本轮按实际用例改写）。**真栈帧 `GetFileName/Line/Column`（`ST:842–937`）覆盖到 10 格**：4 格 emitting（`:497`/`:540`/`:565`/`:618`）断言 file（`debug.vbx` 或 `""`）+ line 1 + column 1（`AssertFrameNamesTheScriptFile` / `AssertFrameNamesTheEmptyPath`），6 格 not-emitting（`:448`/`:464`/`:519`/`:588`/`:601`/`:639`）断言 `Nothing`/0/0（`AssertFrameHasNoFileInformation`）；余 2 格（`:385`/`:422`）的树无编码 ⇒ `CompilationErrorException` 位置，断言 `BC37236` 落在脚本自身路径与首行且宿主收到同一条诊断，**无法发射故无帧可断言**（与 C# 的 `CompilationErrorException` 格 `ST:842` 同位）。两格中的 `:422` 是与 C# 蓝本的**分歧钉点**：C# 的 `CSharpScript.cs:37` 把 `FileEncoding` 一并交给字符串形式、故发射 PDB 并得 `debug.csx` 帧，VB 的字符串形式不传递该选项（`Scripting\VisualBasic\VisualBasicScript.vb` 的 `Create(Of T)` `:29`）⇒ 同一形状报 `BC37236`；该分歧**继承自上游**且**无产品路径**触发（`WithFileEncoding` 是给外部宿主的公共 API 轴），按原设计记录，不判为缺口 | 适用 | **高**（U7） |
+| 14 | `Pdb_*`（12 个） | 字符串创建 / 流创建 × 代码来自文件 / 内联代码，编码开关折在第一组内 ⇒ 4 + 2 + 4 + 2 = 12，无编码 `ERR_EncodinglessSyntaxTree` 格是「字符串 × 来自文件」组的第一个成员；真栈帧 `GetFileName/Line/Column`（`ST:842–937`） | `ScriptModePdbTests.vb:385`（`Pdb_String_CodeFromFile_WithDebugInformation_WithoutEncoding_ReportsBC37236`）、`:422`（`Pdb_String_CodeFromFile_WithDebugInformation_WithEncoding_ReportsBC37236`）、`:448`（`Pdb_String_CodeFromFile_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation`）、`:464`（`Pdb_String_CodeFromFile_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation`）、`:497`（`Pdb_Stream_CodeFromFile_WithDebugInformation_FrameNamesTheScriptFile`）、`:519`（`Pdb_Stream_CodeFromFile_WithoutDebugInformation_FrameHasNoFileInformation`）、`:540`（`Pdb_String_InlineCode_WithDebugInformation_WithoutEncoding_FrameNamesTheEmptyPath`）、`:565`（`Pdb_String_InlineCode_WithDebugInformation_WithEncoding_FrameNamesTheEmptyPath`）、`:588`（`Pdb_String_InlineCode_WithoutDebugInformation_WithoutEncoding_FrameHasNoFileInformation`）、`:601`（`Pdb_String_InlineCode_WithoutDebugInformation_WithEncoding_FrameHasNoFileInformation`）、`:618`（`Pdb_Stream_InlineCode_WithDebugInformation_FrameNamesTheEmptyPath`）、`:639`（`Pdb_Stream_InlineCode_WithoutDebugInformation_FrameHasNoFileInformation`）—— 12 个 `<Fact>` 方法声明行即上列 12 个行号，与 C# 的 12 个 `Pdb_*` 方法**同序一一对应**（文件头 `:5-27` 逐字列出两边清单并声明该对应）；同文件另两格不属本族：`:684`（`Pdb_LoadedFileKeepsItsOwnFileAndLineInTheFrame`）是 `#Load` 格（cell 13，C# 无对应），`:277`（`Pdb_PortablePdb_DebugDirectoryMatchesThePdb`）归族 3 | —（**订正**：本列原记 `**完全缺**`、原「VB 侧对应覆盖」列只指 `ScriptOptionsTests.vb:153` 的选项属性测试——两条在 U7 完成后即为文档滞后，已按实际用例改写）。**真栈帧 `GetFileName/Line/Column`（`ST:842–937`）覆盖到 10 格**：4 格 emitting（`:497`/`:540`/`:565`/`:618`）断言 file（`debug.vbx` 或 `""`）+ line 1 + column 1（`AssertFrameNamesTheScriptFile` / `AssertFrameNamesTheEmptyPath`），6 格 not-emitting（`:448`/`:464`/`:519`/`:588`/`:601`/`:639`）断言 `Nothing`/0/0（`AssertFrameHasNoFileInformation`）；余 2 格（`:385`/`:422`）的树无编码 ⇒ `CompilationErrorException` 位置，断言 `BC37236` 落在脚本自身路径与首行且宿主收到同一条诊断，**无法发射故无帧可断言**（与 C# 的 `CompilationErrorException` 格 `ST:842` 同位）。两格中的 `:422` 是与 C# 蓝本的**分歧钉点**：C# 的 `CSharpScript.cs:37` 把 `FileEncoding` 一并交给字符串形式、故发射 PDB 并得 `debug.csx` 帧，VB 的字符串形式不传递该选项（`Scripting\VisualBasic\VisualBasicScript.vb` 的 `Create(Of T)` `:29`）⇒ 同一形状报 `BC37236`；该分歧**继承自上游**且**无产品路径**触发（`WithFileEncoding` 是给外部宿主的公共 API 轴），按原设计记录，不判为缺口 | 适用 | **高**（U7） |
 | 15 | `CreateScriptWithFeatureThatIsNotSupportedInTheSelectedLanguageVersion` `CreateScriptWithNullableContextWithCSharp8` | 语言版本门控诊断（`ST:949,962`） | `ScriptOptionsTests.vb:19,40,57` | 部分缺（低版本报 BC 诊断的矩阵） | 适用 | 中 |
 | 16 | `SwitchPatternWithVar_*`（4 个） | C# `switch` 表达式 + 关系模式（`ST:974,997,1019,1044`） | **缺** | — | **不适用**（VB 无 switch 表达式/关系模式） | 低 |
 | 17 | `Function_ReturningPartialType` `_CSharp13` | 单行 `class partial;`、跨提交 partial 方法（`ST:1067,1087`） | **缺** | — | **不适用**（C# 专有） | 低 |
@@ -381,7 +381,7 @@
 **「适用族」的分母 = 高 20 + 中 27 = 47**（两档就是「要补的」）；已覆盖的 13 已闭口、低档 8 与跨档 1 判为不适用，均不计入分母。
 
 > **两次算错（记录以明判定纪律）**：
-> 1. 初稿把族 36 同时计入「中」与「低」，两个错误**恰好互相抵消**，于是 `20+27+9=56`、`56+13=69` 在算术上「正好」成立——**错误抵消冒充了自洽**。另：初稿高档的「对应单元」列里错列了族 19（它属中档）。
+> 1. 族 36 曾被同时计入「中」与「低」，两个错误**恰好互相抵消**，于是 `20+27+9=56`、`56+13=69` 在算术上「正好」成立——**错误抵消冒充了自洽**。另：高档的「对应单元」列里错列了族 19（它属中档）。
 > 2. 第一次修订把族 2 补进了**低（不适用）**档，但 §B.1 矩阵里族 2 的「适用性」列写的是 **`适用`**、缺口性质是「**弱缺口（同实例断言）**」——**一个被标「适用且带缺口」的族被静默排除出分母**，会让「适用族中无 `缺口`」这一判据**不可满足**。本次已把族 2 升入**中档**（弱缺口，必补同实例断言）。
 >
 > **教训：并集核对必须逐号遍历；且分档必须与矩阵行的「适用性」列逐行对齐——两处口径不一致会让结束条件失效。**

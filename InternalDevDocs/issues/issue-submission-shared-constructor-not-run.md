@@ -1,10 +1,10 @@
 # 脚本提交类的共享构造器（`.cctor`）不由提交构造或顶层语句触发
 
-* 状态：**Open → 拆分裁定**（2026-09-22 按 `../decisions.md` **D7** 取证后拆成 A/B 两半：A 判**不修**（与 C# 同形的 CLR 语义），B 判**必修**（本 fork 自开的脚本层缺口，落点属 D7 例外 (c) 需人工）。详见下节「D7 裁定」。原「为什么不修」三条已被取证反驳，见该节末。）
+* 状态：**Open → 拆分裁定**（按 `../decisions.md` **D7** 取证后拆成 A/B 两半：A 判**不修**（与 C# 同形的 CLR 语义），B 判**必修**（本 fork 自开的脚本层缺口，落点属 D7 例外 (c) 需人工）。详见下节「D7 裁定」。原「为什么不修」三条已被取证反驳，见该节末。）
 * 发现日期：2026-09-14
 * 发现场景：收尾 `issue-top-level-handles-clause-crash.md`（14）的边界时观察到「同一次提交里 `Shared Event` + 顶层 `Shared Sub … Handles` 编译通过但 handler 不投递」，随后由独立查证线（`tmp\vortex-logs\script-top-level-crashes-2\11-investigate-u10-shared-handles.md`）定判
 
-## D7 裁定（2026-09-22，只读取证批次；日志 `tmp\vortex-logs\csharp-script-parity-sweep\01-dig-sweep-26-18.md`）
+## D7 裁定
 
 本 issue 把**两件事**写在了一条标题下，两半的裁定**相反**，必须拆开：
 
@@ -23,7 +23,7 @@
 * **建议落点（供人工裁定，非自动裁定）**：把 `TypeKind.Submission` 纳入 `SourceMemberContainerTypeSymbol.vb:2829-2912` 的挂钩-构造器合成（有 shared 挂钩 ⇒ `EnsureCtor(isShared:=True)`，复用 `48d8edbff` 已修好的**无参**提交类 `.cctor` 路径），并确认 `NamedTypeSymbolAdapter.vb:482-492` 的抑制在提交类上生效。次选（把挂钩落进脚本初始化器 `Sub Main`/`<Initialize>`）风险更大：每次 `ContinueWith` 新建实例会**重复挂钩**，且把类型级语义改成实例级。
 * **取证未达的一面（须由实施者先量）**：`Shared Event` + `Shared Sub … Handles` 形状在已跑的 4 条 REPL 探针里**未复现**（逐行提交把块切开、顶层 `Event` 形状报 BC30287/BC30188/BC30205）⇒「静默不投递」沿用本 issue 原有的 `.vbx` 实锤，而 `SharedConstructors(0)` 裸索引在没建成时究竟是**静默丢弃还是 ICE** 属**推测**，实施第一步就该用单测把它钉死。
 
-* **实施期真值更正（2026-09-23，main 派工的"真值先行"格实测）**：本半边的症状**不是**「exit 0、零诊断、handler 不投递」——那是 `Shared WithEvents` 形状（§触发面与症状）。真正由 `Shared Sub … Handles Me.Ev`（无共享字段初始化器）触发的是 **ICE**：`SharedConstructors` 计数为 0，`GetDiagnostics()` 与 `Emit()` 双双抛 `IndexOutOfRangeException`，栈顶逐字 `SourceMemberMethodSymbol.vb:797`（就是那句裸索引 `SharedConstructors(0)`）⇒ 比"静默丢弃"更严重，属「崩编译器」强形态。两个相邻形状同时量清：裸 `Handles Ev` 报 **BC30287**、`Handles Hook.Ev`（类型名容器）报 **BC30506** ⇒ 提交类里合法容器只有 `Me.` / `MyClass.`。
+* **实施期真值更正**：本半边的症状**不是**「exit 0、零诊断、handler 不投递」——那是 `Shared WithEvents` 形状（§触发面与症状）。真正由 `Shared Sub … Handles Me.Ev`（无共享字段初始化器）触发的是 **ICE**：`SharedConstructors` 计数为 0，`GetDiagnostics()` 与 `Emit()` 双双抛 `IndexOutOfRangeException`，栈顶逐字 `SourceMemberMethodSymbol.vb:797`（就是那句裸索引 `SharedConstructors(0)`）⇒ 比"静默丢弃"更严重，属「崩编译器」强形态。两个相邻形状同时量清：裸 `Handles Ev` 报 **BC30287**、`Handles Hook.Ev`（类型名容器）报 **BC30506** ⇒ 提交类里合法容器只有 `Me.` / `MyClass.`。
 * **修复已接线（同批）**：`SourceMemberContainerTypeSymbol.vb:2829-2904` 的提交类分支（原 `'TODO: anything to do here?`）改为收集 `IsShared` 且带 `Handles` 的处理器、只认关键字容器、**且事件也为 shared** 时才 `EnsureCtor(isShared:=True)`；`Class`/`Module` 分支一字未动。T2–T7、R1–R3 全部实锤（投递计数 1/2、链上 1、两次运行 1→2 不重复挂钩、与共享初始化器共存 1015、惰性仍为 True、`..cctor` 体内无 `Me`/`ldarg`）；仅 PE 里 `beforefieldinit` 标志的直读未做（该测试工程解析不到 `PEReader`，改走行为断言）。
 * **仍开放**：**来自早先提交的共享事件**走 `Handles` 仍 ICE（探针 `tmp\probe-sweep\probe-chain.txt`）⇒ 那是跨提交可见性与挂钩宿主的另一条线，另立登记，不由本条顺手修。
 
@@ -81,7 +81,7 @@ hooked.Fire()
 
 共享 `WithEvents` 形状的 hookup 宿主是**属性 setter**（`Symbols\Source\SourceMemberMethodSymbol.vb:792-793` 的 `handlesKind = HandledEventKind.WithEvents → hookupMethod = witheventsPropertyInCurrentClass.SetMethod`），不是共享构造器 ⇒ 该抑制不生效 ⇒ 提交类照打 `BeforeFieldInit`（`m7` 反射实测吻合）。即：VB 只对「`Handles` 接共享构造器」这一种形状放弃 `beforefieldinit`，共享 `WithEvents` 形状本来就不在其列。
 
-## 未闭合 → **原问题的前提被推翻，改为一条规则**（2026-09-28，由 issue 36 的 T1/T2 受控实验回答）
+## 未闭合 → **原问题的前提被推翻，改为一条规则**
 
 **原表述**：*「为什么普通类型的方法调用会触发其 `.cctor`、而提交类的方法调用不会」——两侧都实测 `BeforeFieldInit` ＋ 有 `.cctor`，行为却不同。*
 
@@ -92,7 +92,7 @@ hooked.Fire()
 | issue 36 T2-2 | 提交类带 `beforefieldinit`（＝`0x00100101`），提交体**唯一**的静态接触是一次共享方法调用 `Fire()` ⇒ **`RESULT=[|FIRE]`，`.cctor` 全程没跑** | ✔ 跑出来的 |
 | issue 36 T1 对照② | **普通 `Class Q`（只有 `Shared z`）＝ `attrs=0x00100001`，带 `beforefieldinit`**；普通 `Module`（只有 `Public z`）＝ `0x00100101`，带 | ✔ 跑出来的 |
 | issue 36 T2-1 vs T2-5 | **同一份脚本、同样的静态方法调用，唯一变量是那个子句**：带 `Shared Sub H … Handles Me.Ev`（位被清）⇒ `CCTOR\|FIREH\|AFTER`，**`.cctor` 跑在方法调用之前**；只删掉那两行（位写回）⇒ `\|FIRECCTOR\|AFTER`，**跑在之后** | ✔ 跑出来的 |
-| ECMA-335 **Part I, section 8.9.5**（逐字，联网核实 2026-10-02） | ① "If marked BeforeFieldInit then the type's initializer method is executed **at, or sometime before, first access to any static field** defined for that type"；② "If not marked BeforeFieldInit then that type's initializer method is executed at: first access to any static or instance field of that type, or **first invocation of any static, instance or virtual method of that type**" | ✔ 公开规范原文 |
+| ECMA-335 **Part I, section 8.9.5**（逐字，联网核实） | ① "If marked BeforeFieldInit then the type's initializer method is executed **at, or sometime before, first access to any static field** defined for that type"；② "If not marked BeforeFieldInit then that type's initializer method is executed at: first access to any static or instance field of that type, or **first invocation of any static, instance or virtual method of that type**" | ✔ 公开规范原文 |
 
 **⇒ 成立的解释**：两种容器的规则是**同一条**。「调用共享方法不算触碰共享成员」不是 VB 对脚本类的特殊规定，而是 **`beforefieldinit` 这条标志本身的含义**——按 ECMA-335 Part I §8.9.5 第 3 条，它承诺的触发点是**静态字段**；只有**没有**该位时（第 4 条）方法调用才成为触发点。所以：
 
@@ -104,7 +104,7 @@ hooked.Fire()
 
 **行为不变**：A 半边维持「判不改」——共享字段初始化器在脚本里惰性，与 C# 脚本同形的 CLR 语义，**不要**为它发明新时机。
 
-**两格补测读数（2026-10-02，探针 `tmp\probes-bfi-ordinary\`，用 vbc 发射**普通**程序集，脱离脚本面）**：
+**两格补测读数（探针 `tmp\probes-bfi-ordinary\`，用 vbc 发射**普通**程序集，脱离脚本面）**：
 
 **读数一 · 标志位与提交类完全对称**（`System.Reflection` 读 `TypeAttributes`）：
 

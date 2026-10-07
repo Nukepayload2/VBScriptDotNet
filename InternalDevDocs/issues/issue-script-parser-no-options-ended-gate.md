@@ -35,11 +35,11 @@ VB 主循环（`Compilers\VisualBasic\Portable\CommandLine\VisualBasicCommandLin
 
 | # | 输入向量 | 读数 | 三态 |
 |---|---|---|---|
-| 1 | `["--", "@arg1"]` | **断言触发**：`Xunit.Sdk.TraceAssertException`，消息逐字 `Trace/Debug.Assert() Failure: Not arg.StartsWith("@", StringComparison.Ordinal)`；在该宿主下表现为**该测试失败**（`TestsFailed = 1`、`TestsTotal = 1`），不是进程崩溃。断言**不终止执行**（`Debug.Assert` 报告后返回），该次 `Parse` 因此仍跑完并返回：`SourceFiles = ["-", "<base>\\@arg1"]`（两项 `IsScript` 皆为真）、`ScriptArguments = []`、`Errors = []`——断言之外没有留下任何诊断 | **实锤**（本轮实跑；探针是 `ScriptModeArgsTests.vb` 内一次性的 `ParseScriptArguments({"--", "@arg1"}, BaseDirectory)` 调用，取数后已撤除） |
+| 1 | `["--", "@arg1"]` | **断言触发**：`Xunit.Sdk.TraceAssertException`，消息逐字 `Trace/Debug.Assert() Failure: Not arg.StartsWith("@", StringComparison.Ordinal)`；在该宿主下表现为**该测试失败**（`TestsFailed = 1`、`TestsTotal = 1`），不是进程崩溃。断言**不终止执行**（`Debug.Assert` 报告后返回），该次 `Parse` 因此仍跑完并返回：`SourceFiles = ["-", "<base>\\@arg1"]`（两项 `IsScript` 皆为真）、`ScriptArguments = []`、`Errors = []`——断言之外没有留下任何诊断 | **实锤**（实跑；探针是 `ScriptModeArgsTests.vb` 内一次性的 `ParseScriptArguments({"--", "@arg1"}, BaseDirectory)` 调用，取数后已撤除） |
 | 2 | `["--", "/arg2", "script.vbx"]` | **无断言**；`SourceFiles = ["-"]`、`Errors = [BC2007]`（`WRN_BadSwitch`，`Compilers\VisualBasic\Portable\Errors\Errors.vb:42`）、`ScriptArguments = ["script.vbx"]` | **实锤**（同上，探针读数逐字：`files=[-] redirected=True errs=[BC2007] args=[script.vbx] consoleRedirected=True`） |
 | 3 | `["--", "script.vbx", "@arg1"]` | **无断言**：第 2 个 token 先占了源文件槽 ⇒ 第 3 个 token 已进脚本参数，没有 `@` token 到达主循环 | **实锤**（U6 格 7 用例常态跑通即此路径，`ScriptModeArgsTests.vb:375`） |
 | 4 | `["@arg1"]`（无 `--`） | **无断言**：走响应文件分支，报 `BC2011`（`ERR_NoResponseFile`，`Errors.vb:46`，消息为「无法打开响应文件…」）；`SourceFiles` 与 `ScriptArguments` 皆空 | **实锤**（同第 1 行的探针手法，取数后已撤除） |
-| 5 | `["--", "@arg1"]`（**编译模式**，`VisualBasicCommandLineParser.Default.Parse`） | **无断言**（`asserts = 0`）；`SourceFiles = ["-"]`（`IsScript = False`）、`Errors = [BC2011]`（同第 4 行的响应文件诊断） | **实锤**（本轮实跑；探针同第 1 行，取数后已撤除） |
+| 5 | `["--", "@arg1"]`（**编译模式**，`VisualBasicCommandLineParser.Default.Parse`） | **无断言**（`asserts = 0`）；`SourceFiles = ["-"]`（`IsScript = False`）、`Errors = [BC2011]`（同第 4 行的响应文件诊断） | **实锤**（实跑；探针同第 1 行，取数后已撤除） |
 
 **对照的意义**：断言不是「任何输入都能撞」——第 3、4 行给出同族输入**不撞**，门槛是「`--` 已置 `optionsEnded` **且**其后第一个 token 以 `@` 开头」这一具体组合。第 4 行同时排除了「裸 `@` token 一定能到主循环」的相反猜测：没有 `--` 时它被响应文件分支吃掉。第 5 行同一向量换成编译模式后 `asserts = 0` ⇒ 门槛还要求**脚本模式**：编译模式下 `optionsEnded` 恒 False（根因第 3 条），同一个 `@arg1` 被响应文件分支吃掉（`BC2011`）。
 

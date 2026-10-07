@@ -6,7 +6,7 @@
 ## 一、判据（对齐 C#）
 
 - C# 侧 `CSharpCompilationOptions` **有**公共 `WithWarningLevel(int)`（`PublicAPI.Shipped.txt:204`），且脚本编译路径把 `ScriptOptions.WarningLevel` 转发进编译对象（上游 `CSharpScriptCompiler.cs`）。
-- VB 侧此前：`VisualBasicCompilationOptions` **无** `WithWarningLevel`、其私有构造器把 `warningLevel` **硬编码为 1**（`VisualBasicCompilationOptions.vb:266`），脚本编译器（`VisualBasicScriptCompiler.vb` 的 `CreateSubmission`）只转发 `optimizationLevel` / `checkOverflow`，不转发 `warningLevel` ⇒ `script.Compile().Options.WarningLevel` 恒为 1，无论 `ScriptOptions` 取何值。
+- VB 侧缺口：`VisualBasicCompilationOptions` **无** `WithWarningLevel`、其私有构造器把 `warningLevel` **硬编码为 1**（`VisualBasicCompilationOptions.vb:266`），脚本编译器（`VisualBasicScriptCompiler.vb` 的 `CreateSubmission`）只转发 `optimizationLevel` / `checkOverflow`，不转发 `warningLevel` ⇒ `script.Compile().Options.WarningLevel` 恒为 1，无论 `ScriptOptions` 取何值。
 - **目标形状**：脚本编译对象的 `WarningLevel` 反映 `ScriptOptions.WarningLevel`（默认 4，非用户改动；`WithWarningLevel(0)`→0、`(3)`→3）。普通编译（非脚本）默认仍为 1——改动是逐调用点、非默认翻转。
 
 ## 二、落点
@@ -17,7 +17,7 @@
 2. `Compilers\VisualBasic\Portable\PublicAPI.Unshipped.txt`：加一行 `...VB.VisualBasicCompilationOptions.WithWarningLevel(warningLevel As Integer) -> ...VB.VisualBasicCompilationOptions`（否则 PublicAPI 分析器报 RS0016）。
 3. `Scripting\VisualBasic\VisualBasicScriptCompiler.vb`：`CreateSubmission` 里在 `WithIgnoreCorLibraryDuplicatedTypes(True)` 后链 `.WithWarningLevel(script.Options.WarningLevel)`。
 
-## 三、非脚本面免疫（HANDOFF §2②）
+## 三、非脚本面免疫（`..\..\decisions.md` **D10**）
 
 - 门：普通编译的 `VisualBasicCompilationOptions` 仍走公共构造器 ⇒ 私有构造器仍产 `warningLevel:=1`；`WithWarningLevel` 是**逐调用点**的新可选 API，无既有调用者 ⇒ 非脚本产品行为逐字不变。
 - 拷贝构造器新增的 `Me.WarningLevel = other.WarningLevel` 只把"拷贝是否保留级别"从"恒 1"改成"等于源级别"；普通编译里所有对象的 `WarningLevel` 本就是 1 ⇒ 拷贝前后同为 1，无差。仅当某对象经 `WithWarningLevel` 得到非 1 后，拷贝才保留之——非脚本路径不产这种对象。

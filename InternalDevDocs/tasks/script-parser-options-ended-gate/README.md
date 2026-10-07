@@ -1,6 +1,6 @@
 # 任务：脚本命令行解析补 `optionsEnded` 门（script-parser-options-ended-gate）——任务计划
 
-> **状态：已收口（F01–F04 全做完，待作者提交）**——OE-F01 产品码 + OE-F02 单测由子代理落地，F03 回归（`CommandLine` 门 483/476/7/0、`Scripting\VisualBasicTest` 直跑 766/0、重建 Debug 宿主 `vbi -- a.vbx` / `vbi -- @x` / `vbi -` 三格档 2）与 F04 账本由 main 完成（`..\..\upstream-merge.md` §2.25(e)；issue 23 转 Fixed；队列台账 `..\csharp-script-parity-sweep\README.md` **#4** 转已验证）。流水账 `tmp\vortex-logs\script-parser-options-ended-gate\`。缺陷登记：`..\..\issues\issue-script-parser-no-options-ended-gate.md`（issue 23）。**子 agent 禁读 `issues\`**——症状与判据在本文件复述自足。
+> **状态：已收口（F01–F04 全做完，待作者提交）**——OE-F01 产品码 + OE-F02 单测由子代理落地，F03 回归（`CommandLine` 门 483/476/7/0、`Scripting\VisualBasicTest` 直跑 766/0、重建 Debug 宿主 `vbi -- a.vbx` / `vbi -- @x` / `vbi -` 三格档 2）与 F04 账本已完成（`..\..\upstream-merge.md` §2.25(e)；issue 23 转 Fixed；队列台账 `..\csharp-script-parity-sweep\README.md` **#4** 转已验证）。流水账 `tmp\vortex-logs\script-parser-options-ended-gate\`。缺陷登记：`..\..\issues\issue-script-parser-no-options-ended-gate.md`（issue 23）。**子 agent 禁读 `issues\`**——症状与判据在本文件复述自足。
 
 - **一句话**：`VisualBasicCommandLineParser.vb` 的符号 `Parse` 主循环缺 `optionsEnded` 门 ⇒ 合法输入 `["--", "@arg1"]` 撞 `Debug.Assert(Not arg.StartsWith("@"))`（`:198`），`["--", "/arg2", "script.vbx"]` 不撞断言却报 `BC2007` 且把源文件槽写成 `"-"`，而 C# 把 `/arg2` 当**源文件**。
 - **D7 裁定（已自动裁）**：可移植 ⇒ **对齐全 csi 的现行做法（方向 A）**。判据在树内：`Compilers\CSharp\Portable\CommandLine\CSharpCommandLineParser.cs:169`（`optionsEnded` 门）与 `:174`（选项判定同样带门）；`--` 与 `-` 在 VB 侧同码（`VisualBasicCommandLineParser.vb:477` 的 `Case "-"`）⇒ 分隔符吞掉后的语义按 C# 处理。理由＝本 fork 就是产品，"上游 VB 也没门"不构成理由（`decisions.md` D6/D7）。
@@ -28,11 +28,11 @@
 - 回归面集中在 `CommandLine` 门（475 条）与宿主测试；若发现"门之后应合法"的形状在 C# 侧其实也报错（读码不够），**停手上报**，不要按想象改语义。
 - 构建面独占（BC2012）；agent 禁跑全量回归。
 
-## 四、派工前补的 C# 侧实读（��main；解决 §一判据 4 的"非脚本面"疑问）
+## 四、派工前补的 C# 侧实读（解决 §一判据 4 的"非脚本面"疑问）
 
 - **`optionsEnded` 的置位点本身就在脚本块里**：C# 的 `optionsEnded = true` 在 `CSharpCommandLineParser.cs:330`，而它外层是 `if (IsScriptCommandLineParser)`（`:308`，`case "-": // csi -- script.csx` 在 `:313`）。⇒ **csc（非脚本）路径上该标志恒为 `false`**，`:169`/`:174` 两处门对 vbc 等价于恒假析取 ⇒ "补门"对 VB 非脚本面的影响**可证为零**，不需要额外分叉理由（硬约束第 2、3 条在此自动满足）。
 - **C# 区分 `-` 与 `--` 的判据是 `if (arg == "-")`**（`:315`），且带 `if (value != null) break;`（`:314`）⇒ VB 侧对应改法是 `Case "-"`（`VisualBasicCommandLineParser.vb:477`）里按 `arg` 是否逐字 `"-"` 分流，`"--"` 走置位。
-- **一处已知的 C# 不对齐，本轮不动**：VB 的 `Case "-"` **没有** `value IsNot Nothing → 交给后续通用处理` 这一条（C# `:314`）。补它会改变 `-` 带值时的既有形状（§一判据 5 明令"不得顺手改掉 `-` 的既有可用形状"）⇒ 本轮只登记为后续问题，实施者若认为必须一并改，先在流水账里给读数（改前/改后各跑一次）再判，不许静默扩大。
+- **一处已知的 C# 不对齐，不动**：VB 的 `Case "-"` **没有** `value IsNot Nothing → 交给后续通用处理` 这一条（C# `:314`）。补它会改变 `-` 带值时的既有形状（§一判据 5 明令"不得顺手改掉 `-` 的既有可用形状"）⇒ 只登记为后续问题，实施者若认为必须一并改，先在流水账里给读数（改前/改后各跑一次）再判，不许静默扩大。
 
 ## 五、main 收口补记（F03/F04，2026-09-24）
 

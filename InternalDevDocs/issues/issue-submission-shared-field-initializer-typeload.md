@@ -86,15 +86,15 @@ System.TypeLoadException: Could not load type 'Submission#0' from assembly
 
 **推测**：带形参的 `.cctor` 是非法元数据，类型因此无法加载 —— 与 `Assembly.GetType` 抛 `TypeLoadException`（而非纯「找不到类型」）的症状一致。
 
-### 更正：先前版本写错的环节
+### 已排除的环节：不是「共享构造器被注入含 `Me` 的实例初始化体」
 
-本 issue 初版把根因写成「共享构造器被注入含 `Me` 的实例初始化体」。**该环节不成立**，已删：
+提交初始化体挂不到这个共享构造器身上：
 
 - `Symbols\MethodSymbol.vb:516-520` 的 `IsScriptConstructor` 要求 `MethodKind = MethodKind.Constructor`；
 - 共享构造器的 `MethodKind` 是 `SharedConstructor`（上环 3），故 `:528-532` 的 `IsSubmissionConstructor` 为**假**；
 - 于是 `Compilation\MethodCompiler.vb:1535-1537` 的 `If(method.IsSubmissionConstructor, MakeSubmissionInitialization(...), ...)` **不会**给它挂提交初始化体。
 
-正确结论是：**问题出在「这个共享构造器被造出来了、且带着实例版形参」，不出在它的方法体。**
+**结论**：**问题出在「这个共享构造器被造出来了、且带着实例版形参」，不出在它的方法体。**
 
 ## C# 对照：csi 为什么没这个问题（证据等级：**已检查**）
 

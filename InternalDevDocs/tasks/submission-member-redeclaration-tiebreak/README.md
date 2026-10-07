@@ -44,7 +44,7 @@
 - **反例义务**（新规则不得越界）：同一提交内的同签名对（G5）、异签名但一方明确更优的对（G6 `100/200`）、非脚本普通类的真歧义（R3 `BC30521`）三格必须逐字不变。
 - **SW-TB-F04（下一片段）**：① 用上面那对形状在**当前码**上取读数（档 1 单测即可，别改产品码先）；② 读数确认为 `BC30521` 后，把择一判据提取为 `Private Shared Function TryGetSubmissionSlotWinner(...)` 一处定义、两处调用，并补等值/负槽位断言（§2.25(c) 缺口①）；③ 若读数显示 VB 在该形状上另有规则先行判出胜者 ⇒ 不改码，把结论写回本节并结案该缺口。
 
-## 五、SW-TB-F04 实测结论（��推翻 §四的候选缺口）
+## 五、SW-TB-F04 实测结论（推翻 §四的候选缺口）
 
 - 指定形状（`#0 M(Integer, Long)` / `#1 M(Long, Integer)`，调用 `M(1, 2)`）在 VB 读 `BC30521`（两候选各注"不是最适合"，槽位 1/2）；**同形状在 C# 实跑读 `CS0121`**（探针 `tmp\f04-cs-probe\Program.cs`，用本仓 CSharp 编译产物；读数 `tmp\vortex-logs\submission-member-redeclaration-tiebreak\04-implementer-f04.md:33`）⇒ **不是净分歧，§四第三行的猜测被推翻**，不新增第二落点。
 - 原因：C# 那段被"参数类型同一性"前置门挡在与 VB `signatureMatch` 相同的范围内（`OverloadResolution.cs:2216-2230`/`:2312`/`:2352` 先返回）。VB 侧这类对被放进不同的 equally-applicable 桶（`:2588+`）⇒ 末段第二落点**永不触发**，实测后撤销。

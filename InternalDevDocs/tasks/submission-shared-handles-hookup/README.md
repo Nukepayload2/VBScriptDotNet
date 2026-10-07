@@ -10,7 +10,7 @@
   3. 其余造 `.cctor` 的入口都只看"有没有共享初始化器"（`:2747-2752`；`Compilation\MethodCompiler.vb:630` → `:3220-3239`）⇒ 只有共享挂钩时**没有宿主可注入**。注入点本身普通类同形可用：`Analysis\InitializerRewriter.vb:86-134`（按 `MethodKind` 匹配宿主，`:111`）。
   4. VB 自己要求"共享挂钩落在 `.cctor` 时必须按时执行"：`Emit\NamedTypeSymbolAdapter.vb:482-492` 对这种形状**抑制** `beforefieldinit` ⇒ 惰性口径不是本条的免责理由。
 
-## 一、main 裁定的落点（自动裁决，不问）
+## 一、裁定的落点（自动裁决，不问）
 
 **采纳：把 `TypeKind.Submission` 纳入 `SourceMemberContainerTypeSymbol.vb:2829-2912` 的挂钩-构造器合成** —— 存在共享 `Handles` 挂钩时 `EnsureCtor(isShared:=True)`，复用 fork `48d8edbff` 已修好的**无参**提交类共享构造器路径（`:2744-2752` 逐字注释 "A shared constructor cannot take the submission array parameter…"），并确认 `NamedTypeSymbolAdapter.vb:482-492` 的 `beforefieldinit` 抑制在提交类上生效 ⇒ 由宿主 `newobj` 提交类实例触发 `.cctor`，与普通类同机制。
 

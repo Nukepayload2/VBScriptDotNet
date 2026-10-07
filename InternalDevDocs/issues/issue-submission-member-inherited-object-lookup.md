@@ -1,14 +1,14 @@
 # [BUG] 脚本类"无基类型"的判据与 C# 不同形：VB 按 `TypeKind.Submission` 判、C# 按 `IsScriptClass` 判 ⇒ 非提交脚本类多继承了 `Object` 成员；本 fork 新落的 `MyBase`→`Object` 兜底与 C# 相反须回退
 
-**状态**：**Not A Bug（可观测层与 C# 同形；仅补真值表测试、产品码零改动）**（2026-09-22 登记，同日改判重定范围 + 第二次更正：原症状在产品路径不复现；**2026-09-24 主线跑 S-F02a 真值表收口**：裸 `Object` 成员在提交类不可达（BC30451）、非提交脚本类与脚本内普通类可达（零错误）——与 C# 观测同形；V-B 判定＝**不收严 `:59`**（收严会让 VB 比 C# 更严）。落点＝新增 `ScriptBareObjectMemberTruthTableTests.vb` 9 格，详见末节「收口」）
+**状态**：**Not A Bug（可观测层与 C# 同形；仅补真值表测试、产品码零改动）**（2026-09-22 登记，按 D7 冲突裁定重定范围：原症状在产品路径不复现；**S-F02a 真值表收口**：裸 `Object` 成员在提交类不可达（BC30451）、非提交脚本类与脚本内普通类可达（零错误）——与 C# 观测同形；V-B 判定＝**不收严 `:59`**（收严会让 VB 比 C# 更严）。落点＝新增 `ScriptBareObjectMemberTruthTableTests.vb` 9 格，详见末节「收口」）
 
-**第二次更正（2026-09-22，main 实测；日志 `tmp\vortex-logs\submission-object-member-lookup\03-main-audit-s-f01b-and-R-probes.md`）**
+**更正（实测；日志 `tmp\vortex-logs\submission-object-member-lookup\03-main-audit-s-f01b-and-R-probes.md`）**
 
-1. **原症状（提交类成员体内 `Me.ToString()` / `MyClass.ToString()` 报 BC30456）在产品两条路径都不复现**：F03 重建后的发布版宿主下，探针 `R1`–`R6`（`tmp\spec-check-me\`）全部**零诊断**且打印出 `Submission#0`——包括逐字照抄 L2 换形状那一格源串的 `R5`。打印的容器实名 `Submission#0` 说明路径确实是**提交类**（非交互 `/script` 打印 `Script`）。F03 与 S-F01b 亦各自独立看到同一现象（`E@28` 零诊断、"P5 打出 `Submission#0`"）。⇒ 本文件此前「影响面＝`.vbx` 文件执行与 vbi REPL 提交都是提交类 ⇒ 都受影响」是**从容器类型推出来的**，不是逐路径测出来的；现降级为**未成立**。
+1. **原症状（提交类成员体内 `Me.ToString()` / `MyClass.ToString()` 报 BC30456）在产品两条路径都不复现**：F03 重建后的发布版宿主下，探针 `R1`–`R6`（`tmp\spec-check-me\`）全部**零诊断**且打印出 `Submission#0`——包括逐字照抄 L2 换形状那一格源串的 `R5`。打印的容器实名 `Submission#0` 说明路径确实是**提交类**（非交互 `/script` 打印 `Script`）。F03 与 S-F01b 亦各自独立看到同一现象（`E@28` 零诊断、"P5 打出 `Submission#0`"）。⇒ 「影响面＝`.vbx` 文件执行与 vbi REPL 提交都是提交类 ⇒ 都受影响」是**从容器类型推出来的**，不是逐路径测出来的；现降级为**未成立**。
 2. **BC30456 至今唯一证据**是 F01 的 **L1 内存编译临时用例**，且其消息里的类型名是 `'Script'`（不是 `Submission#0`）⇒ 那次量的可能是**另一种产法/另一套选项组合**。`Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb:489-491` 的换形状注释（"…files BC30456"）是**转述 F01**，F02 自己未实测（其日志显式声明"属另一条缺陷，本片段不修"）⇒ 回收该形状前必须先量。
 3. **C# 是双层机制，"改判据＝与 C# 同形"不成立**（S-F01b U1，main 逐字复核）：显式 `this` / `base` 在 C# 脚本类里被**关键字门**一律拒绝（`Binder\Binder_Expressions.cs:55-73` 的 `HasThis` 逐字 `return !inTopLevelScriptMember || !isExplicit;` ⇒ 成员体也算；`BindBase` `:2636-2639` 报 CS1512，显式 `this.X` 报 CS0027，钉在 `Test\...SemanticErrorTests.cs:1354-1417`）；而**裸** `ToString()` 只在提交类报 CS0103（`Binder_Lookup.cs:399-401` 不查基链），**非提交 Script 类解析成功**——扩展走查在声明基为 null 时把 `Object` 补回（`TypeSymbolExtensions.cs:226-232` + `:269-288`）。⇒ VB 没有对应的走查兜底，**单把 `ImplicitNamedTypeSymbol.vb:59` 的判据改成 `IsScriptClass` 会让 VB 比 C# 更严**（U3 的同一警告）；且只回退本 fork 的 `MyBase` 兜底会落到**完全无诊断**（U2：完整回退炸 `BoundNodes.xml.Generated.vb:6012-6024` 非空断言，保留 `ErrorType` 则走 `Binder_Expressions.vb:3070-3072` 静默）⇒ 回退与诊断方案必须同批设计，不能凭猜选。
 4. ⇒ **本文件的"真缺陷在反方向"一条（`TypeKind.Submission` vs `IsScriptClass` 不同形）暂挂为待实测**：先做 S-F02a 的 V1–V9 真值表（两轴＝HostObjectType 有/无 × Script/Submission 产法），交付每格「诊断集合 + 类型符号 + `BaseType` 实取值 + 运行输出」，再判 VB 到底差在哪一格。
-**改判记录（2026-09-22，按 `decisions.md` D7 的冲突裁定）**：本条**登记时的原症状不是缺陷**——当时判它的理由是"C# 里 `this.ToString()` 在提交类成员体内可用"，**该前提是错的**。实测 C# 源码与 C# 自己的测试：
+**按 `decisions.md` D7 的冲突裁定**：本条**登记时的原症状不是缺陷**——判它的理由"C# 里 `this.ToString()` 在提交类成员体内可用"**不成立**。C# 源码与 C# 自己的测试：
 
 ```csharp
 // Compilers\CSharp\Portable\Symbols\Source\ImplicitNamedTypeSymbol.cs:52-57
@@ -19,7 +19,7 @@ internal override NamedTypeSymbol BaseTypeNoUseSiteDiagnostics
 ```
 
 `Compilers\CSharp\Test\Symbol\Symbols\ImplicitClassTests.cs:63` 对**非提交**脚本类也断言 `Assert.Null(scriptClass.BaseType())`，`:76` 断言裸 `ToString` 解析不到符号；C# 发射侧同样是"符号层无基类、发射补 `Object`"（`CSharp\Portable\...\NamedTypeSymbolAdapter.cs:286-303`，与本 fork VB 的 `Emit\NamedTypeSymbolAdapter.vb:243-247` 及其 `Debug.Assert(baseType Is Nothing)` 同形）。⇒ **脚本类取不到 `Object` 继承成员是预期行为**。
-**作者裁定（2026-09-22）**：「遇到冲突？那按 C# script 实际策略来定。比如，`MyBase` 取到 `Nothing` 成为了预期行为。」据此，先前"「`MyBase` 应该指向 `System.Object`」"的口头裁定与据其落地的兜底（`Binding\Binder_Expressions.vb:2444-2451` 一带的 `GetBaseTypeOfScriptClass`）**一并作废并回退**。
+**作者裁定**：「遇到冲突？那按 C# script 实际策略来定。比如，`MyBase` 取到 `Nothing` 成为了预期行为。」据此，"「`MyBase` 应该指向 `System.Object`」"的口头裁定与据其落地的兜底（`Binding\Binder_Expressions.vb:2444-2451` 一带的 `GetBaseTypeOfScriptClass`）**一并作废并回退**。
 **真缺陷在反方向**：VB 的 `Symbols\Source\ImplicitNamedTypeSymbol.vb:51-60` 算出 `System.Object` 后 `Return If(Me.TypeKind = TypeKind.Submission, Nothing, baseType)`——判据是 `TypeKind.Submission`，而 C# 用 `IsScriptClass` ⇒ **VB 的非提交脚本类（`DeclarationKind.Script`，`TypeKind.Class`）继承了 C# 刻意拒绝的 `Object` 成员**，两侧对"脚本类"的边界划法不同形。
 **证据等级**：C# 侧**已检查**（源码注释 + C# 自己的测试断言逐行读）；VB 侧形状差异**已运行**（F01/F02 期间的内存编译实测，见下对照表）
 **严重度**：低-中（不崩、不误诊；是**方言间不一致**——本 fork 自称与 C# 脚本模式同形，而这条不同形；且刚落的 `MyBase` 兜底给了 C# 没有的能力，属会被上游合并与后续移植反复绊到的分叉）
@@ -62,7 +62,7 @@ Return If(Me.TypeKind = TypeKind.Submission, Nothing, baseType)
 
 注释逐字「Although submission semantically doesn't have a base class we need to emit one.」——提交类的**符号层基类型刻意是 `Nothing`**（发射仍要有基类型）。因此以 `Me` / `MyClass` 为接收者的成员解析沿 `BaseType` 上溯时到不了 `Object`，`ToString` / `GetType` / `Equals` / `GetHashCode` 这类继承成员查无此名。`MyBase` 不受影响是因为它的类型取自 `BaseTypeNoUseSiteDiagnostics` 这一条**绑定路径**，任务 F01 在该路径上加了脚本类的 `Object` 兜底；`Me` / `MyClass` 走的是成员查找，不在该路径上。
 
-## 预期行为（2026-09-22 按 C# 实测重写）
+## 预期行为（按 C# 实测）
 
 **判据**：与 C# 脚本模式同形——**任何**脚本类（提交与非提交都算）都报告无基类型，因此 `MyBase` / `Me` / `MyClass` 在成员体内都**取不到** `Object` 的继承成员；需要 `ToString` 之类的调用要写在实例上。原先"让提交类成员体内也能取到 `Object` 成员"的两条候选修法（查找回合 / 复制 `MyBase` 特例）**全部作废**，不再实施。
 
@@ -86,7 +86,7 @@ Return If(Me.TypeKind = TypeKind.Submission, Nothing, baseType)
 - `MyClass` 在非交互脚本类（`TypeKind.Class`）下是否零诊断——F01 只测了 `MyBase` 与该形状下的 `ToString()`（输出 `ScriptScript`），`MyClass.GetType()` 等未测。
 - 提交类「无基类型」这一事实在其它代码路径上的依赖面未清点（选甲修法前必须清点）。
 
-## 收口：V-A 实测真值表 + V-B 判定（2026-09-24，主线亲跑；S-F02a 完成）
+## 收口：V-A 实测真值表 + V-B 判定（S-F02a 完成）
 
 **只加测试、不改产品码。** 落点＝新增 `Compilers\VisualBasicSemanticTest\Semantics\ScriptBareObjectMemberTruthTableTests.vb`（9 格，档 1 已运行 ✔）。上节"受影响成员清单未逐条实测"的空白由下表填齐。探针＝**裸名**（无显式接收者）访问继承自 `System.Object` 的成员。
 
@@ -102,6 +102,6 @@ Return If(Me.TypeKind = TypeKind.Submission, Nothing, baseType)
 3. `Me.字段` / `MyClass.字段`（同容器显式接收者路径）另由 issue 28/29 既有格覆盖，本表不动。
 
 **V-B 判定：不收严 `ImplicitNamedTypeSymbol.vb:59`（维持 `TypeKind.Submission`）——产品码零改动。** 理由：
-- VB 现状下，提交类裸 `ToString()` → BC30451；C# 侧同样不把裸 `Object` 成员解析出来（`ImplicitClassTests.cs:63/:76`，◇继承未本轮复跑）⇒ **提交类两侧同形**，本 issue 原设想的"取不到 = 缺陷"在产品路径**不成立**（与 R1–R6 的"显式 `Me.ToString()` 可执行"一致：可达性是显式接收者路径给的，非裸名路径）。
+- VB 现状下，提交类裸 `ToString()` → BC30451；C# 侧同样不把裸 `Object` 成员解析出来（`ImplicitClassTests.cs:63/:76`，◇继承未复跑）⇒ **提交类两侧同形**，本 issue 原设想的"取不到 = 缺陷"在产品路径**不成立**（与 R1–R6 的"显式 `Me.ToString()` 可执行"一致：可达性是显式接收者路径给的，非裸名路径）。
 - 非提交脚本类：VB 靠"基类型＝`Object`"让裸成员可达；C# 靠 `TypeSymbolExtensions.cs:226-232` 的绑定期走查"补回 `Object`"达到**同样可观测**的可达（其符号层基类型仍为 `null`）。⇒ 两侧**观测结果相同、机制不同**。若照 C# 的谓词把 VB 的 `:59` 从 `TypeKind.Submission` 收严到 `IsScriptClass`，VB 的非提交脚本类会**丢掉 `Object` 基、又没有那层走查兜底** ⇒ 变成 BC30451，即 **VB 比 C# 更严**——这正是队列 #2 判的过度分叉，故否决。
-- ⇒ 本条以「可观测层与 C# 同形、无需改码」收口；`MyBase`→`Object` 兜底已由 `script-class-explicit-keyword-parity-revert` 回退，无需再动。C# 列读数为继承（◇），VB 列为本轮实测（✔）。
+- ⇒ 本条以「可观测层与 C# 同形、无需改码」收口；`MyBase`→`Object` 兜底已由 `script-class-explicit-keyword-parity-revert` 回退，无需再动。C# 列读数为继承（◇），VB 列为实测（✔）。
