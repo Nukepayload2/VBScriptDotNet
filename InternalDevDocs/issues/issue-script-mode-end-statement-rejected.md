@@ -1,6 +1,6 @@
 # 脚本模式下 `End` 语句被拒（顶层裸 `End` → BC30678，块内/方法体内 → BC30615）
 
-* 状态：**Fixed**（已验证，commit 待作者提交后补）——落地形状与读数见文末「修复落地（2026-10-07）」一节；两道门各修一处，改动面＝`Parser.vb` +8 / `Binder_Statements.vb` +2−1。
+* 状态：**Fixed**（`f22a135`；commit 号已由作者提交后补齐）——落地形状与读数见文末「修复落地（2026-10-07）」一节；两道门各修一处，改动面＝`Parser.vb` +8 / `Binder_Statements.vb` +2−1。收口后追加的下降面钉 `EndLowersToTheEndAppCall` 与相应台账更新**尚未提交**，待下一次提交。
 * 发现日期：2026-10-07
 * 发现场景：用户报告（作者）+ 本机实测复现（宿主 = 本地 `dotnet tool install` 的 `vbi` 2.0.0-RC2）
 * 证据等级：**已运行**（触发面与判别性对照均实跑；**修复后**亦已实跑：七门 gate 全绿、`Scripting\VisualBasicTest` 直跑 777/0、重建 Debug `vbi` 后 `tmp\probe-end-stmt\` 六格档 2 对账 —— 见文末「修复落地」）
@@ -185,7 +185,8 @@ RUN_EXITCODE=0        ' 无 after
 ### 读数（亲跑）
 
 - 七门（`scripts\verify-vb-compiler-tests.ps1`，一次跑完、`exit 0`）：`Phase2 143/143/0/0`、`Syntax 4106/4103/3/0`、`Symbol 3407/3383/24/0`、`Semantic 5919/5815/104/0`、`IOperation 1574/1566/8/0`、`Emit 4389/4286/103/0`、`CommandLine 483/476/7/0` ⇒ **除本任务新增格外（Syntax +8、Semantic +5、Emit +1），逐门数字与基线一字未动**；门脚本内基线已同步。
-- `Scripting\VisualBasicTest` 直跑 `-automated`：`TestsTotal 777 / TestsFailed 0 / TestsSkipped 0 / TestsNotRun 0`。
+- `Scripting\VisualBasicTest` 直跑 `-automated`：`TestsTotal 778 / TestsFailed 0 / TestsSkipped 0 / TestsNotRun 0`。
+- **下降面实证（"`End` 到底有没有调用 `ProjectData.EndApp()`"）**：两条形状都**确实调用**。方法体形状由 `Emit` 门 ES-A11 钉住（`Script.Finish` 的 IL 里恰一处 `call …EndApp()`）；顶层形状此前无 in-repo 断言，收口后补了宿主层格 `EndLowersToTheEndAppCall`（读发射产物元数据：解析 `EndApp` 的 `MemberReference` 后扫方法体 IL 计数 `call`/`callvirt`）——**对照源（无 `End`）0 处**、顶层裸 `End` **1 处**（落在合成初始化器的异步状态机 `Submission#0+VB$StateMachine_1_<Initialize>.MoveNext IL_0012`）、方法体内 `End` **1 处**（`Submission#0.Finish IL_0001`）。三格的 `OutputKind` 均为 `DynamicallyLinkedLibrary` 且零诊断。独立探针留档 `tmp\endapp-probe\`（输出 `tmp\vortex-logs\script-mode-end-statement\_endapp-il-probe.log`）。
 - 档 1 新增/改写的格：语法层 8 格（含 Regular 顶层裸 `End` 仍 `BC30678`、脚本块结束语句诊断不变）、语义层 5 格（含**非提交脚本树 + DLL 仍 `BC30615`** 的窄化锁与提交链）、发射层 1 格（IL 里恰一处 `ProjectData.EndApp()`）、宿主层两格负向钉改写为 `AssertEmits` 正格。
 - 档 2 宿主（重建 Debug `vbi`）：`a-end-top.vbx` → `A1`/`exit 0`/无 `A2`；`d-end-in-if.vbx` → `D1`/`exit 0`/无 `D2`；`c2-end-sub.vbx` → `C1`+`C-in`/`exit 0`/无 `C2`；`e-end-in-lambda.vbx` → `E1`/`exit 0`/无 `E2`；REPL（先喂 `R1` 再喂 `End`）→ 打印 `R1` 后 `exit 0`、其后提交不执行、零诊断；`vbi /check a-end-top.vbx` 与 `/check d-end-in-if.vbx` 零诊断 `exit 0`（对照 `/check c-end-sub.vbx` 报 BC30183/BC30205、`exit 1` ⇒ `/check` 通道确实在工作）。**哨兵逐字未变**：`b-exit-top.vbx`（`B1`/`exit 0`/无 `B2`）、`x-exit.vbx`（`X1`/`exit 0`/无 `X2`）、`normal.vb /target:exe`（`exit 0`、零诊断）、`normal.vb /target:library`（`exit 1`、`BC30615`）。
 - 独立验证者（不与实施者同一上下文）：产品 diff 最小性、非脚本面免疫**自建探针**复测、宿主两格未被弱化、对抗性解析形状（含 24 种块结束形态与单行 lambda 争议形状）、BOM/意外改动、节点种类钉法 —— 8 项全过；未验项＝`#Load` 树里的 `End`（无解析器夹具）。

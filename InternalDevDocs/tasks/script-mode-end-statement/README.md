@@ -1,6 +1,6 @@
 # 任务：脚本模式 `End` 语句解禁（script-mode-end-statement）——任务计划
 
-> **状态：已收口（F01–F05 全做完；产品码净增删 +10/−1；新增 14 格＝Syntax 8 / Semantic 5 / Emit 1；宿主两格负向钉改写为正格。七门全绿、`Scripting\VisualBasicTest` 直跑 777/0、档 2 宿主六格对账。待作者提交 ⇒ commit 号不预填。）** 缺陷登记：`..\..\issues\issue-script-mode-end-statement-rejected.md`（issue 39，**人的登记，非 agent 输入**）——已转 **Fixed**。流水账：`tmp\vortex-logs\script-mode-end-statement\`（`01-main-plan` / `02-implementer-f02-f03` / `03-verifier` / `04-main-f04-f05`）。上游账本：`..\..\upstream-merge.md` **§2.25(l)**（两个改动文件都是上游同名文件）。
+> **状态：已收口（F01–F05 全做完；产品码净增删 +10/−1；新增 15 格＝Syntax 8 / Semantic 5 / Emit 1 / 宿主下降面钉 1；另两格宿主负向钉改写为正格。七门全绿、`Scripting\VisualBasicTest` 直跑 778/0、档 2 宿主六格对账。**已由作者提交为 `f22a135`**；收口后追加的下降面钉与台账更新待下一次提交。）** 缺陷登记：`..\..\issues\issue-script-mode-end-statement-rejected.md`（issue 39，**人的登记，非 agent 输入**）——已转 **Fixed**。流水账：`tmp\vortex-logs\script-mode-end-statement\`（`01-main-plan` / `02-implementer-f02-f03` / `03-verifier` / `04-main-f04-f05`）。上游账本：`..\..\upstream-merge.md` **§2.25(l)**（两个改动文件都是上游同名文件）。
 >
 > **子 agent 禁读 `InternalDevDocs\issues\`、禁改 `InternalDevDocs\tasks\`**：本文件已把症状、读数与判据复述齐全；要改计划报 main，由 main 落笔。
 

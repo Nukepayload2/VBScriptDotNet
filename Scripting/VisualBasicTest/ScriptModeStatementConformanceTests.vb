@@ -916,4 +916,84 @@ Public Class ScriptModeStatementConformanceTests
 
 #End Region
 
+#Region "End reaches the process ending call"
+
+    ''' <summary>
+    ''' "End compiles" is only half of the contract: the statement has to reach the process ending call, so the
+    ''' emitted artifact of a submission must carry a call of
+    ''' Microsoft.VisualBasic.CompilerServices.ProjectData.EndApp(). The top level shape lowers it into the
+    ''' synthesized initializer's state machine, whose name is an implementation detail no VerifyIL should point at,
+    ''' so this cell reads the artifact's metadata instead: it resolves the EndApp member reference and counts the
+    ''' call instructions whose token is that member. The control source has no End and must resolve no such member,
+    ''' which is what keeps the count from being satisfied by an unrelated reference.
+    ''' </summary>
+    <Fact>
+    Public Sub EndLowersToTheEndAppCall()
+        Assert.Equal(0, EndAppCallSites("System.Console.WriteLine(""no-end"")"))
+        Assert.Equal(1, EndAppCallSites("System.Console.WriteLine(""A1"")" & vbCrLf &
+                                        "End" & vbCrLf &
+                                        "System.Console.WriteLine(""A2"")"))
+        Assert.Equal(1, EndAppCallSites("Sub Finish()" & vbCrLf &
+                                        "    End" & vbCrLf &
+                                        "End Sub" & vbCrLf &
+                                        "Finish()"))
+    End Sub
+
+    ''' <summary>
+    ''' Emits the submission and returns how many call instructions in the artifact target
+    ''' Microsoft.VisualBasic.CompilerServices.ProjectData.EndApp. Everything is in memory; nothing is run, because
+    ''' running End would end this process.
+    ''' </summary>
+    Private Shared Function EndAppCallSites(source As String) As Integer
+        Dim script = VisualBasicScript.Create(source, ScriptModeConformance.DefaultOptions)
+        Dim diagnostics = script.Compile()
+        Assert.True(diagnostics.Where(Function(d) d.Severity = DiagnosticSeverity.Error).Count() = 0,
+                    "a clean submission has to emit: " & source)
+
+        Using stream As New System.IO.MemoryStream()
+            Assert.True(script.GetCompilation().Emit(stream).Success, "the submission has to produce an artifact")
+            stream.Position = 0
+
+            Using pe As New System.Reflection.PortableExecutable.PEReader(stream)
+                Dim reader = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe)
+                Dim endApp As UInteger = 0
+                For Each handle In reader.MemberReferences
+                    If reader.StringComparer.Equals(reader.GetMemberReference(handle).Name, "EndApp") Then
+                        endApp = CUInt(System.Reflection.Metadata.Ecma335.MetadataTokens.GetToken(
+                            CType(handle, System.Reflection.Metadata.EntityHandle)))
+                    End If
+                Next
+
+                If endApp = 0 Then
+                    Return 0
+                End If
+
+                Dim count = 0
+                For Each handle In reader.MethodDefinitions
+                    Dim definition = reader.GetMethodDefinition(handle)
+                    If definition.RelativeVirtualAddress = 0 Then
+                        Continue For
+                    End If
+
+                    Dim il = System.Reflection.Metadata.PEReaderExtensions.GetMethodBody(
+                        pe, definition.RelativeVirtualAddress).GetILBytes()
+                    Dim index = 0
+                    While index + 4 < il.Length
+                        If (il(index) = &H28 OrElse il(index) = &H6F) AndAlso
+                           BitConverter.ToUInt32(il, index + 1) = endApp Then
+                            count += 1
+                            index += 5
+                        Else
+                            index += 1
+                        End If
+                    End While
+                Next
+
+                Return count
+            End Using
+        End Using
+    End Function
+
+#End Region
+
 End Class

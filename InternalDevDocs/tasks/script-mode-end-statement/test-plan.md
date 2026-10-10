@@ -59,6 +59,8 @@ End Function
 
 ### ES-A（L4 宿主层）→ 改写 `Scripting\VisualBasicTest\ScriptModeStatementConformanceTests.vb`（见 ES-D）
 
+**ES-A12（收口后补，用户提问触发）**：新增宿主层格 `EndLowersToTheEndAppCall`（文件末尾新 region，不改动既有格的行号）——读**发射产物的元数据**：解析 `ProjectData.EndApp` 的 `MemberReference`，再扫所有方法体的 IL 计数指向它的 `call`/`callvirt`（`&H28`/`&H6F` + token）。断言＝**对照源（无 `End`）恰 0 处**、顶层裸 `End` **恰 1 处**、方法体内 `End` **恰 1 处**。补它的原因：ES-A11 只钉了方法体形状的 IL，顶层形状的下降**此前无 in-repo 断言**（档 1 只到"零诊断 + 可发射"）；该格把 IL 证据变成常驻回归钉，且一个跑不掉的反例臂（对照源 0 处）保证计数不会被无关引用满足。全程只 `Compile` + `Emit(MemoryStream)`，**不运行**。
+
 ## 二、ES-B 反例锁（非脚本面免疫；D10 的验证义务；档 1）
 
 | 格 | 形状 | 期望 |
@@ -125,7 +127,17 @@ End Function
 | CommandLine | 483/476/7/0 | 未变 |
 
 `scripts\verify-vb-compiler-tests.ps1` 内基线已同步（Syntax 4098→4106、Semantic 5914→5919、Emit 4388→4389）。
-`Scripting\VisualBasicTest` 直跑 `-automated`：`TestsTotal 777 / TestsFailed 0 / TestsSkipped 0 / TestsNotRun 0`（ES-C1/C2 是改写 ⇒ 总数不变）。本轮**没有**出现 §六 那条已知偶发红。
+`Scripting\VisualBasicTest` 直跑 `-automated`：`TestsTotal 778 / TestsFailed 0 / TestsSkipped 0 / TestsNotRun 0`（ES-C1/C2 是改写 ⇒ 计数不变；ES-A12 是收口后新加的 IL 钉 ⇒ +1）。本轮**没有**出现 §六 那条已知偶发红。
+
+**ES-A12 的 IL 读数（独立探针 `tmp\endapp-probe\`，读发射产物元数据；原始输出 `_endapp-il-probe.log`）**：
+
+| 源 | `EndApp` MemberReference | 指向它的 `call` 站点数 |
+|---|---|---|
+| 对照（无 `End`） | **不存在** | **0** |
+| 顶层裸 `End` | `0x0A00000D` → `Microsoft.VisualBasic.CompilerServices.ProjectData` | **1**：`Submission#0+VB$StateMachine_1_<Initialize>.MoveNext IL_0012` |
+| `End` 在方法体内 | `0x0A00000C` → 同上 | **1**：`Submission#0.Finish IL_0001` |
+
+⇒ `End` 的两条形状都**真的调用** `ProjectData.EndApp()`；顶层形状落在合成初始化器的**异步状态机**里（这正是它不是 `VerifyIL` 好目标的缘故）。三格的 `outputKind` 都是 `DynamicallyLinkedLibrary` 且 `errors=0` ⇒ 也正是两道门（库输出 + 合法）的直接体现。
 
 档 2（重建 Debug `vbi`，探针 `..\..\..\tmp\probe-end-stmt\`，原始输出 `tmp\vortex-logs\script-mode-end-statement\_es-h-probes.log`）：
 
