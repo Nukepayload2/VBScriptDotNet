@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Kullanım: vbi [seçenekler] [betik-dosyası.vbx] [-- betik-bağımsız-değişkenleri]
 
 betik-dosyası belirtilirse betiği yürütür, aksi takdirde etkileşimli bir REPL (Okuma Değerlendirme Yazdırma Döngüsü) başlatır.
 
+Seçenekler '/', '-' veya '--' ile başlayabilir; /version, -version ve --version eşdeğerdir.
+
 Seçenekler:
   /help                          Bu kullanım iletisini görüntüle (Kısa biçim: /?)
   /version                       Sürümü görüntüle ve çıkış yap
-  /reference:&lt;alias&gt;=&lt;file&gt;      Verilen diğer adı kullanarak belirtilen bütünleştirilmiş koddan meta verilere başvur (Kısa biçim: /r)
   /reference:&lt;file list&gt;         Belirtilen bütünleştirilmiş kod dosyalarından meta verilere başvur (Kısa biçim: /r)
   /imports:&lt;namespace&gt;           Genel ad alanı using tanımını belirle (Kısa biçim: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Genel koşullu derleme simgelerini bildir (Kısa biçim: /d)
@@ -68,7 +70,7 @@ Seçenekler:
   /-                             Yeniden yönlendirilen giriş akışından vbx betiğini çalıştırın.
   /i                             Etkileşimli modda çalıştırın.
   /check                         Yalnızca derler, çalıştırmadan veya dosya üretmeden (hataları ve tüm uyarıları raporlar); tamsayı taşması anahtarı /removeintchecks ile ilgisi yoktur
-  /loadpath                      Gelecek sürümlerde ek vbx betiklerini çalıştırmak için ayrılmıştır.
+  /loadpath:&lt;dir list&gt;           #Load yönergesinin aradığı dizinleri belirtir.
   @&lt;file&gt;                        Daha fazla seçenek için yanıt dosyasını okuyun. Varsayılan dosya vbi.rsp'tir.
 </target>
         <note />

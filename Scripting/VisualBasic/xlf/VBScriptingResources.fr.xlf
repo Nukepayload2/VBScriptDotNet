@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Utilisation : vbi [options] [fichier-script.vbx] [-- arguments-script]
 
 Si fichier-script est spécifié, exécute le script ; sinon, lance une boucle REPL (Read Eval Print Loop) interactive.
 
+Les options peuvent être préfixées par '/', '-' ou '--' ; /version, -version et --version sont équivalents.
+
 Options :
   /help                          Afficher ce message d'utilisation (forme abrégée : /?)
   /version                       Afficher la version et quitter
-  /reference:&lt;alias&gt;=&lt;file&gt;      Référencer les métadonnées du fichier d'assembly spécifié à l'aide de l'alias donné (forme abrégée : /r)
   /reference:&lt;file list&gt;         Référencer les métadonnées des fichiers d'assembly spécifiés (forme abrégée : /r)
   /imports:&lt;namespace&gt;           Définir l'espace de noms global using (forme abrégée : /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Déclarer les symboles de compilation conditionnelle globaux (forme abrégée : /d)
@@ -68,7 +70,7 @@ Options :
   /-                             Exécute le script vbx à partir du flux d'entrée redirigé.
   /i                             Exécuter en mode interactif.
   /check                         Compiler uniquement, sans exécuter ni générer de fichiers (signale les erreurs plus tous les avertissements) ; sans rapport avec le commutateur de dépassement d'entiers /removeintchecks
-  /loadpath                      Réservé à l'exécution de scripts vbx supplémentaires dans les versions futures.
+  /loadpath:&lt;dir list&gt;           Spécifie les répertoires recherchés par la directive #Load.
   @&lt;file&gt;                        Lire le fichier réponse pour plus d'options. Le fichier par défaut est vbi.rsp.
 </target>
         <note />

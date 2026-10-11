@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">使用法: vbi [options] [script-file.vbx] [-- script-arguments]
 
 script-file を指定するとスクリプトが実行されます。指定しないと、対話型 REPL (Read Eval Print Loop) が起動されます。
 
+オプションには '/'、'-'、'--' のいずれかを付けることができます。/version、-version、--version は同じ意味です。
+
 オプション:
   /help                          この使用法に関するメッセージを表示します (短い形式: /?)
   /version                       バージョンを表示して終了します
-  /reference:&lt;alias&gt;=&lt;file&gt;      指定されたエイリアスを使用して、指定されたアセンブリ ファイルのメタデータを参照します (短い形式: /r)
   /reference:&lt;file list&gt;         指定されたアセンブリ ファイルのメタデータを参照します (短い形式: /r)
   /imports:&lt;namespace&gt;           グローバル名前空間の using を定義します (短い形式: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     条件付きコンパイル シンボルをグローバルに宣言します (短い形式: /d)
@@ -68,7 +70,7 @@ script-file を指定するとスクリプトが実行されます。指定し�
   /-                             リダイレクトされた入力ストリームから vbx スクリプトを実行します。
   /i                             対話モードで実行します。
   /check                         コンパイルのみで、実行やファイルの生成は行いません (エラーとすべての警告を報告)。整数オーバーフロー スイッチ /removeintchecks とは無関係です
-  /loadpath                      将来のリリースで追加の vbx スクリプトを実行するために予約されています。
+  /loadpath:&lt;dir list&gt;           #Load ディレクティブが検索するディレクトリを指定します。
   @&lt;file&gt;                        その他のオプションについては、応答ファイルを読み取ります。既定のファイルは vbi.rsp です。
 </target>
         <note />

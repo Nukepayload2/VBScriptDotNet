@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">사용법: vbi [options] [script-file.vbx] [-- script-arguments]
 
 script-file이 지정되면 스크립트를 실행하고, 그렇지 않으면 대화형 REPL(Read Eval Print Loop)을 시작합니다.
 
+옵션에는 '/', '-', '--' 중 하나를 붙일 수 있습니다. /version, -version, --version은 서로 같습니다.
+
 옵션:
   /help                          이 사용법 메시지를 표시합니다. (약식: /?)
   /version                       버전을 표시하고 종료합니다.
-  /reference:&lt;alias&gt;=&lt;file&gt;      지정한 어셈블리 파일에서 해당 별칭을 사용하여 메타데이터를 참조합니다. (약식: /r)
   /reference:&lt;file list&gt;         지정한 어셈블리 파일에서 메타데이터를 참조합니다. (약식: /r)
   /imports:&lt;namespace&gt;           전역 네임스페이스 using을 정의합니다. (약식: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     전역 조건부 컴파일 기호를 선언합니다. (약식: /d)
@@ -68,7 +70,7 @@ script-file이 지정되면 스크립트를 실행하고, 그렇지 않으면 �
   /-                             리디렉션된 입력 스트림에서 vbx 스크립트를 실행합니다.
   /i                             대화형 모드로 실행합니다.
   /check                         컴파일만 수행하고 실행하지 않으며 파일을 생성하지 않습니다(오류와 모든 경고를 보고). 정수 오버플로 스위치 /removeintchecks와 관련이 없습니다
-  /loadpath                      향후 릴리스에서 추가 vbx 스크립트를 실행하도록 예약되어 있습니다.
+  /loadpath:&lt;dir list&gt;           #Load 지시문이 검색할 디렉터리를 지정합니다.
   @&lt;file&gt;                        추가 옵션을 위해 지시 파일을 읽습니다. 기본 파일은 vbi.rsp입니다.
 </target>
         <note />

@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">用法: vbi [options] [script-file.vbx] [-- script-arguments]
 
 如果指定了脚本文件，则执行脚本；否则启动交互式 REPL (读取–求值–打印循环)。
 
+选项可使用 "/"、"-" 或 "--" 前缀；/version、-version 与 --version 等价。
+
 选项:
   /help                          显示此用法消息(缩写: /?)
   /version                       显示版本并退出
-  /reference:&lt;alias&gt;=&lt;file&gt;      从使用给定别名的指定程序集文件引用元数据(缩写: /r)
   /reference:&lt;file list&gt;         从指定的程序集文件中引用元数据(缩写: /r)
   /imports:&lt;namespace&gt;           定义全局命名空间 using(缩写: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     声明全局条件编译符号(缩写: /d)
@@ -68,7 +70,7 @@ Options:
   /-                             从重定向的输入流运行 vbx 脚本。
   /i                             以交互模式运行。
   /check                         仅编译，不运行且不产出文件（报告错误并输出全部警告）；与整数溢出开关 /removeintchecks 无关
-  /loadpath                      保留供将来版本运行附加 vbx 脚本使用。
+  /loadpath:&lt;dir list&gt;           指定 #Load 指令搜索的目录。
   @&lt;file&gt;                        读取响应文件以了解更多选项。默认文件为 vbi.rsp。
 </target>
         <note />

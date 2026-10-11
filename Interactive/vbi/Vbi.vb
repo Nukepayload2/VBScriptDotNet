@@ -51,6 +51,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Public Shared Async Function OnStartupAsync(args() As String) As Task(Of Integer)
             Try
+                ' Accept GNU-style '--option' alongside '/option' and '-option' (parity with F# Interactive).
+                ' The fold has to happen before VbiCompileMode.IsCompileInvocation, so that '--out:'/'--target:'
+                ' select compile mode and are then recognized by the compile-mode option table as well.
+                args = VbiCommandLine.NormalizeLongSwitches(args)
+
                 ' Note that AppContext.BaseDirectory isn't necessarily the directory containing vbi.exe.
                 ' For example, when executed via corerun it's the directory containing corerun.
                 Dim vbiDirectory = Path.GetDirectoryName(GetType(Vbi).GetTypeInfo().Assembly.ManifestModule.FullyQualifiedName)

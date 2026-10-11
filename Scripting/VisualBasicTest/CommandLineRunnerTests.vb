@@ -656,6 +656,12 @@ s_logoAndHelpPrompt + "
         runner = CreateRunner({"/version", "/nologo"})
         Assert.Equal(0, runner.RunInteractive())
         AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
+
+        ' vbi's entry point folds GNU-style double dash switches before parsing (Vbi.OnStartupAsync ->
+        ' VbiCommandLine.NormalizeLongSwitches), so "--version" reaches the runner as "/version".
+        runner = CreateRunner(VbiCommandLine.NormalizeLongSwitches({"--version"}))
+        Assert.Equal(0, runner.RunInteractive())
+        AssertEx.AssertEqualToleratingWhitespaceDifferences(s_versionOutput, runner.Console.Out.ToString())
     End Sub
 
     <Fact>

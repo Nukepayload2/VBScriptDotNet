@@ -27,10 +27,11 @@
 
 If script-file is specified executes the script, otherwise launches an interactive REPL (Read Eval Print Loop).
 
+Options may be prefixed with '/', '-' or '--'; /version, -version and --version are equivalent.
+
 Options:
   /help                          Display this usage message (Short form: /?)
   /version                       Display the version and exit
-  /reference:&lt;alias&gt;=&lt;file&gt;      Reference metadata from the specified assembly file using the given alias (Short form: /r)
   /reference:&lt;file list&gt;         Reference metadata from the specified assembly files (Short form: /r)
   /imports:&lt;namespace&gt;           Define global namespace using (Short form: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Declare global conditional compilation symbol(s) (Short form: /d)
@@ -44,17 +45,18 @@ Options:
   /-                             Run vbx script from redirected input stream.
   /i                             Run in interactive mode.
   /check                         Compile only, without running or emitting files (reports errors plus all warnings); unrelated to the integer overflow switch /removeintchecks
-  /loadpath                      Reserved for running additional vbx scripts in future releases.
+  /loadpath:&lt;dir list&gt;           Specifies the directories searched by the #Load directive.
   @&lt;file&gt;                        Read response file for more options. The default file is vbi.rsp.
 </source>
         <target state="translated">Použití: vbi [options] [script-file.vbx] [-- script-arguments]
 
 Pokud se zadá script-file, provede skript, jinak spustí interaktivní REPL (Read Eval Print Loop).
 
+Možnosti lze uvést s předponou '/', '-' nebo '--'; /version, -version a --version jsou ekvivalentní.
+
 Možnosti:
   /help                          Zobrazí tuto zprávu o použití (krátký tvar: /?)
   /version                       Zobrazí verzi a ukončí se
-  /reference:&lt;alias&gt;=&lt;file&gt;      Odkazuje na metadata ze zadaného souboru sestavení pomocí zadaného aliasu (krátký tvar: /r)
   /reference:&lt;file list&gt;         Odkazuje na metadata ze zadaných souborů sestavení (krátký tvar: /r)
   /imports:&lt;namespace&gt;           Definuje globální použití oboru názvů (krátký tvar: /import)
   /define:&lt;name&gt;=&lt;value&gt;,...     Deklaruje globální symboly podmíněné kompilace (krátký tvar: /d)
@@ -68,7 +70,7 @@ Možnosti:
   /-                             Spustí skript vbx z přesměrovaného vstupního proudu.
   /i                             Spustí v interaktivním režimu.
   /check                         Pouze zkompiluje, nespustí a nevyprodukuje žádné soubory (hlásí chyby plus všechna upozornění); nesouvisí s přepínačem kontroly přetečení celých čísel /removeintchecks
-  /loadpath                      Vyhrazeno pro spouštění dalších skriptů vbx v budoucích verzích.
+  /loadpath:&lt;dir list&gt;           Určuje adresáře prohledávané direktivou #Load.
   @&lt;file&gt;                        Přečte soubor odpovědí pro další možnosti. Výchozí soubor je vbi.rsp.
 </target>
         <note />
