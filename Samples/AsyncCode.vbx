@@ -1,3 +1,4 @@
+#!/usr/bin/env vbi
 Imports System.Threading.Tasks
 
 For i = 1 To 4

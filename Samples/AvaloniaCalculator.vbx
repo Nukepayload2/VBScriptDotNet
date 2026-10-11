@@ -1,3 +1,4 @@
+#!/usr/bin/env vbi
 ' Avalonia standard-mode calculator demo with the FluentAvaloniaUI theme (.vbx).
 '
 ' References NuGet packages through the #R "nuget:" channel (design: vbi-nuget-reference).

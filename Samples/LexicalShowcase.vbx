@@ -1,0 +1,618 @@
+#!/usr/bin/env vbi
+Option Explicit On
+Option Strict On
+Option Infer On
+
+Imports System.Linq
+
+' Section 1: Comments.
+REM The reserved word REM starts a comment as well.
+‘ U+2018 left single quotation mark starts a comment.
+’ U+2019 right single quotation mark starts a comment.
+Console.WriteLine("§1  comments: shebang, apostrophe, REM, U+2018, U+2019")
+
+' Section 2: White space and line continuation.
+' The underscore sits after Integer, where no implicit continuation applies.
+Dim continued As Integer _
+    = 1 + 2 + 3
+Console.WriteLine($"§2a explicit '_' continuation = {continued}")
+
+' The TAB (U+0009) is deliberate: a token separator, not indentation.
+Dim tabbed As Integer = 	continued + 1
+Console.WriteLine($"§2b tab white space = {tabbed}")
+
+' Section 3: Identifiers, including escaped identifiers.
+Dim _leading As Integer = 7
+
+Dim s_dx As Integer() = {2, 1, -1}
+Console.WriteLine($"§3a underscore-leading identifiers = {_leading + s_dx(0)}")
+
+Class [class]
+    Shared Function [function]([integer] As Integer) As Integer
+        Return [integer] * 2
+    End Function
+End Class
+
+Console.WriteLine($"§3b escaped identifier call [class].[function](21) = {[class].[function](21)}")
+
+' Any keyword, live or retired, needs an escaped identifier to be used as a name.
+Dim [Wend] = "Wend"
+Dim [EndIf] = "EndIf"
+Dim [GoSub] = "GoSub"
+Dim [Let] = "Let"
+Dim [Variant] = "Variant"
+Dim [Resume] = "Resume"
+Dim [Error] = "Error"
+Dim [GetXmlNamespace] = "GetXmlNamespace"
+Dim [Namespace] = "Namespace"
+Dim [Next] = "Next"
+Dim [To] = "To"
+Dim escapedKeywords = String.Join(", ",
+    {[Wend], [EndIf], [GoSub], [Let], [Variant], [Resume], [Error],
+    [GetXmlNamespace], [Namespace], [Next], [To]})
+Console.WriteLine($"§3c keywords as escaped identifiers: {escapedKeywords}")
+
+' Section 4: Type characters.
+' Type characters: percent Integer, ampersand Long, exclamation Single, hash Double,
+' at-sign Decimal, dollar String.
+Dim pct% = 11
+Dim lng& = 22
+Dim sgl! = 33.5
+Dim dbl# = 44.5
+Dim dec@ = 55.5D
+Dim str$ = "66"
+
+' In CStr(sgl!) the exclamation is a type character: a close parenthesis cannot
+' start an identifier, so the exclamation is not the separator here.
+Dim typedValues = String.Join(", ", {CStr(pct%), CStr(lng&), CStr(sgl!), CStr(dbl#), CStr(dec@), str$})
+Console.WriteLine($"§4a type characters = {typedValues}")
+
+' Section 5: Literals.
+Dim boolTrue As Boolean = True
+Dim boolFalse As Boolean = False
+Dim nothingValue As Object = Nothing
+
+Dim nullableInteger As Integer? = Nothing
+
+Dim decimalLiteral As Integer = 1234567
+Dim hexLiteral As Short = &H8000S
+Dim octalLiteral As Integer = &O777
+
+' The unsigned suffixes are deliberate: they cover US, UI and UL.
+Dim suffixShort As Short = 3S
+Dim suffixUShort As UShort = 4US
+Dim suffixInteger As Integer = 5I
+Dim suffixUInteger As UInteger = 6UI
+Dim suffixLong As Long = 7L
+Dim suffixULong As ULong = 8UL
+
+Dim floatSingle As Single = 1.5F
+Dim floatDouble As Double = 2.5R
+Dim floatDecimal As Decimal = 3.5D
+Dim floatExponent As Double = 1.25E+3
+Dim floatLeadingDot As Double = .5
+
+Dim quotedText As String = "a ""double quoted"" word"
+Dim charA As Char = "a"c
+Dim charQuote As Char = """"c
+Dim dateAndTime As Date = #8/23/1970 3:45:39 AM#
+Dim dateOnly As Date = #8/23/1970#
+Dim timeOnly As Date = # 1:45:39 PM #
+
+Dim unicodeQuoted As String = “Unicode double-quoted string”
+
+Console.WriteLine($"§5a integers  = {decimalLiteral}, {hexLiteral}, {octalLiteral}")
+Console.WriteLine($"§5b suffixes  = {suffixShort}, {suffixUShort}, {suffixInteger}, {suffixUInteger}, {suffixLong}, {suffixULong}")
+Console.WriteLine($"§5c floats    = {floatSingle}, {floatDouble}, {floatDecimal}, {floatExponent}, {floatLeadingDot}")
+Console.WriteLine($"§5d strings   = {quotedText} | {unicodeQuoted}")
+Console.WriteLine($"§5e chars     = {charA}{charQuote}")
+Console.WriteLine($"§5f dates     = {dateAndTime:yyyy-MM-dd HH:mm:ss} | {dateOnly:yyyy-MM-dd} | {timeOnly:HH:mm:ss}")
+Console.WriteLine($"§5g booleans  = {boolTrue}, {boolFalse}; Nothing and nullable = {nothingValue Is Nothing}, {nullableInteger Is Nothing}")
+
+' Section 6: Separators and operator characters.
+' A colon is a Separator too; the conventions forbid it as a statement separator.
+Dim powerResult = 2 ^ 3
+Console.WriteLine($"§6a '^' exponentiation = {powerResult}")
+
+Dim integerQuotient = 17 \ 5
+Dim remainder = 17 Mod 5
+Console.WriteLine($"§6b 17 \ 5 = {integerQuotient}; 17 Mod 5 = {remainder}")
+
+Dim shiftedLeft = 1 << 4
+Dim shiftedRight = 256 >> 2
+Console.WriteLine($"§6c 1 << 4 = {shiftedLeft}; 256 >> 2 = {shiftedRight}")
+
+Dim notEqual = 1 <> 2
+Dim likeMatch = "hello" Like "h*"
+Console.WriteLine($"§6d 1 <> 2 = {notEqual}; Like match = {likeMatch}")
+
+Dim andResult = 6 And 3
+Dim orResult = 6 Or 3
+Dim xorResult = 6 Xor 3
+Dim notResult = Not 6
+Console.WriteLine($"§6e 6 And 3 = {andResult}; 6 Or 3 = {orResult}; 6 Xor 3 = {xorResult}; Not 6 = {notResult}")
+
+Dim concatenated = "a" & "b"
+Dim compound = 10
+compound += 5
+compound -= 3
+compound *= 2
+compound \= 4
+Dim raised As Double = 6
+raised ^= 2
+concatenated &= "c"
+Console.WriteLine($"§6f integer compound assignment = {compound}")
+Console.WriteLine($"§6g '^=' assignment = {raised}")
+Console.WriteLine($"§6h ampersand and &= = {concatenated}")
+
+' Section 7: Statements and keywords.
+Dim forTotal = 0
+For i As Integer = 1 To 10 Step 2
+    If i = 5 Then
+        Continue For
+    End If
+    forTotal += i
+Next
+Console.WriteLine($"§7a For/To/Step/Continue For = {forTotal}")
+
+Dim whileCount = 0
+While whileCount < 3
+    whileCount += 1
+End While
+
+Dim doCount = 0
+Do
+    doCount += 1
+Loop Until doCount = 2
+Do While doCount > 0
+    doCount -= 1
+Loop
+Console.WriteLine($"§7b While/Do/Loop/Until = {whileCount}, {doCount}")
+
+Dim eachTotal = 0
+For Each value In {1, 2, 3}
+    eachTotal += value
+Next
+Console.WriteLine($"§7c For Each = {eachTotal}")
+
+Dim caseText = ""
+Select Case eachTotal
+    Case 1 To 5
+        caseText = "small"
+    Case Is > 100
+        caseText = "big"
+    Case Else
+        caseText = "mid"
+End Select
+Console.WriteLine($"§7d Select/Case/To/Is/Else = {caseText}")
+
+Dim exitCount = 0
+For i As Integer = 1 To 100
+    If i = 3 Then
+        Exit For
+    End If
+    exitCount = i
+Next
+Console.WriteLine($"§7e Exit For = {exitCount}")
+
+Dim buffer As Integer()
+ReDim buffer(3)
+buffer(3) = 9
+ReDim Preserve buffer(5)
+Console.WriteLine($"§7f ReDim/Preserve = {buffer.Length} last={buffer(3)}")
+Erase buffer
+Console.WriteLine($"§7g Erase makes it Nothing = {buffer Is Nothing}")
+
+Dim gotoStep = 0
+gotoStep += 1
+GoTo afterGoto
+gotoStep += 100
+afterGoto:
+Console.WriteLine($"§7h GoTo and label = {gotoStep}")
+
+Call Console.WriteLine("§7i Call statement")
+
+Dim gate As New Object
+SyncLock gate
+    Console.WriteLine("§7j SyncLock block")
+End SyncLock
+
+Try
+    Throw New InvalidOperationException("boom")
+Catch ex As InvalidOperationException When ex.Message = "boom"
+    Console.WriteLine("§7k Try/Throw/Catch/When/Finally")
+Finally
+    Console.WriteLine("§7l Finally ran")
+End Try
+
+Using writer As New System.IO.StringWriter
+    writer.Write("used")
+    Console.WriteLine($"§7m Using = {writer.ToString}")
+End Using
+
+' Section 8: Declarations.
+Module LexModule
+    Function Twice(value As Integer) As Integer
+        Return value * 2
+    End Function
+End Module
+Console.WriteLine($"§8a Module = {LexModule.Twice(21)}")
+
+' A namespace declaration is not allowed in script code (BC36965), so the word is
+' shown above as an escaped identifier instead.
+
+Interface IGreeter
+    Function Greet(name As String) As String
+End Interface
+
+Class EnglishGreeter
+    Implements IGreeter
+
+    Public Function Greet(name As String) As String Implements IGreeter.Greet
+        Return $"Hello, {name}"
+    End Function
+End Class
+
+Dim greeter As New EnglishGreeter
+Console.WriteLine($"§8b Interface/Implements = {greeter.Greet("VB")}")
+
+MustInherit Class BaseThing
+    Public MustOverride Function Kind() As String
+
+    Public Overridable Function Tag() As String
+        Return "base"
+    End Function
+End Class
+
+Class DerivedThing
+    Inherits BaseThing
+
+    Public Overrides Function Kind() As String
+        Return "derived"
+    End Function
+
+    Public NotOverridable Overrides Function Tag() As String
+        Return $"{MyBase.Tag}+derived"
+    End Function
+
+    Public Function NonVirtualTag() As String
+        Return MyClass.Tag
+    End Function
+End Class
+
+Dim derived As New DerivedThing
+Console.WriteLine($"§8c MustInherit/MustOverride/Overrides/MyBase/MyClass = {derived.Kind}, {derived.Tag}, {derived.NonVirtualTag}")
+
+Class Echoer
+    Public Overloads Function Echo(value As Integer) As String
+        Return $"int:{value}"
+    End Function
+
+    Public Overloads Function Echo(value As String) As String
+        Return $"str:{value}"
+    End Function
+End Class
+
+Dim echoInstance As New Echoer
+Console.WriteLine($"§8d Overloads = {echoInstance.Echo(1)}, {echoInstance.Echo("x")}")
+
+Class ShadowBase
+    Public Shared Label As String = "base"
+End Class
+
+Class ShadowDerived
+    Inherits ShadowBase
+
+    Public Shadows Shared Label As String = "derived"
+End Class
+Console.WriteLine($"§8e Shadows = {ShadowBase.Label}, {ShadowDerived.Label}")
+
+NotInheritable Class FinalThing
+End Class
+
+Partial Class SplitThing
+    Public First As Integer = 1
+End Class
+
+Partial Class SplitThing
+    Public Second As Integer = 2
+End Class
+
+Dim split As New SplitThing
+Console.WriteLine($"§8f NotInheritable and Partial = {split.First + split.Second}")
+
+Delegate Function Transformer(value As Integer) As Integer
+Dim doubler As Transformer = Function(value) value * 2
+Console.WriteLine($"§8g Delegate = {doubler(21)}")
+
+' AddHandler with RemoveHandler is deliberate; WithEvents with Handles is preferred.
+Class Bell
+    Event Ring(message As String)
+
+    Public Sub Pull()
+        RaiseEvent Ring("ding")
+    End Sub
+End Class
+
+Class Listener
+    Public Heard As String
+
+    Public Sub OnRing(message As String)
+        Heard = message
+    End Sub
+End Class
+
+Class Watcher
+    Private WithEvents Signal As New Bell
+
+    Public LastMessage As String
+
+    Public Sub Listen()
+        Signal.Pull
+    End Sub
+
+    Private Sub OnSignal(message As String) Handles Signal.Ring
+        LastMessage = message
+    End Sub
+End Class
+
+Dim bellInstance As New Bell
+Dim listenerInstance As New Listener
+AddHandler bellInstance.Ring, AddressOf listenerInstance.OnRing
+bellInstance.Pull
+RemoveHandler bellInstance.Ring, AddressOf listenerInstance.OnRing
+Console.WriteLine($"§8h Event/RaiseEvent/AddHandler/RemoveHandler/AddressOf = {listenerInstance.Heard}")
+
+Dim watcherInstance As New Watcher
+watcherInstance.Listen
+Console.WriteLine($"§8i WithEvents/Handles = {watcherInstance.LastMessage}")
+
+Structure Money
+    Public Amount As Decimal
+
+    Public Sub New(amount As Decimal)
+        Me.Amount = amount
+    End Sub
+
+    Public Shared Operator +(left As Money, right As Money) As Money
+        Return New Money(left.Amount + right.Amount)
+    End Operator
+
+    Public Shared Widening Operator CType(value As Money) As Decimal
+        Return value.Amount
+    End Operator
+
+    Public Shared Narrowing Operator CType(value As Decimal) As Money
+        Return New Money(value)
+    End Operator
+End Structure
+
+Dim moneySum As Money = New Money(1.5D) + New Money(2.25D)
+Dim widenedAmount As Decimal = moneySum
+Dim narrowedAmount As Money = CType(widenedAmount, Money)
+Console.WriteLine($"§8j Operator/Widening/Narrowing = {widenedAmount}, {narrowedAmount.Amount}")
+
+Class Bag
+    Default Public Property Item(index As Integer) As Integer
+        Get
+            Return index * 3
+        End Get
+        Set(value As Integer)
+        End Set
+    End Property
+
+    Public WriteOnly Property Sink As String
+        Set(value As String)
+        End Set
+    End Property
+End Class
+
+Dim bagInstance As New Bag
+bagInstance.Sink = "discarded"
+Console.WriteLine($"§8k Default/WriteOnly property = {bagInstance(4)}")
+
+Class ArgBag
+    Public Function ShowOptional(Optional label As String = "none") As String
+        Return label
+    End Function
+
+    Public Function ShowParams(ParamArray rest() As Integer) As String
+        Return $"count={rest.Length}"
+    End Function
+End Class
+
+Dim argumentBag As New ArgBag
+Console.WriteLine($"§8l Optional/ParamArray = {argumentBag.ShowOptional}, {argumentBag.ShowOptional("x")}, {argumentBag.ShowParams(1, 2)}")
+
+Class StickyCounter
+    Public Function Bump() As Integer
+        Static counter As Integer = 0
+        counter += 1
+        Return counter
+    End Function
+End Class
+
+Dim sticky As New StickyCounter
+sticky.Bump
+sticky.Bump
+Console.WriteLine($"§8m Static local = {sticky.Bump}")
+
+Enum LexColor
+    Red
+    Green
+End Enum
+Console.WriteLine($"§8n Enum = {LexColor.Green}")
+
+Dim boxed As Object = 42
+Dim conversionParts = {
+    CStr(CInt(boxed)),
+    CStr(CLng(boxed)),
+    CStr(CDbl(boxed)),
+    CStr(CSng(boxed)),
+    CStr(CDec(boxed)),
+    CStr(CByte(boxed)),
+    CStr(CShort(boxed)),
+    CStr(CSByte(boxed)),
+    CStr(CUInt(boxed)),
+    CStr(CULng(boxed)),
+    CStr(CUShort(boxed)),
+    CStr(CObj(boxed)),
+    CStr(CBool(1)),
+    CStr(CChar("a")),
+    CDate("2024-01-01").ToString("yyyyMMdd")
+}
+Console.WriteLine($"§8o conversion keywords = {String.Join(",", conversionParts)}")
+Console.WriteLine($"§8p CType/DirectCast/TryCast = {CType(boxed, Integer)}, {DirectCast(boxed, Integer)}, {TryCast(boxed, String)}")
+
+Console.WriteLine($"§8q GetType/NameOf = {GetType(Integer).Name}, {NameOf(DerivedThing)}")
+Console.WriteLine($"§8r Global qualifier = {Global.System.Math.Abs(-1)}")
+
+Dim boxedText As Object = "text"
+Console.WriteLine($"§8s TypeOf/Is/IsNot = {TypeOf boxedText Is String}, {boxedText IsNot Nothing}, {Nothing Is Nothing}")
+
+' The kernel32 library exists only on Windows, so the call is guarded.
+Declare Function GetTickCount Lib "kernel32.dll" Alias "GetTickCount" () As UInteger
+Try
+    Console.WriteLine($"§8t Declare/Lib/Alias = {GetTickCount > 0UI}")
+Catch ex As DllNotFoundException
+    Console.WriteLine("§8t Declare/Lib/Alias = kernel32 not available")
+End Try
+
+Iterator Function Evens() As IEnumerable(Of Integer)
+    For value As Integer = 2 To 8 Step 2
+        Yield value
+    Next
+End Function
+Console.WriteLine($"§8u Iterator/Yield = {String.Join(",", Evens)}")
+
+Async Function DelayedAsync() As Task(Of Integer)
+    Await Task.Delay(1)
+    Return 41
+End Function
+Dim awaited = Await DelayedAsync
+Console.WriteLine($"§8v Async/Await = {awaited}")
+
+' Section 9: Preprocessor directives.
+#Const LEXICAL_EXTRA = True
+#If LEXICAL_EXTRA Then
+    Console.WriteLine("§9a #Const/#If taken branch")
+#Else
+    Console.WriteLine("§9a #Else branch is never compiled and need not be valid VB")
+#End If
+
+#Region "Preprocessor region"
+#End Region
+Console.WriteLine("§9b #Region")
+
+' Section 10: LINQ query expressions.
+' Each clause boundary is a line terminator: the implicit continuation allowed
+' before and after query operators.
+Dim numbers = {5, 3, 9, 1, 7, 3, 8, 2, 6, 4}
+Dim words = {"delta", "alpha", "echo", "bravo", "charlie", "alpha"}
+Dim people = {
+    New With {.Name = "Ann", .DepartmentId = 1, .Age = 34},
+    New With {.Name = "Bob", .DepartmentId = 2, .Age = 28},
+    New With {.Name = "Cid", .DepartmentId = 1, .Age = 45},
+    New With {.Name = "Dee", .DepartmentId = 3, .Age = 41},
+    New With {.Name = "Eve", .DepartmentId = 2, .Age = 23}
+}
+Dim departments = {
+    New With {.Id = 1, .Title = "Engineering"},
+    New With {.Id = 2, .Title = "Operations"},
+    New With {.Id = 3, .Title = "Research"}
+}
+
+Dim largeNumbers = From number In numbers
+                   Where number > 3 AndAlso number <> 7
+                   Order By number Descending
+                   Select number
+Console.WriteLine($"§10.1 From/Where/Order By/Select = {String.Join(",", largeNumbers)}")
+
+Dim distinctWords = From word In words
+                    Let length = word.Length
+                    Where length >= 5
+                    Order By length Descending, word
+                    Select Word = word, Length = length
+                    Distinct
+Console.WriteLine("§10.2 Let/Order By/Select/Distinct =")
+For Each item In distinctWords
+    Console.WriteLine($"    {item.Word} ({item.Length})")
+Next
+
+Dim pagedNumbers = From number In numbers
+                   Order By number Ascending
+                   Skip 2
+                   Take 3
+                   Select number
+Console.WriteLine($"§10.3 Skip/Take/Ascending = {String.Join(",", pagedNumbers)}")
+
+Dim departmentSizes = From person In people
+                      Group person By DepartmentId = person.DepartmentId Into Members = Group, HeadCount = Count, Oldest = Max(person.Age)
+                      Order By DepartmentId Ascending
+                      Select DepartmentId, HeadCount, Oldest
+Console.WriteLine("§10.4 Group By Into =")
+For Each department In departmentSizes
+    Console.WriteLine($"    department {department.DepartmentId}: {department.HeadCount} people, oldest {department.Oldest}")
+Next
+
+Dim peopleByDepartment = From person In people
+                         Join department In departments On person.DepartmentId Equals department.Id
+                         Order By person.Name Ascending
+                         Select person.Name, department.Title
+Console.WriteLine("§10.5 Join/On/Equals =")
+For Each row In peopleByDepartment
+    Console.WriteLine($"    {row.Name} -> {row.Title}")
+Next
+
+Dim staffPerDepartment = From department In departments
+                         Group Join person In people On department.Id Equals person.DepartmentId Into Staff = Group
+                         Order By department.Id Ascending
+                         Select department.Title, StaffCount = Staff.Count
+Console.WriteLine("§10.6 Group Join =")
+For Each row In staffPerDepartment
+    Console.WriteLine($"    {row.Title}: {row.StaffCount}")
+Next
+
+Dim total = Aggregate number In numbers Into Sum
+Dim average = Aggregate number In numbers Into Average
+Dim smallest = Aggregate number In numbers Into Min
+Dim largest = Aggregate number In numbers Into Max
+Dim howMany = Aggregate number In numbers Into Count
+Dim anyLarge = Aggregate number In numbers Into Any(number > 8)
+Dim allPositive = Aggregate number In numbers Into All(number > 0)
+Dim sumOfSquares = Aggregate number In numbers Into Sum(number * number)
+Console.WriteLine($"§10.7 Aggregate Into = sum={total} avg={average} min={smallest} max={largest}")
+Console.WriteLine($"§10.7 Aggregate Into = count={howMany} any>8={anyLarge} all>0={allPositive} sumSq={sumOfSquares}")
+
+Dim bigNumbers = Aggregate number In numbers
+                 Where number > 4
+                 Select number
+                 Into ToArray
+Console.WriteLine($"§10.8 Aggregate ... Into ToArray = {String.Join(",", bigNumbers)}")
+
+Dim smallNumbers = {1, 2, 3}
+Dim multipliers = {10, 20}
+Dim products = From number In smallNumbers
+               From multiplier In multipliers
+               Select Product = number * multiplier
+Console.WriteLine($"§10.9 two From clauses = {String.Join(",", products)}")
+
+Dim afterOperator = From number In numbers Where
+                    number > 6
+                    Order By
+                    number Descending
+                    Select
+                    number
+Console.WriteLine($"§10.10 continuation after query operator = {String.Join(",", afterOperator)}")
+
+Dim evenSquares = numbers.Where(Function(number) number Mod 2 = 0).OrderByDescending(Function(number) number).Select(Function(number) number * number)
+Dim sortedWords = words.Distinct.OrderBy(Function(word) word)
+Console.WriteLine($"§10.11 method syntax = {String.Join(",", evenSquares)} | {String.Join(",", sortedWords)}")
+
+Dim iteratorQuery = From number In Evens
+                    Where number > 2
+                    Select Doubled = number * 10
+Console.WriteLine($"§10.12 query over Iterator = {String.Join(",", iteratorQuery)}")
+
+Console.WriteLine
+Console.WriteLine("LexicalShowcase: all sections executed.")

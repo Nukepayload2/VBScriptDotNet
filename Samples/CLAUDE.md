@@ -200,6 +200,41 @@ End Structure
 - Validate user input and command line arguments
 - Be cautious with COM object instantiation
 
+## Coding Conventions
+
+Follow the Visual Basic coding conventions. The executable reference is
+`Samples/LexicalShowcase.vbx`: it is written to those conventions and prints one marker per
+construct, so running it doubles as a smoke test.
+
+```vb
+Dim values As Integer() = {1, 2, 3}                 ' Array designator on the type.
+Dim total = Aggregate value In values Into Sum      ' Parameterless call: no ().
+Console.WriteLine($"total = {total}")               ' Interpolation, not concatenation.
+```
+
+The main rules it demonstrates:
+- One statement per line, with no `:` separator, and one declaration per line.
+- Four-space indents, with tabs inserted as spaces.
+- Comments on their own line, starting with an uppercase letter and ending with a period.
+- Array designators on the type, not on the variable.
+- Omit the empty argument list from parameterless method and property calls (`derived.Kind`,
+  `Into Sum`, `String.Join(",", Evens)`); keep it on declarations (`Function Kind() As String`).
+- String interpolation for short concatenations.
+- `IsNot Nothing` rather than `Not ... Is Nothing`, and `Try...Catch` and `Using` rather than
+  `On Error Goto`.
+- Short instantiation, for example `Dim log As New EventLog With {...}`.
+- `WithEvents` with `Handles` in preference to `AddHandler`.
+- LINQ: meaningful query variable names, Pascal-cased anonymous projection properties, clauses
+  aligned under `From`, `Where` before later clauses, and `Join` instead of a `Where` join.
+
+`LexicalShowcase.vbx` also covers the lexical-grammar productions that the other samples never
+touch: escaped identifiers, type characters, every literal form, `REM` and Unicode quote comments,
+explicit and implicit line continuation, all conversion keywords, preprocessor directives, and the
+full query syntax. The few lines there that depart from the conventions on purpose are marked in
+place.
+
+Run it with `vbi LexicalShowcase.vbx`.
+
 ## Execution Notes
 
 ### WinUI Specific Considerations
@@ -226,6 +261,8 @@ VBScript.NET scripts support multiple .NET frameworks:
 - Windows-specific features require Windows runtime
 
 ## Development Workflow
+
+Use `Samples/LexicalShowcase.vbx` as the coding-conventions reference.
 
 1. Create .vbx file with Visual Basic.NET syntax
 2. Add necessary reference directives (#R)

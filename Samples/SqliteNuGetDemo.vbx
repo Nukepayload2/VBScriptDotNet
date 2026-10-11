@@ -1,3 +1,4 @@
+#!/usr/bin/env vbi
 ' SQLite (Microsoft.Data.Sqlite) NuGet demo (.vbx).
 '
 ' References a NuGet package through the #R "nuget:" channel. The directive syntax is

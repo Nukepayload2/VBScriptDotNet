@@ -1,2 +1,3 @@
+#!/usr/bin/env vbi
 console.writeline(string.join(",",Environment.GetCommandLineArgs))
 console.readkey
