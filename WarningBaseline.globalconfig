@@ -1,0 +1,24 @@
+# Warning baseline for the pruned Roslyn compiler tree.
+#
+# Mirrors the diagnostic severities upstream Roslyn (dotnet/roslyn, merge base
+# 0e401fcf66cbfd4aeb27a78408ab91cab3a6f207) applies to its own compiler projects through
+# eng\config\globalconfigs\Common.globalconfig. The rules below fire on source that this fork
+# took from upstream unchanged, so they are upstream-inherited diagnostics rather than fork
+# regressions: they are aligned with upstream here instead of being "fixed" in upstream code.
+# Fork-authored diagnostics are fixed in source instead (see InternalDevDocs\upstream-merge.md).
+is_global = true
+
+# RS1024: Compare symbols correctly — upstream severity: refactoring (not a build diagnostic).
+dotnet_diagnostic.RS1024.severity = refactoring
+
+# RS1034: Prefer 'IsKind' for checking syntax kinds — upstream severity: none.
+dotnet_diagnostic.RS1034.severity = none
+
+# RS1014: Do not pass a cancellation token as the only argument — upstream severity: none.
+dotnet_diagnostic.RS1014.severity = none
+
+# RS2008: Enable analyzer release tracking — upstream severity: none.
+dotnet_diagnostic.RS2008.severity = none
+
+# CA2265: Do not compare a Span<T> to 'null' or 'default' — upstream severity: suggestion.
+dotnet_diagnostic.CA2265.severity = suggestion

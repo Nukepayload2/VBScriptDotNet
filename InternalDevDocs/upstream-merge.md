@@ -553,6 +553,54 @@
 
 **清点中未核实、故不入表**：`ad1824f` 的 `Parser\Parser.vb` 改动点是否即 §2.8 登记的 `IsFirstStatementOnLine`；`b2d5d7f` 在 `:526` 另加 `optimize` 分支的动机（上游 `:833` 已有同名分支）。标 `Suspect`，补登记时先核。
 
+## 二·补 2、编译警告基线：上游对照与 fork 修复（2026-10-11）
+
+**口径与方法**：以 `Scripting\VisualBasic` 为根重建依赖链（`Compilers\Core` ＋ `Compilers\VisualBasic` ＋ `Scripting\Core` ＋ `Scripting\VisualBasic`，各 `netstandard2.0;net10.0`），`-t:Rebuild -v m` 收全部诊断；按「文件:行:列 ＋ 诊断号」去重得 **1713 个警告站点 / 280 个文件**（原始 3644 行，含 MSBuild 汇总重复）。逐文件与 `{{Roslyn}}` 基准 commit `0e401fcf…`（本机 `G:\Projects\roslyn`，工作树干净）跑 `git diff --no-index -U0`，把每个站点按**行号是否落在 fork 改动 hunk 内**分桶。
+
+| 桶 | 站点数 | 处置 |
+|---|---|---|
+| 文件与上游逐字相同 | 1192 | 不修代码 |
+| 文件有 fork 改动、该行在上游逐字存在 | 495 | 不修代码 |
+| 行落在 fork 改动 hunk 内 | 14 | 逐条核 ⇒ 修 3 处 |
+| 上游无对应路径（fork 新增文件） | 12 | 逐条核 ⇒ 修 1 处 |
+
+**为什么上游不报那 1687 条（配置对照，锚点为基准 commit 的上游树）**：
+
+| 诊断 | 上游设置 | 出处 |
+|---|---|---|
+| RS1024 | `severity = refactoring`（不进构建诊断） | `eng\config\globalconfigs\Common.globalconfig:66` |
+| RS1034 / RS1014 / RS2008 | `severity = none` | 同文件 `:70` / `:111`（覆盖 `:62`）/ `:73` |
+| CA2265 | `severity = suggestion` | 同文件 `:20` |
+| RS1036 | `<EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>` | `eng\targets\Settings.props:59` |
+| RS1041 / RS1038 | `NoWarn` | `eng\targets\Settings.props:65` |
+| CS86xx（仅非 .NETCoreApp） | `DisableNullableWarnings` ⇒ `NoWarn += Nullable` | `eng\targets\Imports.targets:41`、`:66` |
+
+分析器包版本两侧一致（`Microsoft.CodeAnalysis.Analyzers 5.9.0-1.26328.17`：本 fork `Compilers\Core\Portable\Microsoft.CodeAnalysis.csproj:34` ＝ 上游 `eng\Version.Details.xml:144`）⇒ 规则集相同，差异全在配置。netstandard2.0 参考程序集不带 nullable 注解，同一份上游源码在 netstandard2.0 上会多报 **459** 条 CS86xx（net10.0 同源码零条）——上游正是用 `DisableNullableWarnings` 关掉这一层。
+
+**落地（对齐上游配置，不动上游代码）**：
+
+- 新增仓库根 `WarningBaseline.globalconfig`（`is_global = true`）：RS1024＝refactoring、RS1034/RS1014/RS2008＝none、CA2265＝suggestion。
+- `Directory.Build.props`：`NoWarn += RS1041;RS1038`；`'$(TargetFramework)' != '' and !$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net5.0'))` 时 `NoWarn += Nullable`；`EnforceExtendedAnalyzerRules=false`；`<EditorConfigFiles>` 引入上述 globalconfig。**条件必须按 TFM 判、不能按 `$(TargetFrameworkIdentifier)` 判**——该属性在 `Directory.Build.props` 导入时还是空串，按它判会把 .NET TFM 的 CS86xx 一并吞掉（实测：写错时 `Microsoft.CodeAnalysis.csproj::net10.0` 的 `NoWarn` 也含 `Nullable`）。反证已做：把 `ScriptMetadataResolver.cs:25` 临时改回 `string`，`Scripting::net10.0` 立刻回吐 CS8603 ⇒ .NET 侧 nullable 仍生效。
+
+**fork 引入、已修（5 处）**：
+
+- `Compilers\VisualBasic\Portable\Symbols\AssemblySymbol.vb:806` **BC42108** —— `GetTypeByReflectionType`（§2.22 在册；上游 VB 侧无此方法，上游只有 C# 侧）里 `Dim conflicts As (AssemblySymbol, AssemblySymbol)` 未初始化即 ByRef 传出 ⇒ 补 `= Nothing`，写法与上游 `WellKnownMembers.vb:378` 同形。零行为变化（VB 对 ValueTuple 字段本就零初始化，BC42108 是启发式告警）。
+- `Scripting\Core\ScriptMetadataResolver.cs:25` **CS8603** —— `BaseDirectory` 由 `string` 回退成上游的 `string?`（源侧 `RelativePathResolver.BaseDirectory` 本就是 `string?`，`Compilers\Core\Portable\FileSystem\RelativePathResolver.cs:19`）。API 面两侧同写 `-> string`（`Scripting\Core\PublicAPI.Shipped.txt:82`，该文件无 `#nullable enable` ⇒ 注解不入 API 面）。
+- `Scripting\Core\Hosting\Resolvers\RuntimeMetadataReferenceResolver.cs:169` **CS8600** —— `string resolvedPath` → `string? resolvedPath`，与上游同文件同处写法一致。
+- `Compilers\VisualBasic\Portable\Syntax\ShebangDirectiveTriviaSyntax.vb:15,34` **RS1034** —— fork 新增文件（§2.8），`trivia.Kind = SyntaxKind.SkippedTokensTrivia` → `trivia.IsKind(...)`。
+- `Scripting\VisualBasicTest\ScriptSubmissionMemberRedeclarationTests.vb:25` **BC40056** —— 删未用的 `Imports Roslyn.Test.Utilities`（测试项目，不在 vbi 依赖链上，顺带清）。
+
+**fork 代码里刻意未修的 RS1024 站点（保持上游立场，不判为 fork 回归）**：`Semantics\Operators.vb:2954`、`:3010`（`HashSet(Of MethodSymbol)` 去重）、`Analysis\IteratorAndAsyncAnalysis\IteratorAndAsyncCaptureWalker.vb:33`（`_debugRestrictedLocals`）、`Symbols\ReducedExtensionMemberSymbols.vb:285`、`:654`（两处）、`:665`、`:666`。上游把 RS1024 定为 refactoring（不进构建诊断）；这些点从「引用相等」改「符号相等」会改去重语义且当前无锁格，属独立收紧任务——要收紧先补锁格，别顺手改。
+
+**验证（2026-10-11 实测）**：
+
+- 依赖链 Rebuild（四项目 × 两 TFM）：警告 **1713 站点 → 0**，`0 个错误`。`Compilers\CSharp`（两 TFM）Rebuild 同为 **0 警告**。
+- `Interactive\vbi`（`net10.0-windows;net10.0;net48`）：仅剩 **1 条 WFO0003**（`Interactive\vbi\app.manifest` 的 `dpiAware`/`dpiAwareness` 与 .NET 9＋ WinForms 分析器的口径冲突；属 vbi 自身、作者裁决本轮不处置，不在本条范围）。
+- `Scripting\VisualBasicTest` 直跑 `-automated`：**778 / 0 failed / 0 skipped / 0 not run**，与 §2.24 基线一字未动。
+- 测试项目 Rebuild：`0 个警告`。
+
+**合并义务**：上游 `Common.globalconfig` / `Settings.props` / `Imports.targets` 中上述几项一旦变动，`WarningBaseline.globalconfig` 与 `Directory.Build.props` 须同步复核（新增规则默认按上游severity 走，别在 fork 侧单独收紧）。另注意 `Scripting\Core` 是 VS 17.6 旧快照（§2.7 (a)），其 nullable 对照**不能**按基准 commit 逐行判，只能按「fork 是否改过该行」判。
+
 ## 三、合并步骤
 
 1. **拉取上游**：`git -C {{Roslyn}} fetch origin release/stable`，记录新 commit 到「一、上游基准」。

@@ -803,7 +803,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                     type.Name,
                     forcedArity:=type.GenericTypeArguments.Length)
 
-                Dim conflicts As (AssemblySymbol, AssemblySymbol)
+                Dim conflicts As (AssemblySymbol, AssemblySymbol) = Nothing
                 Dim symbol As NamedTypeSymbol = GetTopLevelTypeByMetadataName(mdName, includeReferences:=True, isWellKnownType:=False, conflicts)
 
                 If symbol Is Nothing Then

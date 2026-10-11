@@ -12,7 +12,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
                 ' trailing trivia. The EndOfLineTrivia after it must not be part of the content.
                 Dim text As String = String.Empty
                 For Each trivia In Me.ExclamationToken.TrailingTrivia
-                    If trivia.Kind = SyntaxKind.SkippedTokensTrivia Then
+                    If trivia.IsKind(SyntaxKind.SkippedTokensTrivia) Then
                         text = trivia.ToString()
                         Exit For
                     End If
@@ -31,7 +31,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax
                         Dim trailingTrivia = Me.ExclamationToken.TrailingTrivia
                         Dim replaced = False
                         For Each trivia In trailingTrivia
-                            If trivia.Kind = SyntaxKind.SkippedTokensTrivia Then
+                            If trivia.IsKind(SyntaxKind.SkippedTokensTrivia) Then
                                 trailingTrivia = trailingTrivia.Replace(trivia, skippedTrivia)
                                 replaced = True
                                 Exit For

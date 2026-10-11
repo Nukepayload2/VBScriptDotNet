@@ -22,7 +22,6 @@ Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.Scripting
 Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic.Scripting
-Imports Roslyn.Test.Utilities
 Imports Xunit
 
 ''' <summary>
