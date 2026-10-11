@@ -42,7 +42,7 @@ Add a package reference to an SDK-style Visual Basic project:
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Nukepayload2.Compilers.VBScriptDotNet"
-                      Version="2.0.0-Beta"
+                      Version="2.0.0-RC3"
                       PrivateAssets="all" />
   </ItemGroup>
 </Project>

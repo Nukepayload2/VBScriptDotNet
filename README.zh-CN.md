@@ -2,7 +2,7 @@
 
 VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互宿主（`vbi`）和 `.vbx` 脚本运行器，无需项目即可直接运行 Visual Basic 代码。`.vbx` 是 `.vbs` 的现代 .NET 替代品。
 
-当前开发版本：**2.0.0-Beta**。以下功能描述适用于此开发版本。
+当前开发版本：**2.0.0-RC3**。以下功能描述适用于此开发版本。
 
 ## 功能
 
@@ -77,7 +77,7 @@ PrintFibonacci(count)
 ```
 
 ### 特性注释
-在 `vbx` 脚本文件顶部用特殊注释指定项目属性。
+当入口应用是 `vbichooser` 时，可在 `vbx` 脚本文件顶部用特殊注释指定项目属性。
 #### 语法
 ```vbnet
 ' Attribute <property-name> = <value-constant-expression>
@@ -92,17 +92,22 @@ PrintFibonacci(count)
 
 示例：[使用 .NET Framework 的 Excel](Samples/ExcelWithNetFramework.vbx)
 
-## 安装
+## 安装（Windows 商店）
 <a href="ms-windows-store://pdp/?ProductId=9N210C9TDZ95&mode=mini">
    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Download VB Interactive" />
 </a>
 
-Microsoft Store 版为 1.2。本仓库的当前开发版本为 2.0.0-Beta。
+Microsoft Store 版为 1.2。本仓库的当前开发版本为 2.0.0-RC3。
+
+## 安装（NuGet）
+```
+dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli
+```
 
 ## 运行方法
 
 ### 使用 Visual Studio 运行
-- 确保已安装最新的 Visual Studio 2022、.NET 桌面工作负载和 .NET 10 SDK。
+- 确保已安装最新的 Visual Studio 2026、.NET 桌面工作负载和 .NET 10 SDK。
 - 打开 `VBInteractive.sln`。
 - 将 [vbi](Interactive\vbi\vbi.vbproj) 设为启动项目。
 - 将目标框架改为 `net10.0-windows`。

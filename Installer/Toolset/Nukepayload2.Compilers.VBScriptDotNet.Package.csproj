@@ -15,7 +15,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>Nukepayload2.Compilers.VBScriptDotNet</PackageId>
     <NuspecPackageId>Nukepayload2.Compilers.VBScriptDotNet</NuspecPackageId>
-    <Version>2.0.0-Beta</Version>
+    <Version>2.0.0-RC3</Version>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
     <PackageDescription>基于 .NET Foundation 的 Roslyn 编译器改造而来，专注 Visual Basic 的编译器包。</PackageDescription>

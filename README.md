@@ -2,7 +2,7 @@
 
 VBScriptDotNet is a fork of the Roslyn Visual Basic compiler. It ships a command-line interactive host (`vbi`) and a script runner for `.vbx` files, so Visual Basic code can be run directly without a project. `.vbx` is a modern .NET replacement for `.vbs`.
 
-Current development version: **2.0.0-Beta**. The features described below apply to this development version.
+Current development version: **2.0.0-RC3**. The features described below apply to this development version.
 
 ## Features
 
@@ -97,7 +97,7 @@ Example: [Excel With Net Framework](Samples/ExcelWithNetFramework.vbx)
    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Download VB Interactive" />
 </a>
 
-The Microsoft Store build is version 1.2. The current development version in this repository is 2.0.0-RC.
+The Microsoft Store build is version 1.2. The current development version in this repository is 2.0.0-RC3.
 
 ## Installation (NuGet)
 ```
