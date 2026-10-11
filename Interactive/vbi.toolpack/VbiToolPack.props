@@ -5,6 +5,7 @@
     <VersionSuffix>RC2</VersionSuffix>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>vbi vbs vbscript visual basic interactive scripting</PackageTags>
     <RepositoryUrl>https://github.com/Nukepayload2/VBScriptDotNet</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
