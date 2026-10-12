@@ -227,7 +227,7 @@ key = hash(
 | TFM + windows 平台版本 | **宿主供参**：读运行中 vbi 程序集 `TargetFrameworkAttribute` + 每宿主常量表兜底（U8-A）；不读 `.vbx` 头部声明注释（该注释由外层 launcher 派发进程，引擎不读） |
 | RID | 当前进程 RID（`RuntimeInformation.RuntimeIdentifier`；restore 时由 NuGet 按图选，key 记宿主 RID） |
 | 解析后 SDK 版本 | `dotnet --list-sdks` 选版本 + `global.json` `rollForward` 结算（见 E3） |
-| 还原源指纹 | **仅测试注入**：`NuGetRestoreCoordinator` ctor 可选参 `sourceFingerprint` 接受它并计入 key（`NuGetRestoreCache.ComputeKey` 吃该参）；**生产装配恒空串**——`VisualBasicScript.RunInteractiveAsync` 建协调器时不传该参（只传 loader），v1 不读 `nuget.config`。因此跨源同 key 复用缓存依赖 NuGet no-op 的「验证包文件在盘」重验（E7），新源新包靠清缓存/改 spec 拾取（D-2 同口径）。源指纹真正接线留待未来（成本高，需算 nuget.config 稳定指纹），本行已与实码一致，不悬空 |
+| 还原源指纹 | **已接线**（`vbi-nuget-package-source`，2026-10-11）：`NuGetRestoreCoordinator` 按脚本目录链收集 `NuGet.config`（`NuGetSourceConfig.Collect`），把该集合的**稳定指纹**（按相对路径排序的「相对路径小写 + 文件字节」的 SHA-256，定义见 `NuGetSourceConfig.Fingerprint`）喂给 `ComputeKey`，并把集合原样镜像进 key 目录的相同相对层级、把生成工程放到镜像深度，使 NuGet 从工程向上的配置链与真实脚本目录一致（`<clear/>`、`disabledPackageSources`、`packageSourceCredentials`、机器/用户级合并全部仍由 NuGet 计算）。ctor 可选参 `sourceFingerprint` 仍可显式覆盖（测试注入用）；`filePath` 为空（纯 REPL 提交）或目录链上无配置时指纹为空串——与接线前的生产值逐字相同，故无目录级配置的既有 key 完全不变（回归见 `Scripting\VisualBasicTest\NuGetSourceConfigTests.vb` L4-1/L4-4）。NuGet 的配置链根是**工程文件所在目录**（非 CWD，本机实测），这正是原设计把它算成空串时漏掉的那一环 |
 | 框架引用镜像 | 需要镜像的 FrameworkReference（如 WindowsDesktop/WinUI）清单 |
 | 浮动版本（U3-B） | key **含请求 spec**（如 `13.0.*`），不写回具体版、不换 key；dgspec 不变则 NuGet 冻结上次解析 |
 | 脚本源码 | **不进 key**（restore 是包集合的纯函数） |

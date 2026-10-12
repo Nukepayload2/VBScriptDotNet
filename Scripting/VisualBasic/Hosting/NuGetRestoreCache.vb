@@ -10,8 +10,9 @@ Imports System.Text
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' Content-addressed restore cache (design §E2). The key is a hash of the exact package set plus the
-    ''' host image tuple; the script source is never part of it. Cache directories live under
+    ''' Content-addressed restore cache (design §E2). The key is a hash of the exact package set, the host
+    ''' image tuple and the fingerprint of the directory-level NuGet configuration that will be mirrored into
+    ''' the key directory; the script source is never part of it. Cache directories live under
     ''' <c>%LOCALAPPDATA%\Nukepayload2\vbi\nuget-restore\&lt;key&gt;</c> and are LRU-trimmed after each
     ''' successful restore.
     ''' </summary>
@@ -33,9 +34,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' SHA-256 key over the canonical package set and host image tuple (design §E1). Deterministic across
-        ''' machines with the same ingredients and independent of the script source.
+        ''' SHA-256 key over the canonical package set, the host image tuple and the source-configuration
+        ''' fingerprint (design §E1, §C3). Deterministic across machines with the same ingredients and
+        ''' independent of the script source.
         ''' </summary>
+        ''' <param name="sourceFingerprint">
+        ''' Stable fingerprint of the directory-level NuGet configuration the restore will see, from
+        ''' <see cref="NuGetSourceConfig.Fingerprint"/>. The empty string means "no configuration on the
+        ''' script's directory chain", which is the input every pre-fingerprint cache key used — so a script
+        ''' with no config beside it keeps resolving to the same cache directory it always did.
+        ''' </param>
         Friend Shared Function ComputeKey(
             packageKeys As ImmutableArray(Of String),
             hostTargetFramework As String,

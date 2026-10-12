@@ -85,7 +85,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private ReadOnly _session As NuGetPackageSession
         Private ReadOnly _runner As IRestoreRunner
         Private ReadOnly _cacheRootOverride As String
-        Private ReadOnly _sourceFingerprint As String
+        Private ReadOnly _sourceFingerprintOverride As String
+        Private ReadOnly _sourceFileSystem As ISourceConfigFileSystem
         Private ReadOnly _loader As InteractiveAssemblyLoader
         Private _lastRestoredKeys As ImmutableArray(Of String) = ImmutableArray(Of String).Empty
 
@@ -100,16 +101,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Friend Sub New(session As NuGetPackageSession,
                        Optional runner As IRestoreRunner = Nothing,
                        Optional cacheRoot As String = Nothing,
-                       Optional sourceFingerprint As String = "",
-                       Optional loader As InteractiveAssemblyLoader = Nothing)
+                       Optional sourceFingerprint As String = Nothing,
+                       Optional loader As InteractiveAssemblyLoader = Nothing,
+                       Optional sourceFileSystem As ISourceConfigFileSystem = Nothing)
             If session Is Nothing Then
                 Throw New ArgumentNullException(NameOf(session))
             End If
             _session = session
             _runner = If(runner, New DotNetRestoreRunner())
             _cacheRootOverride = cacheRoot
-            _sourceFingerprint = If(sourceFingerprint, String.Empty)
+            ' Nothing means "derive the fingerprint from the script's directory chain"; a value (including the
+            ' empty string) pins it, which keeps the injection point tests used before the fingerprint was
+            ' wired up.
+            _sourceFingerprintOverride = sourceFingerprint
             _loader = loader
+            _sourceFileSystem = If(sourceFileSystem, PhysicalSourceConfigFileSystem.Instance)
         End Sub
 
         ''' <summary>
@@ -134,7 +140,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Return ImmutableArray(Of Diagnostic).Empty
             End If
 
-            Return Await EnsureRestoredAsync(scan.ValidRequests, cancellationToken)
+            Return Await EnsureRestoredAsync(scan.ValidRequests, filePath, cancellationToken)
         End Function
 
         ''' <summary>
@@ -333,11 +339,17 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Sub
 
         ''' <summary>
-        ''' Restore pass (design §E): decides whether the referenced set changed, gates on the .NET SDK,
-        ''' deploys and runs one restore through the injectable runner, maps failures to <c>#R</c>-anchored
-        ''' diagnostics, and on success reads the assets and writes the session.
+        ''' Restore pass (design §E): decides whether the referenced set changed, collects the script's
+        ''' directory-level NuGet configuration (design §C1) and folds it into the cache key, gates on the
+        ''' .NET SDK, deploys and runs one restore through the injectable runner, maps failures to
+        ''' <c>#R</c>-anchored diagnostics, and on success reads the assets and writes the session.
         ''' </summary>
-        Private Async Function EnsureRestoredAsync(submissionRequests As ImmutableArray(Of NuGetPackageRequest), cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
+        ''' <param name="filePath">
+        ''' Script path the restore is for (empty for a pure REPL submission, design §C4). Its directory chain
+        ''' decides which <c>NuGet.config</c> files NuGet will see and therefore which cache key and project
+        ''' depth are used.
+        ''' </param>
+        Private Async Function EnsureRestoredAsync(submissionRequests As ImmutableArray(Of NuGetPackageRequest), filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
             ' Merge the submission's directives into the session-cumulative set (R-1). A submission replaces
             ' the session entries for the ids it mentions and keeps every other previously referenced id, so
             ' the restore below always sees the whole accumulated graph.
@@ -360,6 +372,24 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
             cancellationToken.ThrowIfCancellationRequested()
 
+            ' Collect the script's directory-level configuration before anything else that can fail: a config
+            ' that cannot be read would silently restore from the wrong sources, which is the failure mode
+            ' this pass exists to remove, so it is reported instead of ignored (design §C5).
+            Dim sourceConfig = NuGetSourceConfig.Collect(filePath, _sourceFileSystem)
+            If sourceConfig.HasFailure Then
+                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateConfigFailureDiagnostic(
+                    sourceConfig.FailedPath,
+                    sourceConfig.FailureReason,
+                    CreateFileAnchorLocation(filePath)))
+            End If
+
+            ' Fingerprint the mirrored config set into the cache key (design §C3): the key directory's files
+            ' are write-once, so "same key" must keep meaning "same restore inputs" or a changed source would
+            ' keep resolving against the config baked into an existing key directory. An explicit injection
+            ' still wins, and an empty chain still fingerprints as the empty string, which is byte-identical
+            ' to what production used before this was wired up.
+            Dim sourceFingerprint = If(_sourceFingerprintOverride, NuGetSourceConfig.Fingerprint(sourceConfig.Files))
+
             Dim host = _session.HostCapability
             Dim net48 = host.IsNet48
 
@@ -376,7 +406,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 host.FrameworkNameForRestore,
                 rid,
                 sdkVersion,
-                _sourceFingerprint,
+                sourceFingerprint,
                 net48)
             Dim cacheDirectory = NuGetRestoreCache.GetCacheDirectory(cacheRoot, key)
 
@@ -387,8 +417,22 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 runtimeIdentifier:=rid)
             Dim globalJson = NuGetProjectGenerator.GenerateGlobalJson(sdkVersion)
 
-            Dim restoreRequest As New RestoreRequest(cacheDirectory, projectXml, globalJson)
+            Dim restoreRequest As New RestoreRequest(
+                cacheDirectory,
+                projectXml,
+                globalJson,
+                sourceConfig.Files,
+                NuGetSourceConfig.ProjectRelativePath(filePath, sourceConfig.MirrorRoot))
             Dim outcome = Await _runner.RestoreAsync(restoreRequest, cancellationToken)
+
+            If outcome IsNot Nothing AndAlso outcome.ConfigFailurePath IsNot Nothing Then
+                ' A mirrored config could not be written (design §C5). This is a configuration problem rather
+                ' than a restore or SDK problem, so it must not be reported through the exit-code table.
+                Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateConfigFailureDiagnostic(
+                    outcome.ConfigFailurePath,
+                    outcome.ConfigFailureReason,
+                    CreateFileAnchorLocation(filePath)))
+            End If
 
             If outcome Is Nothing OrElse outcome.ExitCode <> 0 OrElse Not outcome.NuGetCacheWritten Then
                 ' Failure leaves the session-cumulative set unchanged (the merge above is not committed), so
@@ -548,6 +592,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 End If
             Next
             Return Location.None
+        End Function
+
+        ''' <summary>
+        ''' Anchor for a diagnostic about the script as a whole rather than about one <c>#R</c> line (design
+        ''' §C5): the script's first line, without reading the file. <see cref="Location.None"/> when there is
+        ''' no script path (pure REPL input).
+        ''' </summary>
+        Private Shared Function CreateFileAnchorLocation(filePath As String) As Location
+            If String.IsNullOrWhiteSpace(filePath) Then
+                Return Location.None
+            End If
+
+            Try
+                Return Location.Create(
+                    filePath,
+                    New TextSpan(0, 0),
+                    New LinePositionSpan(New LinePosition(0, 0), New LinePosition(0, 0)))
+            Catch generatedExceptionName As Exception
+                ' A path Location cannot represent; the diagnostic is still worth reporting without an anchor.
+                Return Location.None
+            End Try
         End Function
 
         Private Function ResolveCacheRoot() As String

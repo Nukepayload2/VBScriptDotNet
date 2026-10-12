@@ -17,6 +17,7 @@ Current development version: **2.0.0-RC3**. The features described below apply t
 ### Script files (.vbx)
 - Run a script with `vbi script.vbx [-- args]`.
 - Compose several files with the `#Load` directive; `/loadpath:<dir list>` adds the directories it searches.
+- `#R "nuget:Package, Version"` restores from the sources configured by the nearest `NuGet.config` on the script's directory chain, so a private feed and its credentials work next to the script.
 - Select the runtime host with `' Attribute TargetFramework = "net48"` at the top of the file.
 - A `#!` shebang at the top of a script is treated as a directive, so scripts can be run directly on Unix-like systems.
 - Script globals: `Args` and `Print`.

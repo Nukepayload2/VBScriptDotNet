@@ -17,6 +17,7 @@ VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互
 ### 脚本文件（.vbx）
 - 用 `vbi script.vbx [-- args]` 运行脚本。
 - 用 `#Load` 指令组合多个文件；`/loadpath:<dir list>` 指定它搜索的目录。
+- `#R "nuget:包名, 版本"` 从脚本目录链上最近的 `NuGet.config` 所配置的源还原，脚本旁的私有源及其凭据同样生效。
 - 在文件顶部用 `' Attribute TargetFramework = "net48"` 选择运行时宿主。
 - 脚本顶部的 `#!` shebang 被视为指令，可在类 Unix 系统上直接运行脚本。
 - 脚本全局对象：`Args` 和 `Print`。

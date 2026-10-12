@@ -23,6 +23,22 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         ''' </summary>
         Friend Const DotNetMissingExitCode As Integer = Integer.MinValue
 
+        ''' <summary>
+        ''' Exit code carried by a <see cref="RestoreOutcome"/> whose mirrored directory-level
+        ''' <c>NuGet.config</c> could not be written (design §C5). The configuration path and reason travel on
+        ''' the outcome itself, so the coordinator reports them directly and never reaches the exit-code
+        ''' translation table with this value.
+        ''' </summary>
+        Friend Const ConfigFailureExitCode As Integer = Integer.MinValue + 1
+
+        Private Shared ReadOnly s_configFailure As New DiagnosticDescriptor(
+            id:="VBI1012",
+            title:="NuGet source configuration could not be used",
+            messageFormat:="The NuGet configuration file '{0}' could not be used: {1}",
+            category:="VBScriptingNuGet",
+            defaultSeverity:=DiagnosticSeverity.Error,
+            isEnabledByDefault:=True)
+
         Private Shared ReadOnly s_sdkMissing As New DiagnosticDescriptor(
             id:="VBI1006",
             title:="NuGet restore requires the .NET SDK",
@@ -76,6 +92,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Friend Shared Function CreateSdkMissingDiagnostic(location As Location) As Diagnostic
             Return Diagnostic.Create(s_sdkMissing, location)
+        End Function
+
+        ''' <summary>
+        ''' Diagnostic for a directory-level <c>NuGet.config</c> the host could not read from the script's
+        ''' directory chain or could not mirror into the cache key directory (design §C5). Silently ignoring
+        ''' the file would restore from the wrong sources — the failure mode this task exists to remove — so
+        ''' it is an error naming the first failing path and the reason.
+        ''' </summary>
+        Friend Shared Function CreateConfigFailureDiagnostic(path As String, reason As String, location As Location) As Diagnostic
+            Return Diagnostic.Create(s_configFailure, location, If(path, String.Empty), If(String.IsNullOrEmpty(reason), "unknown error", reason))
         End Function
 
         Friend Shared Function CreateNet48NativeDiagnostic(packageName As String, location As Location) As Diagnostic

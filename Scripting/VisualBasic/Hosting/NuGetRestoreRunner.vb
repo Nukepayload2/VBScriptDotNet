@@ -11,23 +11,34 @@ Imports System.Threading.Tasks
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' A single restore request: where the temporary project lives and the byte-stable project content
-    ''' (design §E). The runner writes the project once and runs <c>dotnet restore</c> against it.
+    ''' A single restore request: where the temporary project lives, the byte-stable project content
+    ''' (design §E), and the directory-level <c>NuGet.config</c> files mirrored from the script's directory
+    ''' chain (design §C1/§C2). The runner writes the mirrored config and the project once, then runs
+    ''' <c>dotnet restore</c> against the project.
     ''' </summary>
     Friend NotInheritable Class RestoreRequest
 
-        Friend Sub New(cacheDirectory As String, projectXml As String, globalJson As String)
+        Friend Sub New(cacheDirectory As String,
+                       projectXml As String,
+                       globalJson As String,
+                       Optional mirrorFiles As ImmutableArray(Of SourceConfigFile) = Nothing,
+                       Optional projectRelativePath As String = Nothing)
             If String.IsNullOrWhiteSpace(cacheDirectory) Then
                 Throw New ArgumentException("Cache directory required.", NameOf(cacheDirectory))
             End If
+            ValidateProjectRelativePath(projectRelativePath)
             _cacheDirectory = cacheDirectory
             _projectXml = If(projectXml, String.Empty)
             _globalJson = If(globalJson, String.Empty)
+            _mirrorFiles = If(mirrorFiles.IsDefault, ImmutableArray(Of SourceConfigFile).Empty, mirrorFiles)
+            _projectRelativePath = If(String.IsNullOrEmpty(projectRelativePath), NuGetSourceConfig.ProjectFileName, projectRelativePath)
         End Sub
 
         Private ReadOnly _cacheDirectory As String
         Private ReadOnly _projectXml As String
         Private ReadOnly _globalJson As String
+        Private ReadOnly _mirrorFiles As ImmutableArray(Of SourceConfigFile)
+        Private ReadOnly _projectRelativePath As String
 
         Friend ReadOnly Property CacheDirectory As String
             Get
@@ -35,11 +46,55 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End Get
         End Property
 
+        ''' <summary>
+        ''' The temporary project's path. It sits at the depth of the script's own directory below the
+        ''' mirror root (design §C2), so NuGet walks a configuration chain identical to the real one; with no
+        ''' directory-level config it is <c>&lt;cache&gt;\project.vbproj</c> exactly as before.
+        ''' </summary>
         Friend ReadOnly Property ProjectFilePath As String
             Get
-                Return Path.Combine(_cacheDirectory, "project.vbproj")
+                Return Path.Combine(_cacheDirectory, _projectRelativePath)
             End Get
         End Property
+
+        ''' <summary>
+        ''' Directory the project is written to, which is also the directory NuGet creates <c>obj</c> under.
+        ''' Equal to <see cref="CacheDirectory"/> when the script's directory chain carries no config.
+        ''' </summary>
+        Friend ReadOnly Property ProjectDirectory As String
+            Get
+                Return Path.GetDirectoryName(ProjectFilePath)
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Directory-level config files to mirror under <see cref="CacheDirectory"/> before restoring. Empty
+        ''' when the script's directory chain carries none.
+        ''' </summary>
+        Friend ReadOnly Property MirrorFiles As ImmutableArray(Of SourceConfigFile)
+            Get
+                Return _mirrorFiles
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Rejects a rooted or parent-traversing relative project path so neither the mirrored config nor the
+        ''' generated project can escape the cache key directory it belongs to. The value is derived from the
+        ''' script path, so this asserts an invariant rather than validating user input.
+        ''' </summary>
+        Private Shared Sub ValidateProjectRelativePath(projectRelativePath As String)
+            If String.IsNullOrEmpty(projectRelativePath) Then
+                Return
+            End If
+            If Path.IsPathRooted(projectRelativePath) Then
+                Throw New ArgumentException("Project path must be relative to the cache directory.", NameOf(projectRelativePath))
+            End If
+            For Each part In projectRelativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                If part = ".." Then
+                    Throw New ArgumentException("Project path must not traverse out of the cache directory.", NameOf(projectRelativePath))
+                End If
+            Next
+        End Sub
 
         Friend ReadOnly Property GlobalJsonPath As String
             Get
@@ -63,21 +118,45 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     ''' <summary>
     ''' Raw outcome of one restore run (design §E3): exit code, stderr, whether NuGet wrote its own
     ''' <c>obj/project.nuget.cache</c>, and the generated <c>obj/project.assets.json</c> text on success.
-    ''' No interpretation is performed here; decision/translation are separate pure functions.
+    ''' No interpretation is performed here; decision/translation are separate pure functions. A mirrored
+    ''' config file that could not be written is reported separately from a restore failure, so the
+    ''' coordinator can surface it as a configuration diagnostic instead of an opaque restore error.
     ''' </summary>
     Friend NotInheritable Class RestoreOutcome
 
-        Friend Sub New(exitCode As Integer, standardError As String, nuGetCacheWritten As Boolean, assetsJsonText As String)
+        Friend Sub New(exitCode As Integer,
+                       standardError As String,
+                       nuGetCacheWritten As Boolean,
+                       assetsJsonText As String,
+                       Optional configFailurePath As String = Nothing,
+                       Optional configFailureReason As String = Nothing)
             _exitCode = exitCode
             _standardError = If(standardError, String.Empty)
             _nuGetCacheWritten = nuGetCacheWritten
             _assetsJsonText = assetsJsonText
+            _configFailurePath = configFailurePath
+            _configFailureReason = If(configFailureReason, String.Empty)
         End Sub
 
         Private ReadOnly _exitCode As Integer
         Private ReadOnly _standardError As String
         Private ReadOnly _nuGetCacheWritten As Boolean
         Private ReadOnly _assetsJsonText As String
+        Private ReadOnly _configFailurePath As String
+        Private ReadOnly _configFailureReason As String
+
+        ''' <summary>Mirrored config file that could not be written, or <c>Nothing</c> when none failed.</summary>
+        Friend ReadOnly Property ConfigFailurePath As String
+            Get
+                Return _configFailurePath
+            End Get
+        End Property
+
+        Friend ReadOnly Property ConfigFailureReason As String
+            Get
+                Return _configFailureReason
+            End Get
+        End Property
 
         Friend ReadOnly Property ExitCode As Integer
             Get
@@ -191,10 +270,19 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Throw New ArgumentNullException(NameOf(request))
             End If
 
+            ' Mirror the script's directory-level configuration into the key directory first: the generated
+            ' project sits at the script's depth below the mirror root, so NuGet's upward configuration walk
+            ' from the project sees the same files, in the same order, as it would from the real script
+            ' directory (design §C1/§C2) — credentials and <clear/> semantics included, because the files are
+            ' copied verbatim rather than merged or re-expressed as project properties.
+            Dim mirrorFailurePath As String = Nothing
+            Dim mirrorFailureReason As String = Nothing
+            If Not WriteMirrorFiles(request.CacheDirectory, request.MirrorFiles, mirrorFailurePath, mirrorFailureReason) Then
+                Return Task.FromResult(New RestoreOutcome(NuGetRestoreDiagnostics.ConfigFailureExitCode, String.Empty, False, Nothing, mirrorFailurePath, mirrorFailureReason))
+            End If
+
             Try
-                Directory.CreateDirectory(request.CacheDirectory)
-                WriteOnce(request.ProjectFilePath, request.ProjectXml)
-                WriteOnce(request.GlobalJsonPath, request.GlobalJson)
+                WriteProjectFiles(request)
 
                 Dim processResult = RunDotNet("restore """ & request.ProjectFilePath & """ --nologo")
                 If Not processResult.Started Then
@@ -204,8 +292,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                     Return Task.FromResult(New RestoreOutcome(processResult.ExitCode, processResult.StandardError, False, Nothing))
                 End If
 
-                Dim nuGetCachePath = Path.Combine(request.CacheDirectory, "obj", "project.nuget.cache")
-                Dim assetsPath = Path.Combine(request.CacheDirectory, "obj", "project.assets.json")
+                ' NuGet writes obj beside the project file, which is below the mirror root once the script's
+                ' directory chain contributes a config.
+                Dim nuGetCachePath = Path.Combine(request.ProjectDirectory, "obj", "project.nuget.cache")
+                Dim assetsPath = Path.Combine(request.ProjectDirectory, "obj", "project.assets.json")
                 Dim cacheWritten = File.Exists(nuGetCachePath)
                 Dim assetsText As String = Nothing
                 If cacheWritten AndAlso File.Exists(assetsPath) Then
@@ -224,6 +314,59 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Catch generatedExceptionName As Exception
                 Return Task.FromResult(New RestoreOutcome(NuGetRestoreDiagnostics.DotNetMissingExitCode, String.Empty, False, Nothing))
             End Try
+        End Function
+
+        ''' <summary>
+        ''' Writes the byte-stable project and its global.json, once each (design §E). The project's parent
+        ''' directory is created first: with a directory-level config the project sits below the mirror root,
+        ''' and <see cref="WriteOnce"/> itself never creates directories — without this, that layout failed
+        ''' with a <see cref="DirectoryNotFoundException"/> that surfaced as a bogus "SDK missing" diagnostic
+        ''' (found by a real <c>vbi</c> run, not by the request-shape tests). Extracted so the deployment
+        ''' layout can be verified without spawning a process.
+        ''' </summary>
+        Friend Shared Sub WriteProjectFiles(request As RestoreRequest)
+            Directory.CreateDirectory(request.ProjectDirectory)
+            WriteOnce(request.ProjectFilePath, request.ProjectXml)
+            WriteOnce(request.GlobalJsonPath, request.GlobalJson)
+        End Sub
+
+        ''' <summary>
+        ''' Mirrors the collected directory-level config files under <paramref name="cacheDirectory"/> at the
+        ''' same relative depth they had below the mirror root (design §C2), each written once and never
+        ''' rewritten: because the fingerprint is part of the cache key, an existing key directory can only
+        ''' ever describe this exact config content. Returns False and reports the first failure through
+        ''' <paramref name="failurePath"/>/<paramref name="failureReason"/> instead of throwing, so the
+        ''' coordinator can surface it as a configuration diagnostic (design §C5).
+        ''' </summary>
+        Friend Shared Function WriteMirrorFiles(cacheDirectory As String,
+                                                files As ImmutableArray(Of SourceConfigFile),
+                                                ByRef failurePath As String,
+                                                ByRef failureReason As String) As Boolean
+            failurePath = Nothing
+            failureReason = Nothing
+            If files.IsDefaultOrEmpty Then
+                Return True
+            End If
+
+            For Each mirrorFile In files
+                Dim mirrorPath = Path.Combine(cacheDirectory, mirrorFile.MirrorRelativePath)
+                If File.Exists(mirrorPath) Then
+                    Continue For
+                End If
+
+                Try
+                    Dim mirrorDirectory = Path.GetDirectoryName(mirrorPath)
+                    If Not String.IsNullOrEmpty(mirrorDirectory) Then
+                        Directory.CreateDirectory(mirrorDirectory)
+                    End If
+                    File.WriteAllBytes(mirrorPath, mirrorFile.Content)
+                Catch generatedExceptionName As Exception
+                    failurePath = mirrorPath
+                    failureReason = generatedExceptionName.Message
+                    Return False
+                End Try
+            Next
+            Return True
         End Function
 
         Private Shared Sub WriteOnce(path As String, content As String)
