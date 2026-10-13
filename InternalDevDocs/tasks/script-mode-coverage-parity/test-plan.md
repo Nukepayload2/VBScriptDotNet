@@ -1266,7 +1266,7 @@ dotnet Scripting/VisualBasicTest/bin/Debug/net10.0/Microsoft.CodeAnalysis.Visual
 
 **与 C# 基线的逐半对齐**（`IS:2126`）：C# 的 `InInitialSubmission()` 体内调**局部函数**、局部函数读 **global** `Y`，后续提交的 lambda 再调 `InInitialSubmission()` 并声明自己的局部函数读 `Y` ⇒ 4。VB 无局部函数（见下），故「局部函数」这一层塌缩掉：前序提交的 `Function` 直接读 `Y`，后续提交的 lambda 直接调它 **且** 读同一个 `Y`。C# 的两处调用点（局部函数调前序提交、lambda 调前序提交）在 VB 侧合为「lambda 调前序提交」，**值 4 与两半的可见性都仍在**。
 
-**「VB 无局部函数」的检索证据（实锤，带正对照）**：`rg 'LocalFunctionStatement'` 在 `C:\Users\james\Projects\VBScriptDotNet\Compilers\VisualBasic` 得 **0（0 文件）**；**正对照**：同一模式在 `C:\Users\james\Projects\roslyn\src\Compilers\CSharp\Portable` 得 **245 次 / 46 文件** ⇒ 模式有效、零命中为真。另有 `UsedLocalFunctions` 在 VB 侧的唯一命中 `Compilers\VisualBasic\Portable\Analysis\FlowAnalysis\VisualBasicDataFlowAnalysis.vb:289`（硬编码 `Empty` 的桩），与既有提案 `InternalDevDocs\proposals\proposal-local-functions.md` 的 B1 条一致。
+**「VB 无局部函数」的检索证据（实锤，带正对照）**：`rg 'LocalFunctionStatement'` 在 `<repo-root>\Compilers\VisualBasic` 得 **0（0 文件）**；**正对照**：同一模式在 `{{Roslyn}}` 的 `src\Compilers\CSharp\Portable` 得 **245 次 / 46 文件** ⇒ 模式有效、零命中为真。另有 `UsedLocalFunctions` 在 VB 侧的唯一命中 `Compilers\VisualBasic\Portable\Analysis\FlowAnalysis\VisualBasicDataFlowAnalysis.vb:289`（硬编码 `Empty` 的桩），与既有提案 `InternalDevDocs\proposals\proposal-local-functions.md` 的 B1 条一致。
 
 ### 7.3 回归读数
 

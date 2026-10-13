@@ -25,7 +25,7 @@
 
 文件：`Compilers\VisualBasic\Portable\Generated\Syntax.xml.Syntax.Generated.vb` / `Syntax.xml.Main.Generated.vb` / `Syntax.xml.Internal.Generated.vb`（标「DO NOT HAND EDIT」）。
 
-- 流程：用**基线 `{{Roslyn}}`（本机 `C:\Users\james\Projects\roslyn`）的 VBSyntaxGenerator** 读取本 fork 修改后的 `Syntax.xml`，输出三个文件，替换回 fork。
+- 流程：用**基线 `{{Roslyn}}` 的 VBSyntaxGenerator** 读取本 fork 修改后的 `Syntax.xml`，输出三个文件，替换回 fork。
 - 验收：**零删除、纯新增**（`#Load` 先例 `..\..\issues\issue-vbx-load-span-shift.md:82`）；生成器具体调用方式（`{{Roslyn}}` 下的 generator 工程 / build target）由实施者在 M0 对照 `#Load` 再生成记录（`tmp\vortex-logs\` 或 `{{Roslyn}}` 工具）核实后执行。
 - 生成结果应包含：`ShebangDirectiveTriviaSyntax` 节点、`SyntaxFactory.ShebangDirectiveTrivia` 两个重载、visitor `VisitShebangDirectiveTrivia`。
 

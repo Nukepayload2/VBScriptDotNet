@@ -5,7 +5,7 @@
 > 方法：全部结论以内置 Read/Grep 精读源码得出，逐项给出 `文件:行号` 锚点；未跑编译/测试（本任务为纯源码核对）。
 > 证据等级：**已检查** = 亲自读源码；**Suspect** = 无法在本仓库定案（如实标注）。
 
-编译器前缀：`Compilers\VisualBasic\Portable\` = VB，`Compilers\CSharp\Portable\` = CS，`Compilers\Core\Portable\` = Core。文件路径相对仓库根 `C:\Users\james\Projects\VBScriptDotNet`。
+编译器前缀：`Compilers\VisualBasic\Portable\` = VB，`Compilers\CSharp\Portable\` = CS，`Compilers\Core\Portable\` = Core。文件路径相对仓库根。
 
 ---
 

@@ -42,7 +42,7 @@
 - **词法零改动**：`#` 经 `ScanDateLiteral`（`Scanner\Scanner.vb:1175-1177`）对 `#!` 失败回退 `MakeHashToken`；`!` 词法化为 `ExclamationToken`（VB 字典访问符既有 token）。
 - **错误码**：`Errors\Errors.vb` fork 空隙策略（:1600-1604 注释「e.g. #! shebang directives」）；`ERR_LoadDirectiveOnlyAllowedInScripts = 36967`（:1605）、`ERR_PPLoadFollowsToken = 37002`（:1631）。**新码 `ERR_ShebangDirectiveOnlyAllowedInScripts = 37003`、`ERR_ShebangDirectiveNotOnFirstLine = 37004`**（37003-37049 为已核实空隙，紧邻 37002、官方 37050+ 之前）。
 - **Syntax 节点**：`Syntax\Syntax.xml` 的 `DirectiveTriviaSyntax`（:9376，abstract，`HashToken` child）、`ReferenceDirectiveTriviaSyntax`（:9544）、`LoadDirectiveTriviaSyntax`（:9552，`LoadKeyword` + `File` child）。**VB 指令节点无 `EndOfDirectiveToken`**（C# 专属），行尾由 `ConsumeStatementTerminatorAfterDirective` 处理。VB trivia 含 `SkippedTokensTrivia`（:9169，可承载裸 token 文本）。
-- **生成文件**：`Generated\Syntax.xml.Syntax/Main/Internal.Generated.vb` 标「DO NOT HAND EDIT」，用**基线 `{{Roslyn}}`（本机 `C:\Users\james\Projects\roslyn`）的 VBSyntaxGenerator** 再生成（`#Load` 先例见 `..\..\issues\issue-vbx-load-span-shift.md:82`：零删除、纯新增）。生成器读 fork 的 `Syntax.xml`。
+- **生成文件**：`Generated\Syntax.xml.Syntax/Main/Internal.Generated.vb` 标「DO NOT HAND EDIT」，用**基线 `{{Roslyn}}` 的 VBSyntaxGenerator** 再生成（`#Load` 先例见 `..\..\issues\issue-vbx-load-span-shift.md:82`：零删除、纯新增）。生成器读 fork 的 `Syntax.xml`。
 - **公开 API**：`PublicAPI.Unshipped.txt` 当前为空，新节点/工厂/visitor 增量进 Unshipped 段；`PublicAPI.Shipped.txt` 与基线字节一致，不破坏 parity。
 - **宿主层**：`Scripting\VisualBasic\VisualBasicScriptCompiler.vb` `CreateSubmission`（`:143`，`kind:=SourceCodeKind.Script`）——编译器接受 `#!` 即零宿主改动生效；`#Load` 多树加载 `LoadReferencedTrees`（`:56`）不受影响。REPL 提交同为 Script。
 - **指令发现**（`#!` 不需要，但模板存在）：`Syntax\CompilationUnitSyntax.vb:33` `GetLoadDirectives()` = `firstToken.GetDirectives(Of LoadDirectiveTriviaSyntax)`。

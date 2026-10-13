@@ -4,6 +4,7 @@
 > **无副作用纪律（CLAUDE.md）**：以下命令含 `dotnet pack` / 临时项目 `dotnet build` / `dotnet tool install` 等**集成副作用**（写文件、启进程、写全局工具目录）——**由用户手动跑**，不在单测/自动化范围。
 > 不需要修改仓库源码即可完成全部验证；临时产物放 `tmp/exp-distribute/`（git-ignored 或验证后清理）。
 > **Shell**：命令为 git bash（仓库习惯）；Windows PowerShell/cmd 用户把 `grep -i` 换成 `findstr /i`、路径 `/` 换 `\` 即可。
+> **路径约定**：`<repo-root>` = 本机克隆本仓库的根目录（各机不同，替换后即可直接执行）。
 
 ## 0. 前置：产物路径
 
@@ -21,7 +22,7 @@
 ### L2-1 `dotnet pack` 编译器包
 
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet
+cd <repo-root>
 dotnet pack Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.csproj -c Release -nologo
 ```
 
@@ -33,7 +34,7 @@ dotnet pack Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.cspr
 ### L2-2 解包核对 nupkg 结构
 
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet
+cd <repo-root>
 rm -rf tmp/nupkg-check
 mkdir -p tmp/nupkg-check/extracted
 unzip -o Installer/Toolset/bin/Release/Nukepayload2.Compilers.VBScriptDotNet.2.0.0-Beta.nupkg -d tmp/nupkg-check/extracted
@@ -89,14 +90,14 @@ End Module
 <configuration>
   <packageSources>
     <clear />
-    <add key="local-feed" value="C:/Users/james/Projects/VBScriptDotNet/Installer/Toolset/bin/Release" />
+    <add key="local-feed" value="<repo-root>/Installer/Toolset/bin/Release" />
   </packageSources>
 </configuration>
 ```
 
 构建并确认任务加载：
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/consume-vb
+cd <repo-root>/tmp/exp-distribute/consume-vb
 dotnet build -v:n
 dotnet build -v:diag 2>&1 | grep -i "BuildTasks.Vbc"
 ```
@@ -124,7 +125,7 @@ dotnet build -v:diag 2>&1 | grep -i "BuildTasks.Vbc"
 创建临时 C# 项目 `tmp/exp-distribute/consume-cs/`（`Program.cs` 打印 `Hello from SDK csc`），同样的 `PackageReference`（`PrivateAssets="all"`）+ `nuget.config`：
 
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/consume-cs
+cd <repo-root>/tmp/exp-distribute/consume-cs
 dotnet build -v:n
 dotnet build -v:diag 2>&1 | grep -i "BuildTasks.Csc"
 ```
@@ -153,7 +154,7 @@ v1 范围记录：**允许缺失，不验证为缺陷**——v1 不打包 `tasks
 ### L3-0（前置）pack tool 包
 
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet
+cd <repo-root>
 dotnet pack Interactive/vbi/vbi.vbproj -c Release -nologo
 ```
 
@@ -162,21 +163,21 @@ dotnet pack Interactive/vbi/vbi.vbproj -c Release -nologo
 ### L3-1 `dotnet tool install`
 
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet
+cd <repo-root>
 mkdir -p tmp/exp-distribute/tool-home
 dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli \
   --version 2.0.0-Beta \
-  --add-source C:/Users/james/Projects/VBScriptDotNet/Interactive/vbi/bin/Release \
-  --tool-path C:/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/tool-home
+  --add-source <repo-root>/Interactive/vbi/bin/Release \
+  --tool-path <repo-root>/tmp/exp-distribute/tool-home
 ```
 
 预期：安装成功；`tmp/exp-distribute/tool-home/` 下出现 `vbi.exe`（Windows）/ `vbi`（Linux、macOS）。
 
 后续命令统一用变量（git bash）：
 ```bash
-vbi=C:/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/tool-home/vbi.exe
+vbi=<repo-root>/tmp/exp-distribute/tool-home/vbi.exe
 ```
-（Linux/macOS 把 `$vbi` 换成 tool-home 路径下的 `vbi`，或 `export PATH="/c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/tool-home:$PATH"` 后直接用 `vbi`。Windows PowerShell 用 `$vbi = "C:\Users\james\...\tool-home\vbi.exe"`。）
+（Linux/macOS 把 `$vbi` 换成 tool-home 路径下的 `vbi`，或 `export PATH="<repo-root>/tmp/exp-distribute/tool-home:$PATH"` 后直接用 `vbi`。Windows PowerShell 用 `$vbi = "<repo-root>\tmp\exp-distribute\tool-home\vbi.exe"`。）
 
 ### L3-2 版本双行
 
@@ -205,7 +206,7 @@ Module Program
 End Module
 ```
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute
+cd <repo-root>/tmp/exp-distribute
 "$vbi" src.vb /out:app.dll
 dotnet app.dll
 ```
@@ -226,7 +227,7 @@ Next
 Console.WriteLine("hello from vbx script")
 ```
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute
+cd <repo-root>/tmp/exp-distribute
 "$vbi" script.vbx -- hello world
 ```
 
@@ -247,9 +248,9 @@ cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute
 Console.WriteLine("shebang ok")
 ```
 ```bash
-cd /c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute
+cd <repo-root>/tmp/exp-distribute
 chmod +x shebang.vbx
-export PATH="/c/Users/james/Projects/VBScriptDotNet/tmp/exp-distribute/tool-home:$PATH"
+export PATH="<repo-root>/tmp/exp-distribute/tool-home:$PATH"
 ./shebang.vbx
 ```
 

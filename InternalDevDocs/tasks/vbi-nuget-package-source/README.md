@@ -21,7 +21,7 @@
 | F4 | 设计验证 + 一致性 | 三份交付物交叉一致、源码锚点真实、无副作用纪律 | **done**（复核项 R1–R9 见「验证记录」；缺陷 G1–G4 已固化为 `design-detailed.md` §九 约束） |
 | F5 | 实现（配置收集 + 镜像落盘 + key 接线 + 空路径规则 + 诊断 + 文档） | 见「实现阶段（F5+）」 | **done**（`NuGetSourceConfig.vb` 新增；`NuGetRestoreRunner` / `NuGetRestoreCoordinator` / `NuGetRestoreDiagnostics` / `NuGetRestoreCache` 改动；两个 TFM `netstandard2.0;net10.0` 零警告零错误） |
 | F6 | 测试实现 + 修复轮 | 见「实现阶段（F5+）」 | **done**（`NuGetSourceConfigTests.vb` 25 个用例；**全量 `Scripting\VisualBasicTest` 811 通过 / 0 失败 / 0 错误**，日志 `tmp/vortex-logs/f6-full-suite.txt`、`f7-full-suite.txt`） |
-| F7 | 集成验证 | 全量构建、`Scripting\VisualBasicTest` 全绿、手工 G 清单 | **部分 done**：两个 TFM 零警告零错误；全量 **811 通过 / 0 失败**；手工 G 的 **G1/G2/无配置对照 已真机跑通**（自建私有源 + `<clear/>`，dgspec 证明源真的换了），G3 凭据 / G4 两层嵌套 / `dgSpecHash` 逐字对照 未跑 |
+| F7 | 集成验证 | 全量构建、`Scripting\VisualBasicTest` 全绿、手工 G 清单 | **部分 done**：两个 TFM 零警告零错误；全量 **811 通过 / 0 失败**；手工 G 的 **G1/G2/G4/无配置对照 已真机跑通**（都用本地文件夹源，全程离线），仅 **G3 凭据**未跑 |
 
 > 真机运行还抓到一个静态复核漏掉的缺陷（约束 **G5**：工程父目录未创建 ⇒ 被兜底 Catch 吞成「找不到 SDK」），已修复并加回归用例 L4-10。
 
@@ -93,7 +93,7 @@
 
 - **F5 实现**：C1–C7。**done**。验收：脚本旁放 `<clear/>` + 私有源配置后，源取自该配置——**已由 F7 真机 G1 取证**（硬证据 = dgspec 的 `sources` 段只剩该配置的源；诊断文案不含源 URL，故不作判据，见 `design-detailed.md` §十一 第 6 条）；同集换源 ⇒ key 变化 ⇒ 真还原——自动面已证（`NuGetSourceConfigTests` L4-3）；无目录级配置 ⇒ 行为与改动前逐字相同——自动面已证（L1-14 用 `[已运行]` 实测复现的真实 key 钉死 + L4-1/L4-4 断言 key 叶名 = 空指纹的 key）。
 - **F6 测试实现**：按 `test-plan.md` 分层，无副作用。**done**：25 个新用例全绿 + 既有 NuGet 用例不破（全量 811 通过）。
-- **F7 集成**：全量构建（两个 TFM 零警告）、测试全绿（**811/0/0**）；手工 G：**G1/G2/无配置对照已真机跑通**（G3 凭据、G4 两层嵌套、`dgSpecHash` 逐字对照 未跑）；`vbi-nuget-reference/design-detailed.md:230` 状态**已更新为「已接线」**。
+- **F7 集成**：全量构建（两个 TFM 零警告）、测试全绿（**811/0/0**）；手工 G：**G1/G2/G4/无配置对照已真机跑通**（均用本地文件夹源，离线；仅 G3 凭据未跑）；`vbi-nuget-reference/design-detailed.md:230` 状态**已更新为「已接线」**。
 
 ### F4 复核结论（实施前）摘要
 
@@ -141,7 +141,16 @@
 | **无配置对照**（反向那次） | key 变了（空指纹 ⇒ 另一个目录）、工程回到 key 根、**无任何镜像文件**、dgspec 源回到用户/机器级三条（含 `api.nuget.org`）⇒ 无目录级配置时与改动前同形 |
 | **G5 曝光** | 修复前该正向用例报 **VBI1006「找不到 SDK」**（真因是工程父目录未建）；修复后同一用例 exit 0 |
 
-**结论**：`#R "nuget:"` 的源确实由「脚本目录链的 `NuGet.config`」决定，且不经过 nuget.org；无配置时行为与改动前一致。未覆盖：`packageSourceCredentials`、两层嵌套源、与改动前的 `dgSpecHash` 逐字对照（状态见 `test-plan.md` §七）。
+**结论**：`#R "nuget:"` 的源确实由「脚本目录链的 `NuGet.config`」决定，且不经过 nuget.org；无配置时行为与改动前一致。
+
+### 两层配置与无配置对照（`[已运行]`，只用本地文件夹源，全程离线）
+
+原始记录：`tmp\vortex-logs\g4-g5-local-folder-source.txt`。
+
+- **两层配置**（`repo\NuGet.config` = `<clear/>` + root 源；`repo\sub\NuGet.config` = 无 `<clear/>` + sub 源；脚本在 `repo\sub\app\`，两个探针包各自只存在于对应文件夹）：正向输出 `root-pong sub-pong`、exit 0 ⇒ 上层与子目录的源**都**生效（只镜像最近一份会在根包上失败）。缓存内出现 `<key>\NuGet.config` + `<key>\sub\NuGet.config` + `<key>\sub\app\project.vbproj` + `<key>\sub\app\obj\…`，dgspec 只剩这两个本地源。反向（移走子目录配置 + 清空探针的全局缓存）：`error VBI1009`、exit 1，诊断锚在第二行 `#R`，key 随之改变且新 key 内无 `sub\NuGet.config`。
+- **无配置对照**：与改动前的 RC2 构建（`%USERPROFILE%\.dotnet\tools\vbi.exe`）比对同一脚本 ⇒ **同一个缓存 key**，`global.json` / `project.vbproj` / `project.nuget.cache` / `project.assets.json` / dgspec **逐字节相同**，`dgSpecHash` 均为 `QhO+j6Maw9w=`，有效源仍是用户/机器级三条，key 目录顶层无任何镜像 `NuGet.config` ⇒ 零回归。
+
+未覆盖：`packageSourceCredentials`（G3，需真实凭据源）。状态汇总见 `test-plan.md` §七。
 
 ### 裁决记录
 

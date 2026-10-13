@@ -70,22 +70,22 @@
 ## 六、验收 gate
 
 1. 上表新增用例全绿 — **[已运行] 25/25 通过**（`NuGetSourceConfigTests`，xunit v3 console runner `-class "*NuGetSourceConfigTests"`）。
-2. `Scripting\VisualBasicTest` 全量 0 失败 — **[已运行] Total 811 / Errors 0 / Failed 0 / Skipped 0**（810 那轮的日志在 `tmp\vortex-logs\f6-full-suite.txt`，43.6s）。
-3. 手工 G 清单 — **部分完成，见下**（G1/G2/无配置对照 已跑通；G3 凭据 / G4 两层嵌套 / 与改动前 `dgSpecHash` 逐字对照 未跑）。
+2. `Scripting\VisualBasicTest` 全量 0 失败 — **[已运行] Total 811 / Errors 0 / Failed 0 / Skipped 0**（日志 `tmp\vortex-logs\f7-after-whitesand.txt`，41.5s）。
+3. 手工 G 清单 — **G1/G2/G4/无配置对照 已跑通**（均用本地文件夹源，全程离线），**G3 凭据 未跑**（见下）。
 
 ## 七、G 人工清单（真还原，不进自动测试）
 
 > 运行器为 xunit v3 console（非 MTP console）：`-class` / `-method` / `-namespace` / `-filter`；`--filter-class` 等 `--` 前缀选项不存在。
 >
-> 手工用例的条件：自建私有源（`dotnet pack` 出 `VbiSourceConfigProbe 1.0.0`，放进 `repo\feed\`，**从未发布到 nuget.org**）+ `repo\NuGet.config`（`<clear/>` + 该本地源）+ 脚本 `repo\app\probe.vbx`，在 CWD 不在 `repo` 的情况下运行 `vbi.exe repo\app\probe.vbx`。**[已运行]** 结果与原始观测见 `README.md`「验证记录」。
+> 手工用例的条件：源一律用 `dotnet pack` 产出的**本地文件夹源**（**从未发布到 nuget.org**），全程离线。两套布置：单层（`repo\NuGet.config` = `<clear/>` + 一个本地源，脚本 `repo\app\probe.vbx`）与两层（`repo\NuGet.config` = root 源、`repo\sub\NuGet.config` = sub 源，脚本 `repo\sub\app\probe.vbx`，两个包各自只存在于对应文件夹），均在 CWD 不在 `repo` 的情况下运行 `vbi.exe <脚本>`。**[已运行]** 结果与原始观测见 `README.md`「验证记录」，原始记录另存 `tmp\vortex-logs\g4-g5-local-folder-source.txt`。
 
 | # | 场景 | 判据 | 状态 |
 | --- | --- | --- | --- |
 | G1 | 脚本旁的 `NuGet.config` 是否真的决定源 | 正向：本地私有源里的包能还原并用起来（`pong`，exit 0）；反向（移走配置 + 清空全局包缓存 + 删旧 key 目录）：同一脚本失败（exit 1）。**加一条硬证据**：缓存里那份 `project.vbproj.nuget.dgspec.json` 的 `restore.sources` **只有配置里那个本地源**（`nuget.org` 被 `<clear/>` 清掉） | **done** |
 | G2 | 同集换源/去源 ⇒ key 变化 | 有配置与无配置两次运行落在**两个不同 key 目录**（有配置那个含镜像 `NuGet.config`，无配置那个没有） | **done**（同集「内容变更 ⇒ 新 key」的自动面见 L4-3） |
-| G3 | 私有源 + `packageSourceCredentials`（真实凭据） | 还原成功 ⇒ 凭据随镜像文件生效 | **未跑**（需真实凭据源；设计上凭据随文件原样复制，未做任何凭据语义处理） |
-| G4 | 深层嵌套：`repo\NuGet.config` + `repo\sub\NuGet.config`，脚本在 `repo\sub\app\` | 两层源都参与；缓存内出现 `NuGet.config` 与 `sub\NuGet.config`，工程在 `sub\app\` | **未跑**（自动面 L1-3/L1-10 已覆盖布局与相对路径） |
-| G5 | 与改动前对照（无任何目录级配置） | 工程仍在 key 根、**无镜像文件**、dgspec 源 = 用户/机器级三条 ⇒ 与改动前同形（真机已确认前三条；`dgSpecHash` 的**逐字**对照未做，但自动面 L1-14 已用实测复现的真实 key 钉死空指纹路径） | **部分 done** |
+| G3 | 私有源 + `packageSourceCredentials`（真实凭据） | 还原成功 ⇒ 凭据随镜像文件生效 | **未跑**（需真实凭据源；本轮按要求只用本地文件夹源。设计上凭据随文件原样复制，未做任何凭据语义处理） |
+| G4 | 深层嵌套：`repo\NuGet.config` + `repo\sub\NuGet.config`，脚本在 `repo\sub\app\` | 两层源都参与；缓存内出现 `NuGet.config` 与 `sub\NuGet.config`，工程在 `sub\app\` | **done**（[已运行] 两个本地文件夹源，正向 `root-pong sub-pong` exit 0；反向移走子目录配置后子包失败且换 key。dgspec 只剩这两个本地源） |
+| G5 | 与改动前对照（无任何目录级配置） | 工程仍在 key 根、**无镜像文件**、dgspec 源 = 用户/机器级三条 ⇒ 与改动前同形 | **done**（[已运行] 与改动前的 RC2 构建比对：**同一个缓存 key**，`global.json` / `project.vbproj` / `project.nuget.cache` / `project.assets.json` / dgspec **逐字节相同**，`dgSpecHash` 均为 `QhO+j6Maw9w=`） |
 | G6 | ~~`global.json` 镜像深度~~ **已由实测结案** | 实测证明 `global.json` 由 `dotnet` 进程 CWD（非工程目录）解析 ⇒ 改动前后**同样不生效**，无回归、无需验证（事实见 `design-detailed.md` C2.1 与 §十一） | **N/A** |
 
 ## 八、证据留存

@@ -53,8 +53,8 @@
 
 ### 外部先例缺位，只能自补（本机检出核对）
 
-- dotnet/interactive（本机检出 `C:\Users\james\Projects\interactive`）：`#r` 引用形态只有 `nuget:`（`src\Microsoft.DotNet.Interactive.PackageManagement\KernelExtensions.cs:36-61`），无 `project:` 前缀；其 `src\Microsoft.DotNet.Interactive.CSharpProject\` 是另一族（workspace 工程系统，服务 try-dotnet 线路的整工程补全/编译），不是 `#r` 指令形态。
-- Roslyn 上游 Scripting（本机检出 `C:\Users\james\Projects\roslyn\src\Scripting`）：`CommandLineRunner.cs` 无任何工程引用先例（grep `.csproj`/`TargetPath`/`project` 零命中）。
+- dotnet/interactive（本机检出 `{{DotNetInteractive}}`）：`#r` 引用形态只有 `nuget:`（`src\Microsoft.DotNet.Interactive.PackageManagement\KernelExtensions.cs:36-61`），无 `project:` 前缀；其 `src\Microsoft.DotNet.Interactive.CSharpProject\` 是另一族（workspace 工程系统，服务 try-dotnet 线路的整工程补全/编译），不是 `#r` 指令形态。
+- Roslyn 上游 Scripting（本机检出 `{{Roslyn}}` 的 `src\Scripting`）：`CommandLineRunner.cs` 无任何工程引用先例（grep `.csproj`/`TargetPath`/`project` 零命中）。
 - 官方 file-based apps（近邻已取证）的 `#:package id@version` 是包引用，不是本地工程引用。
 
 所以 `project:` 只能**沿自己的 nuget 先例自补**——这同时意味着它要承受与 nuget 相同的「宿主工具链契约 + SDK 前提」定位。
