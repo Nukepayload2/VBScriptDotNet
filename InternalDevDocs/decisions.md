@@ -57,7 +57,7 @@ VBScript.NET 侧决策**以本节为权威立场**：`csharplang-index.md`、`mo
 - **定案**：脚本语义的兼容性约束**只对正式版（GA）成立**。在只有 beta / preview 发行版的期间，**不得以「breaking change / 破坏既有语义」为由否决设计**；beta 期间发出的脚本语义调整不落入 D4 的 P1 硬约束（「不引起无谓的 regression / breaking change」）。
 - **实证（只有 beta，无 GA）**：
   - MSIX 清单 `Installer\VBInteractive.WindowsDesktop.Installer\Package.appxmanifest:12` `Version="1.2.0.0"`；`:15` `DisplayName` = `N2Fork VB Interactive (Preview)`、`:34` = `N2Fork VB Interactive (preview)`。
-  - `proposals\README.md:78` 逐字「VBScript.NET **1.2 beta** 已发布到微软商店」；`:35` 编译器包版本 `2.0.0-Beta`（同一版本串的出货源：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj:18` `<Version>2.0.0-Beta</Version>`）。
+  - `proposals\README.md:78` 逐字「VBScript.NET **1.2 beta** 已发布到微软商店」；`:35` 编译器包版本 `2.0.0-Beta`（同一版本串的出货源：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj:18` `<Version>2.0.0-Beta</Version>`）。
   - **清点（2026-09-24）**：产品与版本面无 GA / 正式版标记——MSIX 清单标 `1.2.0.0` + `(Preview)`/`(preview)`，Toolset 包为 `2.0.0-Beta`。仓内 `正式版` / `GA` 字样的命中只出现在复述本条的文档、`modvb` 对 C# 15 unions 的讨论与上游 C# 会议原文里，无一处指向本产品的 GA 发行。
 - **边界（防止本条被滥用）**：本条**只解掉「兼容性」这一条否决理由**。其它理由——**实现可行性、与 D5 的同形性、机制收益与代价、规范的可表达性**——**不受影响**，仍须逐条论证。举「兼容性」以外的理由否决时，本条不适用。
 - **用途**：propose / meeting 阶段的候选裁决与 plan 阶段的取舍，凡出现「这会改掉既有语义」类论据，先对照本条判断该论据是否成立。

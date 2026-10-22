@@ -38,7 +38,7 @@
 
 ## 共享源码事实（Vortex agent 以此为基准，行号实现期复核）
 
-- 打包项目：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`（`:14` net10 单 TFM、`:33-40` ProjectReference `Targets=Publish`+`SetTargetFramework=net10.0`、`:51-66` `_GetFiles` 铺 `tasks/netcore`+`bincore`、`:45-46` build Content、`:25` `TargetsForTfmSpecificContentInPackage`）。
+- 打包项目：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`（`:14` net10 单 TFM、`:33-40` ProjectReference `Targets=Publish`+`SetTargetFramework=net10.0`、`:51-66` `_GetFiles` 铺 `tasks/netcore`+`bincore`、`:45-46` build Content、`:25` `TargetsForTfmSpecificContentInPackage`）。
 - props：`Installer\Toolset\build\Nukepayload2.Compilers.VBScriptDotNet.props`（`:11-12` 写死 `tasks\netcore`、`:10` `RoslynCompilerType=Custom`、`:13` `UseSharedCompilation=false`、`:15` UsingTask Vbc）；`buildMultiTargeting\` 同转介。
 - vbc：`Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj`（`:4` net10、`:17` runtime.rsp Link、`:36-52` `WriteNet10ResponseFile`）；netfx rsp 源树 `Compilers\VisualBasic\vbc\vbc.rsp`（57 行，与上游逐字节一致）。
 - MSBuildTask：`Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj`（`:7` net10、`:9` 常量、`:10` LangVersion=latest、`:82-83` MSBuild.Framework/Tasks.Core 17.11.48）；bridge 钩子 `Compilers\Core\MSBuildTask\Vbc.cs:388-401`（`IsSdkFrameworkToCoreBridgeTask` 运行时守卫）。
@@ -80,7 +80,7 @@
 
 - nupkg 解包：`tasks/netcore`（=v1 同构）+ `tasks/net472`（vbc.exe/vbc.rsp/netstandard2.0 编译器库/targets 三件套/System.* polyfill/DiaSymReader.Native）。
 - `tasks/net472` 不含 CSharp.dll/csc/VBCSCompiler/bridge。
-- R5 L2 门：确定 Full host 实际消费的 targets 链（SDK 自带 vs fork 铺包），记录证据；若 SDK 链不兼容则回退选项 a 并更新 props。
+- R5 L2 门：确定 Full host 实际消费的 targets 链（SDK 自带 vs fork 铺包），记录证据；若 SDK 链不兼容则回退选项 a 并更新 props。**已闭**：SDK 自带链驱动（`VisualBasicCoreTargetsPath` 指向 SDK `Roslyn\`），包内副本当前不参与 CoreCompile，容器仍随包分发（布局对齐，选项随时可启用）；证据见 `test-plan.md` L2-4。
 
 ## F7 验收条件（文档登记 pass 标准）
 

@@ -8,7 +8,7 @@
 |---|------|---------|
 | G1 | `Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj` | 双目标 `net10.0;net472`；R1 限 net10；net472 条件产物（rsp + App.config）；LangVersion（R2）；net472 ref assemblies |
 | G2 | `Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj` | 双目标 `net10.0;net472`；net472 补 System.Memory/Unsafe；net472 ref assemblies |
-| G3 | `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj` | 双目标 `net472;net10.0`；`_GetFiles` 按 TFM 分支（net472 → `tasks/net472` Build 收集；net10 → v1 Publish 收集） |
+| G3 | `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj` | 双目标 `net472;net10.0`；`_GetFiles` 按 TFM 分支（net472 → `tasks/net472` Build 收集；net10 → v1 Publish 收集） |
 | G4 | `Installer\Toolset\build\Nukepayload2.Compilers.VBScriptDotNet.props` | `MSBuildRuntimeType` 分派 Core/Full；R5/R6 |
 | G5 | 文档登记（本任务 README/overview + 包内 README + manual checklist） | R8 |
 
@@ -114,7 +114,7 @@ PropertyGroup 加（net10/net472 通用，net10 现默认 latest 无感，net472
 
 ---
 
-## G3. 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`）
+## G3. 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`）
 
 ### 双目标
 ```xml

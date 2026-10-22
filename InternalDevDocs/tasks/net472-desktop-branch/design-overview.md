@@ -39,7 +39,7 @@ tasks/net472/
 
 ### 2.3 打包与 props
 
-- `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`：`net10.0` → `net472;net10.0` 双 inner build；`_GetFiles` 按 `$(TargetFramework)` 分支：net472 → 普通 Build 收集铺 `tasks/net472`（R9 钉 TFM）、net10 → v1 现状 Publish 收集铺 `tasks/netcore(+bincore)`。
+- `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`：`net10.0` → `net472;net10.0` 双 inner build；`_GetFiles` 按 `$(TargetFramework)` 分支：net472 → 普通 Build 收集铺 `tasks/net472`（R9 钉 TFM）、net10 → v1 现状 Publish 收集铺 `tasks/netcore(+bincore)`。
 - `build\Nukepayload2.Compilers.VBScriptDotNet.props`：引入 `MSBuildRuntimeType` 分派（Core → `tasks/netcore(bincore)`，解析值=现状；Full → `tasks/net472`）；`RoslynCompilerType=Custom` / `UseSharedCompilation=false` / 只注册 Vbc 两分支通用（R6）。不设 `VisualBasicCoreTargetsPath`（R5，选项 b）。
 
 ### 2.4 消费效果（目标状态）

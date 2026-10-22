@@ -22,10 +22,12 @@
 
 ### L2（F4/F6 打包产物验证）
 
-- **L2-1 net10 产物无回归**：`dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj -c Release -p:TargetFramework=net10.0`；解包 nupkg 的 `tasks/netcore` + `tasks/netcore/bincore` 与 v1 nupkg **逐项 diff 一致**（目录树 + 文件名 + deps/rsp 存在性）。**验收判据**：无多余/缺失文件。
+- **L2-1 net10 产物无回归**：`dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj -c Release -p:TargetFramework=net10.0`；解包 nupkg 的 `tasks/netcore` + `tasks/netcore/bincore` 与 v1 nupkg **逐项 diff 一致**（目录树 + 文件名 + deps/rsp 存在性）。**验收判据**：无多余/缺失文件。
 - **L2-2 net472 产物内容**：`dotnet pack ... -p:TargetFramework=net472`；解包 `tasks/net472` 断言含：`vbc.exe`/`vbc.exe.config`/`vbc.rsp`(netfx 57 行)、`Microsoft.Build.Tasks.CodeAnalysis.dll`(net472)、`Microsoft.CodeAnalysis.dll`+`VisualBasic.dll`+resources(netstandard2.0)、targets 三件套、System.* polyfill、DiaSymReader.Native（全 PDB 场景）。**不含** CSharp.dll / csc / VBCSCompiler / bridge。与上游 `DesktopCompilerArtifacts.targets:31-55,79-89` 清单（VB-only 裁剪后）逐项核对。
 - **L2-3 props 分派解析**（F5）：Core host 下 `_RoslynTargetsDirectoryName=netcore`（`RoslynAssembliesPath=...bincore\`，= v1 现状）；Full host 下 `=net472`。可在临时项目里 `dotnet msbuild -pp:` 或直接核对 props 文本。
 - **L2-4 R5 targets 消费门**：确定 Full host 实际消费哪份 VB Core targets（SDK 自带 vs fork 铺包）。方法：`MSBuild.exe`（Full）下对引用包临时项目 `/v:diag` 查 `VisualBasicCoreTargetsPath` 解析值 + `UsingTask` 落点。若 SDK 自带 targets 链正确驱动 → R5 选项 b 成立；若 SDK 链与 fork 不兼容（要求更前缀属性/路径）→ 回退选项 a（G4 Full 分支设 `VisualBasicCoreTargetsPath=..\tasks\net472\Microsoft.VisualBasic.Core.targets`）并更新 props/design。
+  - **已闭（实测）**：Full host 下 `VisualBasicCoreTargetsPath` = `...\dotnet\sdk\<ver>\Roslyn\Microsoft.VisualBasic.Core.targets`、`RoslynTargetsPath` = `...\Roslyn\binfx`，CoreCompile 由 SDK 自带 `Microsoft.VisualBasic.Core.targets` 驱动 ⇒ **R5 选项 b 成立**。Core 与 Full 两宿主上把包内 `Microsoft.*.targets` 剥掉后同样 0 错误、产物运行正确 ⇒ 该组 targets 当前不参与编译，但仍随包分发（布局对齐上游，选项 a 随时可启用；上游靠它配 `CSharpCoreTargetsPath`/`VisualBasicCoreTargetsPath` 实现与宿主 SDK 解耦）。
+  - **附带实测（宿主下限）**：.NET 8.0.426 SDK 下引用本包 → `MSB4062`，任务程序集加载失败（`Could not load file or assembly 'System.Runtime, Version=10.0.0.0'`）。⇒ 包的宿主下限由**任务程序集的 TFM** 决定，本组 targets 的无能无关：还原或移除 targets 都改变不了老 SDK 的失败，故老环境兼容不在本组文件职责内；宿主下限须按 net10 写明。
 
 ### L3（集成消费，用户手动或说明边界）
 

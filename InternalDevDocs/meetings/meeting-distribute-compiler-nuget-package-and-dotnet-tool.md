@@ -117,7 +117,7 @@ _Related: [`../proposals/proposal-distribute-compiler-nuget-package-and-dotnet-t
 ### Implication
 
 - proposal 更新：Unresolved 四条全部闭合（U1 隐式、U2 先不做、U3 允许缺失 net472、U4 双行版本）；新增「边界定案」段（不含 csc/不替代工具链/包描述措辞）。
-- Toolset 包落地：补回 `Compilers\Core\MSBuildTask\`（只注册 Vbc）、`vbc.csproj` 加 publish 产出、新建 `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`、`UseSharedCompilation=false` props。
+- Toolset 包落地：补回 `Compilers\Core\MSBuildTask\`（只注册 Vbc）、`vbc.csproj` 加 publish 产出、新建 `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`、`UseSharedCompilation=false` props。
 - `vbi` tool 落地：`Interactive\vbi\vbi.vbproj` 加 `PackAsTool=true` + `ToolCommandName=vbi`；编译模式新增走 `Vbc.Run`/`BuildClient.Run`（`Compilers\Shared\Vbc.cs:22-29`、`vbc\Program.cs:39`）；`InformationalVersion` 落 `2.0.0-Beta`。
 - 补测试（无副作用）：Toolset 包引用后 .vbproj 构建用 fork vbc；`vbi src.vb /out:app.dll` 编译；`vbi script.vbx` 执行；`vbi --version` 双行输出。
 

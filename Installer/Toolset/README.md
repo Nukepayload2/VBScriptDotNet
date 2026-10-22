@@ -17,7 +17,10 @@ that ships with the SDK.
 
 ## Requirements
 
-- For **MSBuild Core** (`dotnet build`): .NET SDK targeting **net10.0**.
+- For **MSBuild Core** (`dotnet build`): .NET SDK targeting **net10.0**. An
+  older SDK fails with `MSB4062` — the package's task assembly targets .NET 10,
+  so its `System.Runtime` cannot be loaded by that host. The failure is a load
+  error, not a silent fallback to the SDK compiler.
 - For **Visual Studio / .NET Framework MSBuild** (`MSBuild.exe`, Full host):
   .NET Framework 4.7.2+ and Visual Studio 2022 **17.11+** (the package loads a
   net472 task assembly and spawns a net472 `vbc.exe`).
@@ -53,15 +56,19 @@ bundled in this package (the `Vbc` MSBuild task is redirected to the packaged
 binaries). C# projects in the same solution are unaffected and keep using the
 `csc` compiler that ships with the .NET SDK.
 
-Reference this package **only from Visual Basic projects**. It registers the
-`Vbc` MSBuild task but does not ship the C# compiler, so a C# project that
-references this package would not find a `csc` binary.
+The package applies only to Visual Basic projects. The injected properties and
+the `Vbc` task registration are conditioned on the project extension being
+`.vbproj`, so referencing this package from a C# or F# project leaves that
+project's compilation untouched. The package ships no C# compiler, and nothing
+it does can redirect the `csc` path.
 
 Notes:
 
-- Classic (non-SDK) .NET Framework projects that do not go through the .NET SDK
-  build chain are not covered by this package. It is intended for SDK-style
-  Visual Basic projects built under either MSBuild host.
+- Classic (non-SDK) .NET Framework projects are covered when they use
+  `PackageReference`: Visual Studio's `Microsoft.VisualBasic.targets` chain also
+  resolves the `Vbc` task through `$(RoslynTasksAssembly)`, which this package
+  sets, so the packaged `tasks/net472` task and `vbc.exe` take over. The
+  `packages.config` install path is not verified.
 - Shared compilation is disabled (`UseSharedCompilation=false`); each build
   compiles by launching the compiler in a subprocess (no compiler server).
 

@@ -65,7 +65,7 @@ tasks/net472/
   Microsoft.CodeAnalysis.dll                     # netstandard2.0（同 vbc.exe 目录被 CLR 解析）
   Microsoft.CodeAnalysis.VisualBasic.dll
   ...*.resources.dll                             # 卫星资源（Core + VB）
-  Microsoft.VisualBasic.Core.targets             # CoreCompile 定义（VB-only，不铺 C# 面）
+  Microsoft.VisualBasic.Core.targets             # CoreCompile 定义（VB-only，不铺 C# 面；R5 定案当前非驱动者）
   Microsoft.Managed.Core.targets
   Microsoft.Managed.Core.CurrentVersions.targets
   System.Memory.dll  System.Collections.Immutable.dll        # net472 不自带的 netstandard2.0
@@ -99,7 +99,7 @@ tasks/net472/
 - net472 reference assemblies：`Microsoft.NETFramework.ReferenceAssemblies.net472`（同上）。
 - Microsoft.Build.Framework/Tasks.Core 17.11.48 `ExcludeAssets="Runtime"`（`:82-83`）两 TFM 通用（netfx MSBuild 自带宿主程序集，net472 下 ExcludeAssets 仍成立）。
 
-#### G3. `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`：双目标 + 桌面 `_GetFiles`
+#### G3. `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`：双目标 + 桌面 `_GetFiles`
 
 - `<TargetFramework>net10.0</TargetFramework>` → `<TargetFrameworks>net472;net10.0</TargetFrameworks>`（对齐上游 AnyCpu `Package.csproj:4`）。
 - ProjectReference 分 TFM：
@@ -177,7 +177,7 @@ tasks/net472/
   - net472 产物清单：`{{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\DesktopCompilerArtifacts.targets:31-55`（netstandard2.0 库 / net472 vbc.exe+config+rsp / net472 任务 DLL / Core.targets）、`:79-89`（System.* polyfill + 卫星资源）、`Framework\Microsoft.Net.Compilers.Toolset.Framework.Package.csproj:37-41`（铺 `tasks/net472`）、`Framework\build\Microsoft.Net.Compilers.Toolset.Framework.Core.props:5-17`（`_RoslynTargetsDirectoryName=net472`、`RoslynTasksAssembly=tasks/net472/...`）。
   - 双目标参照：`{{Roslyn}}src\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj:6`（`$(NetRoslynSourceBuild);net472`）、`:11-15`（net472 复制 `vbc.rsp`）；`{{Roslyn}}src\Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj:7`（`$(NetRoslynSourceBuild);net472`）、`MSBuildTask\Directory.Build.targets:5-8`（net472 补 System.Memory/Unsafe）。
 - fork 源码（已检查）：
-  - `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj:14`（net10 单 TFM）、`:33-40`（ProjectReference Publish）、`:51-66`（`_GetFiles` 铺 `tasks/netcore`）。
+  - `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj:14`（net10 单 TFM）、`:33-40`（ProjectReference Publish）、`:51-66`（`_GetFiles` 铺 `tasks/netcore`）。
   - `Installer\Toolset\build\Nukepayload2.Compilers.VBScriptDotNet.props:11-15`（写死 `tasks\netcore`、无 `MSBuildRuntimeType` 分派）。
   - `Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj:4`（net10 单 TFM）、`:36-52`（`WriteNet10ResponseFile` AfterTargets=Build，需 net48 ref，写 net10 rsp）、`:17`（vbc.runtime.rsp Link 不进 publish）。
   - `Compilers\Core\MSBuildTask\MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj:7-9`（net10 单 TFM + 注释「net472 留后续」）、`:47`（Csc.cs 编译但 props 不注册）。

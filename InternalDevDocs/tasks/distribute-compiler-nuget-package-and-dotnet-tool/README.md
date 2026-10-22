@@ -69,7 +69,7 @@
 
 - 逐条给出**改动文件 + 属性/项 + 行号区域 + 改动形状**（csproj 加 pack 配置、新建打包项目结构、props/targets 内容），可被实施者直接照做。
 - **Part A 补回**：`Compilers\Core\MSBuildTask\` 源文件清单（对齐上游 `Directory.Build.props:26-54`）+ fork 依赖文件核对（`C\Shared\ConsoleUtil.cs`、`C\Core\Portable\InternalUtilities\` 三文件已有）+ `Contracts.projitems` 引用；只注册 `Vbc` 任务。
-- **Part A 打包**：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj` 结构（`NuspecPackageId`/`IncludeBuildOutput=false`/`DevelopmentDependency=true`/`_GetFiles` 铺 `tasks/netcore` + `tasks/netcore/bincore`）；`build\` + `buildMultiTargeting\` props（`UseSharedCompilation=false`、`RoslynAssembliesPath`、`RoslynCompilerType=Custom`）。
+- **Part A 打包**：`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj` 结构（`NuspecPackageId`/`IncludeBuildOutput=false`/`DevelopmentDependency=true`/`_GetFiles` 铺 `tasks/netcore` + `tasks/netcore/bincore`）；`build\` + `buildMultiTargeting\` props（`UseSharedCompilation=false`、`RoslynAssembliesPath`、`RoslynCompilerType=Custom`）。
 - **Part A 发布**：`vbc.csproj` publish 产出（`vbc.dll` + deps + runtimeconfig + rsp）；bincore 只含 Core + VisualBasic。
 - **Part B 打包**：`Interactive\vbi\vbi.vbproj` 加 `PackAsTool=true` + `ToolCommandName=vbi` + 包名 `Nukepayload2.Compilers.VBScriptDotNet.Cli`；net10.0 TFM 与 net10.0-windows/net48 的关系（tool 只发 net10.0）。
 - **Part B 模式分发**：`vbi` 编译模式接入（`Vbc.Run`/`BuildClient.Run` vs `CommandLineRunner.RunScriptAsync` 分派边界）；`AssemblyInformationalVersion` 落 `2.0.0-Beta` 的版本映射。

@@ -21,6 +21,7 @@ VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互
 - `#R "nuget:包名, 版本"` 从脚本目录链上最近的 `NuGet.config` 所配置的源还原，脚本旁的私有源及其凭据同样生效。
 - 在文件顶部用 `' Attribute TargetFramework = "net48"` 选择运行时宿主。
 - 脚本顶部的 `#!` shebang 被视为指令，可在类 Unix 系统上直接运行脚本。
+- 脚本的退出码只来自入口点：`Return 42` 以 `42` 退出，裸 `Return` 或自然跑到结尾以 `0` 退出。末尾表达式从不是退出码的来源。
 - `End` 立即结束脚本进程，退出码为 `0`；顶层、块内、顶层成员体内或 lambda 体内均可用。
 - 脚本全局对象：`Args` 和 `Print`。
 - 用 `vbi.rsp` 配置脚本编译（`/r:`、`/imports:`）。
@@ -29,6 +30,7 @@ VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互
 - 消费 C# 14 扩展成员，包括扩展属性和扩展运算符。
 - 通过约束到接口的类型参数调用静态抽象接口成员，如 `T.Zero` 和 `T.Add`。
 - 使用 `Span(Of T)` 等 byref-like 类型，并在泛型参数允许 ref struct 时将其作为类型实参传递。
+- 读取返回 `ref readonly` 的成员，如 `ReadOnlySpan(Of T)` 的索引器和 `GetPinnableReference()`。经该引用写入会在编译期被拒，或降级为副本，因此只读内存不会被写入。
 
 ### 脚本工具
 - `/check` 编译脚本并报告全部诊断信息，但不执行。
@@ -78,6 +80,13 @@ End Sub
 
 Dim count = 10
 PrintFibonacci(count)
+```
+
+### 退出码
+脚本的退出码只来自入口点。不写 `Return`、以及只写裸 `Return` 时，退出码为 `0`。末尾表达式不改变它，因此脚本的最后一条表达式不是退出码的来源。
+```vbnet
+Print("done")
+Return 42   ' 退出码 42
 ```
 
 ### End 语句

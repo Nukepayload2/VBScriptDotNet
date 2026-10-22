@@ -43,7 +43,7 @@
 - **不带 rsp**：netcore 编译器经 `dotnet exec vbc.dll` 运行，无响应文件需求（上游 `CoreClrCompilerArtifacts.targets` 零 rsp 匹配）；`vbc.rsp` 是 net472 桌面 `vbc.exe` 专属（`DesktopCompilerArtifacts.targets:46-48`，含 netfx `/r:` 全引用），net472 允许缺失故不打包。
 - **bincore 只含 VB 面**：`Microsoft.CodeAnalysis.dll` + `Microsoft.CodeAnalysis.VisualBasic.dll` + resources，**不含** `Microsoft.CodeAnalysis.CSharp.dll`（仿上游 `CoreClrCompilerArtifacts.targets:11-18` 布局，但仅取 VB 面——上游 :11-18 实际含 Core+CSharp+VisualBasic 三组，fork 自选缩减为 VB，属用户定案非上游既有子集）。
 
-### 2.3 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`，新项目）
+### 2.3 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`，新项目）
 
 - 仿 `{{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\Microsoft.Net.Compilers.Toolset.Package.csproj`：`IsPackable=true`、`NuspecPackageId=Nukepayload2.Compilers.VBScriptDotNet`、`IncludeBuildOutput=false`、`DevelopmentDependency=true`、版本 `2.0.0-Beta`。
 - `ProjectReference` → `vbc`（`Targets="Publish"`，`ReferenceOutputAssembly=false`）+ `MSBuildTask`。

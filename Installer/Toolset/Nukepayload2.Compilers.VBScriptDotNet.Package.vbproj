@@ -1,24 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Fork 的 Toolset 编译器 NuGet 包项目（design-detailed.md A3 :55-103）。
-  对齐上游 {{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\Microsoft.Net.Compilers.Toolset.Package.csproj:30-64。
-  与设计/上游的偏离（证据见 tmp/vortex-logs/distribute-toolset-f07.log.md）：
-  - NuspecPackageId → PackageId：SDK pack（NuGet.Build.Tasks.Pack.targets:29）用 $(PackageId)（默认=$(AssemblyName)），
-    NuspecPackageId 不被 SDK 消费（上游经 Arcade 基建映射；fork 无 Arcade）。设 PackageId 使 nupkg 名正确。
-  - 增加 <TargetFrameworks>net472;net10.0</TargetFrameworks>：pack 与 $(IntermediateOutputPath) 解析（obj\Release\net10.0\）需要；net472 桌面分支铺 tasks/net472（G3）。
-  - 增加 build\**\*.* 与 buildMultiTargeting\**\*.* Content（对齐上游 csproj:46-49）：A4 props 进包。
-  - props 文件按包 ID 命名（build\Nukepayload2.Compilers.VBScriptDotNet.props），NuGet 才自动导入（L2-3 消费模型）。
--->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net472;net10.0</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <PackageId>Nukepayload2.Compilers.VBScriptDotNet</PackageId>
-    <NuspecPackageId>Nukepayload2.Compilers.VBScriptDotNet</NuspecPackageId>
     <Version>2.0.0-RC3</Version>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
-    <PackageDescription>基于 .NET Foundation 的 Roslyn 编译器改造而来，专注 Visual Basic 的编译器包。</PackageDescription>
+    <PackageDescription>Visual Basic compiler from the VBScriptDotNet fork, distributed as an MSBuild toolset package. Referencing it from a Visual Basic project redirects the Vbc task to the compiler bundled here: tasks/netcore for dotnet build, tasks/net472 for Visual Studio and MSBuild.exe. The package contains the Visual Basic compiler only; the C# path keeps using the compiler that ships with the SDK, and non-Visual-Basic projects are unaffected. Requires .NET SDK 10 (Core MSBuild) or .NET Framework 4.7.2+ with Visual Studio 2022 17.11+ (Full MSBuild). This is a development dependency; it does not replace the .NET SDK toolchain.</PackageDescription>
     <Authors>Nukepayload2</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,11 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- R9：两个 ProjectReference 按 $(TargetFramework) 分 TFM 收集。
-         net10 inner build 保持 v1：Targets="Publish" + ReferenceOutputAssembly="false"，publish 产物经 PublishDir 落到统一中间目录
-         （PublishDir 用 $(MSBuildThisFileDirectory) 绝对化，理由见 F07 log 偏离第 2 条）。net10 收集行为不允许漂移。
-         net472 inner build 走普通 Build（design-detailed.md G3：不 Publish），产物落被引用项目 bin\$(Configuration)\net472\，
-         由 _GetFiles net472 分支按真实路径定向收集。 -->
     <ProjectReference Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj"
                       PrivateAssets="All" ReferenceOutputAssembly="false"
                       SetTargetFramework="TargetFramework=$(TargetFramework)">
@@ -47,19 +31,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- A4 props 进包（对齐上游 csproj:46-49） -->
     <Content Include="build\**\*.*" PackagePath="build\" />
     <Content Include="buildMultiTargeting\**\*.*" PackagePath="buildMultiTargeting\" />
-    <!-- 英文 README 进包根（消 NU5039；PackageReadmeFile 须与打包路径一致） -->
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <Target Name="_GetFiles" DependsOnTargets="Build">
     <ItemGroup Condition="'$(TargetFramework)' != 'net472'">
-      <!-- 现状 net10 分支（v1 原样，禁止漂移）：msbuildtask-publish → tasks/netcore；vbc-publish → tasks/netcore/bincore -->
       <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.Build.Tasks.CodeAnalysis.dll" TargetDir="tasks/netcore" />
       <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.*.targets" TargetDir="tasks/netcore" />
-      <!-- tasks/netcore/bincore/（来自 vbc publish 产物） -->
       <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.dll" TargetDir="tasks/netcore/bincore" />
       <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.deps.json" TargetDir="tasks/netcore/bincore" />
       <_File Include="$(IntermediateOutputPath)vbc-publish\vbc.runtimeconfig.json" TargetDir="tasks/netcore/bincore" />
@@ -69,9 +49,6 @@
       <_File Include="$(IntermediateOutputPath)vbc-publish\**\Microsoft.CodeAnalysis.VisualBasic.resources.dll" TargetDir="tasks/netcore/bincore" />
     </ItemGroup>
     <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-      <!-- tasks/net472/（net472 桌面分支，VB-only）。
-           收集路径 = 被引用项目 net472 普通 Build 输出（R9 钉 TFM），替代 design G3 的路径占位符（实测：vbc 多目标后
-           bin\$(Configuration)\net472\；MSBuildTask 同理）。不含 CSharp.dll / csc / VBCSCompiler / bridge。 -->
       <_File Include="..\..\Compilers\Core\MSBuildTask\MSBuild\bin\$(Configuration)\net472\Microsoft.Build.Tasks.CodeAnalysis.dll" TargetDir="tasks/net472" />
       <_File Include="..\..\Compilers\Core\MSBuildTask\MSBuild\bin\$(Configuration)\net472\Microsoft.Managed.Core.targets" TargetDir="tasks/net472" />
       <_File Include="..\..\Compilers\Core\MSBuildTask\MSBuild\bin\$(Configuration)\net472\Microsoft.Managed.Core.CurrentVersions.targets" TargetDir="tasks/net472" />
@@ -82,7 +59,6 @@
       <_File Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net472\Microsoft.CodeAnalysis.dll" TargetDir="tasks/net472" />
       <_File Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net472\Microsoft.CodeAnalysis.VisualBasic.dll" TargetDir="tasks/net472" />
       <_File Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net472\**\*.resources.dll" TargetDir="tasks/net472" />
-      <!-- System.* polyfill / DiaSymReader.Native：随 vbc net472 输出 CopyLocal 落位；精确清单以 F6 产物核对收口 -->
       <_File Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net472\System.*.dll" TargetDir="tasks/net472" />
       <_File Include="..\..\Compilers\VisualBasic\vbc\AnyCpu\bin\$(Configuration)\net472\Microsoft.DiaSymReader.Native.*.dll" TargetDir="tasks/net472" />
     </ItemGroup>

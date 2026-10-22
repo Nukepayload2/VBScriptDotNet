@@ -37,7 +37,7 @@
 
 | # | 步骤 | 预期 |
 |---|------|------|
-| L2-1 | `dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj -c Release` | 产出 `Nukepayload2.Compilers.VBScriptDotNet.2.0.0-Beta.nupkg` |
+| L2-1 | `dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj -c Release` | 产出 `Nukepayload2.Compilers.VBScriptDotNet.2.0.0-Beta.nupkg` |
 | L2-2 | 解包 nupkg | `build\` props + `tasks/netcore/bincore\`（`Microsoft.CodeAnalysis.dll` + `Microsoft.CodeAnalysis.VisualBasic.dll` + `vbc.dll` + deps/runtimeconfig）存在；**无** `vbc.rsp`（netcore 编译器不带 rsp）、**无** `Microsoft.CodeAnalysis.CSharp.dll`、无 `csc`、无 VBCSCompiler |
 | L2-3 | 临时 SDK 项目 `PackageReference` 该包（PrivateAssets=all）| `dotnet build` 用 fork vbc（VB 面）；C# 项目仍走 SDK csc（不注册 `Csc` 任务） |
 | L2-4 | 临时项目默认 `/imports`（MSBuild 任务参数传入） | 构建正常，VB 面默认 imports 生效（不依赖 rsp——MSBuild 任务直接传 `Imports`） |

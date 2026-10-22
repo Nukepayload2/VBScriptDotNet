@@ -13,8 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 触发 vbi 指定 TFM 的 Publish；PublishDir 用绝对路径指到本工程的 obj（对齐
-         Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj:35-46 的同一手法）。 -->
     <ProjectReference Include="$(VbiToolAppProject)"
                       PrivateAssets="All" ReferenceOutputAssembly="false"
                       SetTargetFramework="TargetFramework=$(VbiToolTargetFramework)">
@@ -25,7 +23,6 @@
 
   <Target Name="_GetVbiToolRidFiles" DependsOnTargets="Build">
     <ItemGroup>
-      <!-- 排除 apphost：工具载荷不带它（Windows 上是 vbi.exe，其他平台上是无扩展名的 vbi）。 -->
       <_VbiToolPayload Include="$(VbiToolPublishDir)**\*"
                        Exclude="$(VbiToolPublishDir)vbi.exe;$(VbiToolPublishDir)vbi" />
       <TfmSpecificPackageFile Include="@(_VbiToolPayload)">

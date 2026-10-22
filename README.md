@@ -21,6 +21,7 @@ Current development version: **2.0.0-RC3**. The features described below apply t
 - `#R "nuget:Package, Version"` restores from the sources configured by the nearest `NuGet.config` on the script's directory chain, so a private feed and its credentials work next to the script.
 - Select the runtime host with `' Attribute TargetFramework = "net48"` at the top of the file.
 - A `#!` shebang at the top of a script is treated as a directive, so scripts can be run directly on Unix-like systems.
+- A script's exit code comes only from its entry point: `Return 42` exits with `42`, while a bare `Return` or running off the end exits with `0`. A trailing expression never sets it.
 - `End` ends a script's process immediately with exit code `0`, at the top level, inside a block, in the body of a top-level member, or in a lambda.
 - Script globals: `Args` and `Print`.
 - Configure script compilation with `vbi.rsp` (`/r:`, `/imports:`).
@@ -29,6 +30,7 @@ Current development version: **2.0.0-RC3**. The features described below apply t
 - Consume C# 14 extension members, including extension properties and extension operators.
 - Call static abstract interface members through a type parameter constrained to the interface, such as `T.Zero` and `T.Add`.
 - Use byref-like types such as `Span(Of T)`, and pass them as type arguments where the generic parameter allows ref struct.
+- Read members that return `ref readonly`, such as the `ReadOnlySpan(Of T)` indexer and `GetPinnableReference()`. A write through the returned reference is refused at compile time or lowered to a copy, so read-only memory is never written.
 
 ### Script tooling
 - `/check` compiles a script and reports all diagnostics without running it.
@@ -78,6 +80,13 @@ End Sub
 
 Dim count = 10
 PrintFibonacci(count)
+```
+
+### Exit code
+A script's exit code comes only from its entry point. Without a `Return`, and with a bare `Return`, it is `0`. A trailing expression does not change it, so the last expression of a script is not a source of the exit code.
+```vbnet
+Print("done")
+Return 42   ' exit code 42
 ```
 
 ### End statement

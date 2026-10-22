@@ -58,7 +58,7 @@
 
 **A3. 打包项目**
 
-新项目（建议 `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`），仿 `Microsoft.Net.Compilers.Toolset.Package.csproj`：
+新项目（建议 `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`），仿 `Microsoft.Net.Compilers.Toolset.Package.csproj`：
 - `IsPackable=true`、`NuspecPackageId=Nukepayload2.Compilers.VBScriptDotNet`、`IncludeBuildOutput=false`、`DevelopmentDependency=true`。
 - 版本 `2.0.0-Beta`；包描述写「基于 .NET Foundation 的 Roslyn 编译器改造而来」——**不直接提及 Microsoft**；版权/作者标志按 fork 作者（`Nukepayload2`）署名。
 - `ProjectReference` → `vbc`（`Targets="Publish"`，`ReferenceOutputAssembly=false`）+ `MSBuildTask`。

@@ -9,7 +9,7 @@
 |---|------|---------|
 | A1 | `Compilers\Core\MSBuildTask\**`（新目录 ~20 文件） | 从上游镜像 MSBuildTask，net10.0-only |
 | A2 | `Compilers\VisualBasic\vbc\AnyCpu\vbc.csproj` | 加 publish 产出（deps/runtimeconfig/rsp） |
-| A3 | `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`（新项目） | 打包项目：`_GetFiles` 铺 `tasks/netcore` + `tasks/netcore/bincore` |
+| A3 | `Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`（新项目） | 打包项目：`_GetFiles` 铺 `tasks/netcore` + `tasks/netcore/bincore` |
 | A4 | `Installer\Toolset\build\Microsoft.Net.Compilers.Toolset.props` + `buildMultiTargeting\`（新文件） | props：只注册 Vbc、`UseSharedCompilation=false`、`RoslynAssembliesPath`→bincore |
 | B1 | `Interactive\vbi\vbi.vbproj` | 加 `PackAsTool=true` + `ToolCommandName=vbi` + 包名 `.Cli` |
 | B2 | `Interactive\vbi\`（新增编译模式入口） | `vbi` 编译模式：`.vb`/`/out:` → `Vbc.Run`/`BuildClient.Run` |
@@ -28,7 +28,7 @@
 1. 新建目录 `Compilers\Core\MSBuildTask\`，镜像上游源文件（**~20 文件**）：
    - 任务类：`ManagedCompiler.cs`、`ManagedToolTask.cs`、`Vbc.cs`、`Csc.cs`、`CopyRefAssembly.cs`、`MapSourceRoots.cs`、`GenerateMSBuildEditorConfig.cs`、`CanonicalError.cs`、`CommandLineBuilderExtension.cs`、`PropertyDictionary.cs`、`RCWForCurrentContext.cs`、`ShowMessageForImplicitlySkipAnalyzers.cs`、`MvidReader.cs`、`Utilities.cs`、`ValidateBootstrap.cs`、`InteractiveCompiler.cs`、`Csi.cs`、`ICompilerOptionsHostObject.cs`、`IVbcHostObject6.cs`、`IAnalyzerConfigFilesHostObject.cs`、`ICscHostObject5.cs`、`TaskCompilerServerLogger.cs`。
    - 资源：`ErrorString.resx`。
-   - targets：`Microsoft.*.targets`（`Microsoft.Managed.Core.targets`、`Microsoft.VisualBasic.Core.targets`、`Microsoft.CSharp.Core.targets`，随任务 DLL 铺包）。
+   - targets：`Microsoft.*.targets`（`Microsoft.Managed.Core.targets`、`Microsoft.VisualBasic.Core.targets`、`Microsoft.CSharp.Core.targets`，随任务 DLL 铺包；包 props 不设 `CSharpCoreTargetsPath` / `VisualBasicCoreTargetsPath`，故当前不参与 CoreCompile，见 A3）。
    - **不镜像** `Sdk\Microsoft.Build.Tasks.CodeAnalysis.Sdk.csproj`（net472 bridge 壳）——net472 允许缺失（用户定案），桌面 MSBuild 不在 v1 范围。
 2. 新建 `MSBuild\Microsoft.Build.Tasks.CodeAnalysis.csproj`（对齐上游）：
    ```xml
@@ -52,7 +52,7 @@
    - **不带 rsp**：netcore 编译器经 `dotnet exec vbc.dll` 运行，无响应文件需求（上游 `CoreClrCompilerArtifacts.targets` 零 rsp 匹配）；`vbc.rsp` 是 net472 桌面 `vbc.exe` 专属（`DesktopCompilerArtifacts.targets:46-48`，含 netfx `/r:` 全引用），net472 允许缺失故不打包。
 2. **bincore 只含 VB 面**：`Microsoft.CodeAnalysis.dll` + `Microsoft.CodeAnalysis.VisualBasic.dll` + resources（**不含** `Microsoft.CodeAnalysis.CSharp.dll`）——对齐「不含 csc」。仿上游 `CoreClrCompilerArtifacts.targets:11-18` 布局，但仅取 VB 面（上游 :11-18 实际含 Core+CSharp+VisualBasic 三组，fork 自选缩减为 VB）。
 
-### A3. 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj`，新项目）
+### A3. 打包项目（`Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj`，新项目）
 
 **上游参考**：`{{Roslyn}}src\NuGet\Microsoft.Net.Compilers.Toolset\AnyCpu\Microsoft.Net.Compilers.Toolset.Package.csproj:30-64`。
 
@@ -126,7 +126,7 @@
 ### A5. 消费验证（集成，用户手动跑）
 
 ```bash
-dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.csproj -c Release
+dotnet pack Installer\Toolset\Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj -c Release
 # 临时 SDK 项目引用包，dotnet build 确认用 fork vbc（VB 面）、C# 仍走 SDK
 ```
 

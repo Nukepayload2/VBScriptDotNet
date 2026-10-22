@@ -23,7 +23,7 @@
 
 ```bash
 cd <repo-root>
-dotnet pack Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.csproj -c Release -nologo
+dotnet pack Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj -c Release -nologo
 ```
 
 预期：
@@ -48,7 +48,7 @@ find tmp/nupkg-check/extracted -type f | sort
 | `build/Nukepayload2.Compilers.VBScriptDotNet.props` | NuGet 自动导入（按包 ID 命名）；只注册 `Vbc` 任务 |
 | `buildMultiTargeting/Nukepayload2.Compilers.VBScriptDotNet.props` | 多目标导入桥 |
 | `tasks/netcore/Microsoft.Build.Tasks.CodeAnalysis.dll` | MSBuild `Vbc` 任务（含 Csc.cs 源码但不注册） |
-| `tasks/netcore/Microsoft.CSharp.Core.targets` / `Microsoft.Managed.Core.targets` / `Microsoft.Managed.Core.CurrentVersions.targets` / `Microsoft.VisualBasic.Core.targets` | 4 个 `Microsoft.*.targets` 随任务 DLL 铺包 |
+| `tasks/netcore/Microsoft.CSharp.Core.targets` / `Microsoft.Managed.Core.targets` / `Microsoft.Managed.Core.CurrentVersions.targets` / `Microsoft.VisualBasic.Core.targets` | 4 个 `Microsoft.*.targets` 随任务 DLL 铺包（布局对齐上游；包的 props 不设 `*CoreTargetsPath`，故不参与 CoreCompile） |
 | `tasks/netcore/bincore/vbc.dll` + `vbc.deps.json` + `vbc.runtimeconfig.json` | fork vbc 三件套（`dotnet exec vbc.dll` 运行） |
 | `tasks/netcore/bincore/Microsoft.CodeAnalysis.dll` + `Microsoft.CodeAnalysis.VisualBasic.dll` | Core + VisualBasic（bincore 只含 VB 面） |
 | `tasks/netcore/bincore/<lang>/Microsoft.CodeAnalysis.resources.dll` + `Microsoft.CodeAnalysis.VisualBasic.resources.dll` | 卫星资源（13 语言） |
@@ -113,7 +113,7 @@ dotnet build -v:diag 2>&1 | grep -i "BuildTasks.Vbc"
 3. `UseSharedCompilation=false`（props 注入）生效：构建日志无 compiler server 连接。
 
 **失败模式 + fallback 修复**：
-- 若出现 `MSB4062`（`"Microsoft.CodeAnalysis.BuildTasks.Vbc" 任务无法从程序集…加载`）→ MSBuild 任务加载失败。修复：在 `Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.csproj` 的 `_GetFiles` 目标补收后重打包装包再验：
+- 若出现 `MSB4062`（`"Microsoft.CodeAnalysis.BuildTasks.Vbc" 任务无法从程序集…加载`）→ MSBuild 任务加载失败。修复：在 `Installer/Toolset/Nukepayload2.Compilers.VBScriptDotNet.Package.vbproj` 的 `_GetFiles` 目标补收后重打包装包再验：
   ```xml
   <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.Build.Tasks.CodeAnalysis.deps.json" TargetDir="tasks/netcore" />
   <_File Include="$(IntermediateOutputPath)msbuildtask-publish\Microsoft.Build.Tasks.CodeAnalysis.resources.dll" TargetDir="tasks/netcore" />
