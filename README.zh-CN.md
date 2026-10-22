@@ -13,6 +13,7 @@ VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互
 - `Imports` 跨提交累积。
 - `?` 打印指令是隐式的：提交末尾的值表达式无需前缀即以 VB 格式打印其值，与 C# 交互窗口一致。例外是 `=`：不写 `?` 时 `x = 5` 是赋值；写 `?` 时 `? x = 5` 是比较，两种写法影响运算符重载决策。
 - 指令：`#R`、`#Load`、`#help`、`/help`、`/version` 和 `/?`。
+- `End` 立即结束会话，退出码为 `0`：此前写出的输出已冲刷，后续提交不再执行。
 
 ### 脚本文件（.vbx）
 - 用 `vbi script.vbx [-- args]` 运行脚本。
@@ -20,6 +21,7 @@ VBScriptDotNet 是 Roslyn Visual Basic 编译器的 fork，随附命令行交互
 - `#R "nuget:包名, 版本"` 从脚本目录链上最近的 `NuGet.config` 所配置的源还原，脚本旁的私有源及其凭据同样生效。
 - 在文件顶部用 `' Attribute TargetFramework = "net48"` 选择运行时宿主。
 - 脚本顶部的 `#!` shebang 被视为指令，可在类 Unix 系统上直接运行脚本。
+- `End` 立即结束脚本进程，退出码为 `0`；顶层、块内、顶层成员体内或 lambda 体内均可用。
 - 脚本全局对象：`Args` 和 `Print`。
 - 用 `vbi.rsp` 配置脚本编译（`/r:`、`/imports:`）。
 
@@ -77,6 +79,15 @@ End Sub
 Dim count = 10
 PrintFibonacci(count)
 ```
+
+### End 语句
+`End` 立即结束进程：此前写出的输出已冲刷，其后的语句不执行，退出码为 `0`。同一语句在脚本与交互会话中均可用，在交互窗口中它会关闭会话。
+```vbnet
+Console.WriteLine("before")
+End
+Console.WriteLine("after")   ' 永不执行
+```
+`End` 就是 `System.Environment.Exit(0)` 所做的事情对应的 Visual Basic 语句，两者让进程停在同一个状态。
 
 ### 特性注释
 当入口应用是 `vbichooser` 时，可在 `vbx` 脚本文件顶部用特殊注释指定项目属性。

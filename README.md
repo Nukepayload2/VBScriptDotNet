@@ -13,6 +13,7 @@ Current development version: **2.0.0-RC3**. The features described below apply t
 - `Imports` accumulate across submissions.
 - The `?` print directive is implicit: a value expression at the end of a submission prints its value in VB format without a prefix, matching the C# interactive window. The exception is `=`: without `?`, `x = 5` is an assignment; with `?`, `? x = 5` is an equality comparison, and the choice affects operator resolution.
 - Directives: `#R`, `#Load`, `#help`, `/help`, `/version`, and `/?`.
+- `End` ends the session immediately with exit code `0`: the output written before it is flushed, and later submissions do not run.
 
 ### Script files (.vbx)
 - Run a script with `vbi script.vbx [-- args]`.
@@ -20,6 +21,7 @@ Current development version: **2.0.0-RC3**. The features described below apply t
 - `#R "nuget:Package, Version"` restores from the sources configured by the nearest `NuGet.config` on the script's directory chain, so a private feed and its credentials work next to the script.
 - Select the runtime host with `' Attribute TargetFramework = "net48"` at the top of the file.
 - A `#!` shebang at the top of a script is treated as a directive, so scripts can be run directly on Unix-like systems.
+- `End` ends a script's process immediately with exit code `0`, at the top level, inside a block, in the body of a top-level member, or in a lambda.
 - Script globals: `Args` and `Print`.
 - Configure script compilation with `vbi.rsp` (`/r:`, `/imports:`).
 
@@ -77,6 +79,15 @@ End Sub
 Dim count = 10
 PrintFibonacci(count)
 ```
+
+### End statement
+`End` ends the process at once: the output written before it is flushed, the statements after it do not run, and the exit code is `0`. The same statement works in a script and in an interactive session, where it closes the session.
+```vbnet
+Console.WriteLine("before")
+End
+Console.WriteLine("after")   ' never runs
+```
+`End` is the Visual Basic statement for what `System.Environment.Exit(0)` does. Either leaves the process in the same state.
 
 ### Attribute comments
 When the entry app is `vbichooser`, specify project properties with special comments at the top of your `vbx` script files.
