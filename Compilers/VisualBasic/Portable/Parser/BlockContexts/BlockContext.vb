@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -150,6 +150,35 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
         Friend ReadOnly Property IsWithinIteratorMethodOrLambdaOrProperty As Boolean
             Get
                 Return _isWithinIteratorMethodOrLambdaOrProperty
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' True while the statements being parsed become entries of the script's synthesized initializer: the
+        ''' compilation unit's own statements and the blocks nested in them, but neither the body of a member the
+        ''' script declares nor the body of a lambda written in it.
+        ''' </summary>
+        ''' <remarks>
+        ''' The flag is derived from the context chain rather than stored, so a block that is pushed and popped
+        ''' while a statement is still being parsed answers for where its statements will land. Every context that
+        ''' is itself a member body answers False and stops the walk.
+        ''' </remarks>
+        Friend Overridable ReadOnly Property IsScriptTopLevelStatement As Boolean
+            Get
+                Select Case _kind
+                    Case SyntaxKind.SubBlock,
+                         SyntaxKind.FunctionBlock,
+                         SyntaxKind.PropertyBlock,
+                         SyntaxKind.GetAccessorBlock,
+                         SyntaxKind.SetAccessorBlock,
+                         SyntaxKind.SingleLineSubLambdaExpression,
+                         SyntaxKind.MultiLineSubLambdaExpression,
+                         SyntaxKind.SingleLineFunctionLambdaExpression,
+                         SyntaxKind.MultiLineFunctionLambdaExpression
+                        Return False
+                    Case Else
+                        Return _prev IsNot Nothing AndAlso _prev.IsScriptTopLevelStatement
+                End Select
             End Get
         End Property
 

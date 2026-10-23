@@ -78,11 +78,42 @@ Public Class ScriptModeStatementConformanceTests
 
 #Region "Yield and Exit"
 
-    ''' <summary>A Yield inside an Iterator method of the submission class is fine; the same statement at the top
-    ''' level is not, because its host initializer is not an iterator.</summary>
+    ''' <summary>The Yield statement is parsed in top-level script code and the binder refuses it, because its host
+    ''' initializer is not an iterator. The refusal is the script gate (BC36966), not the obsolete no-parentheses
+    ''' call reading it used to get; the blocks nested in the top level statement list answer the same way, and an
+    ''' Iterator Function or Iterator lambda written in the same code keeps yielding.</summary>
     <Fact>
     Public Sub TopLevelYieldWithoutIterator_IsReported()
-        ScriptModeConformance.AssertReports("Yield 1", "BC30800")
+        ScriptModeConformance.AssertReports(
+            "Yield 1", "BC36966")
+
+        ScriptModeConformance.AssertReports(
+            "If True Then" & vbCrLf &
+            "    Yield 1" & vbCrLf &
+            "End If", "BC36966")
+    End Sub
+
+    ''' <summary>The counterpart: a top level name is a field of the script class, so a field named Yield stays
+    ''' assignable, and the two iterator hosts written at the top level still yield.</summary>
+    <Fact>
+    Public Sub TopLevelYieldNameAndIterator_Conform()
+        ScriptModeConformance.AssertRuns(
+            "Dim Yield = 2" & vbCrLf &
+            "Yield += 3" & vbCrLf &
+            "Dim sum = Yield" & vbCrLf &
+            "Iterator Function One() As System.Collections.Generic.IEnumerable(Of Integer)" & vbCrLf &
+            "    Yield 1" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Dim lazy = Iterator Function() As System.Collections.Generic.IEnumerable(Of Integer)" & vbCrLf &
+            "    Yield 2" & vbCrLf &
+            "End Function" & vbCrLf &
+            "For Each n In One()" & vbCrLf &
+            "    sum += n" & vbCrLf &
+            "Next" & vbCrLf &
+            "For Each n In lazy()" & vbCrLf &
+            "    sum += n" & vbCrLf &
+            "Next" & vbCrLf &
+            "sum", 8)
     End Sub
 
     ''' <summary>Exit For / While / Do / Select inside their own statement, at the top level.</summary>

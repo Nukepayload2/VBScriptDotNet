@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -30,6 +30,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
         End Sub
 
         Friend Overrides ReadOnly Property IsWithinAsyncMethodOrLambda As Boolean
+            Get
+                Return Parser.IsScript
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Every statement in a script compilation unit is an entry of the synthesized initializer, so the
+        ''' compilation unit is the root of the top level statement chain.
+        ''' </summary>
+        Friend Overrides ReadOnly Property IsScriptTopLevelStatement As Boolean
             Get
                 Return Parser.IsScript
             End Get

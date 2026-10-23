@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -91,6 +91,36 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                 Return Context.AcceptsScriptTopLevelStatement
             End Get
         End Property
+
+        ''' <summary>
+        ''' True when the token that follows a leading name makes that name the target of an assignment or a
+        ''' member access - the shape of an expression statement - rather than the first token of a statement the
+        ''' name itself introduces.
+        ''' </summary>
+        ''' <remarks>
+        ''' A top level name is a field of the script class, so a contextual keyword spelled in the leading
+        ''' position of an assignment has to stay readable as that field. The same reasoning is what
+        ''' <c>ParseYieldStatement</c> uses in an iterator body: there, <c>Yield</c> is a keyword unconditionally.
+        ''' </remarks>
+        Private Shared Function StartsAssignmentOrMemberAccess(kind As SyntaxKind) As Boolean
+            Select Case kind
+                Case SyntaxKind.EqualsToken,
+                     SyntaxKind.PlusEqualsToken,
+                     SyntaxKind.MinusEqualsToken,
+                     SyntaxKind.AsteriskEqualsToken,
+                     SyntaxKind.SlashEqualsToken,
+                     SyntaxKind.BackslashEqualsToken,
+                     SyntaxKind.CaretEqualsToken,
+                     SyntaxKind.AmpersandEqualsToken,
+                     SyntaxKind.LessThanLessThanEqualsToken,
+                     SyntaxKind.GreaterThanGreaterThanEqualsToken,
+                     SyntaxKind.DotToken,
+                     SyntaxKind.ExclamationToken
+                    Return True
+                Case Else
+                    Return False
+            End Select
+        End Function
 
         Private Function ParseSimpleName(
                                      allowGenericArguments As Boolean,
@@ -793,13 +823,25 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Dim contextualKind As SyntaxKind = Nothing
 
                     If TryIdentifierAsContextualKeyword(CurrentToken, contextualKind) Then
-                        If contextualKind = SyntaxKind.CustomKeyword Then
+                        ' Each of these readings is guarded the way the method body guards it: the word only
+                        ' starts a declaration when what follows can still be one. A variable a top level
+                        ' declaration created is a field of the script class, and `<name> = <value>` on such a
+                        ' field is an ordinary assignment statement, so the word must stay readable as the
+                        ' assignment target when the next token is not a specifier - `Async = 2` and `Custom = 2`
+                        ' are statements, not incomplete declarations.
+                        If contextualKind = SyntaxKind.CustomKeyword AndAlso PeekToken(1).Kind = SyntaxKind.EventKeyword Then
                             Return ParseCustomEventDefinition(Nothing, Nothing)
-                        ElseIf contextualKind = SyntaxKind.TypeKeyword Then
+                        ElseIf contextualKind = SyntaxKind.TypeKeyword AndAlso PeekToken(1).Kind = SyntaxKind.IdentifierToken Then
                             ' "Type" is now "Structure"
                             Return ReportUnrecognizedStatementError(ERRID.ERR_ObsoleteStructureNotType)
                         ElseIf contextualKind = SyntaxKind.AsyncKeyword OrElse contextualKind = SyntaxKind.IteratorKeyword Then
-                            Return ParseSpecifierDeclaration()
+
+                            Dim nextToken = PeekToken(1)
+
+                            If SyntaxFacts.IsSpecifier(nextToken.Kind) OrElse SyntaxFacts.CanStartSpecifierDeclaration(nextToken.Kind) Then
+                                Return ParseSpecifierDeclaration()
+                            End If
+
                         ElseIf contextualKind = SyntaxKind.AwaitKeyword AndAlso Context.IsWithinAsyncMethodOrLambda Then
                             Return ParseAwaitStatement()
                         End If
@@ -1164,7 +1206,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                             Return ParseAwaitStatement()
 
                         ElseIf contextualKind = SyntaxKind.YieldKeyword AndAlso
-                               Context.IsWithinIteratorMethodOrLambdaOrProperty Then
+                               (Context.IsWithinIteratorMethodOrLambdaOrProperty OrElse
+                                (Context.IsScriptTopLevelStatement AndAlso Not StartsAssignmentOrMemberAccess(PeekToken(1).Kind))) Then
+                            ' The script's top level statements are the body of the synthesized initializer, which
+                            ' is not an iterator, so the statement is parsed and then refused by the binder
+                            ' (BC36966). Reading it as a call instead would hide the keyword.
                             Return ParseYieldStatement()
 
                         End If

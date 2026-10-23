@@ -350,4 +350,52 @@ Public Class ScriptModeParserArmConformanceTests
 
 #End Region
 
+#Region "T061 Contextual keyword as the leading name of a top level assignment"
+
+    ''' <summary>
+    ''' <c>Custom</c>, <c>Type</c>, <c>Async</c> and <c>Iterator</c> are contextual keywords, and a variable a top
+    ''' level declaration created is a field of the script class, so <c>&lt;name&gt; = &lt;value&gt;</c> on such a field
+    ''' is an ordinary assignment statement. Each of the four words used to be read as the start of a declaration at
+    ''' the top level - unconditionally for three of them, and on any following token for <c>Type</c> - which
+    ''' reported BC30195/BC30802 on a legal assignment. The guards are the ones the method body already applied:
+    ''' the word starts a declaration only when what follows can still be one.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelContextualKeywordAssignment_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Dim Async = 1" & vbCrLf &
+            "Dim Iterator = 2" & vbCrLf &
+            "Dim Custom = 3" & vbCrLf &
+            "Dim Type = 4" & vbCrLf &
+            "Async = 10" & vbCrLf &
+            "Iterator = 20" & vbCrLf &
+            "Custom = 30" & vbCrLf &
+            "Type = 40" & vbCrLf &
+            "Async + Iterator + Custom + Type", 100)
+    End Sub
+
+    ''' <summary>
+    ''' The same words still start the declarations they name at the top level: the specifier guard admits
+    ''' <c>Async Function</c> and <c>Iterator Function</c>, and the obsolete <c>Type</c> reading keeps its dedicated
+    ''' diagnostic when a name follows it.
+    ''' </summary>
+    <Fact>
+    Public Sub TopLevelContextualKeywordDeclaration_StillReads()
+        ScriptModeConformance.AssertRuns(
+            "Async Function Fire() As Task" & vbCrLf &
+            "End Function" & vbCrLf &
+            "Iterator Function One() As System.Collections.Generic.IEnumerable(Of Integer)" & vbCrLf &
+            "    Yield 1" & vbCrLf &
+            "End Function" & vbCrLf &
+            "For Each n In One()" & vbCrLf &
+            "    Return n" & vbCrLf &
+            "Next", 1)
+
+        ScriptModeConformance.AssertReports(
+            "Type Foo" & vbCrLf &
+            "End Type", "BC30802")
+    End Sub
+
+#End Region
+
 End Class
