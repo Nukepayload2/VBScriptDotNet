@@ -66,18 +66,17 @@
 | 缺陷 | **5**（`Yield`、`Async`、`Iterator`、`Custom`、`RaiseEvent`） |
 | 待定 | **0** |
 
-审计后已修其中 4 个（`Yield` 与 `Async`/`Iterator`/`Custom` 两类根因），修复与复验见 §7；
-`RaiseEvent` 未修，因为它需要先裁定规范口径（§4 D3）。
+审计后五处缺陷**全部修掉**（`Yield`、`Async`/`Iterator`/`Custom` 两类根因，以及顶层 `RaiseEvent`），修复与复验见 §7。
 
-### 3.1 容器级接线：四处，其中 `Yield` 是审计后补上的
+### 3.1 容器级接线：五处
 
-脚本容器对关键字的**专门照顾**只发生在四个地方，其余关键字全部沿用方法体或声明路径：
+脚本容器对关键字的**专门照顾**只发生在这些地方，其余关键字全部沿用方法体或声明路径：
 
 | 关键字 | 容器级处理 | 位置 |
 |---|---|---|
 | `Await` | 编译单元上下文**直接声明自己是 async 方法体**，于是 `Await` 走语句分支 | `Parser/BlockContexts/CompilationUnitContext.vb:32-36`；分支 `Parser.vb:803-804`、`:1162-1164` |
 | `End` | 顶层 `End` 走方法体路径（stop-or-end），不再走分组结束路径 | `Parser.vb:829-838` |
-| `AddHandler` / `RemoveHandler` | 顶层按语句解析，不按事件访问器解析 | `Parser.vb:843-855` |
+| `AddHandler` / `RemoveHandler` / `RaiseEvent` | 顶层按语句解析，不按事件访问器解析（`RaiseEvent` 是审计后补的） | `Parser.vb:843-855`、`:899-905` |
 | `Yield` | 审计时**没有**对应接线；修复后由 `BlockContext.IsScriptTopLevelStatement` 认领顶层语句链 | `BlockContext.vb`、`CompilationUnitContext.vb`，分支 `Parser.vb:1180-1185`（修复见 §7） |
 
 `Await` 与 `Yield` 是同一类上下文关键字，差别曾经在容器级钩子：`BlockContext.vb:138-142` 把 async 判断声明为
@@ -105,7 +104,7 @@
 
 > 复现均为最小源码；「实测」为探针读数，`vbx` 与 `submissions` 两条路径读数一致（`Yield`、`On Error` 另经 `vbi` 端到端复核）。
 
-### D1 · 顶层 `Yield` 被读成方法调用，`BC36966` 成为不可达代码
+### D1 · 顶层 `Yield` 被读成方法调用，`BC36966` 成为不可达代码（issue 40）
 
 | 项 | 内容 |
 |---|---|
@@ -128,7 +127,7 @@
 | 顶层 `Sub S() … Yield 1` | `BC30800`，形态为调用 | 普通 VB 的上下文关键字规则，不算脚本缺陷 |
 | 顶层裸 `Yield 1` | `BC30800`，形态为调用 | **脚本缺陷**：设计要求 `BC36966` |
 
-### D2 · 顶层把 `Async` / `Iterator` / `Custom` 当修饰符起始，赋值语句被读成声明
+### D2 · 顶层把 `Async` / `Iterator` / `Custom` 当修饰符起始，赋值语句被读成声明（issue 40）
 
 | 项 | 内容 |
 |---|---|
@@ -143,7 +142,7 @@
 D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方法体少一层前瞻或上下文判断，
 `Yield` 因此丢了关键字身份，三兄弟因此多出关键字身份。
 
-### D3 · 顶层 `RaiseEvent` 被读成访问器声明，报「需要声明」
+### D3 · 顶层 `RaiseEvent` 被读成访问器声明，报「需要声明」（issue 41）
 
 | 项 | 内容 |
 |---|---|
@@ -152,7 +151,7 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 | 期望 | 拒绝本身有设计：`spec-scripting-dialect.md:438` 说顶层 `RaiseEvent` 报「unsupported-statement 诊断」；测试 `ScriptModeStatementConformanceTests.vb:375` 把 `BC30188` 钉住 |
 | 问题 | ① 设计表（`:283-295`）没有这一条，只有测试清单一句话；② 实际报的是访问器分支的恢复码，不是为该关键字准备的诊断；③ parser 对同族的 `AddHandler`/`RemoveHandler` 有 `IsTopLevelScript` 守卫（`Parser.vb:843-855`），`RaiseEvent` 没有（`Parser.vb:857-858`），三支分叉无依据 |
 | 判定 | 诊断错位 + 同族分叉（拒绝可保留，但需在规范里写清，或按 `AddHandler` 的模式加守卫再裁定顶层是否允许 `RaiseEvent`） |
-| 状态 | **未修**。两种修法方向相反（补设计条目 vs 让顶层 `RaiseEvent` 成为语句并改测试），属规范裁定，不在「明确缺陷」范围内 |
+| 状态 | **已修复**（§7）：按 `AddHandler`/`RemoveHandler` 的模式加守卫，顶层 `RaiseEvent` 成为普通语句；`spec` 的 `AddHandler` 一节与 Testing 清单同步改写，两个钉旧行为的测试改写为运行断言 |
 
 ## 5. 观察（未计缺陷）
 
@@ -191,7 +190,7 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 
 ## 7. 修复记录（审计后）
 
-修复的都是「明确缺陷」：`Yield` 丢了关键字身份、四个上下文关键字多出关键字身份。`RaiseEvent` 未动，理由见 §4 D3。
+修复的是五处「明确缺陷」：`Yield` 丢了关键字身份、四个上下文关键字多出关键字身份、顶层 `RaiseEvent` 被读成访问器声明。
 
 ### 7.1 改动
 
@@ -199,9 +198,12 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 |---|---|
 | `Compilers/VisualBasic/Portable/Parser/BlockContexts/BlockContext.vb` | 新增 `IsScriptTopLevelStatement`：沿上下文链推导「正在解析脚本顶层语句」，遇 `Sub`/`Function`/`Property`/访问器/lambda 体返回 False |
 | `Compilers/VisualBasic/Portable/Parser/BlockContexts/CompilationUnitContext.vb` | 覆写该判断为 `Parser.IsScript`，与已有的 `IsWithinAsyncMethodOrLambda` 同形 |
-| `Compilers/VisualBasic/Portable/Parser/Parser.vb` | ① yield 分支增加顶层条件；② `StartsAssignmentOrMemberAccess` 判定「下一 token 让前导名字成为赋值目标/成员访问」；③ 顶层 `Custom`/`Type`/`Async`/`Iterator` 四处分支补 `PeekToken(1)` 前瞻——与方法体分派同形 |
-| `Scripting/VisualBasicTest/ScriptModeStatementConformanceTests.vb` | `TopLevelYieldWithoutIterator_IsReported` 改断言 `BC36966` 并加嵌套块形态；新增 `TopLevelYieldNameAndIterator_Conform` 钉住字段赋值与两种迭代器宿主 |
+| `Compilers/VisualBasic/Portable/Parser/Parser.vb` | ① yield 分支增加顶层条件；② `StartsAssignmentOrMemberAccess` 判定「下一 token 让前导名字成为赋值目标/成员访问」；③ 顶层 `Custom`/`Type`/`Async`/`Iterator` 四处分支补 `PeekToken(1)` 前瞻——与方法体分派同形；④ `RaiseEventKeyword` 补上与 `AddHandler`/`RemoveHandler` 同形的 `IsTopLevelScript` 守卫 |
+| `InternalDevDocs/spec/spec-scripting-dialect.md` | `AddHandler` 一节扩为 `AddHandler`/`RemoveHandler`/`RaiseEvent`，Testing 清单里「顶层 `RaiseEvent` 报 unsupported 诊断」改成「顶层 `RaiseEvent` 运行已挂接的处理器」 |
+| `Scripting/VisualBasicTest/ScriptModeStatementConformanceTests.vb` | `TopLevelYieldWithoutIterator_IsReported` 改断言 `BC36966` 并加嵌套块形态；新增 `TopLevelYieldNameAndIterator_Conform`；`TopLevelRaiseEventStatement_IsReported` 改写为 `TopLevelRaiseEventStatement_Conforms`（挂 handler 后 `hits = 1`） |
 | `Scripting/VisualBasicTest/ScriptModeParserArmConformanceTests.vb` | 新增 T061 两格：`TopLevelContextualKeywordAssignment_Conforms`、`TopLevelContextualKeywordDeclaration_StillReads` |
+| `Scripting/VisualBasicTest/ScriptTests.vb` | `TestTopLevelRaiseEventStatementReportsUnsupportedDiagnostic` 改写为 `TestTopLevelRaiseEventStatement`：脚本自声明的事件可 raise 并投递；宿主对象的事件仍被拒（`BC31132`） |
+| `Scripting/VisualBasicTest/SubmissionSharedHandlesHookupTests.vb` | 只改注释：顶层 `RaiseEvent` 已不是非法语句，但只能 raise 本类声明的事件 |
 
 顶层变量仍是脚本类的**字段**：`Dim Yield = 2` / `Yield += 3`、`Dim Async = 2` / `Async = 2` 都按普通字段赋值处理，
 判据是「下一 token 是否能起始声明」，不是把名字一律读成关键字。
@@ -218,18 +220,33 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 | 顶层 `Sub S()` 内 `Yield 1` | `BC30800` | `BC30800`（普通 VB 语义，不动） |
 | 顶层 `Async = 2` / `Iterator = 2` / `Custom = 2` / `Type = 2` | `BC30195` / `BC30195` / `BC30195` / `BC30802` | 均 `CLEAN`，形态 `SimpleAssignmentStatement` |
 | 顶层 `Async Function` / `Iterator Function` / `Custom Event` / `Type Foo` | `CLEAN` / `CLEAN` / `CLEAN` / `BC30802+BC30678` | 不变 |
+| 顶层 `Event E` + `AddHandler` + `RaiseEvent E()` | `BC30188`+`BC30205`，形态 `RaiseEventAccessorStatement` | `CLEAN`，形态 `RaiseEventStatement`，handler 投递（`hits = 1`，vbx 与 REPL 均验） |
+| 顶层 raise 宿主对象的事件 | `BC30188`+`BC30205`（解析期） | `BC31132`（绑定期：`RaiseEvent` 只能 raise 本类事件） |
+| `Custom Event` 块内的 `RaiseEvent` 访问器 | `CLEAN` | `CLEAN`（`RaiseEventAccessorStatement`，守卫不进入） |
 
 回归面：
 
-- **全量 battery**（201 关键字 × 14 形态 × 2 路径 = 5628 格）前后逐格比对，共 **40 格**变化，全部落在
-  `Yield`/`Async`/`Iterator`/`Custom`/`Type` 五个关键字，无崩溃、无其他关键字受影响。
+- **全量 battery**（201 关键字 × 14 形态 × 2 路径 = 5628 格）逐格比对两轮：第一轮（`Yield`+上下文关键字）**40 格**变化，
+  第二轮（`RaiseEvent`）**8 格**变化，全部落在对应关键字，无崩溃、无其他关键字受影响。
 - **脚本单测**：`Scripting/VisualBasicTest` 全量 **814** 个用例，失败 **3** 个，全部为改动前基线同样失败的
   环境相关用例（`PrintOptionsTests.ValidMemberDisplayFormat`、`ScriptModeObjectFormatterTests.DebuggerDisplay`、
   `ScriptModeObjectFormatterTests.StackTrace_Dynamic`；已用 HEAD 源码重建编译器复跑确认）。
-- 新增/改写的 4 个用例全绿；`vbi` 端到端（vbx 与 REPL）对 `Yield 1` 由 `BC30800` 变为 `BC36966`。
+- 新增/改写的 6 个用例全绿；`vbi` Release 端到端（vbx 与 REPL）验过 `Yield 1`、`Dim` 字段名 `Yield`、顶层 `RaiseEvent`。
 
 已知边界：顶层裸 `Yield`（无操作数）先报语法 `BC30201`（`Expression expected`），绑定期的 `BC36966` 落在 emit 阶段；
 `Yield` 作为**表达式**位置（`Dim v = Yield(1)`、`Console.WriteLine(Yield)`）不受影响。
+
+### 7.3 Debug 构建下的既存断言（上游来源，本 fork 不修；issue 42）
+
+`RaiseEvent` 在**任何 resumable 方法**（`Async`/`Iterator` 方法体）里都会让 **Debug 构建的编译器**在
+`StateMachineRewriter.StateMachineMethodToClassRewriter.vb:264` 撞上 `Debug.Assert(local.SynthesizedKind.IsLongLived())`。
+复现不依赖顶层：普通 `Async Function` 或 `Iterator Function` 体内 `RaiseEvent` 同样触发（用 Debug `vbi.exe` 实测），
+说明它是既存问题；`RaiseEvent` 的 lowering 用 `SynthesizedLocalKind.LoweringTemp`（`LocalRewriter_RaiseEvent.vb:54`），
+这一行与参考的上游 Roslyn 完全相同，所以不是本 fork 引入的。
+
+Release 构建不触发（`Debug.Assert` 在 Release 被条件编译掉），语义也正确：Release `vbi` 跑顶层 `RaiseEvent` 脚本打印正常，
+单测里 handler 投递计数为 1。顶层 `RaiseEvent` 之所以现在会碰上它，是因为脚本顶层语句是 async 初始化器的方法体——
+这正是「顶层 = async 方法体」的必然结果，与 `Async Function` 体内的同一语句同因。
 
 ## 8. 顺带发现：覆盖 ledger 的指针漂移
 
@@ -238,6 +255,7 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 1. `:394`（`Yield` 行）：把「顶层裸 `Yield` 报 BC30800」当结论，实测裸 `Yield` 是 `BC30451`；同一行引用的方法行号是旧值。
    本次修复后该行结论进一步过期——现为 `BC36966`。
 2. 行号漂移（最大 110 行）：`Resume` 行 `:387`、`Error` 行 `:385`、`RaiseEvent` 行 `:365` 指向的行已不落在方法声明行上。
+   其中 `RaiseEvent` 行记的「顶层报 `BC30188`」在本次修复后也过期——现为可运行的语句。
 3. `:533`（Comments 行）声称脚本源码里没有 `REM` 注释（grep 0 命中），现已有两行 `REM`。
 
 另有 6 处方法指针失效记录在 G1 组报告（`Me`/`MyClass` 行 `:582`、`MyBase` 行 `:581`、`Instance Expressions` 行
@@ -249,5 +267,6 @@ D1 与 D2 是同一类问题的两个面：顶层 statement-start 分派比方�
 判定列保留**审计时**的状态；`Yield`/`Async`/`Iterator`/`Custom` 四行的「缺陷」已由 §7 修掉。
 分组口径：G1 类型/转换/字面量/实例表达式 49 个、G2 语句 45 个、G3 声明/成员/修饰符 55 个、
 G4 运算符/表达式/查询 30 个、G5 预处理指令/`Option` 子词/遗留拼写 22 个。
+
 
 

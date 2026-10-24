@@ -398,17 +398,26 @@ Public Class ScriptModeStatementConformanceTests
     End Sub
 
     ''' <summary>
-    ''' A RaiseEvent statement cannot appear directly at the top level of a script: the parser reports
-    ''' BC30188/BC30205 instead of running it (the same raise inside a top level Sub or lambda is fine, which the
-    ''' event cells of the two other files cover).
+    ''' A RaiseEvent statement at the top level of a script is an ordinary statement, like AddHandler and
+    ''' RemoveHandler: the event it raises is a member the script class declares, so the handler attached one
+    ''' statement earlier runs. Before the parser guard the keyword was read as a custom event accessor declaration
+    ''' and reported BC30188/BC30205. Inside a custom event block the same keyword is still an accessor declaration,
+    ''' which the nested container cells cover.
     ''' </summary>
     <Fact>
-    Public Sub TopLevelRaiseEventStatement_IsReported()
-        ScriptModeConformance.AssertReports(
+    Public Sub TopLevelRaiseEventStatement_Conforms()
+        ScriptModeConformance.AssertRuns(
+            "Event Changed As System.EventHandler" & vbCrLf &
+            "Dim hits As Integer = 0" & vbCrLf &
+            "AddHandler Changed, Sub(sender As Object, e As System.EventArgs) hits += 1" & vbCrLf &
+            "RaiseEvent Changed(Nothing, System.EventArgs.Empty)" & vbCrLf &
+            "hits", 1)
+
+        ScriptModeConformance.AssertRuns(
             "Event Changed As System.EventHandler" & vbCrLf &
             "AddHandler Changed, Sub(s As Object, e As System.EventArgs) System.Console.WriteLine(""x"")" & vbCrLf &
             "RaiseEvent Changed(Nothing, System.EventArgs.Empty)" & vbCrLf &
-            "Return ""OK""", "BC30188")
+            "Return ""OK""", "OK")
     End Sub
 
 #End Region

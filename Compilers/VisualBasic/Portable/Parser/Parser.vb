@@ -897,6 +897,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Syntax.InternalSyntax
                     Return ParsePropertyOrEventAccessor(SyntaxKind.RemoveHandlerAccessorStatement, Nothing, Nothing)
 
                 Case SyntaxKind.RaiseEventKeyword
+                    ' At the top level of a script the raise is an ordinary statement, like AddHandler and
+                    ' RemoveHandler above: the event being raised is a member the script class declares. Inside a
+                    ' custom event block the same keyword is still an accessor declaration, and IsTopLevelScript is
+                    ' false there because the block context is no longer the compilation unit.
+                    If IsTopLevelScript Then
+                        Return ParseStatementInMethodBodyInternal()
+                    End If
                     Return ParsePropertyOrEventAccessor(SyntaxKind.RaiseEventAccessorStatement, Nothing, Nothing)
 
                 Case SyntaxKind.GetKeyword

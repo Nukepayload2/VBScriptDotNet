@@ -20,9 +20,9 @@ Imports Xunit
 ''' initialize the submission class and a delivery can never be an artifact of the observation.
 ''' </para>
 ''' <para>
-''' The raise always goes through a shared method of the class that owns the event: a top-level <c>RaiseEvent</c>
-''' statement is not a legal submission statement (<c>BC30188</c>), which is why the counter has to be handed over
-''' by a nested class or by a shared <c>Fire</c>.
+''' The raise always goes through a shared method of the class that owns the event. A top-level <c>RaiseEvent</c> is
+''' an ordinary statement now, but it may only name an event the script class itself declares, and every event below
+''' belongs to a declared type, so the counter has to be handed over by a nested class or by a shared <c>Fire</c>.
 ''' </para>
 ''' </summary>
 Public Class SubmissionSharedHandlesHookupTests

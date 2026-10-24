@@ -355,10 +355,24 @@ Return Count").
         Assert.Equal(10, state.ReturnValue)
     End Function
 
+    ''' <summary>
+    ''' A top-level <c>RaiseEvent</c> is an ordinary statement: it raises an event the script class declares, and the
+    ''' handler attached one statement earlier runs. The host object's event is a different matter - a
+    ''' <c>RaiseEvent</c> may only name an event of the containing class, so raising the host's event from the script
+    ''' class is refused at binding (BC31132) rather than read as an accessor declaration.
+    ''' </summary>
     <Fact>
-    Public Sub TestTopLevelRaiseEventStatementReportsUnsupportedDiagnostic()
-        AssertDiagnosticsContainAnyWithGlobalsType("RaiseEvent Changed(Nothing, System.EventArgs.Empty)", GetType(EventGlobals), "BC30024", "BC30188", "BC30205")
-    End Sub
+    Public Async Function TestTopLevelRaiseEventStatement() As Task
+        Dim state = Await VisualBasicScript.RunAsync("
+Event Local As System.EventHandler
+AddHandler Local, Sub(sender As Object, e As System.EventArgs) Count += 1
+RaiseEvent Local(Nothing, System.EventArgs.Empty)
+Return Count", s_defaultOptions, globals:=New EventGlobals())
+        Assert.Equal(1, state.ReturnValue)
+
+        AssertDiagnosticsContainAnyWithGlobalsType(
+            "RaiseEvent Changed(Nothing, System.EventArgs.Empty)", GetType(EventGlobals), "BC31132")
+    End Function
 
     <Fact>
     Public Async Function TestTopLevelAwaitReturnValue() As Task

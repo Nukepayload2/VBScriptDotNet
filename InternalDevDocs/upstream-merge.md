@@ -522,6 +522,14 @@
 - 3-way 注意：两个文件都是上游同名文件，合并时必须保住两条——① `EndKeyword` 臂的 `IsTopLevelScript` 守卫（上游若重排该 switch，须确认脚本顶层的裸 `End` 仍走方法体分发，而不是被块结束路径多挂 `ERR_UnrecognizedEnd`）；② `BindEndStatement` 判据里的 `Compilation.IsSubmission` 析取项（上游若再加输出类型门，应并入同一判据，不要并存成第二条路）。本条的文档面（`BlockContext`/`PropertyBlockContext`/`IsTopLevelScript`）属 §2.25(b) 已在册；本条只给一个臂加守卫，与 (b) 不冲突。
 
 
+**（m）`Parser.vb`（§2.25(b)/(l) 已在册的上游同名文件）＋ `Parser\BlockContexts\BlockContext.vb`、`Parser\BlockContexts\CompilationUnitContext.vb`（上游同名文件）＋ 脚本方言规范（修改）** — 顶层关键字分派与方法体同形化（issue 40 / 41）
+
+- 净分歧：① `BlockContext.vb` 新增可重写属性 `IsScriptTopLevelStatement`——沿上下文链推导「正在解析脚本顶层语句」，遇 `Sub`/`Function`/`Property`/`Get`/`Set` 访问器与四种 lambda 体返回 `False`，其余继承 `_prev`；② `CompilationUnitContext.vb` 覆写为 `Parser.IsScript`，与既有 `IsWithinAsyncMethodOrLambda` 同形；③ `Parser.vb` 四处：yield 臂条件加 `OrElse Context.IsScriptTopLevelStatement`、新增 `StartsAssignmentOrMemberAccess`（`=`/各复合赋值/`.`/`!`，用于「顶层前导名字是赋值或成员访问目标时不读成 yield 语句」）、顶层 identifier 分派的 `Custom`/`Type`/`Async`/`Iterator` 四处补 `PeekToken(1)` 前瞻（与方法体分支 `:1151-1160` 同形）、`RaiseEventKeyword` 臂补 `IsTopLevelScript` 守卫（与 `AddHandler`/`RemoveHandler` 同形）；④ 文档面：`spec\spec-scripting-dialect.md` 的 Restriction tests 补 `Yield` 一句，`AddHandler` 一节扩为三关键字，Testing 清单里「顶层 `RaiseEvent` 报 unsupported 诊断」改为「运行已挂接的处理器」。
+- 理由：顶层 `Yield` 必须拒绝是 `spec:286`/`:330` 明文，binder 门（`Binder_Statements.vb:5248-5256`）早已存在却因解析层永不产 `YieldStatementSyntax` 而成死代码；上下文关键字作标识符是语言设计（`SyntaxKindFacts.vb:22-26`），而顶层变量是脚本类**字段**（`spec:58`）⇒ `<name> = <value>` 必须可用；顶层 `RaiseEvent` 与 `AddHandler`/`RemoveHandler` 同族，脚本类自己声明事件、raise 只能指向本类事件 ⇒ 顶层正是它的合法落点（原设计表无该条，只有 Testing 清单一句）。
+- 非脚本面免疫：`IsScriptTopLevelStatement` 的根覆写返回 `Parser.IsScript`（`SourceCodeKind.Script` 才为真），且遇成员体/lambda 一律 `False` ⇒ Regular 输入下恒 `False`，两个新条件逐字退化为原文；顶层 identifier 的前瞻只在**编译单元声明位**生效，普通编译的方法体/类型体走另一条分派（未改）。**唯一可观测差异**：普通编译把语句写在文件顶层（本就是错误代码）时，这五个记号的**错误码可能变化**（✎ 未取 Regular 侧读数，需补一条对照）。
+- 实测面：battery 201 × 14 形态 × 2 路径逐格比对两轮（`Yield` + 上下文关键字 **40 格**、`RaiseEvent` **8 格**，全部落在对应关键字、零崩溃）；`Scripting\VisualBasicTest` **814** 格仅 3 格基线既存环境红（`ValidMemberDisplayFormat`/`DebuggerDisplay`/`StackTrace_Dynamic`，已用 HEAD 源码重建编译器复跑确认）；新增/改写 6 个用例；发布版宿主 `.vbx` 与 REPL 端到端验过 `BC36966`、字段名 `Yield` 的赋值、顶层 `RaiseEvent` 投递。
+- 3-way 注意：三个文件都是上游同名文件，合并时须保住——① `BlockContext.IsScriptTopLevelStatement` 的成员体/lambda 复位集合（上游若新增块种类，须判定新种类是否属成员体）；② `Parser.vb` 顶层 identifier 的前瞻与方法体分支保持一致（两处分派同形是本条的全部价值）；③ `RaiseEventKeyword` 臂的 `IsTopLevelScript` 守卫（上游若重排该 switch，`End`/`AddHandler`/`RemoveHandler`/`RaiseEvent` 四支须同形）。**上游共享的同类 Debug 断言**（`StateMachineRewriter` 对 raise 临时量）已登记 issue 42，按 D7 例外 (b) 本 fork 不修，不在本条修改面内。
+
 ## 二·补、已知欠账：尚未登记的修改面（2026-09-11 清点）
 
 > **先读口径与限制**：本节的判定方法是「**文件面筛 + diff 复核**」，**未**逐个读 diff 判定每个改动点是否恰好落在既有 §2.x 条目的语义面内。因此「未登记」是**文件面级**结论，完整度标 `Suspect`——**补登记时必须逐 diff 复核心态，不得直接采信本表**。
