@@ -43,6 +43,12 @@ Console.WriteLine(hits)
 语义上也站不住：脚本类**自己声明**了该事件（顶层 `Event` 是脚本类成员），`RaiseEvent` 只能 raise 本类事件，这个位置本来就是它的合法落点；
 raise 的崩溃族（issue 13 / 20）修掉之后，顶层 raise 已经能正确降级。
 
+## 与上游的关系（代码事实 ✔）
+
+上游 `Parser.vb` 的 `AddHandler` / `RemoveHandler` / `RaiseEvent` 三支**都没有** `IsTopLevelScript` 守卫（三支逐字走访问器分支）；
+本 fork 先前已给前两支加过守卫（本仓 `Parser.vb:885-897`，随脚本方言的语句化工作引入），`RaiseEvent` 因此是 **fork 内部的三支不一致**，
+不是上游继承形状。⇒ 本单是补齐 fork 侧不一致；上游若要走同样的脚本语句化，需要三支一起加。
+
 ## 预期行为
 
 顶层 `RaiseEvent` 是**普通语句**：解析成 `RaiseEventStatement`，作为实例初始化器的一个条目执行，挂接的 handler 真的被调用。

@@ -52,6 +52,23 @@ B：顶层 `Async = 2` 报 **`BC30195`**（`ERR_ExpectedSpecifier`），形态�
   `ParseCustomEventDefinition`、`Async`/`Iterator` 直接走 `ParseSpecifierDeclaration`）；方法体分派有前瞻——
   `Parser.vb:1151-1152` 要求 `Custom` 后随 `Event`、`:1154-1160` 要求 `Async`/`Iterator` 后随能起始修饰符声明的 token。
 
+## 与上游的关系（代码事实 ✔）
+
+`BC36966` **不是 fork 新增的码**，触发面也**不是 fork 改坏的**：
+
+- 错误码与文案属上游：`ERR_KeywordNotAllowedInScript = 36966`（上游 `Errors.vb:1595`，本仓 `Errors.vb:1599` 同位）、
+  消息 `You cannot use '{0}' in top-level script code`（上游 `VBResources.resx`）。
+- 三个载体上游都有：`Binder_Expressions.vb:2260`（`Me`/`MyBase`/`MyClass`）、`Binder_Statements.vb:5013`（`Return`）、
+  `:5140`（`Yield`）——即「顶层 `Yield` 要拒绝」是上游已声明的意图。
+- 触发面与上游同形：上游 `Parser.vb` 的 yield 臂条件（只有 `Context.IsWithinIteratorMethodOrLambdaOrProperty`）与
+  顶层 identifier 四支（`Custom`/`Type`/`Async`/`Iterator` 均无前瞻）与本仓修复前逐字相同；`CompilationUnitContext`
+  把编译单元声明成 async 方法体也是上游原码。
+
+⇒ 结论：**上游只写了 binder 那一半**——解析侧在上游同样不产 `YieldStatementSyntax`，上游的 `Yield` 载体同样是死代码；
+本单是「把上游已声明的限制接通」，不是 fork 回归。按 D7 例外 (b) 的口径上游同形缺陷本可不修，本单仍修的理由是它是本 fork
+主打脚本方言的直接可用性问题（顶层 `Yield` 的报错语义、四个上下文关键字的字段赋值），且修法只动脚本判定、普通编译面不变；
+上游若要采纳，搬这两处即可（容器钩子 + 顶层前瞻）。
+
 ## 预期行为
 
 A：`BC36966`（`ERR_KeywordNotAllowedInScript`），依据 `spec\spec-scripting-dialect.md:286` 与 `:330`。
