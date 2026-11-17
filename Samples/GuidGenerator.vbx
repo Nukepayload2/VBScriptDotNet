@@ -1,3 +1,6 @@
+'Attribute TargetFramework = "net48"
+' This is a desktop script: MsgBox and the clipboard are Windows Forms, which only the .NET Framework
+' host references. The outer launcher reads the header and dispatches to that host.
 Dim newId = Guid.NewGuid.ToString
 If MsgBox(newId, vbInformation Or vbYesNo, "Copy to your clipboard?") = vbYes Then
     System.Windows.Forms.Clipboard.SetText(newId)

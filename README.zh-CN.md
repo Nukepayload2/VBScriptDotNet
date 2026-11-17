@@ -150,6 +150,8 @@ dotnet tool install Nukepayload2.Compilers.VBScriptDotNet.Cli
 dotnet build VBInteractive.sln
 ```
 
+解决方案里还包含 MSIX 打包工程（`Installer\VBInteractive.WindowsDesktop.Installer`），它需要带「Windows 应用程序打包」工作负载的 Visual Studio MSBuild。用纯 `dotnet` CLI 构建时只会在该工程处停下；按需构建即可，例如 `dotnet build Interactive\vbi\vbi.vbproj`。
+
 ## 已知问题
 
 - `.vbx` 文件无法使用原始版本的 Roslyn 运行；它们需要本仓库随附的编译器。

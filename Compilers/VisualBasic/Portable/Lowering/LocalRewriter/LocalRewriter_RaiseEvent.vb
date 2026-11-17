@@ -51,7 +51,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 '     skipEventRaise:
                 ' End Block
                 '
-                Dim temp As LocalSymbol = New SynthesizedLocal(Me._currentMethodOrLambda, receiver.Type, SynthesizedLocalKind.LoweringTemp)
+                ' In a resumable method the temp may stay alive across a suspension point, because the
+                ' arguments of the call can contain Await, and then it is hoisted into the state machine.
+                ' Hoisting requires a long lived kind (StateMachineMethodToClassRewriter asserts it in
+                ' Debug builds), and Spill is the long lived kind for a spilled lowering temp, declared at
+                ' the raise statement. Methods that are not resumable keep the short lived kind, so their
+                ' debug info and slot allocation stay unchanged.
+                Dim temp As LocalSymbol
+                If Me._currentMethodOrLambda.IsAsync OrElse Me._currentMethodOrLambda.IsIterator Then
+                    temp = New SynthesizedLocal(Me._currentMethodOrLambda, receiver.Type, SynthesizedLocalKind.Spill, syntax)
+                Else
+                    temp = New SynthesizedLocal(Me._currentMethodOrLambda, receiver.Type, SynthesizedLocalKind.LoweringTemp)
+                End If
                 Dim tempAccess As BoundLocal = New BoundLocal(syntax, temp, temp.Type).MakeCompilerGenerated
 
                 Dim tempInit = New BoundExpressionStatement(syntax,

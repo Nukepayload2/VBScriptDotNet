@@ -23,13 +23,28 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         Private Shared ReadOnly s_defaultOptions As New VisualBasicParseOptions(kind:=SourceCodeKind.Script, languageVersion:=LanguageVersion.Latest)
         Private Shared ReadOnly s_vbRuntimeReference As MetadataReference = MetadataReference.CreateFromAssemblyInternal(GetType(Strings).GetTypeInfo().Assembly)
 
-        ' On .NET Core (10.x) System.Xml.Linq types live in System.Private.Xml.Linq. Roslyn's
-        ' IncludeInternalXmlHelper embeds the XML helper tree whenever these types are reachable through
-        ' referenced facades (e.g. System.Xml.XDocument), but the embedded tree only binds when the
-        ' containing assembly is a direct reference. Reference it by default so script XML literals/imports
-        ' compile even with /nostdlib reference sets.
-        Private Shared ReadOnly s_xmlLinqReference As MetadataReference = MetadataReference.CreateFromFile(
-            Path.Combine(Path.GetDirectoryName(GetType(Object).Assembly.Location), "System.Private.Xml.Linq.dll"))
+        ' On .NET Core (10.x) System.Xml.Linq types live in System.Private.Xml.Linq, on .NET Framework in
+        ' System.Xml.Linq. Roslyn's IncludeInternalXmlHelper embeds the XML helper tree whenever these types
+        ' are reachable through referenced facades (e.g. System.Xml.XDocument), but the embedded tree only
+        ' binds when the containing assembly is a direct reference. Reference it by default so script XML
+        ' literals/imports compile, and pick it from the runtime the host runs on, because neither name
+        ' exists everywhere: an unconditional CreateFromFile would fail this type's initializer on the
+        ' desktop host.
+        Private Shared ReadOnly s_xmlLinqReference As MetadataReference = CreateXmlLinqReference()
+
+        Private Shared Function CreateXmlLinqReference() As MetadataReference
+            Dim runtimeDirectory = Path.GetDirectoryName(GetType(Object).Assembly.Location)
+
+            For Each assemblyName In {"System.Private.Xml.Linq.dll", "System.Xml.Linq.dll"}
+                Dim xmlLinqPath = Path.Combine(runtimeDirectory, assemblyName)
+
+                If File.Exists(xmlLinqPath) Then
+                    Return MetadataReference.CreateFromFile(xmlLinqPath)
+                End If
+            Next
+
+            Return Nothing
+        End Function
 
         Private Sub New()
         End Sub
@@ -192,7 +207,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Dim diagnostics = DiagnosticBag.GetInstance()
             Dim references = script.GetReferencesForCompilation(MessageProvider.Instance, diagnostics, s_vbRuntimeReference)
 
-            If File.Exists(s_xmlLinqReference.Display) AndAlso
+            If s_xmlLinqReference IsNot Nothing AndAlso
                Not references.Any(Function(r) String.Equals(r.Display, s_xmlLinqReference.Display, StringComparison.OrdinalIgnoreCase)) Then
                 references = references.Add(s_xmlLinqReference)
             End If

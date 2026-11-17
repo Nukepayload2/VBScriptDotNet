@@ -150,6 +150,8 @@ Install the .NET 10 SDK and build the solution from the repository root:
 dotnet build VBInteractive.sln
 ```
 
+The solution also contains the MSIX packaging project (`Installer\VBInteractive.WindowsDesktop.Installer`), which needs Visual Studio's MSBuild with the Windows Application Packaging workload. With the plain `dotnet` CLI the build stops at that project only; build what you need separately, for example `dotnet build Interactive\vbi\vbi.vbproj`.
+
 ## Known issues
 
 - `.vbx` files cannot be run with the original version of Roslyn; they require the compiler shipped in this repository.

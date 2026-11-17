@@ -1,6 +1,6 @@
-# `RaiseEvent` 在 resumable 方法体内触发状态机断言的 Debug 构建失败（上游共享代码）
+# `RaiseEvent` 在 resumable 方法体内触发状态机断言的 Debug 构建失败（已修复）
 
-* 状态：**🔒 上游来源缺陷，本 fork 不修**（命中 `decisions.md` **D7 例外 (b)**：缺陷在上游共享代码里且上游亦未修 ⇒ 目标 `dotnet/roslyn`，改它只增合并冲突面；先例＝问题单 25 / 35）
+* 状态：**Fixed**（2026-11-03，作者改判为修复；`LocalRewriter_RaiseEvent.vb:54` 的接收者临时量由 `LoweringTemp` 改为 `Spill`，账本 `..\upstream-merge.md` §2.26）
 * 发现日期：2026-10-23
 * 发现场景：关键字 × 顶层容器审计复验 `RaiseEvent` 端到端时撞上（`tasks\keyword-toplevel-audit\` §7.3）
 
@@ -63,7 +63,7 @@ raise 的降级自己造了一个**短生命期**临时变量，而状态机重�
 把它变成实锤需要：用 `{{Roslyn}}` 的 Debug 配置构建 `Microsoft.CodeAnalysis.VisualBasic`，以该编译器跑上面那段 `Async Function`，
 观察是否 `Assertion failed`。本 fork 不做这一步，因为不影响本仓的处置结论（见下）。
 
-## 为什么本 fork 不修
+## 当时为什么本 fork 不修（2026-10-23 判读，已由下「收口」节取代）
 
 1. 断言与触发路径都在**上游共享代码**里（`StateMachineRewriter` 文件逐字相同；`LocalRewriter_RaiseEvent.vb` 的 temp 行相同），
    命中 `decisions.md` D7 例外 (b)：目标 `dotnet/roslyn`，本 fork 改它只增加上游合并冲突面。先例＝问题单 25（`CommonTypeNameFormatter` 丢命名空间）、问题单 35（并发绑定断言）。
@@ -89,6 +89,17 @@ raise 的降级自己造了一个**短生命期**临时变量，而状态机重�
 
 - 首选：把 `LocalRewriter_RaiseEvent.vb` 的临时量改为长生命期种类，并在状态机场景下验证 emit 与调试作用域；
 - 或：让 `PossibleStateMachineScope` 只对被判定需要跨挂起的局部断言（当前实现对 Debug 构建的全量 hoist 策略过敏）。
+
+## 收口（2026-11-03：改判为修复）
+
+作者裁定：本条**对上游更新的影响面很小**，因此修复，而不是留给上游。落点＝上节两个候选里的**第一个**：
+
+- 改动：`Lowering\LocalRewriter\LocalRewriter_RaiseEvent.vb:54` 的临时量改为**按方法是否 resumable 分档**——`Me._currentMethodOrLambda.IsAsync OrElse IsIterator` 为真时 `New SynthesizedLocal(…, SynthesizedLocalKind.Spill, syntax)`，否则逐字保持 `New SynthesizedLocal(…, SynthesizedLocalKind.LoweringTemp)`（`syntax` 是 `node.Syntax`；长生命期种类按 `SynthesizedLocal` 构造器要求必须带语法）。净 `+9 −1`。
+- 为什么第二个候选（收窄断言）仍被否决：`StateMachineRewriter` 五文件与上游逐字相同，动它就真要背共享面冲突；本修法一行不碰。
+- 为什么 `Spill` 而不是别的长生命期种类：它是共享枚举里描述「被溢出的表达式值、可能因跨 `Await` 而留在状态机里」的那一个，且共享侧已有同类先例——`Compilers\CSharp\Portable\Lowering\StateMachineRewriter\SpillSequenceSpiller.cs:1511` 用 `WithSynthesizedLocalKindAndSyntax(SynthesizedLocalKind.Spill, …)` 把短生命期局部升成长生命期。VB 侧此前从不创建 `Spill` 局部，故没有既有 `Spill` 特判被踩到（`Compilers\VisualBasic\` 内 `SynthesizedLocalKind.Spill` 只出现在 `StateMachineRewriter` 的 byref 断言里）。
+- **为什么要分档**（第一版无条件换档的实测代价）：长生命期种类会被写进 PDB 的 `encLocalSlotMap`，无条件替换会让每个含字段式 `RaiseEvent` 的方法（含非 async 的）都多一条 EnC 槽位，并改掉上游 `PDBTests.RaiseEvent001` 的期望（实测：`IntervalUpdate.Update` 多 `<slot kind="28" offset="0"/>`，Emit 门 4389 中 1 红；IL 未变）。改成只在可恢复方法里换档后，非可恢复方法的 IL/PDB/槽位逐字回到上游形状，该用例复跑即绿。
+- 上节第 2 条列的两个「代价」复核结果：①「状态机会为它生成调试作用域」**不成立**——`AddProxyFieldsForStateMachineScope` 只为 `UserDefined` / `LambdaDisplayClass` 生成状态机调试作用域，`Spill` 不在其列；②「emit 形状分叉」在分档写法下只剩「可恢复方法里 Debug 构建多一个长生命期局部槽」（不复用槽位）、无语义变化，Release 的 `IsSlotReusable` 对 `Spill` 仍返回可复用。
+- 验收（本机，Debug 构建，档 2）：`Scripting\VisualBasicTest` 直跑 **814/814 通过、0 失败**（修前 814 中 2 红即本条）；`VisualBasicEmitTest` **4389/4286/103/0** 与基线逐字一致（含 `PDBTests.RaiseEvent001`）；Debug 版 `vbi` 下顶层 `RaiseEvent` 探针 `hits=1`/`exit 0`、普通类 `Async Function` 体内 raise `async-hits=1`/`exit 0`（修前两者均 `FailFast`）。其余五门 gate 与 Release 端到端留给下一轮回归。
 
 ## 相关
 
