@@ -4,6 +4,15 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 
+# Gate baselines: a gate passes only when total/passed/skipped/failed equal the numbers below and the process
+# exits 0 (CommandLine is the one gate whose non-zero exit is expected). No retries and no tolerance: the first
+# mismatched gate stops the run.
+#
+# The numbers are current for this tree; re-measure them whenever the compiler or the SDK changes. Two test
+# classes run in a DisableParallelization collection (Emit's SubmissionSharedHandlesHookupTests, Semantic's
+# ScriptTopLevelDefiniteAssignmentTests) because submission compilation shares process-wide symbol state: a
+# second class compiling in parallel can trip the identity Debug.Assert at Binder_Conversions.vb:442. With that
+# isolation in place a red gate is a real failure, not a flake to rerun away.
 $gates = @(
     @{ Name = 'Phase2'; Project = 'Compilers\VisualBasicTest\Microsoft.CodeAnalysis.VisualBasic.UnitTests.vbproj'; Total = 143; Passed = 143; Skipped = 0; Failed = 0 }
     @{ Name = 'Syntax'; Project = 'Compilers\VisualBasicSyntaxTest\Microsoft.CodeAnalysis.VisualBasic.Syntax.UnitTests.vbproj'; Total = 4106; Passed = 4103; Skipped = 3; Failed = 0 }

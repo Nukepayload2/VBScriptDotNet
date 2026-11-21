@@ -18,7 +18,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
     Friend NotInheritable Class VisualBasicScriptCompiler
         Inherits ScriptCompiler
 
-        Public Shared ReadOnly Instance As ScriptCompiler = New VisualBasicScriptCompiler()
+        Public Shared ReadOnly Instance As VisualBasicScriptCompiler = New VisualBasicScriptCompiler()
 
         Private Shared ReadOnly s_defaultOptions As New VisualBasicParseOptions(kind:=SourceCodeKind.Script, languageVersion:=LanguageVersion.Latest)
         Private Shared ReadOnly s_vbRuntimeReference As MetadataReference = MetadataReference.CreateFromAssemblyInternal(GetType(Strings).GetTypeInfo().Assembly)
@@ -74,6 +74,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Return SyntaxFactory.ParseSyntaxTree(text, If(parseOptions, s_defaultOptions), cancellationToken:=cancellationToken)
         End Function
 
+        ''' <summary>
+        ''' Host-facing wrapper over <see cref="ParseSubmission"/>. The hosting facade can see this type
+        ''' (InternalsVisibleTo) but not the shared assembly's internal <c>ScriptCompiler</c> base it overrides,
+        ''' so the facade parses through this method instead of naming the base member.
+        ''' </summary>
+        Friend Function ParseSubmissionForHost(text As SourceText, parseOptions As ParseOptions, cancellationToken As CancellationToken) As SyntaxTree
+            Return ParseSubmission(text, parseOptions, cancellationToken)
+        End Function
+
+        ''' <summary>Host-facing wrapper over <see cref="IsCompleteSubmission"/>; see <see cref="ParseSubmissionForHost"/>.</summary>
+        Friend Function IsCompleteSubmissionForHost(tree As SyntaxTree) As Boolean
+            Return IsCompleteSubmission(tree)
+        End Function
+
         Private Shared Sub ThrowLoadDirectiveError(diagnostic As Diagnostic)
             Throw New CompilationErrorException(diagnostic.GetMessage(), ImmutableArray.Create(diagnostic))
         End Sub
@@ -85,8 +99,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
         ''' <para>
         ''' Expansion is <b>once per compilation</b>. <paramref name="expandedFiles"/> holds every file
         ''' already spliced into this walk (keyed by resolved path, case-insensitive), and a <c>#Load</c>
-        ''' naming a file already in it is skipped silently, with no diagnostic. That single rule covers the
-        ''' two shapes that used to go wrong: the same file reached through two different <c>#Load</c>
+        ''' naming a file already in it is skipped silently, with no diagnostic. That single rule covers
+        ''' two shapes: the same file reached through two different <c>#Load</c>
         ''' branches, and a cycle -- a cycle is not an error here, it is "already seen, skip". C#'s
         ''' <c>#load</c> skips repeats the same way ("we've seen this file before, so don't attempt to load it
         ''' again" -- <c>SyntaxAndDeclarationManager.AppendAllSyntaxTrees</c>), except that C# never seeds the
@@ -168,7 +182,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
             Next
         End Sub
 
-        Private Shared Sub AddPreviousSubmissionImports(script As Script, importNames As List(Of String), seenImports As HashSet(Of String))
+        ''' <summary>
+        ''' Walks a submission chain and appends every import it has already applied (option imports plus
+        ''' <c>Imports</c> statements of each preceding submission), deduplicated case-insensitively in the
+        ''' order the compiler derives them. The VB script engine calls this directly to replay those imports
+        ''' into the next submission's options, instead of the shared scripting assembly carrying a
+        ''' seam for it.
+        ''' </summary>
+        Friend Shared Sub AddPreviousSubmissionImports(script As Script, importNames As List(Of String), seenImports As HashSet(Of String))
             If script Is Nothing Then
                 Return
             End If

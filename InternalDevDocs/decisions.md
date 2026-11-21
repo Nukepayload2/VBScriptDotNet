@@ -79,6 +79,7 @@ VBScript.NET 侧决策**以本节为权威立场**：`csharplang-index.md`、`mo
   - **C# 侧证据（已运行）**：`Microsoft (R) Visual C# 交互窗口编译器 5.10.0-1.26380.3`（从 `CSharpInteractive.rsp` 加载上下文）下输入 `void test() { this.ToString(); }` → 逐字 `(1,15): error CS0027: 关键字 "this" 不可在静态属性、静态方法或静态字段初始化值设定内使用`；读数在册于 `tasks\script-class-explicit-keyword-parity-revert\README.md`（**2026-09-23 读数，未经主线复跑**）。⇒ 定性：**错在记录面而不是代码面**——VB 原判据（按容纳类型划界）本就与 C# 同形，需要修的是记录面（spec 措辞、队列 #1 的三问②"是"、issue 28 的"过宽属缺陷"推断），修复线因此是**回退 + 改记**，而不是继续在错判据上加固。（**待复核一处**：该读数的中文文案与"静态上下文"措辞相同，而本仓资源把 `ERR_ThisInBadContext`(=CS0027) 定为 "Keyword 'this' is not available in the current context"、静态措辞属 `ERR_ThisInStaticMeth`(=CS0026)（`CSharpResources.resx`、`ErrorCode.cs:37-38`）⇒ 码与文案的配对要么随 csi 版本不同、要么那次命中的其实是静态分支（脚本类的顶层方法是否被编成 `static` 待查）。**两种情形都不动摇结论**：显式 `this` 在脚本类成员里被拒。）
   - **判据次序决定「部分回退」**：C# 的 `HasThis` 把**静态检查放在脚本门之前**（`:45-49`：`memberOpt?.IsStatic == true` ⇒ `inStaticContext = true`、`return false`，调用方据此选 CS0026/CS1511；`:64-73` 才是脚本门的 CS0027/CS1512）。⇒ 与 C# 同形的 VB 判据是：**`Shared` 顶层成员里的显式关键字给普通共享诊断 BC30043（隐式给 BC30369），实例成员体里的显式关键字给 BC36966**——前者正是 issue 28 的 F01 已落地的 C1/C3 格子，**不回退**；只回退"实例成员体放行"这一条。
 - **与 D4 的分工**：D4 管「要不要做、排哪一档」，D7 管「做成什么样」。D7 不改变优先级判定，只免除逐条设计请示。
+- **例外 (b) 的上报动作（2026-11-18 作者裁决）**：issue 35／38（并发提交绑定断言族）只做仓内记录，**不向 `dotnet/roslyn` 提交**——可行修法都要求改动共享层设计语义，作者判断上游不接受该类变更。该裁决只改「是否向外部提交」，不改「本 fork 不单边修」这一 (b) 结论；影响面：产品宿主无并发提交原语，测试进程有暴露面（见 issue 35）。
 
 ### D8. 发现的问题必须先实锤，推测不得作为实施前提
 

@@ -26,19 +26,20 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     ''' <see cref="INuGetRestoreCoordinator"/> seam: before a submission or file script is compiled it
     ''' pre-scans the reference directives — expanding <c>#Load</c> through the compilation's
     ''' <see cref="ScriptOptions"/> when available so directives nested in loaded files are included —
-    ''' classifies each against the design decision table, restores the referenced package set when it
-    ''' changed (design §E), writes the session, and returns diagnostics anchored at the offending
-    ''' <c>#R</c> line. A submission without NuGet directives short-circuits with no diagnostics and never
-    ''' consults the SDK or restore runner.
+    ''' classifies each against the rules implemented in <c>ScanTreeForNuGetDirectives</c>, restores
+    ''' the referenced package set when it changed, writes the session, and returns diagnostics anchored
+    ''' at the offending <c>#R</c> line. A submission without NuGet directives short-circuits with
+    ''' no diagnostics and never consults the SDK or restore runner.
     ''' </summary>
     Friend NotInheritable Class NuGetRestoreCoordinator
         Implements INuGetRestoreCoordinator
+        Implements IScriptRestoreCoordinator
 
         Private Shared ReadOnly s_parseOptions As New VisualBasicParseOptions(
             kind:=SourceCodeKind.Script,
             languageVersion:=LanguageVersion.Latest)
 
-        ' Host-managed packages (design §D2 denylist, §G2.6): delivered with the host, never restored.
+        ' Host-managed packages (denylist): delivered with the host, never restored.
         Private Shared ReadOnly s_hostManagedPackages As ImmutableArray(Of String) =
             ImmutableArray.Create("Microsoft.WindowsAppSDK")
 
@@ -88,9 +89,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private ReadOnly _sourceFingerprintOverride As String
         Private ReadOnly _sourceFileSystem As ISourceConfigFileSystem
         Private ReadOnly _loader As InteractiveAssemblyLoader
+        Private ReadOnly _sdkVersionObserver As Action(Of String)
         Private _lastRestoredKeys As ImmutableArray(Of String) = ImmutableArray(Of String).Empty
 
-        ' Session-cumulative package set (design §E/§F, R-1): the union of every submission's NuGet
+        ' Session-cumulative package set: the union of every submission's NuGet
         ' directives this host run has seen and committed after a successful restore. A submission's
         ' directives replace the session entries for the ids they mention (newest version wins across
         ' submissions) and leave every other previously referenced id in place, so each restore resolves the
@@ -103,7 +105,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                        Optional cacheRoot As String = Nothing,
                        Optional sourceFingerprint As String = Nothing,
                        Optional loader As InteractiveAssemblyLoader = Nothing,
-                       Optional sourceFileSystem As ISourceConfigFileSystem = Nothing)
+                       Optional sourceFileSystem As ISourceConfigFileSystem = Nothing,
+                       Optional sdkVersionObserver As Action(Of String) = Nothing)
             If session Is Nothing Then
                 Throw New ArgumentNullException(NameOf(session))
             End If
@@ -111,15 +114,15 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             _runner = If(runner, New DotNetRestoreRunner())
             _cacheRootOverride = cacheRoot
             ' Nothing means "derive the fingerprint from the script's directory chain"; a value (including the
-            ' empty string) pins it, which keeps the injection point tests used before the fingerprint was
-            ' wired up.
+            ' empty string) pins it, which lets a caller supply a known fingerprint.
             _sourceFingerprintOverride = sourceFingerprint
             _loader = loader
             _sourceFileSystem = If(sourceFileSystem, PhysicalSourceConfigFileSystem.Instance)
+            _sdkVersionObserver = sdkVersionObserver
         End Sub
 
         ''' <summary>
-        ''' The package session this coordinator restores into (design §D/§E).
+        ''' The package session this coordinator restores into.
         ''' </summary>
         Friend ReadOnly Property Session As NuGetPackageSession
             Get
@@ -127,7 +130,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End Get
         End Property
 
-        Public Async Function PrepareCompilationAsync(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync
+        Public Async Function PrepareCompilationAsync(code As SourceText, filePath As String, options As ScriptOptions, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic)) Implements INuGetRestoreCoordinator.PrepareCompilationAsync, IScriptRestoreCoordinator.PrepareCompilationAsync
             If code Is Nothing Then
                 Return ImmutableArray(Of Diagnostic).Empty
             End If
@@ -244,10 +247,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' De-duplicates valid requests by canonical key (id lower-cased + version, C-3): the same package at
+        ''' De-duplicates valid requests by canonical key (id lower-cased + version): the same package at
         ''' the same version written twice — including a case variant — feeds a single restore and a single
         ''' <c>PackageReference</c>. The first directive's location is kept. Two versions of the same id in one
-        ''' submission are both retained so NuGet reports the conflict (NU1107) and the R-3 anchor points at a
+        ''' submission are both retained so NuGet reports the conflict (NU1107) and the diagnostic anchor points at a
         ''' line that actually references the package.
         ''' </summary>
         Private Shared Function DeduplicateRequests(requests As List(Of NuGetPackageRequest)) As ImmutableArray(Of NuGetPackageRequest)
@@ -262,8 +265,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Runs the design §D2 decision table over one tree's <c>#R</c> directives. Each diagnostic/request
-        ''' keeps the directive's own tree location, so a directive in a <c>#Load</c>ed file anchors there.
+        ''' Classifies one tree's <c>#R</c> directives: each diagnostic or request keeps the directive's
+        ''' own tree location, so a directive in a <c>#Load</c>ed file anchors there.
         ''' </summary>
         Private Shared Sub ScanTreeForNuGetDirectives(
             tree As SyntaxTree,
@@ -306,7 +309,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                     Continue For
                 End If
 
-                ' Design §D2: everything below mirrors TryParsePackageReference's own trimming so the two stay
+                ' The parsing below mirrors TryParsePackageReference's own trimming so the two stay
                 ' complementary. TryParse already rejected the value because it does not start with the ASCII
                 ' "nuget:" prefix.
                 Dim t = value.Trim(" "c, Convert.ToChar(9), """"c)
@@ -339,18 +342,18 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Sub
 
         ''' <summary>
-        ''' Restore pass (design §E): decides whether the referenced set changed, collects the script's
-        ''' directory-level NuGet configuration (design §C1) and folds it into the cache key, gates on the
+        ''' Restore pass: decides whether the referenced set changed, collects the script's
+        ''' directory-level NuGet configuration and folds it into the cache key, gates on the
         ''' .NET SDK, deploys and runs one restore through the injectable runner, maps failures to
         ''' <c>#R</c>-anchored diagnostics, and on success reads the assets and writes the session.
         ''' </summary>
         ''' <param name="filePath">
-        ''' Script path the restore is for (empty for a pure REPL submission, design §C4). Its directory chain
+        ''' Script path the restore is for (empty for a pure REPL submission). Its directory chain
         ''' decides which <c>NuGet.config</c> files NuGet will see and therefore which cache key and project
         ''' depth are used.
         ''' </param>
         Private Async Function EnsureRestoredAsync(submissionRequests As ImmutableArray(Of NuGetPackageRequest), filePath As String, cancellationToken As CancellationToken) As Task(Of ImmutableArray(Of Diagnostic))
-            ' Merge the submission's directives into the session-cumulative set (R-1). A submission replaces
+            ' Merge the submission's directives into the session-cumulative set. A submission replaces
             ' the session entries for the ids it mentions and keeps every other previously referenced id, so
             ' the restore below always sees the whole accumulated graph.
             Dim merged = MergeSessionRequests(submissionRequests)
@@ -373,8 +376,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             cancellationToken.ThrowIfCancellationRequested()
 
             ' Collect the script's directory-level configuration before anything else that can fail: a config
-            ' that cannot be read would silently restore from the wrong sources, which is the failure mode
-            ' this pass exists to remove, so it is reported instead of ignored (design §C5).
+            ' that cannot be read would silently restore from the wrong sources, so it is reported instead of
+            ' ignored.
             Dim sourceConfig = NuGetSourceConfig.Collect(filePath, _sourceFileSystem)
             If sourceConfig.HasFailure Then
                 Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateConfigFailureDiagnostic(
@@ -383,11 +386,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                     CreateFileAnchorLocation(filePath)))
             End If
 
-            ' Fingerprint the mirrored config set into the cache key (design §C3): the key directory's files
+            ' Fingerprint the mirrored config set into the cache key: the key directory's files
             ' are write-once, so "same key" must keep meaning "same restore inputs" or a changed source would
             ' keep resolving against the config baked into an existing key directory. An explicit injection
-            ' still wins, and an empty chain still fingerprints as the empty string, which is byte-identical
-            ' to what production used before this was wired up.
+            ' still wins, and an empty chain still fingerprints as the empty string.
             Dim sourceFingerprint = If(_sourceFingerprintOverride, NuGetSourceConfig.Fingerprint(sourceConfig.Files))
 
             Dim host = _session.HostCapability
@@ -397,6 +399,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Dim sdkVersion = NuGetSdkResolver.SelectSdkVersion(installedSdks)
             If sdkVersion Is Nothing Then
                 Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateSdkMissingDiagnostic(submissionRequests(0).Location))
+            End If
+            If _sdkVersionObserver IsNot Nothing Then
+                _sdkVersionObserver(sdkVersion)
             End If
 
             Dim rid = GetRuntimeIdentifier()
@@ -417,16 +422,26 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 runtimeIdentifier:=rid)
             Dim globalJson = NuGetProjectGenerator.GenerateGlobalJson(sdkVersion)
 
+            Dim packageNames = ImmutableArray.CreateBuilder(Of String)(mergedRequests.Length)
+            Dim packageVersions = ImmutableArray.CreateBuilder(Of String)(mergedRequests.Length)
+            For Each package In mergedRequests
+                packageNames.Add(package.Name)
+                packageVersions.Add(package.Version)
+            Next
+
             Dim restoreRequest As New RestoreRequest(
                 cacheDirectory,
                 projectXml,
                 globalJson,
                 sourceConfig.Files,
-                NuGetSourceConfig.ProjectRelativePath(filePath, sourceConfig.MirrorRoot))
+                NuGetSourceConfig.ProjectRelativePath(filePath, sourceConfig.MirrorRoot),
+                packageNames.ToImmutable(),
+                packageVersions.ToImmutable(),
+                sourceFingerprint)
             Dim outcome = Await _runner.RestoreAsync(restoreRequest, cancellationToken)
 
             If outcome IsNot Nothing AndAlso outcome.ConfigFailurePath IsNot Nothing Then
-                ' A mirrored config could not be written (design §C5). This is a configuration problem rather
+                ' A mirrored config could not be written. This is a configuration problem rather
                 ' than a restore or SDK problem, so it must not be reported through the exit-code table.
                 Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateConfigFailureDiagnostic(
                     outcome.ConfigFailurePath,
@@ -460,13 +475,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             ' no-op restore and re-reports instead of slipping through.
 
             If net48 AndAlso assets.HasNativeAssets Then
-                ' Host-capability block (design §D2 net48 row): the restore succeeded but the net48 host
+                ' Host-capability block (net48): the restore succeeded but the net48 host
                 ' cannot probe native assets.
                 Return CreateSingleDiagnostic(NuGetRestoreDiagnostics.CreateNet48NativeDiagnostic(submissionRequests(0).Name, submissionRequests(0).Location))
             End If
 
             If Not net48 Then
-                ' Clarity diagnostics for missing current-RID native assets (design §G2.4). NuGet already did
+                ' Clarity diagnostics for missing current-RID native assets. NuGet already did
                 ' the RID fallback; when a referenced package ships native assets for other RIDs only, report
                 ' it up front (anchored at the package's #R line) instead of a later DllNotFoundException.
                 Dim missingNative = NuGetMissingNativeAssetsDetector.FindMissingNativeForRid(outcome.AssetsJsonText, rid, mergedRequests)
@@ -481,7 +496,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End If
 
             ' Fully successful path: commit the merged set so later submissions merge on top of it, then run
-            ' the runtime handshake (design §G1/§G2) — with the loader wired in, push the restored runtime
+            ' the runtime handshake — with the loader wired in, push the restored runtime
             ' (lib) assets and native probe roots into it before the script is compiled and run. Empty root
             ' sets / an absent loader leave the loader untouched.
             _sessionRequests = merged
@@ -492,7 +507,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Merges <paramref name="submission"/> into the session-cumulative set (R-1): every id the
+        ''' Merges <paramref name="submission"/> into the session-cumulative set: every id the
         ''' submission mentions replaces the session's entry for that id (so a newer version written in a
         ''' later submission wins and the old one stops being restored), and ids the submission does not
         ''' mention keep their session entry, making the set cumulative. Two versions of the same id inside
@@ -520,7 +535,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Hands the restored assets to the script loader (design §G1/§G2): native probe roots become
+        ''' Hands the restored assets to the script loader: native probe roots become
         ''' loader probe roots and compile (ref) assets that have a distinct runtime (implementation) file are
         ''' registered as runtime-path overrides, so the loader never loads a ref-only assembly at runtime.
         ''' No-op when the host did not wire a loader (pure no-nuget / tests without a loader).
@@ -530,7 +545,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Return
             End If
 
-            ' R-2: the loader reflects exactly this restore's session state. Reset the handshake state first
+            ' The loader reflects exactly this restore's session state. Reset the handshake state first
             ' so roots/overrides from an earlier restore (an upgraded/downgraded package version, or a graph
             ' that no longer carries native assets) are replaced rather than accumulated. Managed dependency
             ' registrations are intentionally not reset — earlier submissions' assemblies stay resolvable.
@@ -546,7 +561,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 _loader.RegisterRuntimePathOverride(pair.Key, pair.Value)
             Next
 
-            ' Full managed runtime closure registration (design §G1): ScriptBuilder registers only the
+            ' Full managed runtime closure registration: ScriptBuilder registers only the
             ' assemblies a submission binds at compile time, but framework-style scripts (e.g. the Avalonia
             ' demo) need closure assemblies that are reached only at runtime (base types, lazily touched
             ' deps) to be resolvable too. Register every restored lib asset with the loader so a later
@@ -555,7 +570,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Sub
 
         ''' <summary>
-        ''' Registers every restored managed runtime (lib) assembly with the loader (design §G1). Only paths
+        ''' Registers every restored managed runtime (lib) assembly with the loader. Only paths
         ''' that exist on disk are read; unit-test fixtures use non-existent absolute paths and are skipped, so
         ''' this stays a no-op there.
         ''' </summary>
@@ -595,8 +610,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Anchor for a diagnostic about the script as a whole rather than about one <c>#R</c> line (design
-        ''' §C5): the script's first line, without reading the file. <see cref="Location.None"/> when there is
+        ''' Anchor for a diagnostic about the script as a whole rather than about one <c>#R</c> line:
+        ''' the script's first line, without reading the file. <see cref="Location.None"/> when there is
         ''' no script path (pure REPL input).
         ''' </summary>
         Private Shared Function CreateFileAnchorLocation(filePath As String) As Location
@@ -626,18 +641,36 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 #If NET10_0 Then
             Return RuntimeInformation.RuntimeIdentifier
 #Else
-            ' netstandard2.0 has no RuntimeIdentifier property; fall back to the OS family RID. The net48 host
-            ' still only needs a RID family for NuGet's RID graph (design §E1 records the host RID in the key).
+            ' netstandard2.0 has no RuntimeIdentifier property, so derive OS family + process architecture.
+            ' The architecture is not cosmetic: with the bare family RID ("win") NuGet selects no native
+            ' assets, so the .NET Framework capability check sees none and the script proceeds to a bare
+            ' runtime failure ("Library e_sqlite3 not found" instead of VBI1010). A family-architecture RID
+            ' makes the restore graph carry the host's native assets, which is what the diagnosis reports;
+            ' the .NET Framework host still never loads them.
+            Dim family As String
             If RuntimeInformation.IsOSPlatform(OSPlatform.Windows) Then
-                Return "win"
+                family = "win"
+            ElseIf RuntimeInformation.IsOSPlatform(OSPlatform.Linux) Then
+                family = "linux"
+            ElseIf RuntimeInformation.IsOSPlatform(OSPlatform.OSX) Then
+                family = "osx"
+            Else
+                Return String.Empty
             End If
-            If RuntimeInformation.IsOSPlatform(OSPlatform.Linux) Then
-                Return "linux"
-            End If
-            If RuntimeInformation.IsOSPlatform(OSPlatform.OSX) Then
-                Return "osx"
-            End If
-            Return String.Empty
+
+            Dim archSuffix As String = Nothing
+            Select Case RuntimeInformation.ProcessArchitecture
+                Case Architecture.X64
+                    archSuffix = "x64"
+                Case Architecture.X86
+                    archSuffix = "x86"
+                Case Architecture.Arm64
+                    archSuffix = "arm64"
+                Case Architecture.Arm
+                    archSuffix = "arm"
+            End Select
+
+            Return If(archSuffix Is Nothing, family, family & "-" & archSuffix)
 #End If
         End Function
 

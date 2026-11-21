@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -15,12 +15,19 @@
     <!-- vbi compile-mode mode detection (VbiCompileMode.IsCompileInvocation) is exercised by
          VbiCompileModeTests via the InternalsVisibleTo granted by Interactive\vbi\vbi.vbproj. -->
     <ProjectReference Include="..\..\Interactive\vbi\vbi.vbproj" />
+    <!-- The hosting facade under test (F6): static VBScript entry points, options/default set and the
+         internal option/result mapping helpers it shares with the F7 DI runner. -->
+    <ProjectReference Include="..\Hosting\Nukepayload2.VBScriptDotNet.Hosting.vbproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting.Desktop.UnitTests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <!-- F7 hosting tests: the full host is a test-only dependency (Host.CreateApplicationBuilder and the
+         Microsoft.Extensions.Logging/Options/DI implementations it brings). The facade itself keeps its
+         Abstractions-only dependency set. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

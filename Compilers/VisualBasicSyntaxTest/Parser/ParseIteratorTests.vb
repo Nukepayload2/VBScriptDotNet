@@ -405,9 +405,21 @@ End Function"
 
         Dim yieldStatements = tree.GetRoot().DescendantNodes.OfType(Of YieldStatementSyntax).ToArray()
 
-        Assert.Equal(6, yieldStatements.Count)
+        ' `0c13fb9`（Fix error code of yield statement）让脚本顶层的 `Yield` 也进入 yield 分支
+        ' （Parser.vb:1215-1221），不再一律按标识符语句/字段声明读；顶层语句因此可能成为 YieldStatement，
+        ' 由 binder 报 BC36966。本源码四个顶层形态里只有 `Yield (T)` 落在语句位（`Yield T` 与
+        ' `Yield T + Yield (T)` 仍是“名字 + 类型”的字段声明读法），所以总数由 6 变 7：1 条脚本顶层 + 6 条迭代器内。
+        Assert.Equal(7, yieldStatements.Count)
 
+        Dim topLevelYield = yieldStatements.Where(Function(y) TypeOf y.Parent Is CompilationUnitSyntax).ToArray()
+        Assert.Equal(1, topLevelYield.Length)
+        Assert.Equal("Yield (T)", topLevelYield(0).ToString())
+
+        ' 其余每一条 YieldStatement 仍必须落在迭代器方法体内——这是本用例原有的断言。
         For Each yieldStatement In yieldStatements
+            If TypeOf yieldStatement.Parent Is CompilationUnitSyntax Then
+                Continue For
+            End If
             Assert.True(IsInIteratorMethod(yieldStatement))
         Next
     End Sub

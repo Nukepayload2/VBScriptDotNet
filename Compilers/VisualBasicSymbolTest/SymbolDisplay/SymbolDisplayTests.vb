@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -4908,13 +4908,35 @@ class Outer
             Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(CSng(1.1), quoteStrings:=False, useHexadecimalNumbers:=False))
             Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(CSng(1.1), quoteStrings:=False, useHexadecimalNumbers:=True))
 
-            Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(CDec(1.1), quoteStrings:=False, useHexadecimalNumbers:=False))
-            Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(CDec(1.1), quoteStrings:=False, useHexadecimalNumbers:=True))
+            ' Decimal 的精确文本断言用 Decimal 字面量（1.1D）而不是 CDec(1.1)：字面量直接按十进制解析，
+            ' 不经过 Double→Decimal 的编译期常量折叠，因此文本不随 SDK 的 vbc 变化。
+            Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(1.1D, quoteStrings:=False, useHexadecimalNumbers:=False))
+            Assert.Equal("1.1", SymbolDisplay.FormatPrimitive(1.1D, quoteStrings:=False, useHexadecimalNumbers:=True))
+
+            ' CDec(1.1) 是 Double 字面量的编译期转换，折叠结果随 SDK 变化（例如旧 SDK 折叠成 1.1，
+            ' 新 SDK 折叠成 1.1000000000000000888178419700），Decimal 的格式化文本也可能随之变化。
+            ' 所以这里断言语义而不是文本：把输出按 InvariantCulture 解析回 Decimal，断言与同一表达式
+            ' 在当前 SDK 下折叠出的值相等（round-trip），并顺带断言输出非空、可解析。
+            Dim expectedFromCast As Decimal = CDec(1.1)
+            AssertDecimalRoundTrips(expectedFromCast, SymbolDisplay.FormatPrimitive(CDec(1.1), quoteStrings:=False, useHexadecimalNumbers:=False))
+            AssertDecimalRoundTrips(expectedFromCast, SymbolDisplay.FormatPrimitive(CDec(1.1), quoteStrings:=False, useHexadecimalNumbers:=True))
 
             Assert.Equal("#1/1/2000 12:00:00 AM#", SymbolDisplay.FormatPrimitive(#1/1/2000#, quoteStrings:=False, useHexadecimalNumbers:=False))
             Assert.Equal("#1/1/2000 12:00:00 AM#", SymbolDisplay.FormatPrimitive(#1/1/2000#, quoteStrings:=False, useHexadecimalNumbers:=True))
 
             Assert.Equal(Nothing, SymbolDisplay.FormatPrimitive(New Object(), quoteStrings:=False, useHexadecimalNumbers:=False))
+        End Sub
+
+        ''' <summary>
+        ''' 断言语义 round-trip：<paramref name="text"/> 必须非空、能以 InvariantCulture 解析成 Decimal，
+        ''' 且解析结果等于 <paramref name="expected"/>。用于不受编译器常量折叠/格式化细节约束的断言。
+        ''' </summary>
+        Private Shared Sub AssertDecimalRoundTrips(expected As Decimal, text As String)
+            Assert.False(String.IsNullOrEmpty(text), "FormatPrimitive returned no text for a Decimal value.")
+            Dim parsed As Decimal = Nothing
+            Assert.True(Decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, parsed),
+                        $"FormatPrimitive output '{text}' is not a parseable Decimal.")
+            Assert.Equal(expected, parsed)
         End Sub
 
         <Fact>

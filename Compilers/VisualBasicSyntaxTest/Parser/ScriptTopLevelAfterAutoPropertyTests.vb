@@ -313,23 +313,23 @@ Public Class ScriptTopLevelAfterAutoPropertyTests
     End Sub
 
     ''' <summary>
-    ''' G8 arm two, <c>RaiseEvent</c> (<c>Parser.vb:841</c>, <c>:847</c> after this task). Measured on the pre-fix
-    ''' published host: with an auto property in front of it the shape answered BC30188 plus BC30205 on the keyword
-    ''' (line 6), and without the property - at the plain script top level - it answered the same two diagnostics
-    ''' (line 5). The window adds nothing here, because that arm carries no script guard at all, unlike its
-    ''' <c>AddHandler</c>/<c>RemoveHandler</c> neighbours, so no part of this task's criterion reaches it.
+    ''' G8 arm two, <c>RaiseEvent</c> (<c>Parser.vb</c>, the <c>RaiseEventKeyword</c> arm).
     ''' <para>
-    ''' Decision, recorded rather than left silent: <c>RaiseEvent</c> as a top level statement of a script is
-    ''' <em>not</em> in scope for this issue - it is a separate defect of the same dispatcher arm, and loosening it
-    ''' would mean adding the guard that <c>:838</c>/<c>:844</c> have, which is the neighbour of the
-    ''' <c>Get</c>/<c>Set</c> arms this task is told to leave alone. It is to be filed as its own issue. The
-    ''' plain-top-level half is already pinned by
-    ''' <c>ScriptModeStatementConformanceTests.TopLevelRaiseEventStatement_IsReported</c>; what this cell adds is the
-    ''' measurement that the in-window shape is the same reading, so nobody has to wonder again.
+    ''' The pre-fix reading, measured on the published host and pinned by the previous revision of this cell: with an
+    ''' auto property in front of it the shape answered BC30188 plus BC30205 on the keyword (line 6), and without the
+    ''' property - at the plain script top level - it answered the same two diagnostics (line 5), because that arm
+    ''' carried no script guard and read the line as a custom event accessor declaration. It was deliberately left
+    ''' out of this task's scope then and filed as its own issue (keyword-toplevel-audit D3).
+    ''' </para>
+    ''' <para>
+    ''' <c>5f67241</c> (fix type of error messages) closed that issue: the arm now has the same <c>IsTopLevelScript</c>
+    ''' guard its <c>AddHandler</c>/<c>RemoveHandler</c> neighbours already had, so a top level <c>RaiseEvent</c> is an
+    ''' ordinary statement at both places and the window adds nothing. This cell pins that reading: no diagnostics at
+    ''' either level, the same signature, and a real <c>RaiseEventStatement</c> as the last member.
     ''' </para>
     ''' </summary>
     <Fact>
-    Public Sub G8_RaiseEventAsSuccessor_IsRefusedForTheSameReasonAsAtThePlainTopLevel()
+    Public Sub G8_RaiseEventAsSuccessor_IsAnOrdinaryStatementAtBothLevels()
         Dim withoutPropertySource =
             "Event Changed As System.EventHandler" & vbCrLf &
             "RaiseEvent Changed(Nothing, System.EventArgs.Empty)"
@@ -341,10 +341,17 @@ Public Class ScriptTopLevelAfterAutoPropertyTests
         Dim withoutProperty = ScriptDiagnostics(withoutPropertySource)
         Dim withProperty = ScriptDiagnostics(withPropertySource)
 
-        AssertExpectedDeclarationSquiggles(withoutProperty, withoutPropertySource, "RaiseEvent", "G8/RaiseEvent control")
-        AssertExpectedDeclarationSquiggles(withProperty, withPropertySource, "RaiseEvent", "G8/RaiseEvent in the window")
-
+        ' The historic defect is still named explicitly, and the explicit Assert.Empty below keeps the cell from
+        ' passing on any other diagnostic that merely replaces BC30188.
+        AssertNoExpectedDeclaration(withoutProperty, "G8/RaiseEvent control")
+        AssertNoExpectedDeclaration(withProperty, "G8/RaiseEvent in the window")
+        Assert.Empty(withoutProperty)
+        Assert.Empty(withProperty)
         Assert.Equal(Signature(withoutProperty), Signature(withProperty))
+
+        ' The line is really a raise, not an accessor declaration left behind by a failed parse.
+        Assert.Equal(SyntaxKind.RaiseEventStatement,
+                     CleanScriptMembers(withPropertySource).Last().Kind())
     End Sub
 
 #End Region

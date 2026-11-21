@@ -8,7 +8,7 @@ Imports System.Collections.Immutable
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' A requested package that ships native assets, but none for the current RID (design §G2.4).
+    ''' A requested package that ships native assets, but none for the current RID.
     ''' </summary>
     Friend NotInheritable Class MissingNativeAssetsInfo
 
@@ -34,7 +34,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Pure detector over a restore's <c>project.assets.json</c> (design §G2.4): finds requested packages
+    ''' Pure detector over a restore's <c>project.assets.json</c>: finds requested packages
     ''' that carry native assets (a <c>runtimeTargets</c>/<c>runtime</c> entry under a
     ''' <c>runtimes/&lt;rid&gt;/native</c> path or an <c>assetType</c> of "native") but none for the host
     ''' RID. RID fallback already happened inside NuGet restore; this only makes the outcome legible so the

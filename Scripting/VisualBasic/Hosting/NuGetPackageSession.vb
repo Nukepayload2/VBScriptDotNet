@@ -12,8 +12,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
     ''' Host capability that scopes NuGet restore (TFM / net48 flag). Injectable so tests can drive the
-    ''' net48 host branch of the nuget-reference design on a net10 runner; defaults to a running-host
-    ''' self-check.
+    ''' net48 host branch on a net10 runner; defaults to a running-host self-check.
     ''' </summary>
     Friend NotInheritable Class NuGetHostCapability
 
@@ -24,8 +23,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Sub
 
         ''' <summary>
-        ''' Host TFM: framework name of the core library (e.g. ".NETCoreApp,Version=v10.0"); tests may
-        ''' inject the short form "net48".
+        ''' Host TFM: the framework the host process runs on, e.g. <c>.NETCoreApp,Version=v10.0</c> or
+        ''' <c>.NETFramework,Version=v4.7.2</c>; tests may inject the short form "net48".
         ''' </summary>
         Friend ReadOnly Property TargetFramework As String
             Get
@@ -33,22 +32,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             End Get
         End Property
 
+        ''' <summary>
+        ''' True when the host runs on .NET Framework (any version, e.g. net472), which is the capability
+        ''' boundary called "net48": the .NET Framework host cannot probe native assets. Also true
+        ''' for the injected short form "net48".
+        ''' </summary>
         Friend ReadOnly Property IsNet48 As Boolean
             Get
+                Dim parsed = ParseFrameworkName(_targetFramework)
+                If parsed IsNot Nothing Then
+                    Return parsed.Identifier.Equals(".NETFramework", StringComparison.OrdinalIgnoreCase)
+                End If
                 Return String.Equals(_targetFramework, "net48", StringComparison.OrdinalIgnoreCase) OrElse
                    _targetFramework.StartsWith(".NETFramework,", StringComparison.OrdinalIgnoreCase)
             End Get
         End Property
 
         ''' <summary>
-        ''' Short target-framework moniker used in the temporary restore project (design §E): "net48" for the
-        ''' .NET Framework host, "net10.0" for the default .NET (net10) host.
+        ''' Short target-framework moniker used in the temporary restore project: the version the
+        ''' host actually runs on (<c>net472</c>, <c>net48</c>, <c>net10.0</c>), so a 4.7.2 host restores the
+        ''' 4.7.2 graph instead of a hard-coded net48 one. An unparseable injected short form is returned
+        ''' unchanged.
         ''' </summary>
         Friend ReadOnly Property ShortTargetFramework As String
             Get
-                If IsNet48 Then
-                    Return "net48"
-                End If
                 Dim shortName As String = Nothing
                 If TryGetShortFrameworkName(_targetFramework, shortName) Then
                     Return shortName
@@ -58,60 +65,158 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Property
 
         ''' <summary>
-        ''' Framework name mirrored into the restore cache key and the net48 reference-assemblies mapping
-        ''' (design §E1). Long form for the .NET host (".NETCoreApp,Version=v10.0") so the key stays stable
-        ''' and machine-independent; it is <em>not</em> used to key the assets "targets" section, which the
-        ''' reader addresses by the short target-framework moniker (see <see cref="ShortTargetFramework"/>).
+        ''' Framework name mirrored into the restore cache key and the reference-assemblies package mapping:
+        ''' the canonical long form of the running host, so the key stays stable and
+        ''' machine-independent. It is <em>not</em> used to key the assets "targets" section, which the reader
+        ''' addresses by the short target-framework moniker (see <see cref="ShortTargetFramework"/>).
         ''' </summary>
         Friend ReadOnly Property FrameworkNameForRestore As String
             Get
+                Dim parsed = ParseFrameworkName(_targetFramework)
+                If parsed IsNot Nothing Then
+                    Return parsed.FullName
+                End If
+
                 If IsNet48 Then
+                    ' Injected short form ("net48"): keep the long name that branch has always used.
                     Return ".NETFramework,Version=v4.8"
                 End If
+
                 Return _targetFramework
             End Get
         End Property
 
-        Private Shared Function TryGetShortFrameworkName(frameworkName As String, ByRef shortName As String) As Boolean
-            If String.IsNullOrEmpty(frameworkName) Then
-                Return False
+        Private Shared Function ParseFrameworkName(frameworkName As String) As FrameworkName
+            If String.IsNullOrWhiteSpace(frameworkName) Then
+                Return Nothing
             End If
 
-            Dim parsed As FrameworkName = Nothing
             Try
-                parsed = New FrameworkName(frameworkName)
+                Return New FrameworkName(frameworkName)
             Catch generatedExceptionName As Exception
-                Return False
+                Return Nothing
             End Try
+        End Function
+
+        Private Shared Function TryGetShortFrameworkName(frameworkName As String, ByRef shortName As String) As Boolean
+            Dim parsed = ParseFrameworkName(frameworkName)
+            If parsed Is Nothing Then
+                Return False
+            End If
 
             If parsed.Identifier.Equals(".NETCoreApp", StringComparison.OrdinalIgnoreCase) Then
                 shortName = "net" & parsed.Version.Major.ToString() & "." & parsed.Version.Minor.ToString()
                 Return True
             End If
             If parsed.Identifier.Equals(".NETFramework", StringComparison.OrdinalIgnoreCase) Then
-                Dim minor = parsed.Version.Minor
-                shortName = "net" & parsed.Version.Major.ToString() & If(minor = 0, "", minor.ToString())
+                shortName = GetNetFrameworkShortName(parsed.Version)
                 Return True
             End If
             Return False
         End Function
 
+        ''' <summary>
+        ''' .NET Framework monikers carry every non-zero version component: 4.0 → net40, 4.5 → net45,
+        ''' 4.5.1 → net451, 4.7.2 → net472, 4.8 → net48.
+        ''' </summary>
+        Private Shared Function GetNetFrameworkShortName(version As Version) As String
+            Dim moniker = "net" & version.Major.ToString()
+            If version.Minor > 0 Then
+                moniker &= version.Minor.ToString()
+            ElseIf version.Build <= 0 Then
+                ' 4.0 -> net40 (a bare "net4" is not a TFM).
+                moniker &= "0"
+            End If
+            If version.Build > 0 Then
+                moniker &= version.Build.ToString()
+            End If
+            Return moniker
+        End Function
+
+        ''' <summary>
+        ''' Detects the running host's framework name, in descending order of reliability:
+        ''' <list type="number">
+        ''' <item>the entry assembly's <see cref="TargetFrameworkAttribute"/> (the host application's own target);</item>
+        ''' <item><see cref="AppContext.TargetFrameworkName"/> (the runtime's view of that target);</item>
+        ''' <item><see cref="RuntimeInformation.FrameworkDescription"/>, mapped onto a framework name
+        ''' (".NET Framework 4.8.9363.0" → ".NETFramework,Version=v4.8"; ".NET 10.0.15" →
+        ''' ".NETCoreApp,Version=v10.0").</item>
+        ''' </list>
+        ''' <para>
+        ''' The core library is deliberately not a source: mscorlib carries no
+        ''' <see cref="TargetFrameworkAttribute"/> at run time on .NET Framework, so reading
+        ''' <c>GetType(Object).Assembly</c> fell through to the free-form framework description and wrote a
+        ''' value MSBuild cannot parse (".NET Framework 4.8.9363.0" → NETSDK1013) into the temporary restore
+        ''' project. Every branch here returns either a name <see cref="FrameworkName"/> can parse or
+        ''' <see langword="Nothing"/>.
+        ''' </para>
+        ''' </summary>
         Friend Shared Function CreateDefault() As NuGetHostCapability
-            Dim frameworkName = GetType(Object).Assembly.GetCustomAttribute(Of TargetFrameworkAttribute)()
-            Dim tfm = If(frameworkName Is Nothing, RuntimeInformation.FrameworkDescription, frameworkName.FrameworkName)
-            Return New NuGetHostCapability(tfm)
+            Return New NuGetHostCapability(DetectHostFrameworkName())
+        End Function
+
+        Private Shared Function DetectHostFrameworkName() As String
+            Dim entry = Assembly.GetEntryAssembly()
+            If entry IsNot Nothing Then
+                Dim attribute = entry.GetCustomAttribute(Of TargetFrameworkAttribute)()
+                If attribute IsNot Nothing AndAlso ParseFrameworkName(attribute.FrameworkName) IsNot Nothing Then
+                    Return attribute.FrameworkName
+                End If
+            End If
+
+            Dim contextName = AppContext.TargetFrameworkName
+            If ParseFrameworkName(contextName) IsNot Nothing Then
+                Return contextName
+            End If
+
+            Return MapFrameworkDescription(RuntimeInformation.FrameworkDescription)
+        End Function
+
+        Private Shared Function MapFrameworkDescription(description As String) As String
+            If String.IsNullOrWhiteSpace(description) Then
+                Return Nothing
+            End If
+
+            Dim text = description.Trim()
+            If text.StartsWith(".NET Framework", StringComparison.OrdinalIgnoreCase) Then
+                Dim version = ParseDescriptionVersion(text)
+                If version IsNot Nothing Then
+                    Return ".NETFramework,Version=v" & version.Major.ToString() & "." & version.Minor.ToString()
+                End If
+                Return Nothing
+            End If
+
+            If text.StartsWith(".NET ", StringComparison.OrdinalIgnoreCase) OrElse
+               text.StartsWith(".NET Core", StringComparison.OrdinalIgnoreCase) Then
+                Dim version = ParseDescriptionVersion(text)
+                If version IsNot Nothing Then
+                    Return ".NETCoreApp,Version=v" & version.Major.ToString() & "." & version.Minor.ToString()
+                End If
+            End If
+
+            Return Nothing
+        End Function
+
+        Private Shared Function ParseDescriptionVersion(description As String) As Version
+            For Each token In description.Split({" "c}, StringSplitOptions.RemoveEmptyEntries)
+                Dim candidate As Version = Nothing
+                If Version.TryParse(token, candidate) Then
+                    Return candidate
+                End If
+            Next
+            Return Nothing
         End Function
     End Class
 
     ''' <summary>
     ''' Session state behind NuGet package resolution for one script/REPL host run. Created empty; the
-    ''' restore coordinator (design §D/§E) fills the package/asset state, the resolver reads it only.
+    ''' restore coordinator fills the package/asset state, the resolver reads it only.
     ''' </summary>
     Friend NotInheritable Class NuGetPackageSession
 
         Private ReadOnly _hostCapability As NuGetHostCapability
 
-        ' Restore-populated state (design §D/§E replaces these after a restore). Package key = normalized
+        ' Restore-populated state, replaced after a restore. Package key = normalized
         ' "<name>,<version>"; asset arrays keep index 0 = main asset. Empty until a restore exits 0.
         Private _compilePaths As ImmutableDictionary(Of String, ImmutableArray(Of String)) = ImmutableDictionary.Create(Of String, ImmutableArray(Of String))(StringComparer.OrdinalIgnoreCase)
         Private _runtimePaths As ImmutableArray(Of String) = ImmutableArray(Of String).Empty
@@ -153,7 +258,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Property
 
         ''' <summary>
-        ''' Deduplicated native probe root directories (design §G, the <c>runtimes/&lt;rid&gt;/native</c>
+        ''' Deduplicated native probe root directories (the <c>runtimes/&lt;rid&gt;/native</c>
         ''' folders) collected from the last restore. Empty when the package graph has no native assets.
         ''' </summary>
         Friend ReadOnly Property NativeRootDirectories As ImmutableArray(Of String)
@@ -163,12 +268,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Property
 
         ''' <summary>
-        ''' Writes the assets of a successful restore into the session (design §E4). Keys are canonical
+        ''' Writes the assets of a successful restore into the session. Keys are canonical
         ''' package keys (lower-cased id + ',' + version) produced by
         ''' <see cref="NuGetPackageSet.CanonicalKey"/>; each value lists the requested package's own compile
         ''' asset first and its dependency closure afterwards. Runtime paths are the managed implementation
         ''' assets registered with the interactive loader; native root directories are the deduplicated
-        ''' <c>runtimes/&lt;rid&gt;/native</c> probe roots handed to the loader (design §G).
+        ''' <c>runtimes/&lt;rid&gt;/native</c> probe roots handed to the loader.
         ''' </summary>
         Friend Sub WriteRestoredAssets(
             compilePathsByKey As ImmutableDictionary(Of String, ImmutableArray(Of String)),

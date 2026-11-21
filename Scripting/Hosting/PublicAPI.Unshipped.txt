@@ -1,0 +1,174 @@
+Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput.ConsoleScriptOutput() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput.Error() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput.Out() -> System.IO.TextWriter
+Shared Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput.Instance() -> Nukepayload2.VBScriptDotNet.Hosting.ConsoleScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.IScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.IScriptOutput.Error() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.IScriptOutput.Out() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner.CompileCodeAsync(code As String, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner.CompileFileAsync(path As String, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner.EvaluateAsync(Of T)(code As String, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of T)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner.RunCodeAsync(code As String, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptRunner.RunFileAsync(path As String, arguments As System.Collections.Generic.IReadOnlyList(Of String) = Nothing, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.GetVariable(name As String) -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.IsCompleteSubmission(code As String) -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.Reset() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.SubmitAsync(code As String, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession.Variables() -> System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable)
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSessionFactory
+Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSessionFactory.CreateSession(options As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions) -> Nukepayload2.VBScriptDotNet.Hosting.IVBScriptSession
+Nukepayload2.VBScriptDotNet.Hosting.LoggerScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.LoggerScriptOutput.Dispose() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.LoggerScriptOutput.Error() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.LoggerScriptOutput.LoggerScriptOutput(logger As Microsoft.Extensions.Logging.ILogger) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.LoggerScriptOutput.Out() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput.Error() -> System.IO.TextWriter
+Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput.NullScriptOutput() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput.Out() -> System.IO.TextWriter
+Shared Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput.Instance() -> Nukepayload2.VBScriptDotNet.Hosting.NullScriptOutput
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptBusyException
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptBusyException.VBScriptBusyException() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptBusyException.VBScriptBusyException(message As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptBusyException.VBScriptBusyException(message As String, innerException As System.Exception) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.Column() -> Integer
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.FilePath() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.Id() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.Line() -> Integer
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.Message() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.Severity() -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.VBScriptDiagnostic(id As String, severity As Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity, message As String, filePath As String, line As Integer, column As Integer) -> Void
+Overrides Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic.ToString() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity.Error = 3 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity.Hidden = 0 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity.Info = 1 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity.Warning = 2 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnosticSeverity
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptException
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptException.VBScriptException() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptException.VBScriptException(message As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptException.VBScriptException(message As String, innerException As System.Exception) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptGlobals
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptGlobals.Args() -> System.Collections.Generic.IList(Of String)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptGlobals.VBScriptGlobals() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptGlobals.VBScriptGlobals(output As Nukepayload2.VBScriptDotNet.Hosting.IScriptOutput) -> Void
+Overridable Nukepayload2.VBScriptDotNet.Hosting.VBScriptGlobals.Print(value As Object) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptingServiceCollectionExtensions
+Shared Nukepayload2.VBScriptDotNet.Hosting.VBScriptingServiceCollectionExtensions.AddVBScripting(services As Microsoft.Extensions.DependencyInjection.IServiceCollection, configure As System.Action(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions) = Nothing) -> Microsoft.Extensions.DependencyInjection.IServiceCollection
+Shared Nukepayload2.VBScriptDotNet.Hosting.VBScriptingServiceCollectionExtensions.AddVBScripting(builder As Microsoft.Extensions.Hosting.IHostApplicationBuilder, configure As System.Action(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions) = Nothing) -> Microsoft.Extensions.Hosting.IHostApplicationBuilder
+Shared Nukepayload2.VBScriptDotNet.Hosting.VBScriptingServiceCollectionExtensions.UseConsoleOutput(services As Microsoft.Extensions.DependencyInjection.IServiceCollection) -> Microsoft.Extensions.DependencyInjection.IServiceCollection
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptHostException
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptHostException.VBScriptHostException() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptHostException.VBScriptHostException(message As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptHostException.VBScriptHostException(message As String, innerException As System.Exception) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel.Debug = 0 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel.Release = 1 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.EmitDebugInformation() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.EmitDebugInformation(value As Boolean) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.FileEncoding() -> System.Text.Encoding
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.FileEncoding(value As System.Text.Encoding) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.Globals() -> Object
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.Globals(value As Object) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.GlobalsType() -> System.Type
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.GlobalsType(value As System.Type) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.Imports() -> System.Collections.Generic.IList(Of String)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.Imports(value As System.Collections.Generic.IList(Of String)) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.OptimizationLevel() -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.OptimizationLevel(value As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptimizationLevel) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.References() -> System.Collections.Generic.IList(Of String)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.References(value As System.Collections.Generic.IList(Of String)) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.ScriptArguments() -> System.Collections.Generic.IReadOnlyList(Of String)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.ScriptArguments(value As System.Collections.Generic.IReadOnlyList(Of String)) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.UseDesktopReferences() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.UseDesktopReferences(value As Boolean) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.VBScriptOptions() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.WorkingDirectory() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.WorkingDirectory(value As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.Diagnostics() -> System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.Exception() -> System.Exception
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.ExitCode() -> Integer
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.Output() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.Diagnostics() -> System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.Exception() -> System.Exception
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.IsFaulted() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.PrintedValue() -> Object
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.ReturnValue() -> Object
+Overrides Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionResult.ToString() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState.Complete = 0 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState.Incomplete = 1 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState.Invalid = 2 -> Nukepayload2.VBScriptDotNet.Hosting.VBScriptSubmissionState
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable.IsReadOnly() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable.Name() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable.TypeName() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable.Value() -> Object
+Overrides Nukepayload2.VBScriptDotNet.Hosting.VBScriptVariable.ToString() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.ReturnValue() -> Object
+Overrides Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult.ToString() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptException
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptException.Diagnostics() -> System.Collections.Generic.IReadOnlyList(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic)
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptException.VBScriptScriptException(diagnostics As System.Collections.Generic.IReadOnlyList(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic)) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptNotFoundException
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptNotFoundException.VBScriptScriptNotFoundException() -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptNotFoundException.VBScriptScriptNotFoundException(message As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptScriptNotFoundException.VBScriptScriptNotFoundException(message As String, innerException As System.Exception) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource.FilePath() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource.Text() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource.VBScriptSource(text As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource.VBScriptSource(text As String, filePath As String) -> Void
+Overrides Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource.ToString() -> String
+Nukepayload2.VBScriptDotNet.Scripting.VBScript
+Shared Nukepayload2.VBScriptDotNet.Scripting.VBScript.CompileAsync(code As String, options As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions = Nothing, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Shared Nukepayload2.VBScriptDotNet.Scripting.VBScript.EvaluateAsync(Of T)(code As String, options As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions = Nothing, globals As Object = Nothing, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of T)
+Shared Nukepayload2.VBScriptDotNet.Scripting.VBScript.RunAsync(code As String, options As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions = Nothing, globals As Object = Nothing, cancellationToken As System.Threading.CancellationToken = Nothing) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptResult)
+Nukepayload2.VBScriptDotNet.Hosting.INuGetPackageResolver
+Nukepayload2.VBScriptDotNet.Hosting.INuGetPackageResolver.Resolve(packageName As String, packageVersion As String) -> System.Collections.Immutable.ImmutableArray(Of String)
+Nukepayload2.VBScriptDotNet.Hosting.INuGetRestoreRunner
+Nukepayload2.VBScriptDotNet.Hosting.INuGetRestoreRunner.GetInstalledSdkVersionsAsync(cancellationToken As System.Threading.CancellationToken) -> System.Threading.Tasks.Task(Of System.Collections.Immutable.ImmutableArray(Of String))
+Nukepayload2.VBScriptDotNet.Hosting.INuGetRestoreRunner.RestoreAsync(request As Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest, cancellationToken As System.Threading.CancellationToken) -> System.Threading.Tasks.Task(Of Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome)
+Nukepayload2.VBScriptDotNet.Hosting.INuGetRestoreService
+Nukepayload2.VBScriptDotNet.Hosting.INuGetRestoreService.PrepareCompilationAsync(source As Nukepayload2.VBScriptDotNet.Hosting.VBScriptSource, options As Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions, cancellationToken As System.Threading.CancellationToken) -> System.Threading.Tasks.Task(Of System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic))
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext.PlatformVersion() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext.RuntimeIdentifier() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext.SdkVersion() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext.SourceFingerprint() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext.TargetFramework() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile.Content() -> System.Collections.Immutable.ImmutableArray(Of Byte)
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile.NuGetRestoreConfigFile(relativePath As String, content As System.Collections.Immutable.ImmutableArray(Of Byte)) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile.RelativePath() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.AssetsJsonText() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.ConfigFailurePath() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.ConfigFailureReason() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.Diagnostics() -> System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic)
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.ExitCode() -> Integer
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.NuGetCacheWritten() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.NuGetRestoreOutcome(exitCode As Integer, standardError As String, nuGetCacheWritten As Boolean, assetsJsonText As String, diagnostics As System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.VBScriptDiagnostic) = Nothing, configFailurePath As String = Nothing, configFailureReason As String = Nothing) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.StandardError() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreOutcome.Succeeded() -> Boolean
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.CacheDirectory() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.GlobalJson() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.MirrorFiles() -> System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile)
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.NuGetRestoreRequest(packageName As String, packageVersion As String) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.NuGetRestoreRequest(packageName As String, packageVersion As String, cacheDirectory As String, projectXml As String, globalJson As String, projectRelativePath As String = Nothing, mirrorFiles As System.Collections.Immutable.ImmutableArray(Of Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreConfigFile) = Nothing, sourceFingerprint As String = Nothing) -> Void
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.PackageName() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.PackageVersion() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.ProjectRelativePath() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.ProjectXml() -> String
+Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreRequest.SourceFingerprint() -> String
+Nukepayload2.VBScriptDotNet.Hosting.VBScriptOptions.RestoreContext() -> Nukepayload2.VBScriptDotNet.Hosting.NuGetRestoreContext
+Shared Nukepayload2.VBScriptDotNet.Hosting.VBScriptingServiceCollectionExtensions.AddVBScriptNuGetRestore(services As Microsoft.Extensions.DependencyInjection.IServiceCollection) -> Microsoft.Extensions.DependencyInjection.IServiceCollection

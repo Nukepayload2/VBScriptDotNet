@@ -71,7 +71,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' Sorts and de-duplicates a collection of canonical package keys so set equality is
-        ''' order-independent (design §E1: the exact package set is canonical-sorted before hashing).
+        ''' order-independent (the exact package set is canonical-sorted before hashing).
         ''' </summary>
         Friend Shared Function Normalize(keys As IEnumerable(Of String)) As ImmutableArray(Of String)
             Dim ordered = New List(Of String)()
@@ -110,10 +110,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Restore trigger policy (design §E3): a pure decision function over the last exit-0 package set and
-    ''' the set referenced by the current submission. v1 deliberately does not persist the exit-0 set across
-    ''' processes, so a fresh host always sees an empty previous set and re-runs restore (NuGet no-op restore
-    ''' is a cheap re-verification, design E7).
+    ''' Restore trigger policy: a pure decision function over the last exit-0 package set and
+    ''' the set referenced by the current submission. The exit-0 set is deliberately not persisted across
+    ''' processes, so a fresh host always sees an empty previous set and re-runs restore (a NuGet no-op
+    ''' restore is a cheap re-verification).
     ''' </summary>
     Friend NotInheritable Class NuGetRestorePolicy
 

@@ -11,9 +11,9 @@ Imports System.Threading.Tasks
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' A single restore request: where the temporary project lives, the byte-stable project content
-    ''' (design §E), and the directory-level <c>NuGet.config</c> files mirrored from the script's directory
-    ''' chain (design §C1/§C2). The runner writes the mirrored config and the project once, then runs
+    ''' A single restore request: where the temporary project lives, the byte-stable project content,
+    ''' and the directory-level <c>NuGet.config</c> files mirrored from the script's directory
+    ''' chain. The runner writes the mirrored config and the project once, then runs
     ''' <c>dotnet restore</c> against the project.
     ''' </summary>
     Friend NotInheritable Class RestoreRequest
@@ -22,7 +22,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                        projectXml As String,
                        globalJson As String,
                        Optional mirrorFiles As ImmutableArray(Of SourceConfigFile) = Nothing,
-                       Optional projectRelativePath As String = Nothing)
+                       Optional projectRelativePath As String = Nothing,
+                       Optional packageNames As ImmutableArray(Of String) = Nothing,
+                       Optional packageVersions As ImmutableArray(Of String) = Nothing,
+                       Optional sourceFingerprint As String = Nothing)
             If String.IsNullOrWhiteSpace(cacheDirectory) Then
                 Throw New ArgumentException("Cache directory required.", NameOf(cacheDirectory))
             End If
@@ -32,6 +35,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             _globalJson = If(globalJson, String.Empty)
             _mirrorFiles = If(mirrorFiles.IsDefault, ImmutableArray(Of SourceConfigFile).Empty, mirrorFiles)
             _projectRelativePath = If(String.IsNullOrEmpty(projectRelativePath), NuGetSourceConfig.ProjectFileName, projectRelativePath)
+            _packageNames = If(packageNames.IsDefault, ImmutableArray(Of String).Empty, packageNames)
+            _packageVersions = If(packageVersions.IsDefault, ImmutableArray(Of String).Empty, packageVersions)
+            _sourceFingerprint = If(sourceFingerprint, String.Empty)
         End Sub
 
         Private ReadOnly _cacheDirectory As String
@@ -39,6 +45,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Private ReadOnly _globalJson As String
         Private ReadOnly _mirrorFiles As ImmutableArray(Of SourceConfigFile)
         Private ReadOnly _projectRelativePath As String
+        Private ReadOnly _packageNames As ImmutableArray(Of String)
+        Private ReadOnly _packageVersions As ImmutableArray(Of String)
+        Private ReadOnly _sourceFingerprint As String
 
         Friend ReadOnly Property CacheDirectory As String
             Get
@@ -48,8 +57,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' The temporary project's path. It sits at the depth of the script's own directory below the
-        ''' mirror root (design §C2), so NuGet walks a configuration chain identical to the real one; with no
-        ''' directory-level config it is <c>&lt;cache&gt;\project.vbproj</c> exactly as before.
+        ''' mirror root, so NuGet walks a configuration chain identical to the real one; with no
+        ''' directory-level config it is <c>&lt;cache&gt;\project.vbproj</c>.
         ''' </summary>
         Friend ReadOnly Property ProjectFilePath As String
             Get
@@ -74,6 +83,40 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         Friend ReadOnly Property MirrorFiles As ImmutableArray(Of SourceConfigFile)
             Get
                 Return _mirrorFiles
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Path of the generated project relative to <see cref="CacheDirectory"/>. The host-facing
+        ''' restore request carries it verbatim so an injectable runner can place the project identically.
+        ''' </summary>
+        Friend ReadOnly Property ProjectRelativePath As String
+            Get
+                Return _projectRelativePath
+            End Get
+        End Property
+
+        ''' <summary>Package ids the restore covers, in request order (informational for an injectable runner).</summary>
+        Friend ReadOnly Property PackageNames As ImmutableArray(Of String)
+            Get
+                Return _packageNames
+            End Get
+        End Property
+
+        ''' <summary>Versions parallel to <see cref="PackageNames"/>.</summary>
+        Friend ReadOnly Property PackageVersions As ImmutableArray(Of String)
+            Get
+                Return _packageVersions
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Source-config fingerprint that keyed this restore (the host restore context's value when the hosting
+        ''' facade built the coordinator), so an injectable runner can observe the same input the cache key used.
+        ''' </summary>
+        Friend ReadOnly Property SourceFingerprint As String
+            Get
+                Return _sourceFingerprint
             End Get
         End Property
 
@@ -116,7 +159,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Raw outcome of one restore run (design §E3): exit code, stderr, whether NuGet wrote its own
+    ''' Raw outcome of one restore run: exit code, stderr, whether NuGet wrote its own
     ''' <c>obj/project.nuget.cache</c>, and the generated <c>obj/project.assets.json</c> text on success.
     ''' No interpretation is performed here; decision/translation are separate pure functions. A mirrored
     ''' config file that could not be written is reported separately from a restore failure, so the
@@ -184,7 +227,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Injectable restore runner seam (design §E3). Production is <see cref="DotNetRestoreRunner"/>;
+    ''' Injectable restore runner seam. Production is <see cref="DotNetRestoreRunner"/>;
     ''' tests inject a fake that returns fixed outcomes and assets text without spawning a process.
     ''' </summary>
     Friend Interface IRestoreRunner
@@ -203,7 +246,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Interface
 
     ''' <summary>
-    ''' Pure SDK-version selection over the installed-SDK list (design §E3). The temporary project's
+    ''' Pure SDK-version selection over the installed-SDK list. The temporary project's
     ''' global.json pins the selected version with <c>rollForward: latestMajor</c>, so any installed SDK is
     ''' acceptable and the highest version is chosen for determinism.
     ''' </summary>
@@ -273,7 +316,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             ' Mirror the script's directory-level configuration into the key directory first: the generated
             ' project sits at the script's depth below the mirror root, so NuGet's upward configuration walk
             ' from the project sees the same files, in the same order, as it would from the real script
-            ' directory (design §C1/§C2) — credentials and <clear/> semantics included, because the files are
+            ' directory — credentials and <clear/> semantics included, because the files are
             ' copied verbatim rather than merged or re-expressed as project properties.
             Dim mirrorFailurePath As String = Nothing
             Dim mirrorFailureReason As String = Nothing
@@ -289,7 +332,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                     Return Task.FromResult(New RestoreOutcome(NuGetRestoreDiagnostics.DotNetMissingExitCode, String.Empty, False, Nothing))
                 End If
                 If processResult.ExitCode <> 0 Then
-                    Return Task.FromResult(New RestoreOutcome(processResult.ExitCode, processResult.StandardError, False, Nothing))
+                    ' MSBuild reports project-level failures (NETSDK1013 and friends) on stdout, not stderr;
+                    ' composing both keeps VBI1009 from degrading to an empty message.
+                    Return Task.FromResult(New RestoreOutcome(
+                        processResult.ExitCode,
+                        NuGetRestoreDiagnostics.ComposeFailureDetail(processResult.StandardError, processResult.StandardOutput),
+                        False,
+                        Nothing))
                 End If
 
                 ' NuGet writes obj beside the project file, which is below the mirror root once the script's
@@ -317,12 +366,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Writes the byte-stable project and its global.json, once each (design §E). The project's parent
+        ''' Writes the byte-stable project and its global.json, once each. The project's parent
         ''' directory is created first: with a directory-level config the project sits below the mirror root,
-        ''' and <see cref="WriteOnce"/> itself never creates directories — without this, that layout failed
-        ''' with a <see cref="DirectoryNotFoundException"/> that surfaced as a bogus "SDK missing" diagnostic
-        ''' (found by a real <c>vbi</c> run, not by the request-shape tests). Extracted so the deployment
-        ''' layout can be verified without spawning a process.
+        ''' and <see cref="WriteOnce"/> itself never creates directories — without this, that layout fails
+        ''' with a <see cref="DirectoryNotFoundException"/> that surfaces as a bogus "SDK missing" diagnostic.
+        ''' Extracted so the deployment layout can be verified without spawning a process.
         ''' </summary>
         Friend Shared Sub WriteProjectFiles(request As RestoreRequest)
             Directory.CreateDirectory(request.ProjectDirectory)
@@ -332,11 +380,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' Mirrors the collected directory-level config files under <paramref name="cacheDirectory"/> at the
-        ''' same relative depth they had below the mirror root (design §C2), each written once and never
+        ''' same relative depth they had below the mirror root, each written once and never
         ''' rewritten: because the fingerprint is part of the cache key, an existing key directory can only
         ''' ever describe this exact config content. Returns False and reports the first failure through
         ''' <paramref name="failurePath"/>/<paramref name="failureReason"/> instead of throwing, so the
-        ''' coordinator can surface it as a configuration diagnostic (design §C5).
+        ''' coordinator can surface it as a configuration diagnostic.
         ''' </summary>
         Friend Shared Function WriteMirrorFiles(cacheDirectory As String,
                                                 files As ImmutableArray(Of SourceConfigFile),

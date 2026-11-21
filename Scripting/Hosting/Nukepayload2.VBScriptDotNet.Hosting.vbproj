@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net10.0;net472</TargetFrameworks>
+    <RootNamespace></RootNamespace>
+    <AssemblyName>Nukepayload2.VBScriptDotNet.Hosting</AssemblyName>
+    <!-- Sign with the shared Roslyn key (same file vbi uses) so the InternalsVisibleTo declarations of the
+         scripting/compiler assemblies, which carry that public key, admit this facade. Only Friend members
+         are consumed; no visibility in those assemblies is relaxed for this project. -->
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\..\Compilers\MicrosoftSharedPublicKey.snk</AssemblyOriginatorKeyFile>
+    <IsTrimmable>false</IsTrimmable>
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionSuffix>RC3</VersionSuffix>
+  </PropertyGroup>
+
+  <ItemGroup Label="Project References">
+    <!-- net10.0 consumes the net10.0 scripting build; net472 consumes its netstandard2.0 build, exactly the
+         closure vbi's net48 build already runs on. -->
+    <ProjectReference Include="..\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj"
+                      SetTargetFramework="TargetFramework=net10.0"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\VisualBasic\Microsoft.CodeAnalysis.VisualBasic.Scripting.vbproj"
+                      SetTargetFramework="TargetFramework=netstandard2.0"
+                      Condition="'$(TargetFramework)' == 'net472'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Abstractions only (R2): the host owns the concrete Microsoft.Extensions.Hosting packages. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The static facade lives one directory up (Scripting\VBScript.vb) so the package's two public
+         namespaces sit side by side at the Scripting root; default globbing only covers this folder. -->
+    <Compile Include="..\VBScript.vb" Link="VBScript.vb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The default references/imports travel inside the assembly: the same rsp vbi reads, parsed once. -->
+    <EmbeddedResource Include="..\..\Interactive\vbi\vbi.coreclr.rsp"
+                      LogicalName="Nukepayload2.VBScriptDotNet.Hosting.vbi.coreclr.rsp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Microsoft.CodeAnalysis.VisualBasic.Scripting.UnitTests" Key="$(MicrosoftSharedPublicKey)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PublicAPI Include="PublicAPI.Shipped.txt" />
+    <PublicAPI Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+</Project>

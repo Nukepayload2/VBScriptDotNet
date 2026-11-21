@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -1377,15 +1377,20 @@ End Class
                  </errors>)
     End Sub
 
+    ' 历史名：BC30195ERR_ExpectedSpecifier。`0c13fb9`（Fix error code of yield statement）给 `Custom`
+    ' 补了与方法体分派同形的前瞻（Parser.vb:832）：只有 `Custom Event` 才进入自定义事件声明，单独一个
+    ' `Custom` 保持标识符身份。模块体内裸标识符语句本来报 BC30188，所以这里的 30195 变成 30188 是有意的
+    ' 新行为，不是错误码回退——同一文件中 "标识符 + 声明" 形状的 BC30188ERR_ExpectedDeclaration_1
+    ' （`Unicode Sub sub1()`）就是同一组码的既有证据。
     <Fact()>
-    Public Sub BC30195ERR_ExpectedSpecifier()
+    Public Sub CustomKeywordAlone_IsReadAsIdentifierStatement()
         ParseAndVerify(<![CDATA[
                         Module Module1
                             Custom
                         End Module
                 ]]>,
             <errors>
-                <error id="30195"/>
+                <error id="30188"/>
             </errors>)
     End Sub
 

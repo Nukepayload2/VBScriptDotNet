@@ -7,12 +7,13 @@
 #Disable Warning RS2008, RS1032
 
 Imports System.Collections.Immutable
+Imports System.Text
 
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' Restore-failure diagnostics anchored at the offending <c>#R</c> line (design §D2/§E3 translation
-    ''' table). The mapping from a raw restore outcome to a diagnostic is a pure function so it can be unit
+    ''' Restore-failure diagnostics anchored at the offending <c>#R</c> line. The mapping from a raw
+    ''' restore outcome to a diagnostic is a pure function so it can be unit
     ''' tested without spawning a process.
     ''' </summary>
     Friend NotInheritable Class NuGetRestoreDiagnostics
@@ -25,7 +26,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' Exit code carried by a <see cref="RestoreOutcome"/> whose mirrored directory-level
-        ''' <c>NuGet.config</c> could not be written (design §C5). The configuration path and reason travel on
+        ''' <c>NuGet.config</c> could not be written. The configuration path and reason travel on
         ''' the outcome itself, so the coordinator reports them directly and never reaches the exit-code
         ''' translation table with this value.
         ''' </summary>
@@ -73,8 +74,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Private Shared ReadOnly s_net48Native As New DiagnosticDescriptor(
             id:="VBI1010",
-            title:="Package contains native assets unsupported by the net48 host",
-            messageFormat:="Package '{0}' contains native assets. The .NET Framework (net48) host cannot probe native libraries; run this script in the .NET (net10) host instead.",
+            title:="Package contains native assets unsupported by the .NET Framework host",
+            messageFormat:="Package '{0}' contains native assets. A .NET Framework host cannot probe native libraries; run this script in the .NET (net10.0) host instead.",
             category:="VBScriptingNuGet",
             defaultSeverity:=DiagnosticSeverity.Error,
             isEnabledByDefault:=True)
@@ -96,9 +97,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' Diagnostic for a directory-level <c>NuGet.config</c> the host could not read from the script's
-        ''' directory chain or could not mirror into the cache key directory (design §C5). Silently ignoring
-        ''' the file would restore from the wrong sources — the failure mode this task exists to remove — so
-        ''' it is an error naming the first failing path and the reason.
+        ''' directory chain or could not mirror into the cache key directory. Silently ignoring
+        ''' the file would restore from the wrong sources, so it is an error naming the first failing path
+        ''' and the reason.
         ''' </summary>
         Friend Shared Function CreateConfigFailureDiagnostic(path As String, reason As String, location As Location) As Diagnostic
             Return Diagnostic.Create(s_configFailure, location, If(path, String.Empty), If(String.IsNullOrEmpty(reason), "unknown error", reason))
@@ -109,7 +110,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Clarity diagnostic for a package whose native assets do not cover the current RID (design §G2.4).
+        ''' Clarity diagnostic for a package whose native assets do not cover the current RID.
         ''' RID fallback belongs to restore; this only surfaces what the restore selected so a missing native
         ''' probe root is reported up front instead of failing later with DllNotFoundException.
         ''' </summary>
@@ -118,8 +119,47 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Maps a raw restore outcome to a single <c>#R</c>-anchored diagnostic (design §E3 translation
-        ''' table): SDK missing, NU1101 package-not-found, network failure, or a generic first-line summary
+        ''' Maximum length of the restore transcript a diagnostic carries. A restore can print a long MSBuild
+        ''' log; the diagnostic only needs enough of it to be actionable.
+        ''' </summary>
+        Friend Const MaxFailureDetailLength As Integer = 8000
+
+        ''' <summary>
+        ''' Composes the transcript a restore-failure diagnostic is built from: stderr first (NuGet's own error
+        ''' channel, where every existing marker lives) and then stdout, because MSBuild writes NETSDK-style
+        ''' errors — including <c>NETSDK1013</c> — to stdout. Blank lines are dropped, duplicate lines are kept
+        ''' once, and the result is capped at <see cref="MaxFailureDetailLength"/>.
+        ''' </summary>
+        Friend Shared Function ComposeFailureDetail(stderr As String, stdout As String) As String
+            Dim builder As New StringBuilder()
+            Dim seen As New HashSet(Of String)(StringComparer.Ordinal)
+            AppendFailureLines(builder, seen, stderr)
+            AppendFailureLines(builder, seen, stdout)
+            Return builder.ToString().Trim()
+        End Function
+
+        Private Shared Sub AppendFailureLines(builder As StringBuilder, seen As HashSet(Of String), text As String)
+            If String.IsNullOrWhiteSpace(text) Then
+                Return
+            End If
+
+            For Each rawLine In text.Split(New Char() {Convert.ToChar(13), Convert.ToChar(10)}, StringSplitOptions.RemoveEmptyEntries)
+                Dim line = rawLine.Trim()
+                If line.Length = 0 OrElse Not seen.Add(line) Then
+                    Continue For
+                End If
+
+                If builder.Length + line.Length + Environment.NewLine.Length > MaxFailureDetailLength Then
+                    Exit For
+                End If
+
+                builder.AppendLine(line)
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' Maps a raw restore outcome to a single <c>#R</c>-anchored diagnostic:
+        ''' SDK missing, NU1101 package-not-found, network failure, or a generic first-line summary
         ''' with the exit code. Pure: caller supplies the already-located <paramref name="location"/> and the
         ''' affected package identity.
         ''' </summary>
@@ -149,10 +189,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Restore-failure diagnostic resolved against the request set being restored (design §E3). Unlike
+        ''' Restore-failure diagnostic resolved against the request set being restored. Unlike
         ''' the raw overload, it ties the <c>#R</c> anchor and the message package identity to whichever
         ''' requested package NuGet actually named in <paramref name="stderr"/> (NU1101 / NU1107), so a
-        ''' multi-package submission no longer anchors the first request while the message names a later one.
+        ''' multi-package submission anchors and names the package NuGet reported.
         ''' When NuGet names a package outside the requests (e.g. a missing transitive dependency) or no id
         ''' can be extracted, the anchor falls back to the most recently added request and the message falls
         ''' back to the exit-code summary instead of claiming a specific requested package failed.
@@ -271,14 +311,28 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         Private Shared Function FirstNonEmptyLine(text As String) As String
             Dim reader = New System.IO.StringReader(text)
+            Dim first As String = Nothing
             Dim line As String = reader.ReadLine()
             While line IsNot Nothing
                 If Not String.IsNullOrWhiteSpace(line) Then
-                    Return line.Trim()
+                    Dim trimmed = line.Trim()
+                    ' MSBuild writes its real error to stdout after localization noise ("正在确定要还原的项目…")
+                    ' and, depending on the SDK, the first non-blank line is that progress line. Prefer the
+                    ' first line that names an error; fall back to the first non-blank line when there is none.
+                    If LooksLikeErrorLine(trimmed) Then
+                        Return trimmed
+                    End If
+                    If first Is Nothing Then
+                        first = trimmed
+                    End If
                 End If
                 line = reader.ReadLine()
             End While
-            Return String.Empty
+            Return If(first, String.Empty)
+        End Function
+
+        Private Shared Function LooksLikeErrorLine(line As String) As Boolean
+            Return ContainsOrdinalIgnoreCase(line, "error") OrElse line.Contains("错误")
         End Function
 
         Private Shared Function ContainsOrdinalIgnoreCase(text As String, candidate As String) As Boolean

@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -154,31 +154,62 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting
                 sdkDir:=Path.GetDirectoryName(GetType(Object).Assembly.Location),
                 tempDir:=Path.GetTempPath())
 
+            Return RunInteractiveAsync(args, ConsoleIO.Default, buildPaths, interactiveResponseFileName)
+        End Function
+
+        ''' <summary>
+        ''' The vbi entry point split in two: file scripts and <c>/check</c> execute through the VB script
+        ''' engine (<see cref="ScriptCommandLineHost"/> + <see cref="ScriptRunnerCore"/>), while the interactive
+        ''' shapes still go through the vendored <see cref="CommandLineRunner"/> and its REPL loop - called,
+        ''' never modified.
+        ''' <para>
+        ''' The optional <see cref="ConsoleIO"/> and <see cref="BuildPaths"/> overload exists so the test harness
+        ''' can drive this exact construction with separated stdout/stderr and a controlled working directory,
+        ''' instead of rebuilding a second "vbi" out of the runner.
+        ''' </para>
+        ''' </summary>
+        Friend Shared Async Function RunInteractiveAsync(args() As String, console As ConsoleIO, buildPaths As BuildPaths, interactiveResponseFileName As String) As Task(Of Integer)
             Dim compiler = New VisualBasicInteractiveCompiler(
-                responseFile:=Path.Combine(vbiDirectory, interactiveResponseFileName),
+                responseFile:=Path.Combine(buildPaths.ClientDirectory, interactiveResponseFileName),
                 buildPaths:=buildPaths,
                 args:=args,
                 analyzerLoader:=New NotImplementedAnalyzerLoader())
 
-            ' NuGet restore wiring (design §C2/§D): interactive-only (compile mode never reaches this point).
+            ' NuGet restore wiring: interactive-only (compile mode never reaches this point).
             ' A NuGetPackageSession + NuGetPackageResolverImpl + NuGetRestoreCoordinator are threaded through
-            ' the CommandLineRunner optional ctor parameters; with no nuget references the coordinator returns
+            ' the host/runner optional parameters; with no nuget references the coordinator returns
             ' empty and the resolver is never consulted, so the default path stays unchanged. One shared
-            ' InteractiveAssemblyLoader is created here and handed to both the runner (so every submission's
-            ' ScriptBuilder registers into it) and the coordinator (so a successful restore pushes the
-            ' runtime-lib overrides and native probe roots before the script runs, design §G1/§G2).
+            ' InteractiveAssemblyLoader is created here and handed to both entries (so every submission's
+            ' ScriptBuilder registers into it) and to the coordinator (so a successful restore pushes the
+            ' runtime-lib overrides and native probe roots before the script runs).
             Dim session = New NuGetPackageSession()
             Dim assemblyLoader As New InteractiveAssemblyLoader()
+            Dim packageResolver = New NuGetPackageResolverImpl(session)
+            Dim restoreCoordinator = New NuGetRestoreCoordinator(session, loader:=assemblyLoader)
+
+            If ScriptCommandLineHost.IsScriptExecutionInvocation(compiler.Arguments) Then
+                Dim host = New ScriptCommandLineHost(
+                    console,
+                    compiler,
+                    VisualBasicScriptCompiler.Instance,
+                    VisualBasicObjectFormatter.Instance,
+                    packageResolver,
+                    restoreCoordinator,
+                    assemblyLoader)
+
+                Return Await host.RunAsync().ConfigureAwait(False)
+            End If
+
             Dim runner = New CommandLineRunner(
-                ConsoleIO.Default,
+                console,
                 compiler,
                 VisualBasicScriptCompiler.Instance,
                 VisualBasicObjectFormatter.Instance,
-                New NuGetPackageResolverImpl(session),
-                New NuGetRestoreCoordinator(session, loader:=assemblyLoader),
+                packageResolver,
+                restoreCoordinator,
                 assemblyLoader)
 
-            Return runner.RunInteractiveAsync()
+            Return Await runner.RunInteractiveAsync().ConfigureAwait(False)
         End Function
 
     End Class

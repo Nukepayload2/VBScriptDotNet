@@ -1,4 +1,4 @@
-﻿' Licensed to the .NET Foundation under one or more agreements.
+' Licensed to the .NET Foundation under one or more agreements.
 ' The .NET Foundation licenses this file to you under the MIT license.
 ' See the LICENSE file in the project root for more information.
 
@@ -904,9 +904,15 @@ p1 as vb$anonymous1
             </errors>)
     End Sub
 
+    ' 历史名：BC31140ERR_InvalidUseOfCustomModifier_ExpectedSpecifierAndInvalidEndSub。
+    ' `0c13fb9` 之后 `Custom` 只在后随 `Event` 时进入自定义事件声明（Parser.vb:832），`Custom sub goo()`
+    ' 因而读成「标识符语句 + 迟到的 Sub 声明」，与 `Unicode Sub sub1()`（ParseErrorTests.vb 的
+    ' BC30188ERR_ExpectedDeclaration_1）同形同码：BC30188 落在 `Custom`，BC32009 落在不是行首的
+    ' `sub goo()`。`End Sub` 因此有了归属，BC30429（缺 End Sub）不再出现。这是有意的新行为。
+    ' 第二个格子保留 BC31140 的覆盖：`Custom` 后随修饰符时仍由 ParseSpecifiers 报该码（Parser.vb:2097-2099）。
     <WorkItem(536278, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/536278")>
     <Fact>
-    Public Sub BC31140ERR_InvalidUseOfCustomModifier_ExpectedSpecifierAndInvalidEndSub()
+    Public Sub BC31140ERR_InvalidUseOfCustomModifier_AfterTheCustomGuard()
         ParseAndVerify(<![CDATA[
                       Module Module1
                        Custom sub goo()
@@ -915,9 +921,21 @@ p1 as vb$anonymous1
 
             ]]>,
             <errors>
-                <error id="30195"/>
+                <error id="30188"/>
+                <error id="32009"/>
+            </errors>)
+
+        ' `Custom` 在后随修饰符时才由 ParseSpecifiers 报 BC31140（Parser.vb:2097-2099）；此时分派已由
+        ' 前导修饰符接管，顶层前瞻不参与，所以这个码仍可达、仍要留住覆盖。
+        ParseAndVerify(<![CDATA[
+                      Module Module1
+                       Private Custom Sub goo()
+                       End Sub
+                      End Module
+
+            ]]>,
+            <errors>
                 <error id="31140"/>
-                <error id="30429"/>
             </errors>)
     End Sub
 

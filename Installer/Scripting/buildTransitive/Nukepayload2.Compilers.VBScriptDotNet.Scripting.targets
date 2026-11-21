@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<!--
+  Assembly-identity conflict check (R11, design G10).
+
+  This package carries fork builds of Microsoft.CodeAnalysis*.dll that have the same simple names and the same
+  Microsoft public key token as the official Roslyn packages. On .NET Framework that is one identity, and on .NET
+  Core the default AssemblyLoadContext binds by simple name, so whichever copy is loaded first wins for the whole
+  process. A README cannot enforce that: transitive dependencies, plugins and test hosts never read it. This check
+  turns the conflict into a build error instead of a run-time mystery.
+
+  The check reads @(PackageDependencies), the resolved dependency closure produced by the SDK (ResolvePackageAssets
+  / ResolvePackageDependenciesForBuild), not just @(PackageReference): a package that only arrives transitively
+  conflicts exactly the same way. Projects that do not run the SDK target (classic non-SDK projects) fall back to
+  @(PackageReference), which is direct-only; the package README states that difference.
+
+  Opting out: set VBScriptAllowRoslynPackages=true. Do this only if you isolate the load contexts yourself.
+-->
+<Project>
+  <PropertyGroup>
+    <VBScriptDotNetScriptingConflictCheckEnabled Condition="'$(VBScriptDotNetScriptingConflictCheckEnabled)' == ''">true</VBScriptDotNetScriptingConflictCheckEnabled>
+  </PropertyGroup>
+
+  <Target Name="_VBScriptDotNetCheckRoslynConflict"
+          AfterTargets="ResolvePackageDependenciesForBuild"
+          BeforeTargets="CoreCompile"
+          Condition="'$(VBScriptDotNetScriptingConflictCheckEnabled)' == 'true' And '$(VBScriptAllowRoslynPackages)' != 'true'">
+    <ItemGroup>
+      <!-- Preferred source: the transitive closure. -->
+      <_VBScriptConflictingPackage Include="@(PackageDependencies)"
+          Condition="'@(PackageDependencies)' != '' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '^Microsoft\.CodeAnalysis(\.|$)')) And !$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '\.Analyzers(\.|$)'))" />
+      <!-- Fallback for builds that do not produce PackageDependencies (classic non-SDK projects): direct
+           references only. -->
+      <_VBScriptConflictingPackage Include="@(PackageReference)"
+          Condition="'@(PackageDependencies)' == '' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '^Microsoft\.CodeAnalysis(\.|$)')) And !$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '\.Analyzers(\.|$)'))" />
+    </ItemGroup>
+
+    <Error Condition="'@(_VBScriptConflictingPackage)' != ''"
+           Text="Nukepayload2.Compilers.VBScriptDotNet.Scripting bundles its own fork of the Microsoft.CodeAnalysis assemblies, which is process-wide exclusive with the official Roslyn packages (same simple names, same public key token; whichever loads first wins). Conflicting package(s) detected in this project's dependency graph, including transitive dependencies and plugins: @(_VBScriptConflictingPackage->Distinct(), ', '). Remove the package reference(s). If you really need both copies in one build, set VBScriptAllowRoslynPackages=true and isolate the assembly load contexts yourself." />
+  </Target>
+</Project>

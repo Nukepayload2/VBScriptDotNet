@@ -1,6 +1,11 @@
-# issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言（**两个受害者**：`ScriptTopLevelDefiniteAssignmentTests` 一格 25–50%，`SubmissionSharedHandlesHookupTests` 在全量 Emit 门 ≈17%）
+# issue 35：并行执行时脚本提交绑定撞 `Binder_Conversions.vb:442` 断言
 
-- **登记日期**：2026-09-24；第二个受害者见 §一之二
+- **登记日期**：2026-09-24
+- **状态**：**Open（上游来源，本 fork 不修；D7 例外 (b)）**。测试侧已按作者批准隔离两个受害类（§七），产品码不动——缺陷在 C#/VB 共享的上游代码里，本 fork 逐字未改（§下「来源定性」）。
+- **症状**：两个测试类在并发编译下抛 `InvalidOperationException : argument.Type.IsSameTypeIgnoringAll(targetType)`（payload 见 §二）。受害者一：`ScriptTopLevelDefiniteAssignmentTests.CrossSubmission_TopLevelReferenceFieldRead_NoUseDefWarning`；受害者二：`SubmissionSharedHandlesHookupTests`（全量 Emit 门 ≈17% 红，§一之二）。
+- **触发条件**：进程内同时有两个编译共享同一份 `AssemblyMetadata`，且受害方走 `previous:=` 提交链（§三之二）。并发来源不必是自注入并发的测试——普通 xunit 类间并行即可（§六）。
+- **根因**：`ReferenceManager.vb` 的「持锁查缓存 → 锁外建符号 → 持锁发布」三段不原子，并发下同一元数据产生两个 `PEAssemblySymbol`；`Binder_Conversions.vb:442` 的符号级 `IsSameTypeIgnoringAll` 随后否掉快路径判定的 `Identity`（§三之二）。
+- **处置**：测试侧隔离（§七）＋ 产品不修（D7 例外 (b)）。上游修复后应删掉隔离集合、按 §七 保留的配方复跑确认不再需要。
 - **来源定性**：对照 `{{Roslyn}}\src\...`（`release/stable @ 0e401fcf66c`）逐文件比对——
 
   | 文件 | 与上游 |
@@ -13,14 +18,10 @@
 
   ⇒ **缺陷所在的整条链（缓存非原子 ＋ 那把锁 ＋ `WeakList` ＋ C# 同构）全部是上游原样，本 fork 一行未改。**
 
-- **⇒ 判据落点：`decisions.md` **D7 例外 (b)**——「缺陷在 C#/VB 共享的上游代码里且上游亦未修 ⇒ 不修，目标 `dotnet/roslyn`，改它只增合并冲突面」。**仓内先例＝问题单 25**（`issue-generic-type-name-loses-namespace.md`，同一条判据、同样的处置）。
-- **⚠ 定性再校正一次：「并发共享元数据」不是"非预期的用法"** —— 上游**为它专门设计了**进程级符号缓存 ＋ 跨编译的全局锁 ＋ 一份显式契约（`CommonReferenceManager.State.cs:22-33` 逐字：「**All the above data should be updated at once while holding this lock.**」）。**那把 `static` 锁的存在本身就是"并发编译共享元数据属预期用法"的证据**——若并发不在预期内，根本不需要一把跨编译的锁。
-  ⇒ 真实发生的事是：**上游实现违反了自己写下的契约**（契约要求一次持锁完成更新，实现却是「查缓存持锁 → 锁外建符号 → 再取锁发布」三段分离）。
-  ⇒ 故定性为「**上游真实缺陷（违反自身契约）**」，**不是"用法超纲"**。⚠ **但处置结论不变**：按 `decisions.md` **D7 例外 (b)**，本 fork **不单边修**；若将来上游修正，本 fork 跟随即可。
-- **⚠ 这是 diff 事实，不是读码推断**：只读两侧代码形状只能得到「C# 侧逐行同构 ⇒ 单独修 VB 会形成分叉」这个**推断**；实际 diff 显示相关文件与上游**逐字相同**，所以**根本不存在"fork 的修改面"**，问"要不要在 fork 侧修"本身就问错了。正确表述是「**这是上游缺陷；本 fork 按 D7 例外 (b) 不修**」。
-- **状态**：**🔒 RESERVE → 作者裁决：定性改判为「测试装置问题」，不修产品码**。见 §三之二 ④：本条**只在测试自己注入并发时才可复现**，而正常用法没有并发（脚本宿主内无任何并发原语）。**处置＝删掉那三个注入并发的测试文件（已完成），产品码不动**——行 N 的 `SubmissionSharedHandlesHookupTests` 保留，它**零线程原语、顺序执行**。根因本身（`ReferenceManager.vb` 缓存「查／建／发布」三步不原子）**依然成立且已被读码核实**，候选修复 R2 也确实有效（重复符号 16/8 组 → 0 组）；但**它不是本仓库产品路径上的缺陷**，不为不可达的场景改产品码。
-- **性质（已随裁决改判）**：原判"合法输入触发编译器内部断言 ⇒ 属必修面"**过重**——该断言只在**并发**下触发，而**产品路径不并发**。故本条**不是产品必修缺陷，是测试装置问题**：可复现它的测试自己造了一个产品从不产生的并发条件。⚠ 根因层面的非原子性**仍客观存在**，若将来产品引入并发（多线程宿主／后台分析），它会重新变成真缺陷。
-- **前置**：由 `..\..\tmp\HANDOFF.md` §5 行 K（本机文档，原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"
+- **判据**：`decisions.md` **D7 例外 (b)**——「缺陷在 C#/VB 共享的上游代码里且上游亦未修 ⇒ 不修，目标 `dotnet/roslyn`，改它只增合并冲突面」。仓内先例＝问题单 25。**外部提交动作**按 D7 的 2026-11-18 补记只做仓内记录（不向 `dotnet/roslyn` 提交）。
+- **「并发共享元数据」是上游的预期用法，不是超纲**：上游为它专门设计了进程级符号缓存、跨编译的全局锁与一条显式契约（`CommonReferenceManager.State.cs:22-33` 逐字「**All the above data should be updated at once while holding this lock.**」）。那把 `static` 锁的存在本身就是证据——若并发不在预期内，根本不需要一把跨编译的锁。真实发生的事是：**上游实现违反了自己写下的契约**（契约要求一次持锁完成更新，实现却是「查缓存持锁 → 锁外建符号 → 再取锁发布」三段分离）。
+- **这是 diff 事实，不是读码推断**：只读两侧代码形状只能得到「C# 侧逐行同构 ⇒ 单独修 VB 会形成分叉」这个**推断**；实际 diff 显示相关文件与上游**逐字相同**，所以**根本不存在"fork 的修改面"**。正确表述是「**这是上游缺陷；本 fork 按 D7 例外 (b) 不修**」。
+- **前置**：由 `..\..\tmp\HANDOFF.md` §5 行 K（本机文档，原"未定性偶发红"）升级而来；升级理由＝**拿到了稳定复现配方与完整 payload**，不再是"重跑就好"。
 
 ## 一、复现配方（已运行，频次实测）
 
@@ -28,15 +29,15 @@
 
 | 配置（`dotnet test --filter`） | 结果（亲跑） |
 |---|---|
-| 该类单独（7 格） | **6/6 全绿** |
+| 该类单独（7 格） | **6/6 全绿**（读数记于类内 6 格时；⚠ 与该类当前 7 格不符，未复跑） |
 | 该类 ＋ `ScriptTopLevelDimInferenceTests`（14 格） | **2/4 红** |
 | 该类 ＋ `ScriptTopLevelRecursiveDimInferenceTests`（35 格） | 1/4 红 |
 | `~ScriptTopLevel`（46 格） | 3/4 红 |
-| 全量 Semantic 门（5914 格） | 本次 1/1 绿（**不构成处置**，见 §四） |
+| 全量 Semantic 门（当时基线 5914 格） | 本次 1/1 绿（**不构成处置**，见 §四） |
 
-⇒ **判别量＝是否有另一个测试类与它并发**，不是格数、不是我的新类。单类跑怎么跑都不红，加任何一个邻居就 25–50% 红。
+⇒ **判别量＝是否有另一个测试类与它并发**，不是格数、不是新增测试类。单类跑怎么跑都不红，加任何一个邻居就 25–50% 红。
 
-### 一之二、**受害者 #2：Emit 门**（见 §一之二）
+### 一之二、**受害者 #2：Emit 门**
 
 `Compilers\VisualBasicEmitTest\Emit\SubmissionSharedHandlesHookupTests`（**issue 36 新增的回归钉所在的类**）在**全量 Emit 门**下偶发同签名红，定向跑必绿。
 
@@ -45,9 +46,9 @@
 | E1 仅该新类 | 18 | 6 | **0** |
 | **E2 ＋ `SubmissionSharedInitializerTests`（pre-existing 类）** | 24 | 8 | **4（50%），4/4 全是这条断言** |
 | E3 四个 pre-existing 提交类同跑 | 40 | 8 | 0 |
-| 全量 Emit 门（4388 格） | 4388 | 23 次**有效**跑 | **红 4 次（≈17%），4 次 payload 逐字相同** |
+| 全量 Emit 门（当时基线 4388 格） | 4388 | 23 次**有效**跑 | **红 4 次（≈17%），4 次 payload 逐字相同** |
 
-**payload 与 §二 同签名**（断言文本、`Binder.CreateConversionAndReportDiagnostic ... Binder_Conversions.vb:442` 栈帧、`Pool leak` 清单全部逐字相同）。触发栈（从 `:736` 的 `VerifyDiagnostics()` 进入，`RunSubmissionChain` 一次都没跑到）：
+**payload 与 §二 同签名**（断言文本、`Binder.CreateConversionAndReportDiagnostic ... Binder_Conversions.vb:442` 栈帧、`Pool leak` 清单全部逐字相同）。触发栈（从 `SubmissionSharedHandlesHookupTests.vb:736` 的 `VerifyDiagnostics()` 进入，`RunSubmissionChain` 一次都没跑到）：
 
 ```
 at Binder.CreateConversionAndReportDiagnostic ... Binder_Conversions.vb:line 442
@@ -70,9 +71,9 @@ at MethodCompiler.CompileNamedType ... :617
 
 **一条重要的负面读数**：宿主级独立 exe（16 线程 × 300 轮 × 4 组）**复现失败，0 命中** ⇒ §四.2 计划里的"缩到单条源串 ＋ 双线程宿主级复现"**这条路走不通**；下一片必须先**二分出是哪个邻居用例在弄脏共享状态**，再谈宿主复现。
 
-**处置口径**：本条**不许**用测试侧手段消红——`..\..\tmp\HANDOFF.md` §4.5 记的串行集合只在本仓知道"全部写方"时成立，而这里的邻居是 4388 用例中任意一个；把 `DisableParallelization` 加到整门等于掩盖缺陷，按 D8 不许。真正修法必落产品侧 `Binder_Conversions.vb:442` 附近。
+**处置口径（登记时的判断）**：本条**不许**用测试侧手段消红——`..\..\tmp\HANDOFF.md` §4.5 记的串行集合只在本仓知道"全部写方"时成立，而这里的邻居是 4388 用例中任意一个；把 `DisableParallelization` 加到整门等于掩盖缺陷，按 D8 不许。真正修法必落产品侧。该口径约束的是「整门串行」；只隔离受害类并给构造性论证属另一回事，见 §六 候选 1 与 §七。
 
-> **根因假设【猜的，未证实】**：跨编译共享的 `PENamedTypeSymbol` 惰性初始化被另一线程观察到半初始化态。证实法：在 `:442` 前临时打印 `argument.Type`/`targetType` 的 `SymbolEqualityComparer.Default.GetHashCode` 及各自 `IsSameTypeIgnoringAll` 的自反性，用 E2 配方跑 20 次，看是否出现"同符号与自己不相等"。**需动产品码，未做。**
+> **根因假设（推测，未证实）**：跨编译共享的 `PENamedTypeSymbol` 惰性初始化被另一线程观察到半初始化态。证实法：在 `:442` 前临时打印 `argument.Type`/`targetType` 的 `SymbolEqualityComparer.Default.GetHashCode` 及各自 `IsSameTypeIgnoringAll` 的自反性，用 E2 配方跑 20 次，看是否出现"同符号与自己不相等"。**需动产品码，未做。**
 
 ## 二、Payload（逐字，`--logger "console;verbosity=detailed"`）
 
@@ -92,7 +93,7 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 ## 三、归因（已到什么程度）
 
 - **不是 issue 33 引入的**：issue 33 的 9 行不在场时同样出现该红（RD-F02 在其"改前基线"跑里测到 1 次红；且 `pairNew` 与 `pairOld` 的差别只是邻居是谁）。
-- **不是 issue 32 的推断改动引入的**（◇ 弱证据）：失败格的形状是 `Dim s As String`（**带显式 `As`**），按 `SourceMemberFieldSymbol.vb:135` 的 `AsClause IsNot Nothing → Return Nothing` 根本不进推断路径；这只排除"推断该字段"这条通路，没排除"推断路径新增的额外绑定"对共享状态的影响。
+- **不是 issue 32 的推断改动引入的**（**推测**：弱证据）：失败格的形状是 `Dim s As String`（**带显式 `As`**），按 `SourceMemberFieldSymbol.vb:135` 的 `AsClause IsNot Nothing → Return Nothing` 根本不进推断路径；这只排除"推断该字段"这条通路，没排除"推断路径新增的额外绑定"对共享状态的影响。
 - **落点在已提交代码**：`Binder_Initializers.vb` 与 `ScriptTopLevelDefiniteAssignmentTests.vb` 自 `2173a56`（2026-09-24 21:49）起已在 HEAD，本条与"未提交工作树"无关——它现在是一条**独立缺陷**，不是本批 diff 的收尾项。
 
 ### 三之二、根因已定位
@@ -135,11 +136,11 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 - **6 条** `Assert.NotSame() Failure: Values are the same instance`（`NoPia.LocalTypeSubstitution*`）——测试**要求不同实例**，修复让跨编译共享 ⇒ **共享范围过宽**。
 - **7 条** `UsedAssembliesTests` 引用类型／顺序不符 ＋ 5 条 `AggregateException` ＋ 3 条零散。
 
-⇒ **L2 777/0 未变**，故障在编译器符号层。**教训**：四条配方全绿 ＋ 变异可证**只覆盖了脚本／提交形状，没覆盖普通编译的符号身份语义**。**这也是为什么 issue 35 §六 那条「任何后续改动都必须带'普通类/模块属性位不变'的对照格」不能只对照属性位**——**符号身份/实例同一性**同样要被对照。
+⇒ **L2 777/0 未变**，故障在编译器符号层。**教训**：四条配方全绿 ＋ 变异可证**只覆盖了脚本／提交形状，没覆盖普通编译的符号身份语义**。**这也是为什么「普通类/模块属性位不变」那类对照格不够用**（issue 36 记的只是属性位）——**符号身份/实例同一性**同样要被对照。
 
 **③ 本条能打死整个测试门，不只是让一格红（严重度上调）**
 
-在一次收口实验里临时启用了 `ConcurrentSubmissionsOverFreshMetadataReferenceTests`（issue 35 的守门格），跑全量 Emit 门时：`Binder.CreateConversionAndReportDiagnostic` 的 `Debug.Fail` 变成**未捕获异常**打死 **test host 进程**，`dotnet test` 报「**活动的测试运行已中止**」，并给出**残缺计数**——同一次现象在不同运行里分别报出 **262** 与 **2361**（远小于真实的 4388），**看起来像丢了上千个用例**，实则是运行在中途崩掉。
+临时启用守门格 `ConcurrentSubmissionsOverFreshMetadataReferenceTests` 跑全量 Emit 门时（一次性实验）：`Binder.CreateConversionAndReportDiagnostic` 的 `Debug.Fail` 变成**未捕获异常**打死 **test host 进程**，`dotnet test` 报「**活动的测试运行已中止**」，并给出**残缺计数**——同一次现象在不同运行里分别报出 **262** 与 **2361**（远小于当时的 4388 格），**看起来像丢了上千个用例**，实则是运行在中途崩掉。
 
 ⇒ 三点后果：① **本条不是"偶发红一格"，而是能中止整个门运行**；② 门基线数字会被这种中止污染，报数前**必须先看有没有"中止"**；③ 那三格复现／压力测试**已删除**（它们测的是产品不产生的并发条件）；若将来重建这类并发用例，**第一个撞上的是这个中止，不是 28 条红**。
 
@@ -156,7 +157,7 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 - **测试进程 —— 每天都在发生**：`SubmissionSharedHandlesHookupTests` 走 `CreateSubmission`、用**进程级共享引用**、**没有**那个测试专用 API，在整门并行下 ≈17% 红，并能**中止整个门运行**（见 ④）。这是本条目前唯一确定会发生的现实代价。
 - **工具进程 —— 未查实（未知项）**：外部 IDE／语言服务（`vb-ls` 之类用本仓 `Microsoft.CodeAnalysis.VisualBasic.dll`）在一个进程里并发编译并共享 `MetadataReference` 时是否命中，**未查**。本仓 `Compilers\Core\MSBuildTask\Vbc.cs` 走**命令行拼装**（`commandLine.AppendWhenTrue("/novbruntimeref", …)`）、**不构造 `MetadataReference`**；`/m` 并行构建时跨项目是否共享同一 `AssemblyMetadata` 实例，取决于 `vbc` 命令行引用解析侧的缓存，**未追**。
 
-⇒ **优先级含义**：若确认无任何用户路径命中，本条性质更接近「**测试装置缺陷**」而非「产品并发缺陷」，RESERVE 的代价就只剩"门不稳定"。
+⇒ **优先级含义**：若确认无任何用户路径命中，本条性质更接近「**测试装置缺陷**」而非「产品并发缺陷」，代价就只剩"门不稳定"。
 
 **✅ 该判断已闭合（作者裁决）**：既然产品路径不并发，**正确处置是让测试也不并发**，而不是为了一个不可达的场景去改产品码。已**删除**三个注入并发的测试文件：
 
@@ -166,7 +167,7 @@ System.AggregateException : One or more errors occurred. (argument.Type.IsSameTy
 | `ConcurrentSubmissionLoadOverSharedReferencesTests.vb` | 压力格（60 波 × 16 线程）——同理 |
 | `ConcurrentSubmissionsOverOneMetadataReferenceTests.vb` | 上述复现格的普通编译对照，随之无意义 |
 
-备份在 `tmp\backup\r2\*.deleted`。**行 N 的 `SubmissionSharedHandlesHookupTests` 保留**——它**零线程原语**、顺序执行，测的是真实形状。删除后 Emit 门基线仍为 **4388**（那几格本就禁用、未计入）。
+备份在 `..\..\tmp\backup\r2\*.deleted`。**`SubmissionSharedHandlesHookupTests` 保留**——它**零线程原语**、顺序执行，测的是真实形状。删除后 Emit 门基线仍为 **4388**（当时基线；那几格本就禁用、未计入）。
 
 ⚠ **留一句给将来**：根因层面的非原子性**依然客观存在**（读码核实）。今天不修，是因为**产品不并发**；若将来产品引入并发（多线程宿主、IDE 后台分析与前台构建并行），它会**重新变成真缺陷**，届时的正确修法是把「查／建／发布」并入同一次持锁（C# 侧同形，参见 ⑤）。
 
@@ -186,19 +187,67 @@ C# 与 VB 的 `ReferenceManager` 是**两份独立文件、同一套逻辑**：
 
 **行为实验在本 fork 内无法对称进行（结构性事实）**：`Compilers\CSharp\Portable\Scripting\` **不存在**（本 fork 裁掉了 C# 脚本层，也没有 csi）⇒ **C# 侧没有与本条那条失败测试同构的宿主路径**可走。用编译器 API 单独跑的 C# 探针（`tmp\cs-side-probe\`）0 复现，但**其 VB 阳性对照未能命中目标签名**（harness 自身有 `typeArguments` 缺陷）⇒ **该 0 作废，不得引用为"C# 无此缺陷"的证据**。
 
-**处置建议（待作者裁决）：reserve。** 单独修 VB 侧＝对上游 C# 形成分叉，而 `decisions.md` D5 要求「**为什么 VB 必须分叉**」——目前能给的唯一理由是「本 fork 只发布 VB 脚本、C# 侧是死代码」，那是**产品范围**理由、不是**技术**理由。**故本条暂不交付**，连同 R2 的 Symbol 门回归一并保留在工作树待议。
+**处置建议（登记时）＝reserve**：单独修 VB 侧＝对上游 C# 形成分叉，而 `decisions.md` D5 要求「**为什么 VB 必须分叉**」——当时能给的唯一理由是「本 fork 只发布 VB 脚本、C# 侧是死代码」，那是**产品范围**理由、不是**技术**理由，故本条不交付。该建议的落点是产品不修 ＋ 测试侧隔离（§七）。
 
-**怎么了结（若要推进）**：① 恢复上游一致性——**两侧一起改**（C# 侧同样把整段并入一次持锁），再回归两个语言的普通编译对照；或 ② 取得技术性理由（例如证明 C# 侧该路径在本 fork 内不可达且未来也不会用于产品）并写进 D5；或 ③ 放弃本条、按"上游共享缺陷"登记后交由 `dotnet/roslyn` 上游处理，**fork 不单边修**。
+**怎么了结（若要推进）**：① 恢复上游一致性——**两侧一起改**（C# 侧同样把整段并入一次持锁），再回归两个语言的普通编译对照；或 ② 取得技术性理由（例如证明 C# 侧该路径在本 fork 内不可达且未来也不会用于产品）并写进 D5；或 ③ 放弃本条、按"上游共享缺陷"登记后交由 `dotnet/roslyn` 上游处理，**fork 不单边修**（该方向已由 2026-11-18 裁决定为不外部提交，见 `decisions.md` D7 补记）。
 
-**未闭合**：**已无"第二条创建路径"这一项**——插桩对 `CachedSymbols` 的每一次写入计数后确认：无修复时同一 PE 产生多个符号（`dup-fresh` 16 组／`dup-chain` 8 组），带修复为 **0 组**，且无"建了未发布"的孤儿。候选修法 R 因自身引入的缺陷已撤回、R2 因普通编译回归已撤回（详见 §三之二 ①②），最终 **RESERVE**。仍未闭合的是 **issue 37**（`WeakList` 并发改写，R2 下未复现，归因已动摇）与 **issue 38**（`CheckTypeArguments`，需 `Net461` 自建 CoreLib 才能坐实），两者**都不属本条**，见各自 issue。
+**未闭合**：**已无"第二条创建路径"这一项**——插桩对 `CachedSymbols` 的每一次写入计数后确认：无修复时同一 PE 产生多个符号（`dup-fresh` 16 组／`dup-chain` 8 组），带修复为 **0 组**，且无"建了未发布"的孤儿。候选修法 R 因自身引入的缺陷已撤回、R2 因普通编译回归已撤回（详见 §三之二 ①②）；产品不修、留档（§七 测试侧隔离）。仍未闭合的是 **issue 37**（`WeakList` 并发改写，R2 下未复现，归因已动摇）与 **issue 38**（`CheckTypeArguments`，需 `Net461` 自建 CoreLib 才能坐实），两者**都不属本条**，见各自 issue。
 
 ## 四、处置要求（本仓对偶发红的既有口径）
 
 1. **不许拿"重跑就好"当结论**；要给的结论只有两种：与相关改动无关（附证据），或由某处引入（附归因链）。
-2. 最小化：~~把并发触发缩到**两个类的最小组合**并固定复现（`ScriptTopLevelDefiniteAssignmentTests` ＋ 单一邻居），再缩到单条源串＋一次并发编译的宿主级复现~~ —— **前一半已做到（`SubmissionSharedHandlesHookupTests` ＋ `SubmissionSharedInitializerTests` ＝ 24 格 / 50% 红），后一半「缩到单条源串 ＋ 宿主级双线程」已被实测否掉**（独立 exe、16 线程 × 300 轮 × 4 组，**0 命中**；且单独测过"共享引用 vs 每次新建 `MetadataReference`"这个变量，两者都不复现）。⇒ 最小化的判别量**不是单条源串，是"并发的编译工作量"**；宿主级复现这条路**放弃**，改走"定位共享状态 → 消除它"。
-3. 取证顺序：~~读 `Binder_Conversions.vb:442` 所在分支的前置条件……~~ —— **已完成**，结论＝**产品并发缺陷**，见 §三之二。修法落在 `ReferenceManager.vb` 的缓存发布原子性上，**不是** `Binder_Conversions.vb:442`；那句断言**本身不许删改或降级**——它是发现问题的东西。
+2. 最小化：并发触发可缩到**两个类的最小组合**并固定复现（`ScriptTopLevelDefiniteAssignmentTests` ＋ 单一邻居；另一受害者另有 `SubmissionSharedHandlesHookupTests` ＋ `SubmissionSharedInitializerTests` ＝ 24 格 / 50% 红）。「缩到单条源串 ＋ 宿主级双线程」这条路已被实测否掉（独立 exe、16 线程 × 300 轮 × 4 组，**0 命中**；且单独测过"共享引用 vs 每次新建 `MetadataReference`"这个变量，两者都不复现）。⇒ 最小化的判别量**不是单条源串，是"并发的编译工作量"**；宿主级复现这条路**放弃**，改走"定位共享状态 → 消除它"。
+3. 取证顺序：`Binder_Conversions.vb:442` 所在分支的前置条件、断言触发机制与落点均已定位（§三之二）。修法落在 `ReferenceManager.vb` 的缓存发布原子性上，**不是** `Binder_Conversions.vb:442`；那句断言**本身不许删改或降级**——它是发现问题的东西。
 4. 若最终判装置缺陷：按 §4.5 的先例用**串行集合**隔离（`CollectionDefinition(..., DisableParallelization:=True)`），并给出"为什么不可能再重叠"的构造性论证，而不是靠连跑碰运气。
 
 ## 五、影响面
 
-产品侧：任何并发执行脚本提交的宿主（IDE 后台分析 + 运行、或两个线程各自跑提交链）理论上都可能命中——**未实测**（◇），实测方法见 §四.2。测试侧：Semantic 门的稳定性；全量门本次绿，但按 §一 的配方在 46 格规模下 3/4 红 ⇒ 门的可靠性受影响。
+产品侧：任何并发执行脚本提交的宿主（IDE 后台分析 + 运行、或两个线程各自跑提交链）理论上都可能命中——**推测**，未实测，实测方法见 §四.2。测试侧：Semantic 门的稳定性；全量门当时绿，但按 §一 的配方在 46 格规模下 3/4 红 ⇒ 门的可靠性受影响。
+
+## 六、普通并行下的复现（复核记录）
+
+**复核时点：2026-11-18。** **触发条件比原记录更宽**：原状态里的「只在测试自己注入并发时才复现」已被否证——**不需要任何注入并发的测试**，普通 xunit **类间并行**就够。
+
+实测（Debug，串行执行、一次只跑一个测试进程）：
+
+| 跑法 | 结果 |
+|---|---|
+| Emit 整门默认并行 × 7 | 0/7 红（4389/4286/103/0） |
+| Semantic 整门默认并行 × 7 | 0/7 红（5919/5815/104/0） |
+| 整门关并行（临时 runsettings，耗时 2.3×/3.2×） | 0/2、0/2 |
+| 受害者类单跑 `--filter` × 5 | 0/5（18/18、7/7） |
+| **受害者类 + 一个普通邻居类（并行）** | **Emit 7/8 红（87.5%）、Semantic 2/6 红（33%）** |
+| 同组合关并行 × 8 | 0/8 |
+
+⇒ 判别量是**「是否有另一个测试类在本进程并发编译」**，与邻居身份、用例数无关；payload 与 §二 逐字一致。同日 3 次七门全量有 2 次各红 1 格（命中率随负载波动，机制未消失）。
+
+**机制确认（与 §三之二 一致）**：断言是第一因；`Pool leak` 是断言异常展开跳过 `Free()`/`ToImmutableAndFree()` 的下游副产物（清单全是 bag/builder，绿色运行 0 泄漏）。根因仍是 `ReferenceManager` 的「持锁查缓存 → 锁外建符号 → 持锁发布」三段不原子，并发下产生「同一元数据两个 `PEAssemblySymbol`」；受害者必须是 `previous:=` 提交链。
+
+**影响面（量化）**：门脚本 `scripts\verify-vb-compiler-tests.ps1` 用精确四元组、无重试、fail-fast——Semantic 红会跳过 IOperation/Emit/CommandLine，Emit 红会跳过 CommandLine。按本次观测约「每 1.5 次七门全量红一次」。
+
+**处置候选**：
+
+1. **受害类串行集合**（`CollectionDefinition(..., DisableParallelization:=True)` 只罩住两个受害类）：构造性论证＝该集合不与任何其它集合并行，故「另一个类并发编译」这个条件在结构上不可能出现，与邻居是谁无关；代价＝这两类的用例失去并行、整门略慢。此路径正是 §四.4 允许的先例，但与 §一之二「处置口径」的「不许测试侧手段消红」字面冲突——那一条针对的是「把 `DisableParallelization` 加到整门掩盖缺陷」，与「只隔离受害者、给构造性论证」不是同一件事；作者批准后已落地（§七）。
+2. **门级重试**：不推荐——会掩盖任何门红，违反 §四.1。
+3. **不修 + 文档写明命中率**：代价≈每 1.5 次全量红一次，CI 随机红。
+
+**产品侧结论不变**：仍按 D7 例外 (b) 不单边修（上游逐字相同）；本条保持 **OPEN**，不是已修。
+
+证据：`..\..\tmp\vortex-logs\embeddable-scripting-host\30-flake-investigation.md`、`30-flake-*.trx`、`30-*-summary.txt`。
+
+## 七、处置落地：受害类串行集合
+
+**时点：2026-11-18。**
+
+作者批准后，按 §六 候选 1 落地：两个受害者类分别进入各自测试工程内的 `DisableParallelization` 串行集合，其它测试保持默认并行。
+
+| 工程 | 集合定义 | 受害类 |
+|---|---|---|
+| `Compilers\VisualBasicEmitTest` | `SerialScriptSubmissionBinding` | `SubmissionSharedHandlesHookupTests` |
+| `Compilers\VisualBasicSemanticTest` | `SerialScriptSubmissionBinding` | `ScriptTopLevelDefiniteAssignmentTests` |
+
+**构造性论证**：xunit 对 `DisableParallelization:=True` 的 collection 不与任何其它 collection 并行 ⇒「另一个测试类在本进程内并发编译」这一条件在结构上不成立，与邻居是哪一类无关；根因（`ReferenceManager` 的「查缓存 → 建符号 → 发布」三段不原子）仍在，只是测试装置不再制造它唯一需要的并发窗口。
+
+- **产品侧不修**：仍按 D7 例外 (b)（相关文件与上游逐字相同；外部提交按 D7 的 2026-11-18 补记只做仓内记录），本条**保持 OPEN**，不是已修。
+- **验证（2026-11-18，Debug，串行执行，一次只跑一个测试进程）**：确定性配方（受害类 ＋ 邻居类并行）各 8 轮 0 红（Emit 24/24 ×8，Semantic 14/14 ×8；隔离前同配方为 7/8、2/6 红）；Emit 门 5 轮 `4389/4286/103/0`、Semantic 门 5 轮 `5919/5815/104/0`，退出码全 0；Phase2 143/143/0/0。整门墙钟与隔离前同量级（Emit 中位 51.4s vs 对照 56.2s；Semantic 34.1s vs 33.6s）。
+- **保留用于回归**：确定性配方、命令与 trx 留在 `..\..\tmp\vortex-logs\embeddable-scripting-host\31-*`；将来上游修复 `ReferenceManager` 后，应先删掉这两个集合、再按该配方复跑，确认不再需要隔离。

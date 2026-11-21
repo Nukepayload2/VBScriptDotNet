@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net472</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <PackageId>Nukepayload2.Compilers.VBScriptDotNet.Scripting</PackageId>
+    <Version>2.0.0-RC3</Version>
+    <!-- The runtime assets are laid out by _GetFiles from the facade and compiler outputs, not from this
+         project's (empty) build output. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- A runtime library, not a build tool: it must flow to consuming projects instead of being treated as a
+         development dependency (R13). -->
+    <DevelopmentDependency>false</DevelopmentDependency>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_GetFiles</TargetsForTfmSpecificContentInPackage>
+    <IsTrimmable>false</IsTrimmable>
+    <PackageDescription>Runtime library for hosting VBScript.NET (.vbx) scripts in-process on top of the official .NET Hosting abstractions. This is a runtime library, not a build tool: it does not redirect the Visual Basic compiler for a project build; use Nukepayload2.Compilers.VBScriptDotNet for that. The package carries its own fork of the Microsoft.CodeAnalysis assemblies, so it is process-wide exclusive with the official Roslyn packages: the same simple names and public key token mean only one copy can load, and the winner is whichever loads first. That exclusivity covers transitive package dependencies and plugins, not just direct references; a build-time check reports conflicting Microsoft.CodeAnalysis* packages and can be switched off with VBScriptAllowRoslynPackages=true at your own isolation risk.</PackageDescription>
+    <Authors>Nukepayload2</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Builds the facade once per target framework; its build output directory is the source of the runtime
+         closure (the facade references the scripting project, which brings the two compiler assemblies). -->
+    <ProjectReference Include="..\..\Scripting\Hosting\Nukepayload2.VBScriptDotNet.Hosting.vbproj"
+                      PrivateAssets="All" ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=$(TargetFramework)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <!-- Needed by IAsyncDisposable on the net462 assets of the Abstractions packages. It must be a direct
+         PackageReference here to become its own nuspec dependency entry in the net472 group (T-PKG-3). -->
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+  </ItemGroup>
+
+  <!-- The nuspec dependency groups mirror the facade's Abstractions-only closure (R2). These are the runtime
+       dependencies the consuming application restores; the Roslyn assemblies themselves travel in lib/ and are
+       deliberately not package dependencies. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="buildTransitive\**\*.*" Pack="true" PackagePath="buildTransitive\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- T-PKG-1/T-PKG-2: net10.0 gets the net10.0 compiler closure, net472 gets the net472 facade plus the
+       netstandard2.0 compiler closure and the eight polyfills vbi's net48 closure already runs on. The facade's
+       build output directory holds exactly that closure for each TFM, so the same file list yields both. -->
+  <Target Name="_GetFiles" DependsOnTargets="Build">
+    <PropertyGroup>
+      <_VBScriptFacadeOutput>$(MSBuildThisFileDirectory)..\..\Scripting\Hosting\bin\$(Configuration)\$(TargetFramework)\</_VBScriptFacadeOutput>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_File Include="$(_VBScriptFacadeOutput)Nukepayload2.VBScriptDotNet.Hosting.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)Microsoft.CodeAnalysis.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)Microsoft.CodeAnalysis.VisualBasic.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)Microsoft.CodeAnalysis.Scripting.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)Microsoft.CodeAnalysis.VisualBasic.Scripting.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)**\Microsoft.CodeAnalysis.resources.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)**\Microsoft.CodeAnalysis.VisualBasic.resources.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)**\Microsoft.CodeAnalysis.Scripting.resources.dll" TargetDir="lib/$(TargetFramework)" />
+      <_File Include="$(_VBScriptFacadeOutput)**\Microsoft.CodeAnalysis.VisualBasic.Scripting.resources.dll" TargetDir="lib/$(TargetFramework)" />
+    </ItemGroup>
+
+    <!-- net472 polyfills: exactly the eight assemblies loaded by vbi's net48 closure (R12). They are already in
+         the facade's net472 output because the netstandard2.0 compiler closure depends on them. -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+      <_File Include="$(_VBScriptFacadeOutput)System.Buffers.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Collections.Immutable.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Memory.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Numerics.Vectors.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Reflection.Metadata.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Runtime.CompilerServices.Unsafe.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Text.Encoding.CodePages.dll" TargetDir="lib/net472" />
+      <_File Include="$(_VBScriptFacadeOutput)System.Threading.Tasks.Extensions.dll" TargetDir="lib/net472" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_File)" PackagePath="%(_File.TargetDir)/%(_File.RecursiveDir)%(_File.FileName)%(_File.Extension)" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,2 @@
+# Public API shipped by Nukepayload2.VBScriptDotNet.Hosting before version 2.0.0-RC3: none.
+# New entries go to PublicAPI.Unshipped.txt until the first shipped release.

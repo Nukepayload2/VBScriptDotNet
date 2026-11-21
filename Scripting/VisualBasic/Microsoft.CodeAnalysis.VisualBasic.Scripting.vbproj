@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="vbi" />
+    <InternalsVisibleTo Include="Nukepayload2.VBScriptDotNet.Hosting" />
     <InternalsVisibleTo Include="vbifw" />
     <InternalsVisibleTo Include="vbicore" />
     <InternalsVisibleTo Include="Microsoft.CodeAnalysis.Scripting.TestUtilities" />

@@ -6,7 +6,7 @@ Imports System.Collections.Generic
 Imports System.Globalization
 Imports System.Text
 
-' Minimal, dependency-free JSON reader for project.assets.json (design §E4). The restore engine is compiled
+' Minimal, dependency-free JSON reader for project.assets.json. The restore engine is compiled
 ' for both netstandard2.0 and net10.0, so it cannot lean on System.Text.Json. Only the subset of JSON used
 ' by NuGet's assets file is modelled: objects, arrays, strings, numbers/booleans/null kept as literals.
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting

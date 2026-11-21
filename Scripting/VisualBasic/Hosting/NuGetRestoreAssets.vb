@@ -8,7 +8,7 @@ Imports System.Collections.Immutable
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' Parsed view of a successful restore's <c>project.assets.json</c> (design §E4). Compile assets are
+    ''' Parsed view of a successful restore's <c>project.assets.json</c>. Compile assets are
     ''' grouped per requested package (canonical key) with the package's own asset(s) first and its
     ''' dependency closure afterwards; runtime assets are the managed implementation assemblies; native root
     ''' directories are the deduplicated <c>runtimes/&lt;rid&gt;/native</c> folders fed to the loader.
@@ -55,7 +55,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Pure reader over the restore output's <c>project.assets.json</c> (design §E4). No file I/O: it takes
+    ''' Pure reader over the restore output's <c>project.assets.json</c>. No file I/O: it takes
     ''' the JSON text, the host short target-framework moniker (the exact "targets" key the SDK writes, e.g.
     ''' "net10.0" or "net48", optionally suffixed "/&lt;rid&gt;") and the RID, and produces the
     ''' session-friendly asset view.
@@ -366,8 +366,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Compile (ref) asset → runtime (implementation) asset overrides for the runtime handshake (design
-        ''' §G1). A compile file is overridden only when a <em>different</em> runtime file carries the same
+        ''' Compile (ref) asset → runtime (implementation) asset overrides for the runtime handshake.
+        ''' A compile file is overridden only when a <em>different</em> runtime file carries the same
         ''' simple file name and that name is unambiguous across the whole restored graph. A lib-only package
         ''' (compile path = runtime path) needs no override; an ambiguous name is left alone so the loader
         ''' keeps today's behavior rather than guessing. Pure, no file access.

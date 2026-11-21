@@ -9,23 +9,24 @@ Imports System.Text
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' Generates the temporary restore project (<c>.vbproj</c> + <c>global.json</c>) for a cache key
-    ''' (design §E). Pure and byte-stable: the text is a function of the key ingredients only (canonical
-    ''' package set, host TFM, RID, framework references, net48 flag) and carries no time or machine
-    ''' fingerprint, so the same key always writes the same bytes and NuGet's no-op restore (design E7) holds.
+    ''' Generates the temporary restore project (<c>.vbproj</c> + <c>global.json</c>) for a cache key.
+    ''' Pure and byte-stable: the text is a function of the key ingredients only (canonical package set,
+    ''' host TFM, RID, framework references, net48 flag) and carries no time or machine fingerprint, so the
+    ''' same key always writes the same bytes and NuGet's no-op restore holds.
     ''' </summary>
     Friend NotInheritable Class NuGetProjectGenerator
 
-        Private Const ReferenceAssembliesNet48Id As String = "Microsoft.NETFramework.ReferenceAssemblies.net48"
-        Private Const ReferenceAssembliesNet48Version As String = "1.0.3"
+        Private Const ReferenceAssembliesPackagePrefix As String = "Microsoft.NETFramework.ReferenceAssemblies."
+        Private Const ReferenceAssembliesVersion As String = "1.0.3"
 
         Private Sub New()
         End Sub
 
         ''' <summary>
-        ''' Project XML for the temporary restore project. <paramref name="net48"/> mirrors the key's net48
-        ''' flag and, when set, pulls in the .NET Framework reference assemblies package (precedent
-        ''' <c>Interactive\vbi\vbi.vbproj</c>).
+        ''' Project XML for the temporary restore project. <paramref name="net48"/> mirrors the key's
+        ''' .NET Framework flag and, when set, pulls in the reference assemblies package matching
+        ''' <paramref name="targetFramework"/> (a net472 host gets the net472 package, not a hard-coded net48
+        ''' one); precedent <c>Interactive\vbi\vbi.vbproj</c>.
         ''' </summary>
         Friend Shared Function GenerateProjectXml(
             targetFramework As String,
@@ -59,7 +60,10 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
             Next
 
             If net48 Then
-                sb.AppendLine("    <PackageReference Include=""" & ReferenceAssembliesNet48Id & """ Version=""" & ReferenceAssembliesNet48Version & """>")
+                ' The reference-assemblies package is per TFM, so a 4.7.2 host must restore the net472
+                ' package: a net48 package with a net472 project is the wrong reference surface (and machines
+                ' without the targeting pack cannot build the restored graph).
+                sb.AppendLine("    <PackageReference Include=""" & GetReferenceAssembliesPackageId(targetFramework) & """ Version=""" & ReferenceAssembliesVersion & """>")
                 sb.AppendLine("      <PrivateAssets>all</PrivateAssets>")
                 sb.AppendLine("      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>")
                 sb.AppendLine("    </PackageReference>")
@@ -84,12 +88,25 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' <c>global.json</c> content: pins the resolved installed SDK with a latest-major roll-forward
-        ''' (design §E3). Written only when a NuGet reference is present. Single-line and newline-free so the
+        ''' <c>global.json</c> content: pins the resolved installed SDK with a latest-major roll-forward.
+        ''' Written only when a NuGet reference is present. Single-line and newline-free so the
         ''' bytes are identical on every platform for the same SDK version.
         ''' </summary>
         Friend Shared Function GenerateGlobalJson(sdkVersion As String) As String
             Return "{""sdk"":{""version"":""" & sdkVersion & """,""rollForward"":""latestMajor""}}"
+        End Function
+
+        ''' <summary>
+        ''' Reference-assemblies package id for the temporary project's TFM. Only meaningful for
+        ''' .NET Framework monikers; a non-moniker falls back to net48 so the generated project stays valid.
+        ''' </summary>
+        Friend Shared Function GetReferenceAssembliesPackageId(targetFramework As String) As String
+            If Not String.IsNullOrEmpty(targetFramework) AndAlso
+               targetFramework.StartsWith("net4", StringComparison.OrdinalIgnoreCase) Then
+                Return ReferenceAssembliesPackagePrefix & targetFramework.ToLowerInvariant()
+            End If
+
+            Return ReferenceAssembliesPackagePrefix & "net48"
         End Function
     End Class
 End Namespace

@@ -10,7 +10,7 @@ Imports System.Text
 Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
-    ''' Content-addressed restore cache (design §E2). The key is a hash of the exact package set, the host
+    ''' Content-addressed restore cache. The key is a hash of the exact package set, the host
     ''' image tuple and the fingerprint of the directory-level NuGet configuration that will be mirrored into
     ''' the key directory; the script source is never part of it. Cache directories live under
     ''' <c>%LOCALAPPDATA%\Nukepayload2\vbi\nuget-restore\&lt;key&gt;</c> and are LRU-trimmed after each
@@ -35,7 +35,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
         ''' <summary>
         ''' SHA-256 key over the canonical package set, the host image tuple and the source-configuration
-        ''' fingerprint (design §E1, §C3). Deterministic across machines with the same ingredients and
+        ''' fingerprint. Deterministic across machines with the same ingredients and
         ''' independent of the script source.
         ''' </summary>
         ''' <param name="sourceFingerprint">
@@ -83,7 +83,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' LRU trim after a successful restore (design §E2): a key directory not used for
+        ''' LRU trim after a successful restore: a key directory not used for
         ''' <see cref="StaleAfter"/> and not the one just restored is deletable; when the cache grows beyond
         ''' <see cref="MaxCacheDirectories"/> the oldest directories are removed until
         ''' <see cref="TrimToDirectories"/> remain. The just-restored key is never removed.
@@ -143,7 +143,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
                 Return True
             Catch generatedExceptionName As Exception
                 ' A concurrent process may hold the directory; the next restore regenerates it (NuGet
-                ' self-heals, design E7).
+                ' self-heals a missing cache entry).
                 Return False
             End Try
         End Function

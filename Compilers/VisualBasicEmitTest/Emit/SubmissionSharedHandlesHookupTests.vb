@@ -26,6 +26,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
     ''' <see cref="SourceMemberContainerTypeSymbol.AddWithEventsHookupConstructorsIfNeeded"/> now synthesizes the
     ''' host for exactly that shape, and these tests pin the shape of the host it produces.
     ''' </summary>
+    <Collection(NameOf(SerialScriptSubmissionBinding))>
     Public Class SubmissionSharedHandlesHookupTests
         Inherits BasicTestBase
 

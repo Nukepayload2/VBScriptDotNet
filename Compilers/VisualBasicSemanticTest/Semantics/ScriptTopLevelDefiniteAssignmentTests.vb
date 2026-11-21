@@ -29,6 +29,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests
     ''' that case is measured separately. The value-type auto-initialization difference is ordinary VB language behavior
     ''' (present identically outside script), not a script-mode divergence.
     ''' </summary>
+    <Collection(NameOf(SerialScriptSubmissionBinding))>
     Public Class ScriptTopLevelDefiniteAssignmentTests
         Inherits BasicTestBase
 

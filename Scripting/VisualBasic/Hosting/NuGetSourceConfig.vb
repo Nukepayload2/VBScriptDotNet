@@ -12,7 +12,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
 
     ''' <summary>
     ''' One directory-level <c>NuGet.config</c> taken from the script's directory chain, together with the
-    ''' path it must be mirrored to inside the restore cache key directory (design §C1/§C2). The content is
+    ''' path it must be mirrored to inside the restore cache key directory. The content is
     ''' kept as raw bytes so mirroring is byte-exact and the fingerprint never depends on an encoding
     ''' decision made here.
     ''' </summary>
@@ -47,7 +47,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Result of one directory-chain collection (design §C1/§C5): the config files to mirror plus the
+    ''' Result of one directory-chain collection: the config files to mirror plus the
     ''' mirror root the generated project must be placed under. A config that exists but cannot be read is
     ''' reported through <see cref="FailedPath"/> rather than thrown, so the coordinator can surface it as a
     ''' diagnostic instead of failing as an opaque restore error.
@@ -110,7 +110,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' File-system seam for <see cref="NuGetSourceConfig.Collect"/> (design §C1), mirroring the
+    ''' File-system seam for <see cref="NuGetSourceConfig.Collect"/>, mirroring the
     ''' <see cref="IRestoreRunner"/> style: production uses <see cref="PhysicalSourceConfigFileSystem"/> and
     ''' tests inject an in-memory double so no file is touched.
     ''' </summary>
@@ -158,7 +158,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
     End Class
 
     ''' <summary>
-    ''' Pure directory-chain config collection and source fingerprint (design §C1). NuGet resolves its
+    ''' Pure directory-chain config collection and source fingerprint. NuGet resolves its
     ''' configuration chain from the <em>project file's directory</em> upwards, and the temporary restore
     ''' project lives under <c>%LOCALAPPDATA%</c>, so a <c>NuGet.config</c> next to a script has no effect.
     ''' Rather than merging config files (which would drop <c>packageSourceCredentials</c> and
@@ -182,10 +182,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Sub
 
         ''' <summary>
-        ''' Walks up from the script's directory collecting one <c>NuGet.config</c> per level until the root
-        ''' (design §C1). A missing/blank/non-absolute-unresolvable script path, or a script directory that
-        ''' does not exist, yields the empty result — the pure-REPL and no-config cases, which must stay
-        ''' byte-identical to the previous behavior.
+        ''' Walks up from the script's directory collecting one <c>NuGet.config</c> per level until the root.
+        ''' A missing/blank/non-absolute-unresolvable script path, or a script directory that
+        ''' does not exist, yields the empty result — the pure-REPL and no-config cases.
         ''' </summary>
         Friend Shared Function Collect(scriptFilePath As String, fileSystem As ISourceConfigFileSystem) As NuGetSourceConfigResult
             If fileSystem Is Nothing Then
@@ -272,9 +271,9 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Path of the generated project relative to the cache key directory (design §C1 rule 4): the
+        ''' Path of the generated project relative to the cache key directory: the
         ''' script's directory depth below the mirror root. <c>project.vbproj</c> when there is no config, so
-        ''' the layout — and the cache directory's own file set — stays exactly as it was.
+        ''' the no-config layout is a single project file at the cache-key root.
         ''' </summary>
         Friend Shared Function ProjectRelativePath(scriptFilePath As String, mirrorRoot As String) As String
             If String.IsNullOrEmpty(mirrorRoot) Then
@@ -295,12 +294,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Scripting.Hosting
         End Function
 
         ''' <summary>
-        ''' Stable fingerprint of the mirrored config set (design §C1 rule 5): SHA-256, hex encoded, over
+        ''' Stable fingerprint of the mirrored config set: SHA-256, hex encoded, over
         ''' every file's lower-cased mirror relative path, a NUL, and the raw bytes, in relative-path order.
         ''' Only relative paths and bytes are consumed — never absolute paths, timestamps or machine names —
         ''' so it is machine independent and reproducible, while any content change is guaranteed to change
-        ''' the restore cache key. An empty set fingerprints as the empty string, which is byte-identical to
-        ''' the value production used before this fingerprint was wired up.
+        ''' the restore cache key. An empty set fingerprints as the empty string — the same fingerprint
+        ''' value the no-config path has always produced, so existing cache directories stay valid.
         ''' </summary>
         Friend Shared Function Fingerprint(files As ImmutableArray(Of SourceConfigFile)) As String
             If files.IsDefaultOrEmpty Then

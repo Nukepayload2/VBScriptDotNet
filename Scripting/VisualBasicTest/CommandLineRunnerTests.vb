@@ -99,13 +99,17 @@ Public Class CommandLineRunnerTests
         Return assemblyPath
     End Function
 
-    Private Shared Function CreateRunner(
+    ' Friend so the L4 parity harness (HostingParityTests) drives the exact same in-process vbi construction;
+    ' it must not spawn vbi.exe (test-plan §1 forbids child processes). The optional console lets that harness
+    ' keep stdout and stderr separate (TestConsoleIO tees stderr into stdout for the REPL expectations).
+    Friend Shared Function CreateRunner(
         Optional args As String() = Nothing,
         Optional input As String = "",
         Optional responseFile As String = Nothing,
-        Optional workingDirectory As String = Nothing
+        Optional workingDirectory As String = Nothing,
+        Optional console As ConsoleIO = Nothing
     ) As CommandLineRunner
-        Dim io = New TestConsoleIO(input)
+        Dim io = If(console, New TestConsoleIO(input))
 
         Dim buildPaths = New BuildPaths(
             clientDir:=AppContext.BaseDirectory,
